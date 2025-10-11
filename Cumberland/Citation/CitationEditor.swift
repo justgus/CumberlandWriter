@@ -42,7 +42,7 @@ struct CitationEditor: View {
                         selectedSource = sources.first(where: { $0.id == newID })
                     })) {
                         Text("— Select —").tag(UUID?.none)
-                        ForEach(sources) { s in
+                        ForEach(sources, id: \.id) { s in
                             Text(s.title).tag(Optional(s.id))
                         }
                     }

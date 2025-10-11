@@ -150,7 +150,12 @@ struct CardView: View {
     }
 
     private var sizePicker: some View {
-        Picker("Size", selection: $card.sizeCategory) {
+        // Map a Binding to the computed sizeCategory wrapper
+        let binding = Binding<SizeCategory>(
+            get: { card.sizeCategory },
+            set: { card.sizeCategory = $0 }
+        )
+        return Picker("Size", selection: binding) {
             ForEach(SizeCategory.allCases, id: \.self) { sc in
                 Text(sc.displayName).tag(sc)
             }

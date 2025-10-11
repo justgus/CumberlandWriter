@@ -83,10 +83,13 @@ struct ImageAttributionViewer: View {
 
     @MainActor
     private func reloadImageCitations() {
-        let cardID = card.id
+        // Match optional relationship key path with an optional RHS value for the predicate DSL.
+        let cardIDOpt: UUID? = card.id
         let imageKindRaw = CitationKind.image.rawValue
         let fetch = FetchDescriptor<Citation>(
-            predicate: #Predicate { $0.card.id == cardID && $0.kindRaw == imageKindRaw },
+            predicate: #Predicate {
+                $0.card?.id == cardIDOpt && $0.kindRaw == imageKindRaw
+            },
             sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         )
         imageCitations = (try? modelContext.fetch(fetch)) ?? []
@@ -114,10 +117,18 @@ private struct ImageAttributionRow: View {
     let onEdit: (Citation) -> Void
     let onDelete: (Citation) -> Void
 
+    // Prefer chicagoShort if available, then title, else a placeholder.
+    private var sourceDisplayTitle: String {
+        let short = citation.source?.chicagoShort ?? ""
+        if !short.isEmpty { return short }
+        let title = citation.source?.title ?? ""
+        return title.isEmpty ? "Untitled Source" : title
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(citation.source.chicagoShort.isEmpty ? citation.source.title : citation.source.chicagoShort)
+                Text(sourceDisplayTitle)
                     .font(.caption)
                     .lineLimit(2)
                 if let summary, !summary.isEmpty {

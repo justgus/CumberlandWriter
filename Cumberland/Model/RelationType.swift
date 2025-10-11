@@ -4,15 +4,19 @@ import SwiftData
 
 @Model
 final class RelationType {
-    @Attribute(.unique)
-    var code: String
-    var forwardLabel: String
-    var inverseLabel: String
+    // CloudKit: no unique constraints; provide defaults at declaration
+    var code: String = ""
+    var forwardLabel: String = ""
+    var inverseLabel: String = ""
 
     // Optional constraints: nil means "applies to any"
     // Store raw values to keep predicates simple and consistent with Card.kindRaw.
     var sourceKindRaw: String? = nil
     var targetKindRaw: String? = nil
+
+    // Inverse collection for CardEdge.type (CloudKit: relationship must be optional)
+    @Relationship(deleteRule: .nullify, inverse: \CardEdge.type)
+    var edges: [CardEdge]? = []
 
     init(
         code: String,
@@ -46,4 +50,3 @@ final class RelationType {
         return sourceOK && targetOK
     }
 }
-

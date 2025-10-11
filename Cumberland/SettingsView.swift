@@ -44,6 +44,10 @@ private extension HorizontalAlignment {
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
 
+    // Mirror color scheme preference into UserDefaults for fast app startup
+    @AppStorage("AppSettings.colorSchemePreferenceRaw")
+    private var colorSchemeRaw: String = ColorSchemePreference.system.rawValue
+
     // Allow preview injection; production path loads from SwiftData
     @State private var settings: AppSettings?
 
@@ -81,6 +85,12 @@ struct SettingsView: View {
 
             if settings == nil {
                 let s = fetchOrCreateSettings()
+                // One-time reconciliation: prefer existing UserDefaults value if it differs
+                let currentUD = ColorSchemePreference(rawValue: colorSchemeRaw) ?? .system
+                if s.colorSchemePreference != currentUD {
+                    s.colorSchemePreference = currentUD
+                    try? modelContext.save()
+                }
                 settings = s
                 if selection == nil {
                     // Coerce any previously stored value to a valid section.
@@ -105,11 +115,13 @@ struct SettingsView: View {
         List(selection: $selection) {
             ForEach(SettingsSection.allCases) { section in
                 Label(section.title, systemImage: section.systemImage)
-                    .tag(section) // Ensure tag type matches selection's wrapped value
+                    .tag(section)
+                    .glassButtonStyle()
                     .contentShape(Rectangle())
             }
         }
         .listStyle(.sidebar)
+        .background(.ultraThinMaterial, in: Rectangle())
     }
 
     // MARK: - Detail
@@ -121,7 +133,7 @@ struct SettingsView: View {
             case .display:
                 DisplaySettingsPane(
                     settings: settingsBinding(for: \.self),
-                    onSave: save
+                    onSave: saveAndSyncUserDefaults
                 )
                 .navigationTitle("Display")
             case .cards:
@@ -202,6 +214,16 @@ struct SettingsView: View {
             try? modelContext.save()
         }
     }
+
+    // Save and mirror appearance to UserDefaults so the App can read it on next launch (and live)
+    private func saveAndSyncUserDefaults() {
+        Task { @MainActor in
+            if let s = settings {
+                colorSchemeRaw = s.colorSchemePreference.rawValue
+            }
+            try? modelContext.save()
+        }
+    }
 }
 
 // MARK: - Detail Panes
@@ -211,9 +233,19 @@ private struct DisplaySettingsPane: View {
     var onSave: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Form {
-                Section("Appearance") {
+        VStack(alignment: .leading, spacing: 16) {
+            GlassFormSection(
+                "Appearance",
+                footer: "The app can follow System appearance or always use Light/Dark. This preference takes effect app-wide.",
+                tint: .blue
+            ) {
+                VStack(spacing: 12) {
+                    HStack {
+                        Text("Color Scheme")
+                            .font(.body)
+                        Spacer()
+                    }
+                    
                     Picker("Color Scheme", selection: Binding(
                         get: { settings.colorSchemePreference },
                         set: { newValue in
@@ -229,54 +261,46 @@ private struct DisplaySettingsPane: View {
                     .accessibilityLabel("Color Scheme Preference")
                     .help("Choose Light, Dark, or follow the System setting.")
                 }
-
-                Section {
-                    Text("The app can follow System appearance or always use Light/Dark. This preference takes effect app-wide.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+                .padding()
             }
-            // Add some breathing room around the form while keeping content top-aligned.
-            .padding(.top, 8)
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
-
+            
             Spacer(minLength: 0)
         }
+        .padding(.top, 16)
+        .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
-// Cards settings: list rows for each size category with data binding, save-on-change, and aligned values
 private struct CardSettingsPane: View {
     @Binding var settings: AppSettings
     var onSave: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Constrain the form's width so rows don't sprawl on very wide windows.
-            HStack(alignment: .top, spacing: 0) {
-                Form {
-                    Section("Size Category") {
-                        // Use a VStack with our custom alignment to line up the values
-                        VStack(alignment: .valueColumn, spacing: 8) {
-                            ForEach(SizeCategory.allCases, id: \.self) { category in
-                                rowDetail(for: category)
-                            }
+        VStack(alignment: .leading, spacing: 16) {
+            GlassFormSection(
+                "Size Category Configuration",
+                footer: "Configure how many lines each card size category displays in your layouts.",
+                tint: .green
+            ) {
+                VStack(spacing: 0) {
+                    ForEach(Array(SizeCategory.allCases.enumerated()), id: \.element) { index, category in
+                        if index > 0 {
+                            Divider()
+                                .padding(.leading, 16)
                         }
+                        
+                        cardSettingRow(for: category)
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 16)
                     }
                 }
-                .frame(maxWidth: 520, alignment: .leading)
-
-                Spacer(minLength: 0)
             }
-            // Add padding around the pane similar to DisplaySettingsPane
-            .padding(.top, 8)
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
-
+            
             Spacer(minLength: 0)
         }
+        .padding(.top, 16)
+        .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
@@ -296,48 +320,83 @@ private struct CardSettingsPane: View {
                 case .standard: settings.linesStandard = newValue
                 case .large:    settings.linesLarge = newValue
                 }
+                onSave()
             }
         )
     }
 
-    // Row detail: value aligned and a labelless stepper to the right
     @ViewBuilder
-    private func rowDetail(for category: SizeCategory) -> some View {
+    private func cardSettingRow(for category: SizeCategory) -> some View {
         let binding = lineLimitBinding(for: category)
 
         HStack(spacing: 12) {
             Label(category.displayName, systemImage: category.systemImage)
+                .font(.body)
 
-            // Compact trailing value right next to the label
-            HStack(spacing: 6) {
-                // Align the numeric value's trailing edge to the shared value column
+            Spacer()
+
+            HStack(spacing: 8) {
                 Text("\(binding.wrappedValue)")
                     .font(.body.monospacedDigit())
-                    .frame(width: 36, alignment: .trailing) // fits up to 3 digits
-                    .lineLimit(1)
-                    .alignmentGuide(.valueColumn) { d in d[.trailing] }
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 24)
 
                 Text("lines")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
 
-                // Labelless stepper tied to the same binding
-                Stepper(value: binding, in: 1...99) {
-                    EmptyView()
+                GlassEffectContainer(spacing: 8) {
+                    HStack(spacing: 0) {
+                        Button {
+                            if binding.wrappedValue > 1 {
+                                binding.wrappedValue -= 1
+                                onSave()
+                            }
+                        } label: {
+                            Image(systemName: "minus")
+                                .font(.caption.weight(.semibold))
+                                .frame(width: 20, height: 20)
+                        }
+                        .glassButtonStyle()
+                        .disabled(binding.wrappedValue <= 1)
+                        
+                        Button {
+                            if binding.wrappedValue < 99 {
+                                binding.wrappedValue += 1
+                                onSave()
+                            }
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.caption.weight(.semibold))
+                                .frame(width: 20, height: 20)
+                        }
+                        .glassButtonStyle()
+                        .disabled(binding.wrappedValue >= 99)
+                    }
                 }
-                .labelsHidden()
-                .accessibilityLabel("\(category.displayName) lines stepper")
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(category.displayName) lines")
         }
-        .onChange(of: binding.wrappedValue) { _, _ in
-            onSave()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(category.displayName): \(binding.wrappedValue) lines")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment:
+                if binding.wrappedValue < 99 {
+                    binding.wrappedValue += 1
+                    onSave()
+                }
+            case .decrement:
+                if binding.wrappedValue > 1 {
+                    binding.wrappedValue -= 1
+                    onSave()
+                }
+            @unknown default:
+                break
+            }
         }
-        .contentShape(Rectangle())
     }
 }
 
-// Author settings: lets the user set the default author name
 private struct AuthorSettingsPane: View {
     @Binding var settings: AppSettings
     var onSave: () -> Void
@@ -345,33 +404,43 @@ private struct AuthorSettingsPane: View {
     @State private var tempAuthor: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Form {
-                Section("Default Author") {
-                    TextField("Name", text: Binding(
-                        get: { tempAuthor },
-                        set: { newValue in
-                            tempAuthor = newValue
-                            settings.defaultAuthor = newValue
-                            onSave()
-                        }
-                    ))
-                    .textContentType(.name)
-                    #if os(iOS) || os(visionOS)
-                    .textInputAutocapitalization(.words)
-                    #endif
-
-                    Text("Use Shift–Command–A in the Author field while editing a Card to insert this default.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 16) {
+            GlassFormSection(
+                "Default Author",
+                footer: "Use Shift–Command–A in the Author field while editing a Card to insert this default.",
+                tint: .purple
+            ) {
+                VStack(spacing: 16) {
+                    HStack {
+                        Image(systemName: "person.crop.circle")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                        
+                        TextField("Name", text: Binding(
+                            get: { tempAuthor },
+                            set: { newValue in
+                                tempAuthor = newValue
+                                settings.defaultAuthor = newValue
+                                onSave()
+                            }
+                        ))
+                        .textFieldStyle(.plain)
+                        .textContentType(.name)
+                        #if os(iOS) || os(visionOS)
+                        .textInputAutocapitalization(.words)
+                        #endif
+                        .padding(.vertical, 8)
+                    }
+                    .padding(.horizontal, 16)
+                    .glassSurfaceStyle(cornerRadius: 8, tint: .purple.opacity(0.1), interactive: true)
                 }
+                .padding()
             }
-            .padding(.top, 8)
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
-
+            
             Spacer(minLength: 0)
         }
+        .padding(.top, 16)
+        .padding(.horizontal, 20)
         .onAppear {
             tempAuthor = settings.defaultAuthor
         }
@@ -429,4 +498,3 @@ private struct AuthorSettingsPane: View {
         .frame(minWidth: 520, minHeight: 380)
         .modelContainer(container)
 }
-

@@ -31,15 +31,15 @@ struct RecentEdgesDiagnosticsView: View {
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                                 .frame(width: 160, alignment: .leading)
-                            Text(e.type.forwardLabel)
+                            Text(e.type?.forwardLabel ?? "—")
                                 .font(.body)
                             Text("—")
                                 .foregroundStyle(.secondary)
-                            Text(e.from.name)
+                            Text(e.from?.name ?? "—")
                                 .font(.body)
                             Text("→")
                                 .foregroundStyle(.secondary)
-                            Text(e.to.name)
+                            Text(e.to?.name ?? "—")
                                 .font(.body)
                         }
                         .lineLimit(1)
@@ -96,4 +96,3 @@ struct RecentEdgesDiagnosticsView: View {
         .modelContainer(container)
         .frame(width: 640, height: 480)
 }
-

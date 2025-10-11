@@ -37,10 +37,10 @@ struct CardDiagnosticsView: View {
                         List {
                             ForEach(forwardEdges, id: \.createdAt) { edge in
                                 HStack {
-                                    Text(edge.type.forwardLabel)
+                                    Text(edge.type?.forwardLabel ?? "—")
                                     Text("–")
                                         .foregroundStyle(.secondary)
-                                    Text(edge.to.name)
+                                    Text(edge.to?.name ?? "Untitled")
                                 }
                             }
                         }
@@ -72,15 +72,27 @@ struct CardDiagnosticsView: View {
 
     @MainActor
     private func reloadForwardEdges() {
-        let fromID = card.id
+        // Match optional relationship key path with an optional RHS value in the predicate.
+        let fromIDOpt: UUID? = card.id
         let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from.id == fromID },
-            sortBy: [
-                SortDescriptor(\.type.code, order: .forward),
-                SortDescriptor(\.to.name, order: .forward)
-            ]
+            predicate: #Predicate { $0.from?.id == fromIDOpt },
+            // Avoid sorting across optional relationships in the fetch; sort in-memory below.
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         )
-        forwardEdges = (try? modelContext.fetch(fetch)) ?? []
+        let fetched = (try? modelContext.fetch(fetch)) ?? []
+
+        // In-memory sort: by type code, then by 'to' name, then by createdAt for stability.
+        forwardEdges = fetched.sorted { a, b in
+            let aType = a.type?.code ?? ""
+            let bType = b.type?.code ?? ""
+            if aType != bType { return aType < bType }
+
+            let aName = a.to?.name ?? ""
+            let bName = b.to?.name ?? ""
+            if aName != bName { return aName < bName }
+
+            return a.createdAt < b.createdAt
+        }
     }
 }
 

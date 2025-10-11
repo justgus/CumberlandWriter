@@ -4,11 +4,12 @@ import SwiftData
 
 @Model
 final class Source {
-    @Attribute(.unique)
-    var id: UUID
+    // CloudKit: no unique constraints; provide defaults at declaration
+    var id: UUID = UUID()
 
-    var title: String
-    var authors: String // Simple string; can normalize later to an array
+    // Non-optional properties require declaration defaults for CloudKit
+    var title: String = ""
+    var authors: String = "" // Simple string; can normalize later to an array
     var containerTitle: String?
     var publisher: String?
     var year: Int?
@@ -20,6 +21,10 @@ final class Source {
     var accessedDate: Date?
     var license: String?
     var notes: String?
+
+    // Inverse collection for Citation.source
+    @Relationship(deleteRule: .cascade, inverse: \Citation.source)
+    var citations: [Citation]? = []
 
     init(id: UUID = UUID(),
          title: String,

@@ -20,29 +20,23 @@ import UniformTypeIdentifiers
 //
 @Model
 final class Card: Identifiable {
-    // Stable identifier for selection and hashing
-    @Attribute(.unique)
-    var id: UUID
+    // Stable identifier for selection and hashing (CloudKit: provide default)
+    var id: UUID = UUID()
 
-    // Kind of card used for browsing/queries. Immutable to callers after init.
-    // Provide a default so migration can backfill existing rows.
-    private(set) var kind: Kinds = Kinds.projects
-
-    // Mirror of 'kind' persisted as a primitive for SwiftData querying
-    // Keep this in sync with 'kind' (kind is immutable after init here).
-    // Provide a default so migration can backfill existing rows.
+    // Persisted primitive backing for Kind (CloudKit-safe)
+    // Use computed 'kind' for app logic.
     var kindRaw: String = Kinds.projects.rawValue
 
-    // Core fields
-    var name: String {
+    // Core fields (CloudKit: provide defaults)
+    var name: String = "" {
         didSet { recomputeNormalizedSearchText() }
     }
 
-    var subtitle: String {
+    var subtitle: String = "" {
         didSet { recomputeNormalizedSearchText() }
     }
 
-    var detailedText: String {
+    var detailedText: String = "" {
         didSet { recomputeNormalizedSearchText() }
     }
 
@@ -52,20 +46,36 @@ final class Card: Identifiable {
         didSet { recomputeNormalizedSearchText() }
     }
 
-    // Additional metadata used by UI
-    var sizeCategory: SizeCategory
+    // Persisted primitive backing for SizeCategory (CloudKit-safe)
+    var sizeCategoryRaw: Int = SizeCategory.standard.rawValue
 
     // Embedded thumbnail data (PNG), synced. External storage keeps the row small.
     @Attribute(.externalStorage)
     var thumbnailData: Data?
 
     // File URL to original image stored on disk (not synced)
-    // This is intentionally local-only; if you later adopt CloudKit, keep this excluded.
+    // Local-only: do not mirror device paths to CloudKit.
+    @Transient
     var imageFileURL: URL?
 
     // Precomputed aggregate for simple/backup searches
     // Provide a default so migration can backfill existing rows.
     var normalizedSearchText: String = ""
+
+    // Many-to-many with StructureElement (CloudKit: relationships must be optional; inverse is declared on StructureElement)
+    @Relationship(deleteRule: .nullify)
+    var structureElements: [StructureElement]? = []
+
+    // Inverse collections for CardEdge (CloudKit: relationships must be optional)
+    @Relationship(deleteRule: .cascade, inverse: \CardEdge.from)
+    var outgoingEdges: [CardEdge]? = []
+
+    @Relationship(deleteRule: .cascade, inverse: \CardEdge.to)
+    var incomingEdges: [CardEdge]? = []
+
+    // Inverse collection for Citation.card
+    @Relationship(deleteRule: .cascade, inverse: \Citation.card)
+    var citations: [Citation]? = []
 
     init(
         id: UUID = UUID(),
@@ -79,17 +89,27 @@ final class Card: Identifiable {
         imageFileURL: URL? = nil
     ) {
         self.id = id
-        self.kind = kind
         self.kindRaw = kind.rawValue
         self.name = name
         self.subtitle = subtitle
         self.detailedText = detailedText
         self.author = author
-        self.sizeCategory = sizeCategory
+        self.sizeCategoryRaw = sizeCategory.rawValue
         self.thumbnailData = thumbnailData
         self.imageFileURL = imageFileURL
         self.normalizedSearchText = ""
         recomputeNormalizedSearchText()
+    }
+
+    // Computed Kind (backed by kindRaw)
+    var kind: Kinds {
+        Kinds(rawValue: kindRaw) ?? .projects
+    }
+
+    // Computed SizeCategory (backed by sizeCategoryRaw)
+    var sizeCategory: SizeCategory {
+        get { SizeCategory(rawValue: sizeCategoryRaw) ?? .standard }
+        set { sizeCategoryRaw = newValue.rawValue }
     }
 }
 

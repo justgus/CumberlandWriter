@@ -147,84 +147,102 @@ struct CardSheetView: View {
     // MARK: - UI Sections
 
     private var modePicker: some View {
-        Picker("Mode", selection: $editorMode) {
-            ForEach(EditorMode.allCases) { mode in
-                Text(mode.rawValue).tag(mode)
+        AdaptiveGlassToolbar(tint: .blue, interactive: true) {
+            Picker("Mode", selection: $editorMode) {
+                ForEach(EditorMode.allCases) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
             }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Editor Mode")
         }
-        .pickerStyle(.segmented)
-        .accessibilityLabel("Editor Mode")
-        .glassToolbarStyle()
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(card.kind.title)
-                    .font(.title2).bold()
+        GlassEffectContainer(spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(card.kind.title)
+                        .font(.title2).bold()
+                        .modernGlassEffect(.regular.tint(.blue), in: .rect(cornerRadius: 8))
 
-                // Name: edit in place
-                Group {
-                    if isEditingName {
-                        TextField("Name", text: $nameDraft, onCommit: commitName)
-                            .textFieldStyle(.roundedBorder)
-                            .focused($focusedField, equals: .name)
-                            .onChange(of: focusedField) { _, newFocus in
-                                if newFocus != .name {
-                                    commitName()
-                                }
-                            }
-                    } else {
-                        Text(card.name)
-                            .font(.title3)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                nameDraft = card.name
-                                isEditingName = true
-                                focusedField = .name
-                            }
-                    }
-                }
-
-                // Subtitle: edit in place
-                Group {
-                    if isEditingSubtitle {
-                        TextField("Subtitle (optional)", text: $subtitleDraft, onCommit: commitSubtitle)
-                            .textFieldStyle(.roundedBorder)
-                            .focused($focusedField, equals: .subtitle)
-                            .onChange(of: focusedField) { _, newFocus in
-                                if newFocus != .subtitle {
-                                    commitSubtitle()
-                                }
-                            }
-                    } else {
-                        if !card.subtitle.isEmpty {
-                            Text(card.subtitle)
-                                .foregroundStyle(.secondary)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    subtitleDraft = card.subtitle
-                                    isEditingSubtitle = true
-                                    focusedField = .subtitle
+                    // Name: edit in place
+                    Group {
+                        if isEditingName {
+                            TextField("Name", text: $nameDraft, onCommit: commitName)
+                                .textFieldStyle(.plain)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .cardGlassSurface(cornerRadius: 8, interactive: true)
+                                .focused($focusedField, equals: .name)
+                                .onChange(of: focusedField) { _, newFocus in
+                                    if newFocus != .name {
+                                        commitName()
+                                    }
                                 }
                         } else {
-                            Text("Add subtitle")
-                                .foregroundStyle(.secondary)
-                                .italic()
+                            Text(card.name)
+                                .font(.title3)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .cardGlassSurface(cornerRadius: 8, interactive: true)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    subtitleDraft = ""
-                                    isEditingSubtitle = true
-                                    focusedField = .subtitle
+                                    nameDraft = card.name
+                                    isEditingName = true
+                                    focusedField = .name
                                 }
                         }
                     }
+
+                    // Subtitle: edit in place
+                    Group {
+                        if isEditingSubtitle {
+                            TextField("Subtitle (optional)", text: $subtitleDraft, onCommit: commitSubtitle)
+                                .textFieldStyle(.plain)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .cardGlassSurface(cornerRadius: 8, interactive: true)
+                                .focused($focusedField, equals: .subtitle)
+                                .onChange(of: focusedField) { _, newFocus in
+                                    if newFocus != .subtitle {
+                                        commitSubtitle()
+                                    }
+                                }
+                        } else {
+                            if !card.subtitle.isEmpty {
+                                Text(card.subtitle)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .cardGlassSurface(cornerRadius: 8, interactive: true)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        subtitleDraft = card.subtitle
+                                        isEditingSubtitle = true
+                                        focusedField = .subtitle
+                                    }
+                            } else {
+                                Text("Add subtitle")
+                                    .foregroundStyle(.secondary)
+                                    .italic()
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .cardGlassSurface(cornerRadius: 8, tint: .gray.opacity(0.1), interactive: true)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        subtitleDraft = ""
+                                        isEditingSubtitle = true
+                                        focusedField = .subtitle
+                                    }
+                            }
+                        }
+                    }
                 }
-            }
 
-            Spacer(minLength: 12)
+                Spacer(minLength: 12)
 
-            Group {
+                // Image section with glass effect
                 VStack(alignment: .leading, spacing: 8) {
                     Group {
                         if let fullImage {
@@ -232,28 +250,24 @@ struct CardSheetView: View {
                                 .resizable()
                                 .scaledToFit()
                                 .accessibilityLabel("Full Image")
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .stroke(.quaternary, lineWidth: 1)
-                                )
                                 .frame(maxHeight: 240)
+                                .cardGlassSurface(cornerRadius: 12, interactive: true)
                                 .contextMenu {
                                     Button("Replace Image…") { presentImagePicker() }
                                     Button("Remove Image", role: .destructive) { removeImage() }
                                 }
                         } else {
-                            ZStack {
-                                VStack(spacing: 6) {
-                                    Image(systemName: "photo")
-                                        .foregroundStyle(.secondary)
-                                    Text("Drop image here")
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            VStack(spacing: 8) {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 32))
+                                    .foregroundStyle(.secondary)
+                                Text("Drop image here")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
                             }
                             .frame(height: 120)
+                            .frame(maxWidth: .infinity)
+                            .cardGlassSurface(cornerRadius: 12, tint: .gray.opacity(0.1), interactive: true)
                             .contextMenu {
                                 Button("Choose Image…") { presentImagePicker() }
                             }
@@ -262,29 +276,28 @@ struct CardSheetView: View {
 
                     // Image attribution (compact)
                     ImageAttributionViewer(card: card)
+                        .cardGlassSurface(cornerRadius: 8, tint: .purple.opacity(0.1))
                 }
+                .frame(width: 160)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(isDropTargeted ? Color.accentColor : .clear, lineWidth: 2)
+                        .animation(.easeInOut(duration: 0.2), value: isDropTargeted)
+                )
+                .dropDestination(for: Data.self, action: { items, _ in
+                    guard let data = items.first else { return false }
+                    return handleDroppedImageData(data)
+                }, isTargeted: { hovering in
+                    isDropTargeted = hovering
+                })
+                .dropDestination(for: URL.self, action: { urls, _ in
+                    guard let url = urls.first,
+                          let data = try? Data(contentsOf: url) else { return false }
+                    return handleDroppedImageData(data)
+                }, isTargeted: { hovering in
+                    isDropTargeted = hovering
+                })
             }
-            .frame(width: 160)
-            .contentShape(Rectangle())
-            .glassSurfaceStyle(cornerRadius: 8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(isDropTargeted ? .accent.opacity(0.6) : .clear, lineWidth: 3)
-                    .animation(.easeInOut(duration: 0.12), value: isDropTargeted)
-            )
-            .dropDestination(for: Data.self, action: { items, _ in
-                guard let data = items.first else { return false }
-                return handleDroppedImageData(data)
-            }, isTargeted: { hovering in
-                isDropTargeted = hovering
-            })
-            .dropDestination(for: URL.self, action: { urls, _ in
-                guard let url = urls.first,
-                      let data = try? Data(contentsOf: url) else { return false }
-                return handleDroppedImageData(data)
-            }, isTargeted: { hovering in
-                isDropTargeted = hovering
-            })
         }
     }
 
@@ -334,7 +347,7 @@ struct CardSheetView: View {
             )
             .frame(minHeight: 220)
             .padding(8)
-            .glassSurfaceStyle()
+            .cardGlassSurface(cornerRadius: 12)
         }
         .onAppear {
             detailsDraft = card.detailedText
@@ -363,7 +376,7 @@ struct CardSheetView: View {
                 )
                 .frame(minHeight: 220)
                 .padding(8)
-                .glassSurfaceStyle()
+                .cardGlassSurface(cornerRadius: 12)
                 .contentShape(Rectangle())
                 .onTapGesture {
                     // Tap-to-edit from preview
@@ -377,7 +390,7 @@ struct CardSheetView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
-                    .glassSurfaceStyle()
+                    .cardGlassSurface(cornerRadius: 12)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         // Tap-to-edit from empty preview
@@ -421,11 +434,12 @@ struct CardSheetView: View {
     }
 
     private var adaptiveFormattingToolbar: some View {
-        AdaptiveToolbar(items: toolbarItems)
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-            .labelStyle(.iconOnly)
-            .accessibilityElement(children: .contain)
+        AdaptiveGlassToolbar(tint: .orange, interactive: true) {
+            AdaptiveToolbar(items: toolbarItems)
+                .controlSize(.small)
+                .labelStyle(.iconOnly)
+                .accessibilityElement(children: .contain)
+        }
     }
 
     // MARK: - Inline edit commits
@@ -1151,6 +1165,74 @@ private extension View {
     func glassToolbarStyle() -> some View { self }
 }
 
+// MARK: - Local, unambiguous glass surface for this file
+
+private struct LocalGlassSurfaceModifier: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    let cornerRadius: CGFloat
+    let tint: Color
+    let interactive: Bool
+    @State private var hovering: Bool = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                tint.opacity(scheme == .dark ? 0.14 : 0.10),
+                                tint.opacity(0.0),
+                                tint.opacity(scheme == .dark ? 0.10 : 0.06)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .blendMode(.softLight)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(.white.opacity(scheme == .dark ? 0.20 : 0.35), lineWidth: 0.75)
+                    .blendMode(.overlay)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(.quaternary.opacity(0.6), lineWidth: 0.5)
+            )
+            .shadow(
+                color: .black.opacity(scheme == .dark ? 0.28 : 0.10),
+                radius: interactive ? (hovering ? 10 : 8) : 8,
+                x: 0,
+                y: interactive ? (hovering ? 6 : 4) : 4
+            )
+            .scaleEffect(interactive && hovering ? 1.01 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: hovering)
+            .onHoverIfAvailable { hovering = interactive ? $0 : false }
+    }
+}
+
+private extension View {
+    func cardGlassSurface(cornerRadius: CGFloat = 12,
+                          tint: Color = .accentColor.opacity(0.15),
+                          interactive: Bool = false) -> some View {
+        modifier(LocalGlassSurfaceModifier(cornerRadius: cornerRadius, tint: tint, interactive: interactive))
+    }
+
+    @ViewBuilder
+    func onHoverIfAvailable(_ handler: @escaping (Bool) -> Void) -> some View {
+        #if os(macOS)
+        self.onHover(perform: handler)
+        #else
+        self
+        #endif
+    }
+}
+
 #Preview("CardSheetView") {
     let cfg = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: Card.self, configurations: cfg)
@@ -1182,4 +1264,3 @@ private extension View {
     }
     .modelContainer(container)
 }
-

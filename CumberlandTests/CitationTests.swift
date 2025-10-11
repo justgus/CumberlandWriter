@@ -42,15 +42,15 @@ struct CitationTests {
         // Fetch with the same predicate used in the UI
         let cardID = card.id
         let fetch = FetchDescriptor<Citation>(
-            predicate: #Predicate { $0.card.id == cardID && $0.kindRaw == CitationKind.image.rawValue },
+            predicate: #Predicate { $0.card?.id == cardID && $0.kindRaw == CitationKind.image.rawValue },
             sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         )
         let results = try ctx.fetch(fetch)
 
         #expect(results.count == 1)
         let found = try #require(results.first)
-        #expect(found.card.id == card.id)
-        #expect(found.source.id == src.id)
+        #expect(found.card?.id == card.id)
+        #expect(found.source?.id == src.id)
         #expect(found.kind == .image)
         #expect(found.locator == "fig. 2")
         #expect(found.excerpt == "Sunset")
@@ -90,12 +90,12 @@ struct CitationTests {
         try ctx.save()
 
         let fetch = FetchDescriptor<Citation>(
-            predicate: #Predicate { $0.card.id == card.id && $0.kindRaw == CitationKind.image.rawValue }
+            predicate: #Predicate { $0.card?.id == card.id && $0.kindRaw == CitationKind.image.rawValue }
         )
         let results = try ctx.fetch(fetch)
         #expect(results.count == 1)
         let updated = try #require(results.first)
-        #expect(updated.source.id == src2.id)
+        #expect(updated.source?.id == src2.id)
         #expect(updated.locator == "p. 12")
         #expect(updated.excerpt == "Updated")
         #expect(updated.contextNote == "Revised note")
@@ -131,12 +131,12 @@ struct CitationTests {
 
         // Same fetch used by CitationsSection (all kinds for the card)
         let fetch = FetchDescriptor<Citation>(
-            predicate: #Predicate { $0.card.id == card.id },
+            predicate: #Predicate { $0.card?.id == card.id },
             sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         )
         let results = try ctx.fetch(fetch)
 
-        #expect(results.map { $0.source.title } == ["S1", "S2", "S3"])
+        #expect(results.map { $0.source?.title ?? "" } == ["S1", "S2", "S3"])
         #expect(results[0].kind == .quote)
         #expect(results[1].kind == .paraphrase)
         #expect(results[2].kind == .data)

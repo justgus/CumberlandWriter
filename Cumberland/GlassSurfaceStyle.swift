@@ -2,57 +2,59 @@ import SwiftUI
 
 public struct GlassSurfaceStyle: ViewModifier {
     var cornerRadius: CGFloat
-    var shadowRadius: CGFloat
-    var shadowOpacity: Double
-    var shadowYOffset: CGFloat
+    var isInteractive: Bool
+    var tintColor: Color?
 
     #if os(macOS)
     @State private var isHovering = false
     #endif
 
     public init(cornerRadius: CGFloat = 12,
-                shadowRadius: CGFloat = 12,
-                shadowOpacity: Double = 0.12,
-                shadowYOffset: CGFloat = 4) {
+                isInteractive: Bool = false,
+                tintColor: Color? = nil) {
         self.cornerRadius = cornerRadius
-        self.shadowRadius = shadowRadius
-        self.shadowOpacity = shadowOpacity
-        self.shadowYOffset = shadowYOffset
+        self.isInteractive = isInteractive
+        self.tintColor = tintColor
     }
 
     public func body(content: Content) -> some View {
-        #if os(visionOS)
         content
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .glassBackgroundEffect()
-        #else
-        content
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.thinMaterial)
+            #if os(visionOS)
+            .background {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(.ultraThinMaterial, style: FillStyle())
+                    .overlay {
+                        if let tintColor {
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .fill(tintColor.opacity(0.3))
+                        }
+                    }
+            }
+            #else
+            .glassEffect(
+                .regular
+                    .tint(tintColor ?? .clear)
+                    .interactive(isInteractive),
+                in: .rect(cornerRadius: cornerRadius)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(.quaternary, lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(shadowOpacity),
-                    radius: shadowRadius,
-                    x: 0,
-                    y: shadowYOffset)
+            #endif
             #if os(macOS)
             .onHover { hover in
                 withAnimation(.easeInOut(duration: 0.18)) {
                     isHovering = hover
                 }
             }
-            .scaleEffect(isHovering ? 1.02 : 1.0)
+            .scaleEffect(isHovering && isInteractive ? 1.02 : 1.0)
             #endif
-        #endif
     }
 }
 
 public extension View {
-    func glassSurfaceStyle(cornerRadius: CGFloat = 12) -> some View {
-        modifier(GlassSurfaceStyle(cornerRadius: cornerRadius))
+    func glassSurfaceStyle(cornerRadius: CGFloat = 12, 
+                          isInteractive: Bool = false,
+                          tintColor: Color? = nil) -> some View {
+        modifier(GlassSurfaceStyle(cornerRadius: cornerRadius, 
+                                  isInteractive: isInteractive,
+                                  tintColor: tintColor))
     }
 }

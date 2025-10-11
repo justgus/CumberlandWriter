@@ -350,17 +350,17 @@ struct Swimlane: View {
 
     @MainActor
     private func edgeFor(from: Card, to: Card, type: RelationType?) -> CardEdge? {
-        let fromID = from.id
-        let toID = to.id
+        let fromIDOpt: UUID? = from.id
+        let toIDOpt: UUID? = to.id
         if let t = type {
-            let code = t.code
+            let typeCodeOpt: String? = t.code
             let fetch = FetchDescriptor<CardEdge>(
-                predicate: #Predicate { $0.from.id == fromID && $0.to.id == toID && $0.type.code == code }
+                predicate: #Predicate { $0.from?.id == fromIDOpt && $0.to?.id == toIDOpt && $0.type?.code == typeCodeOpt }
             )
             return try? modelContext.fetch(fetch).first
         } else {
             let fetch = FetchDescriptor<CardEdge>(
-                predicate: #Predicate { $0.from.id == fromID && $0.to.id == toID }
+                predicate: #Predicate { $0.from?.id == fromIDOpt && $0.to?.id == toIDOpt }
             )
             return try? modelContext.fetch(fetch).first
         }
@@ -369,13 +369,13 @@ struct Swimlane: View {
     @MainActor
     private func neighborIndicesForInsertion(at index: Int) -> (before: Double?, after: Double?) {
         // Fetch edges to master sorted by sortIndex for the same filter
-        let toID = master.id
+        let masterIDOpt: UUID? = master.id
         let predicate: Predicate<CardEdge>
         if let t = relationTypeFilter {
-            let code = t.code
-            predicate = #Predicate { $0.to.id == toID && $0.type.code == code }
+            let typeCodeOpt: String? = t.code
+            predicate = #Predicate { $0.to?.id == masterIDOpt && $0.type?.code == typeCodeOpt }
         } else {
-            predicate = #Predicate { $0.to.id == toID }
+            predicate = #Predicate { $0.to?.id == masterIDOpt }
         }
         let fetch = FetchDescriptor<CardEdge>(
             predicate: predicate,
@@ -389,7 +389,7 @@ struct Swimlane: View {
         // Map into visual order (respecting direction)
         var visual: [CardEdge] = []
         for c in orderedCards {
-            if let e = edges.first(where: { $0.from.id == c.id }) {
+            if let e = edges.first(where: { $0.from?.id == Optional(c.id) }) {
                 visual.append(e)
             }
         }
@@ -442,15 +442,15 @@ struct Swimlane: View {
     @MainActor
     private func removeCardFromLane(_ card: Card) {
         // Remove any edge(s) from card -> master that match our filter (if any), or any type if filter is nil
-        let fromID = card.id
-        let toID = master.id
+        let fromIDOpt: UUID? = card.id
+        let masterIDOpt: UUID? = master.id
 
         let predicate: Predicate<CardEdge>
         if let t = relationTypeFilter {
-            let typeCode = t.code
-            predicate = #Predicate { $0.from.id == fromID && $0.to.id == toID && $0.type.code == typeCode }
+            let typeCodeOpt: String? = t.code
+            predicate = #Predicate { $0.from?.id == fromIDOpt && $0.to?.id == masterIDOpt && $0.type?.code == typeCodeOpt }
         } else {
-            predicate = #Predicate { $0.from.id == fromID && $0.to.id == toID }
+            predicate = #Predicate { $0.from?.id == fromIDOpt && $0.to?.id == masterIDOpt }
         }
 
         let fetch = FetchDescriptor<CardEdge>(predicate: predicate)

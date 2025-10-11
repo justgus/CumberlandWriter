@@ -496,29 +496,12 @@ struct CardEditorView: View {
         guard let item else { return }
         isWorking = true
         defer { isWorking = false }
-        // Try to load raw image data first
+        
+        // Try to load raw image data using the Data transferable
         if let data = try? await item.loadTransferable(type: Data.self),
            Self.isSupportedImageData(data) {
             imageData = data
-            return
         }
-        // Fallback: try platform image -> data
-        #if canImport(UIKit)
-        if let uiImage = try? await item.loadTransferable(type: UIImage.self),
-           let data = uiImage.jpegData(compressionQuality: 0.95) ?? uiImage.pngData() {
-            imageData = data
-            return
-        }
-        #elseif canImport(AppKit)
-        if let nsImage = try? await item.loadTransferable(type: NSImage.self) {
-            if let tiff = nsImage.tiffRepresentation,
-               let rep = NSBitmapImageRep(data: tiff),
-               let data = rep.representation(using: .png, properties: [:]) {
-                imageData = data
-                return
-            }
-        }
-        #endif
     }
 
     // MARK: - Image helpers

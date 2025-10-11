@@ -3,6 +3,60 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
+// Minimal glass-like container used for the primary header, similar in spirit to AdaptiveGlassToolbar.
+struct GlassCard<Content: View>: View {
+    let cornerRadius: CGFloat
+    let tint: Color?
+    let interactive: Bool
+    let content: Content
+
+    init(cornerRadius: CGFloat = 12, tint: Color? = nil, interactive: Bool = true, @ViewBuilder content: () -> Content) {
+        self.cornerRadius = cornerRadius
+        self.tint = tint
+        self.interactive = interactive
+        self.content = content()
+    }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(.thinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(.separator.opacity(0.6), lineWidth: 0.5)
+                )
+                .overlay(
+                    Group {
+                        if let tint {
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                                .fill(tint.opacity(0.10))
+                                .allowsHitTesting(false)
+                        }
+                    }
+                )
+        }
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.08), radius: interactive ? 6 : 4, x: 0, y: interactive ? 3 : 2)
+        .overlay(
+            // Host the provided content with reasonable padding
+            VStack(alignment: .leading, spacing: 8) {
+                content
+            }
+            .padding(12)
+        )
+    }
+}
+
+extension String {
+    func dropLastIfPluralized() -> String {
+        // Simple pluralization logic - drop 's' if the word ends with 's' and is longer than 1 character
+        if self.count > 1 && self.hasSuffix("s") {
+            return String(self.dropLast())
+        }
+        return self
+    }
+}
+
 struct CardRelationshipView: View {
     let primary: Card
 
@@ -10,6 +64,8 @@ struct CardRelationshipView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
+
     @State private var selectedKind: Kinds = .projects
 
     // Add flow state
@@ -34,21 +90,22 @@ struct CardRelationshipView: View {
     private let defaultNonSourceCode: String = "references"
 
     private func masterCards(for kind: Kinds) -> [Card] {
-        // Find edges where to == primary and from.kind == kind (respect filter if provided)
+        // Fetch edges where to.id == primary.id (and optionally type.code == filter.code), then filter by from.kind in-memory
         let predicate: Predicate<CardEdge>
+        let primaryIDOpt: UUID? = primary.id
         if let t = relationTypeFilter {
-            let typeCode = t.code
-            let primaryID = primary.id
-            let rawValue = kind.rawValue
-            predicate = #Predicate { $0.to.id == primaryID && $0.from.kindRaw == rawValue && $0.type.code == typeCode }
+            let typeCodeOpt: String? = t.code
+            predicate = #Predicate {
+                $0.to?.id == primaryIDOpt && $0.type?.code == typeCodeOpt
+            }
         } else {
-            let primaryID = primary.id
-            let rawValue = kind.rawValue
-            predicate = #Predicate { $0.to.id == primaryID && $0.from.kindRaw == rawValue }
+            predicate = #Predicate {
+                $0.to?.id == primaryIDOpt
+            }
         }
         let fetch = FetchDescriptor<CardEdge>(predicate: predicate, sortBy: [SortDescriptor(\.createdAt, order: .forward)])
         let edges = (try? modelContext.fetch(fetch)) ?? []
-        let cards = edges.map { $0.from }
+        let cards = edges.compactMap { $0.from }.filter { $0.kind == kind }
         // Unique + preserve first occurrence
         var seen: Set<UUID> = []
         var ordered: [Card] = []
@@ -81,24 +138,15 @@ struct CardRelationshipView: View {
     var body: some View {
         let pageBackground: Color = primary.kind.backgroundColor(for: scheme).opacity(scheme == .dark ? 0.15 : 0.10)
         let areaBackground: Color = selectedKind.backgroundColor(for: scheme)
-        let headerBackground: Color = primary.kind.backgroundColor(for: scheme)
 
         VStack(alignment: .leading, spacing: 12) {
-            primaryHeader
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(headerBackground, in: RoundedRectangle(cornerRadius: areaCornerRadius, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: areaCornerRadius, style: .continuous)
-                        .stroke(primary.kind.accentColor(for: scheme).opacity(0.25), lineWidth: 1)
-                }
-                .innerShadow(cornerRadius: areaCornerRadius,
-                             color: .black.opacity(0.18),
-                             radius: 6,
-                             offset: CGSize(width: 0, height: 2))
-                .padding(.top, 8)
+            GlassCard(cornerRadius: areaCornerRadius, tint: primary.kind.accentColor(for: scheme).opacity(0.2), interactive: false) {
+                primaryHeader
+            }
 
-            topControls
+            AdaptiveGlassToolbar(tint: selectedKind.accentColor(for: scheme).opacity(0.3), interactive: true) {
+                topControls
+            }
 
             Divider()
 
@@ -223,6 +271,7 @@ struct CardRelationshipView: View {
             }
             .labelsHidden()
             .pickerStyle(.menu)
+            .glassButtonStyle()
 
             // Dynamic Add button label depending on whether we're adding the same kind as the primary
             let addTitle: String = (selectedKind == primary.kind)
@@ -322,13 +371,15 @@ struct CardRelationshipView: View {
         if let t = relationTypeFilter {
             return t.forwardLabel
         }
-        let fromID = card.id
-        let toID = primary.id
+        let cardIDOpt: UUID? = card.id
+        let primaryIDOpt: UUID? = primary.id
         let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from.id == fromID && $0.to.id == toID }
+            predicate: #Predicate {
+                $0.from?.id == cardIDOpt && $0.to?.id == primaryIDOpt
+            }
         )
         if let edge = try? modelContext.fetch(fetch).first {
-            return edge.type.forwardLabel
+            return edge.type?.forwardLabel
         }
         return nil
     }
@@ -377,12 +428,14 @@ struct CardRelationshipView: View {
         }
         guard let type = chosenType else { return false }
 
-        // Avoid duplicates (compare primitive values only)
-        let fromID = dropped.id
-        let toID = primary.id
-        let typeCode = type.code
+        // Avoid duplicates (compare scalar fields)
+        let droppedIDOpt: UUID? = dropped.id
+        let primaryIDOpt: UUID? = primary.id
+        let typeCodeOpt: String? = type.code
         let existsFetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from.id == fromID && $0.to.id == toID && $0.type.code == typeCode }
+            predicate: #Predicate {
+                $0.from?.id == droppedIDOpt && $0.to?.id == primaryIDOpt && $0.type?.code == typeCodeOpt
+            }
         )
         if let found = try? modelContext.fetch(existsFetch), found.isEmpty == false {
             return false
@@ -390,7 +443,9 @@ struct CardRelationshipView: View {
 
         // Append to end by using createdAt slightly after current max
         let fetchForMax = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.to.id == toID && $0.type.code == typeCode },
+            predicate: #Predicate {
+                $0.to?.id == primaryIDOpt && $0.type?.code == typeCodeOpt
+            },
             sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         )
         let existing = (try? modelContext.fetch(fetchForMax)) ?? []
@@ -416,7 +471,7 @@ struct CardRelationshipView: View {
 
         // Sources: must use "cites" (auto-use/create; no picker). Option A: target = any.
         if selectedKind == .sources {
-            let cites = ensureRelationType(code: citesCode, forward: "cites", inverse: "cited by", sourceKind: .sources, targetKind: nil)
+            let cites = ensureRelationType(code: "cites", forward: "cites", inverse: "cited by", sourceKind: .sources, targetKind: nil)
             createEdgeIfNeeded(from: newCard, to: primary, type: cites, appendToEnd: true)
             shouldCleanupPendingOnCancel = false
             return
@@ -475,11 +530,14 @@ struct CardRelationshipView: View {
 
     @MainActor
     private func createEdgeIfNeeded(from source: Card, to target: Card, type: RelationType, appendToEnd: Bool) {
-        let fromID = source.id
-        let toID = target.id
-        let typeCode = type.code
+        // Avoid duplicates (compare scalar fields)
+        let sourceIDOpt: UUID? = source.id
+        let targetIDOpt: UUID? = target.id
+        let typeCodeOpt: String? = type.code
         let existsFetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from.id == fromID && $0.to.id == toID && $0.type.code == typeCode }
+            predicate: #Predicate {
+                $0.from?.id == sourceIDOpt && $0.to?.id == targetIDOpt && $0.type?.code == typeCodeOpt
+            }
         )
         if let found = try? modelContext.fetch(existsFetch), found.isEmpty == false {
             return
@@ -489,7 +547,9 @@ struct CardRelationshipView: View {
         let createdAt: Date
         if appendToEnd {
             let fetchForMax = FetchDescriptor<CardEdge>(
-                predicate: #Predicate { $0.to.id == toID && $0.type.code == typeCode },
+                predicate: #Predicate {
+                    $0.to?.id == targetIDOpt && $0.type?.code == typeCodeOpt
+                },
                 sortBy: [SortDescriptor(\.createdAt, order: .forward)]
             )
             let existing = (try? modelContext.fetch(fetchForMax)) ?? []
@@ -744,7 +804,6 @@ private struct RelationTypePickerSheet: View {
                                 .tag(t.code)
                             }
                         }
-                        // On UIKit platforms (iOS/Catalyst), force selection mode without showing edit UI.
                         #if canImport(UIKit)
                         .environment(\.editMode, .constant(.active))
                         #endif

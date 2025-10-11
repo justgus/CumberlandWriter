@@ -26,17 +26,16 @@ enum ColorSchemePreference: String, Codable, CaseIterable, Hashable, Sendable {
 
 @Model
 final class AppSettings {
-    // Keep a unique row (singleton) so we always edit the same settings
-    @Attribute(.unique)
+    // Remove unique constraint for CloudKit compatibility
     var singletonKey: String = "AppSettingsSingleton"
 
-    // User-tunable line limits per size category
-    var linesCompact: Int
-    var linesStandard: Int
-    var linesLarge: Int
+    // Add default values at declaration for CloudKit compatibility
+    var linesCompact: Int = 1
+    var linesStandard: Int = 5
+    var linesLarge: Int = 20
 
-    // Color scheme preference
-    var colorSchemePreferenceRaw: String
+    // Provide a default raw value at declaration
+    var colorSchemePreferenceRaw: String = ColorSchemePreference.system.rawValue
 
     // Persist the last selected settings section (stringly-typed to avoid cross-file enum coupling)
     // Defaults to "Display" to match SettingsSection.display.rawValue.

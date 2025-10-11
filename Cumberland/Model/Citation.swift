@@ -5,17 +5,18 @@ import SwiftData
 @Model
 final class Citation {
     // Stable identity for SwiftUI/collections
-    var id: UUID
+    var id: UUID = UUID()
 
-    @Relationship(deleteRule: .cascade) var card: Card
-    @Relationship(deleteRule: .cascade) var source: Source
+    // CloudKit: relationships must be optional, and inverses are declared on Card.citations / Source.citations.
+    var card: Card?
+    var source: Source?
 
     // Store raw to keep the model schema simple; expose computed enum
-    var kindRaw: String
-    var locator: String
-    var excerpt: String
+    var kindRaw: String = CitationKind.quote.rawValue
+    var locator: String = ""
+    var excerpt: String = ""
     var contextNote: String?
-    var createdAt: Date
+    var createdAt: Date = Date()
 
     init(card: Card,
          source: Source,

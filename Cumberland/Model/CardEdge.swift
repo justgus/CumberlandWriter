@@ -4,13 +4,18 @@ import SwiftData
 
 @Model
 final class CardEdge {
-    @Relationship(deleteRule: .cascade) var from: Card
-    @Relationship(deleteRule: .cascade) var to: Card
-    @Relationship var type: RelationType
+    // Inverses are declared on Card (outgoingEdges/incomingEdges) and RelationType (edges).
+    // CloudKit: relationships must be optional.
+    var from: Card?
+    var to: Card?
+    var type: RelationType?
+
     var note: String?
-    var createdAt: Date
+
+    // CloudKit: provide defaults at declaration
+    var createdAt: Date = Date()
     // Persistent ordering within a swimlane (Double allows easy mid-insertion)
-    var sortIndex: Double
+    var sortIndex: Double = 0
 
     init(from: Card, to: Card, type: RelationType, note: String? = nil, createdAt: Date = Date(), sortIndex: Double? = nil) {
         self.from = from

@@ -20,11 +20,13 @@ struct RelatedEdgesList: View {
                 List {
                     ForEach(Array(edges.enumerated()), id: \.offset) { _, edge in
                         HStack(spacing: 6) {
-                            Text(edge.type.forwardLabel)
+                            let label = edge.type?.forwardLabel ?? "—"
+                            let name = edge.to?.name ?? "Unknown"
+                            Text(label)
                                 .font(.body)
                             Text("–")
                                 .foregroundStyle(.secondary)
-                            Text(edge.to.name)
+                            Text(name)
                                 .font(.body)
                                 .lineLimit(1)
                                 .truncationMode(.tail)
@@ -45,10 +47,10 @@ struct RelatedEdgesList: View {
     private func reload() {
         let fromID = card.id
         let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from.id == fromID },
+            predicate: #Predicate { $0.from?.id == fromID },
             sortBy: [
-                SortDescriptor(\.type.code, order: .forward),
-                SortDescriptor(\.to.name, order: .forward)
+                SortDescriptor(\.type?.code, order: .forward),
+                SortDescriptor(\.to?.name, order: .forward)
             ]
         )
         edges = (try? modelContext.fetch(fetch)) ?? []

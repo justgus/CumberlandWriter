@@ -28,10 +28,10 @@ struct CitationViewer: View {
                     .foregroundStyle(.secondary)
             } else {
                 List {
-                    ForEach(citations) { c in
+                    ForEach(citations, id: \.id) { c in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
-                                Text(c.source.title)
+                                Text(c.source?.title ?? "Untitled Source")
                                     .font(.subheadline).bold()
                                 Spacer()
                                 Text(c.kind.displayName)
@@ -82,18 +82,28 @@ struct CitationViewer: View {
             }
             .frame(minWidth: 420, minHeight: 360)
         }
-        .sheet(item: $editingCitation) { c in
-            CitationEditor(card: card, citation: c) { _ in
-                reloadCitations()
+        .sheet(
+            isPresented: Binding(
+                get: { editingCitation != nil },
+                set: { if !$0 { editingCitation = nil } }
+            )
+        ) {
+            if let c = editingCitation {
+                CitationEditor(card: card, citation: c) { _ in
+                    reloadCitations()
+                }
+                .frame(minWidth: 420, minHeight: 360)
+            } else {
+                EmptyView()
+                    .frame(minWidth: 420, minHeight: 360)
             }
-            .frame(minWidth: 420, minHeight: 360)
         }
     }
 
     private func reloadCitations() {
         let cardID = card.id
         let fetch = FetchDescriptor<Citation>(
-            predicate: #Predicate { $0.card.id == cardID },
+            predicate: #Predicate { $0.card?.id == cardID },
             sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         )
         citations = (try? modelContext.fetch(fetch)) ?? []

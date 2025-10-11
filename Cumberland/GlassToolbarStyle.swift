@@ -3,36 +3,37 @@ import SwiftUI
 public struct GlassToolbarStyle: ViewModifier {
     var cornerRadius: CGFloat
     var padding: CGFloat
+    var isInteractive: Bool
 
-    public init(cornerRadius: CGFloat = 14, padding: CGFloat = 6) {
+    public init(cornerRadius: CGFloat = 14, padding: CGFloat = 6, isInteractive: Bool = true) {
         self.cornerRadius = cornerRadius
         self.padding = padding
+        self.isInteractive = isInteractive
     }
 
     public func body(content: Content) -> some View {
-        #if os(visionOS)
         content
             .padding(padding)
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .glassBackgroundEffect()
-        #else
-        content
-            .padding(padding)
+            #if os(visionOS)
             .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.thinMaterial)
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(.regularMaterial.opacity(0.8))
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(.quaternary, lineWidth: 1)
+            #else
+            .glassEffect(
+                .regular.interactive(isInteractive),
+                in: .rect(cornerRadius: cornerRadius)
             )
-            .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 3)
-        #endif
+            #endif
     }
 }
 
 public extension View {
-    func glassToolbarStyle(cornerRadius: CGFloat = 14, padding: CGFloat = 6) -> some View {
-        modifier(GlassToolbarStyle(cornerRadius: cornerRadius, padding: padding))
+    func glassToolbarStyle(cornerRadius: CGFloat = 14, 
+                          padding: CGFloat = 6,
+                          isInteractive: Bool = true) -> some View {
+        modifier(GlassToolbarStyle(cornerRadius: cornerRadius, 
+                                  padding: padding, 
+                                  isInteractive: isInteractive))
     }
 }

@@ -24,26 +24,34 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		8646BDF02E999EB00056F575 /* Cumberland-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Cumberland-macOS.entitlements"; sourceTree = "<group>"; };
+		8646BE022E99A1CE0056F575 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		866A3A362E8DC16D006D3723 /* Cumberland.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cumberland.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		866A3A472E8DC16F006D3723 /* CumberlandTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		866A3A512E8DC16F006D3723 /* CumberlandUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		866A3A592E8DC16F006D3723 /* Exceptions for "Cumberland" folder in "Cumberland-macOS" target */ = {
+		866A3A592E8DC16F006D3723 /* Exceptions for "Cumberland" folder in "Cumberland" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
+				RealityKit/ImmersiveView.swift,
+				RealityKit/ToggleImmersiveSpaceButton.swift,
 			);
-			target = 866A3A352E8DC16D006D3723 /* Cumberland-macOS */;
+			target = 866A3A352E8DC16D006D3723 /* Cumberland */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		8646BE152E99A1D00056F575 /* CumberlandTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CumberlandTests;
+			sourceTree = "<group>";
+		};
 		866A3A382E8DC16D006D3723 /* Cumberland */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				866A3A592E8DC16F006D3723 /* Exceptions for "Cumberland" folder in "Cumberland-macOS" target */,
+				866A3A592E8DC16F006D3723 /* Exceptions for "Cumberland" folder in "Cumberland" target */,
 			);
 			path = Cumberland;
 			sourceTree = "<group>";
@@ -85,13 +93,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		8646BE012E99A1CE0056F575 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				8646BE022E99A1CE0056F575 /* RealityKitContent */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
 		866A3A2D2E8DC16D006D3723 = {
 			isa = PBXGroup;
 			children = (
+				8646BDF02E999EB00056F575 /* Cumberland-macOS.entitlements */,
 				866A3A382E8DC16D006D3723 /* Cumberland */,
 				866A3A4A2E8DC16F006D3723 /* CumberlandTests */,
 				866A3A542E8DC16F006D3723 /* CumberlandUITests */,
+				8646BE152E99A1D00056F575 /* CumberlandTests */,
 				866A3A372E8DC16D006D3723 /* Products */,
+				8646BE012E99A1CE0056F575 /* Packages */,
 			);
 			sourceTree = "<group>";
 		};
@@ -108,9 +127,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		866A3A352E8DC16D006D3723 /* Cumberland-macOS */ = {
+		866A3A352E8DC16D006D3723 /* Cumberland */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 866A3A5A2E8DC16F006D3723 /* Build configuration list for PBXNativeTarget "Cumberland-macOS" */;
+			buildConfigurationList = 866A3A5A2E8DC16F006D3723 /* Build configuration list for PBXNativeTarget "Cumberland" */;
 			buildPhases = (
 				866A3A322E8DC16D006D3723 /* Sources */,
 				866A3A332E8DC16D006D3723 /* Frameworks */,
@@ -123,7 +142,7 @@
 			fileSystemSynchronizedGroups = (
 				866A3A382E8DC16D006D3723 /* Cumberland */,
 			);
-			name = "Cumberland-macOS";
+			name = Cumberland;
 			packageProductDependencies = (
 			);
 			productName = Cumberland;
@@ -213,7 +232,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				866A3A352E8DC16D006D3723 /* Cumberland-macOS */,
+				866A3A352E8DC16D006D3723 /* Cumberland */,
 				866A3A462E8DC16F006D3723 /* CumberlandTests */,
 				866A3A502E8DC16F006D3723 /* CumberlandUITests */,
 			);
@@ -271,12 +290,12 @@
 /* Begin PBXTargetDependency section */
 		866A3A492E8DC16F006D3723 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 866A3A352E8DC16D006D3723 /* Cumberland-macOS */;
+			target = 866A3A352E8DC16D006D3723 /* Cumberland */;
 			targetProxy = 866A3A482E8DC16F006D3723 /* PBXContainerItemProxy */;
 		};
 		866A3A532E8DC16F006D3723 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 866A3A352E8DC16D006D3723 /* Cumberland-macOS */;
+			target = 866A3A352E8DC16D006D3723 /* Cumberland */;
 			targetProxy = 866A3A522E8DC16F006D3723 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -288,6 +307,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-macOS";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = "Cumberland-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
@@ -296,7 +316,6 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Cumberland/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Cumberland;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app allows you to pull photos from the your Photo Library to inspire your writing,  ";
@@ -337,6 +356,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-macOS";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = "Cumberland-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
@@ -345,7 +365,6 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Cumberland/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Cumberland;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app allows you to pull photos from the your Photo Library to inspire your writing,  ";
@@ -610,7 +629,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		866A3A5A2E8DC16F006D3723 /* Build configuration list for PBXNativeTarget "Cumberland-macOS" */ = {
+		866A3A5A2E8DC16F006D3723 /* Build configuration list for PBXNativeTarget "Cumberland" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				866A3A5B2E8DC16F006D3723 /* Debug */,

@@ -14,7 +14,7 @@ enum AppSchema: VersionedSchema {
     static var models: [any PersistentModel.Type] {
         // Include AppSettings so it’s persisted by the main ModelContainer.
         // Added Source and Citation (Option B).
-        [Card.self, RelationType.self, CardEdge.self, AppSettings.self, Source.self, Citation.self]
+        [AppSettings.self, Card.self, RelationType.self, CardEdge.self, Source.self, Citation.self, StoryStructure.self, StructureElement.self]
     }
 }
 

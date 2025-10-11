@@ -184,13 +184,13 @@ struct SwimlaneViewer: View {
 
     @MainActor
     private func orderedRelatedCards(for master: Card, typeFilter: RelationType?, direction: SwimlaneDirection) -> [Card] {
-        let masterID = master.id
         let predicate: Predicate<CardEdge>
+        let masterIDOpt: UUID? = master.id
         if let t = typeFilter {
-            let typeCode = t.code
-            predicate = #Predicate { $0.to.id == masterID && $0.type.code == typeCode }
+            let typeCodeOpt: String? = t.code
+            predicate = #Predicate { $0.to?.id == masterIDOpt && $0.type?.code == typeCodeOpt }
         } else {
-            predicate = #Predicate { $0.to.id == masterID }
+            predicate = #Predicate { $0.to?.id == masterIDOpt }
         }
         let fetch = FetchDescriptor<CardEdge>(
             predicate: predicate,
@@ -204,7 +204,7 @@ struct SwimlaneViewer: View {
         var seen: Set<UUID> = []
         var ordered: [Card] = []
         for e in edges {
-            let c = e.from
+            guard let c = e.from else { continue }
             if !seen.contains(c.id) {
                 seen.insert(c.id)
                 ordered.append(c)
@@ -227,9 +227,12 @@ struct SwimlaneViewer: View {
     }
 
     @MainActor
-    private func edgeExists(fromID: UUID, toID: UUID, typeCode: String) -> Bool {
+    private func edgeExists(from: Card, to: Card, type: RelationType) -> Bool {
+        let fromIDOpt: UUID? = from.id
+        let toIDOpt: UUID? = to.id
+        let typeCodeOpt: String? = type.code
         let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from.id == fromID && $0.to.id == toID && $0.type.code == typeCode }
+            predicate: #Predicate { $0.from?.id == fromIDOpt && $0.to?.id == toIDOpt && $0.type?.code == typeCodeOpt }
         )
         let found = try? modelContext.fetch(fetch)
         return (found?.isEmpty == false)
@@ -241,13 +244,13 @@ struct SwimlaneViewer: View {
         guard let card = try? modelContext.fetch(cardFetch).first else { return false }
         let chosenType = relationTypeFilter ?? defaultRelationType()
         guard let type = chosenType else { return false }
-        guard !edgeExists(fromID: card.id, toID: master.id, typeCode: type.code) else { return false }
+        guard !edgeExists(from: card, to: master, type: type) else { return false }
 
         // Append to end: sortIndex = currentMax + 1.0
-        let toID = master.id
-        let typeCode = type.code
+        let masterIDOpt: UUID? = master.id
+        let typeCodeOpt: String? = type.code
         let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.to.id == toID && $0.type.code == typeCode },
+            predicate: #Predicate { $0.to?.id == masterIDOpt && $0.type?.code == typeCodeOpt },
             sortBy: [SortDescriptor(\.sortIndex, order: .forward)]
         )
         let existing = (try? modelContext.fetch(fetch)) ?? []
