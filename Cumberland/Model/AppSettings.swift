@@ -44,6 +44,10 @@ final class AppSettings {
     // Default author for auto-fill in CardEditorView (empty means none)
     var defaultAuthor: String = ""
 
+    // Views: Structure Board zoom (persisted)
+    // Clamp in UI to a reasonable range; 1.0 = Actual Size
+    var structureBoardZoom: Double = 1.0
+
     var colorSchemePreference: ColorSchemePreference {
         get { ColorSchemePreference(rawValue: colorSchemePreferenceRaw) ?? .system }
         set { colorSchemePreferenceRaw = newValue.rawValue }
@@ -55,7 +59,8 @@ final class AppSettings {
         linesLarge: Int = 20,
         colorSchemePreference: ColorSchemePreference = .system,
         lastSelectedSettingsSectionRaw: String = "Display",
-        defaultAuthor: String = ""
+        defaultAuthor: String = "",
+        structureBoardZoom: Double = 1.0
     ) {
         self.linesCompact = linesCompact
         self.linesStandard = linesStandard
@@ -63,6 +68,7 @@ final class AppSettings {
         self.colorSchemePreferenceRaw = colorSchemePreference.rawValue
         self.lastSelectedSettingsSectionRaw = lastSelectedSettingsSectionRaw
         self.defaultAuthor = defaultAuthor
+        self.structureBoardZoom = structureBoardZoom
     }
 
     // Convenience: map a SizeCategory to the current configured line limit

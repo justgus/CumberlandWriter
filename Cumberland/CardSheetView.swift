@@ -1,6 +1,13 @@
 // CardSheetView.swift
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
+#if canImport(AppKit)
+import AppKit
+#endif
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct CardSheetView: View {
     let card: Card
@@ -42,6 +49,11 @@ struct CardSheetView: View {
     private let autosaveDelay: UInt64 = 1_000_000_000 // 1s
 
     private var isDetailsEditable: Bool {
+        editorMode != .preview
+    }
+
+    // Only allow image drop/paste when not in Preview
+    private var canAcceptImageDrop: Bool {
         editorMode != .preview
     }
 
@@ -123,6 +135,10 @@ struct CardSheetView: View {
                 detailsSelection = NSRange(location: (detailsDraft as NSString).length, length: 0)
                 focusedField = .details
             }
+            // Clear drop targeting when mode changes to non-editable
+            if !(new != .preview) {
+                isDropTargeted = false
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .inactive || newPhase == .background {
@@ -159,145 +175,263 @@ struct CardSheetView: View {
     }
 
     private var header: some View {
-        GlassEffectContainer(spacing: 16) {
-            HStack(alignment: .top, spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(card.kind.title)
-                        .font(.title2).bold()
-                        .modernGlassEffect(.regular.tint(.blue), in: .rect(cornerRadius: 8))
+        // Native material-backed header card (no custom container)
+        let corner: CGFloat = 10
+        return HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(card.kind.title)
+                    .font(.title2).bold()
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(.thinMaterial)
+                            .allowsHitTesting(false)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(.separator.opacity(0.6), lineWidth: 0.5)
+                            .allowsHitTesting(false)
+                    )
 
-                    // Name: edit in place
-                    Group {
-                        if isEditingName {
-                            TextField("Name", text: $nameDraft, onCommit: commitName)
-                                .textFieldStyle(.plain)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .cardGlassSurface(cornerRadius: 8, interactive: true)
-                                .focused($focusedField, equals: .name)
-                                .onChange(of: focusedField) { _, newFocus in
-                                    if newFocus != .name {
-                                        commitName()
-                                    }
+                // Name: edit in place
+                Group {
+                    if isEditingName {
+                        TextField("Name", text: $nameDraft, onCommit: commitName)
+                            .textFieldStyle(.plain)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(.regularMaterial)
+                                    .allowsHitTesting(false)
+                            )
+                            .focused($focusedField, equals: .name)
+                            .onChange(of: focusedField) { _, newFocus in
+                                if newFocus != .name {
+                                    commitName()
                                 }
-                        } else {
-                            Text(card.name)
-                                .font(.title3)
+                            }
+                    } else {
+                        Text(card.name)
+                            .font(.title3)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(.regularMaterial)
+                                    .allowsHitTesting(false)
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                nameDraft = card.name
+                                isEditingName = true
+                                focusedField = .name
+                            }
+                    }
+                }
+
+                // Subtitle: edit in place
+                Group {
+                    if isEditingSubtitle {
+                        TextField("Subtitle (optional)", text: $subtitleDraft, onCommit: commitSubtitle)
+                            .textFieldStyle(.plain)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(.regularMaterial)
+                                    .allowsHitTesting(false)
+                            )
+                            .focused($focusedField, equals: .subtitle)
+                            .onChange(of: focusedField) { _, newFocus in
+                                if newFocus != .subtitle {
+                                    commitSubtitle()
+                                }
+                            }
+                    } else {
+                        if !card.subtitle.isEmpty {
+                            Text(card.subtitle)
+                                .foregroundStyle(.secondary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .cardGlassSurface(cornerRadius: 8, interactive: true)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(.regularMaterial)
+                                        .allowsHitTesting(false)
+                                )
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    nameDraft = card.name
-                                    isEditingName = true
-                                    focusedField = .name
-                                }
-                        }
-                    }
-
-                    // Subtitle: edit in place
-                    Group {
-                        if isEditingSubtitle {
-                            TextField("Subtitle (optional)", text: $subtitleDraft, onCommit: commitSubtitle)
-                                .textFieldStyle(.plain)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .cardGlassSurface(cornerRadius: 8, interactive: true)
-                                .focused($focusedField, equals: .subtitle)
-                                .onChange(of: focusedField) { _, newFocus in
-                                    if newFocus != .subtitle {
-                                        commitSubtitle()
-                                    }
+                                    subtitleDraft = card.subtitle
+                                    isEditingSubtitle = true
+                                    focusedField = .subtitle
                                 }
                         } else {
-                            if !card.subtitle.isEmpty {
-                                Text(card.subtitle)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .cardGlassSurface(cornerRadius: 8, interactive: true)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        subtitleDraft = card.subtitle
-                                        isEditingSubtitle = true
-                                        focusedField = .subtitle
-                                    }
-                            } else {
-                                Text("Add subtitle")
-                                    .foregroundStyle(.secondary)
-                                    .italic()
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .cardGlassSurface(cornerRadius: 8, tint: .gray.opacity(0.1), interactive: true)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        subtitleDraft = ""
-                                        isEditingSubtitle = true
-                                        focusedField = .subtitle
-                                    }
-                            }
+                            Text("Add subtitle")
+                                .foregroundStyle(.secondary)
+                                .italic()
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(.regularMaterial)
+                                        .allowsHitTesting(false)
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    subtitleDraft = ""
+                                    isEditingSubtitle = true
+                                    focusedField = .subtitle
+                                }
                         }
                     }
                 }
-
-                Spacer(minLength: 12)
-
-                // Image section with glass effect
-                VStack(alignment: .leading, spacing: 8) {
-                    Group {
-                        if let fullImage {
-                            fullImage
-                                .resizable()
-                                .scaledToFit()
-                                .accessibilityLabel("Full Image")
-                                .frame(maxHeight: 240)
-                                .cardGlassSurface(cornerRadius: 12, interactive: true)
-                                .contextMenu {
-                                    Button("Replace Image…") { presentImagePicker() }
-                                    Button("Remove Image", role: .destructive) { removeImage() }
-                                }
-                        } else {
-                            VStack(spacing: 8) {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 32))
-                                    .foregroundStyle(.secondary)
-                                Text("Drop image here")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(height: 120)
-                            .frame(maxWidth: .infinity)
-                            .cardGlassSurface(cornerRadius: 12, tint: .gray.opacity(0.1), interactive: true)
-                            .contextMenu {
-                                Button("Choose Image…") { presentImagePicker() }
-                            }
-                        }
-                    }
-
-                    // Image attribution (compact)
-                    ImageAttributionViewer(card: card)
-                        .cardGlassSurface(cornerRadius: 8, tint: .purple.opacity(0.1))
-                }
-                .frame(width: 160)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(isDropTargeted ? Color.accentColor : .clear, lineWidth: 2)
-                        .animation(.easeInOut(duration: 0.2), value: isDropTargeted)
-                )
-                .dropDestination(for: Data.self, action: { items, _ in
-                    guard let data = items.first else { return false }
-                    return handleDroppedImageData(data)
-                }, isTargeted: { hovering in
-                    isDropTargeted = hovering
-                })
-                .dropDestination(for: URL.self, action: { urls, _ in
-                    guard let url = urls.first,
-                          let data = try? Data(contentsOf: url) else { return false }
-                    return handleDroppedImageData(data)
-                }, isTargeted: { hovering in
-                    isDropTargeted = hovering
-                })
             }
+
+            Spacer(minLength: 12)
+
+            // Image section with native material background
+            VStack(alignment: .leading, spacing: 8) {
+                Group {
+                    if let fullImage {
+                        fullImage
+                            .resizable()
+                            .scaledToFit()
+                            .accessibilityLabel("Full Image")
+                            .frame(maxHeight: 240)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(.regularMaterial)
+                                    .allowsHitTesting(false)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(.quaternary, lineWidth: 0.8)
+                                    .allowsHitTesting(false)
+                            )
+                            .contextMenu {
+                                Button("Replace Image…") { presentImagePicker() }
+                                Button("Remove Image", role: .destructive) { removeImage() }
+                            }
+                    } else {
+                        VStack(spacing: 8) {
+                            Image(systemName: "photo")
+                                .font(.system(size: 32))
+                                .foregroundStyle(.secondary)
+                            Text("Drop image here")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(height: 120)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(.regularMaterial)
+                                .allowsHitTesting(false)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(.quaternary, lineWidth: 0.8)
+                                .allowsHitTesting(false)
+                        )
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            Button("Choose Image…") { presentImagePicker() }
+                        }
+                    }
+                }
+
+                // Image attribution (compact)
+                ImageAttributionViewer(card: card)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(.thinMaterial)
+                            .allowsHitTesting(false)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(.separator.opacity(0.6), lineWidth: 0.5)
+                            .allowsHitTesting(false)
+                    )
+            }
+            .frame(width: 160)
+            .contentShape(Rectangle())
+            // File importer for explicit selection
+            .fileImporter(isPresented: $isImportingImage, allowedContentTypes: [.image], allowsMultipleSelection: false) { result in
+                if case .success(let urls) = result, let url = urls.first, let data = try? Data(contentsOf: url) {
+                    Task { @MainActor in
+                        _ = self.handleDroppedImageData(data)
+                    }
+                }
+            }
+            // Give it a concrete hit-test surface
+            .background(Color.black.opacity(0.001))
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: corner, style: .continuous)
+                .fill(.thinMaterial)
+                .allowsHitTesting(false)
+        )
+        .overlay(
+            ZStack {
+                // Base border
+                RoundedRectangle(cornerRadius: corner, style: .continuous)
+                    .stroke(.separator.opacity(0.6), lineWidth: 0.5)
+                    .allowsHitTesting(false)
+                // Highlight border when a drag is hovering anywhere over the header AND editable
+                if isDropTargeted && canAcceptImageDrop {
+                    RoundedRectangle(cornerRadius: corner, style: .continuous)
+                        .stroke(Color.accentColor, lineWidth: 2)
+                        .allowsHitTesting(false)
+                        .animation(.easeInOut(duration: 0.2), value: isDropTargeted)
+                }
+            }
+        )
+        .shadow(color: .black.opacity(scheme == .dark ? 0.22 : 0.08), radius: 6, x: 0, y: 3)
+        // Make the whole header a drop/paste target for images, but only target when editable
+        .contentShape(Rectangle())
+        .onDrop(
+            of: [
+                UTType.data.identifier,
+                UTType.image.identifier,
+                UTType.png.identifier,
+                UTType.jpeg.identifier,
+                UTType.tiff.identifier,
+                UTType.gif.identifier,
+                UTType.heic.identifier,
+                UTType.heif.identifier,
+                UTType.bmp.identifier,
+                UTType.fileURL.identifier,
+                UTType.url.identifier
+            ],
+            isTargeted: Binding(
+                get: { self.canAcceptImageDrop && self.isDropTargeted },
+                set: { newValue in self.isDropTargeted = newValue }
+            )
+        ) { providers in
+            // Reject drop while not editable
+            guard canAcceptImageDrop else { return false }
+            handleDrop(providers: providers)
+            return true
+        }
+        .onPasteCommand(of: [
+            UTType.data,
+            UTType.image,
+            UTType.png,
+            UTType.jpeg,
+            UTType.tiff,
+            UTType.gif,
+            UTType.heic,
+            UTType.heif,
+            UTType.bmp,
+            UTType.fileURL,
+            UTType.url
+        ]) { providers in
+            guard canAcceptImageDrop else { return }
+            handleDrop(providers: providers)
         }
     }
 
@@ -347,7 +481,11 @@ struct CardSheetView: View {
             )
             .frame(minHeight: 220)
             .padding(8)
-            .cardGlassSurface(cornerRadius: 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.regularMaterial)
+                    .allowsHitTesting(false)
+            )
         }
         .onAppear {
             detailsDraft = card.detailedText
@@ -376,7 +514,11 @@ struct CardSheetView: View {
                 )
                 .frame(minHeight: 220)
                 .padding(8)
-                .cardGlassSurface(cornerRadius: 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(.regularMaterial)
+                        .allowsHitTesting(false)
+                )
                 .contentShape(Rectangle())
                 .onTapGesture {
                     // Tap-to-edit from preview
@@ -390,7 +532,11 @@ struct CardSheetView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
-                    .cardGlassSurface(cornerRadius: 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(.regularMaterial)
+                            .allowsHitTesting(false)
+                    )
                     .contentShape(Rectangle())
                     .onTapGesture {
                         // Tap-to-edit from empty preview
@@ -749,7 +895,7 @@ struct CardSheetView: View {
         detailsDraft.append("```\ncode\n```\n")
     }
 
-    // MARK: - Checklists
+    // Add checklist toggles
 
     private func toggleChecklist() {
         let ns = detailsDraft as NSString
@@ -757,7 +903,7 @@ struct CardSheetView: View {
         let lines = lineRangesCoveringSelection(in: ns, selection: sel)
         guard !lines.isEmpty else { return }
 
-        // If all lines are already checklists, remove the checklist marker; otherwise add "- [ ] "
+        // Determine if all selected lines are already checklist items (or empty)
         let allChecklist = lines.allSatisfy { r in
             let s = ns.substring(with: r)
             let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -765,21 +911,37 @@ struct CardSheetView: View {
             return lineHasChecklistPrefix(s).has
         }
 
+        // Regex to strip a numbered list prefix like "1. "
+        let numberRegex = try! NSRegularExpression(pattern: #"^\s*\d+\.\s"#, options: [])
+
         let (text, newSel) = replaceRanges(lines, in: ns) { line, _ in
+            // Keep empty lines unchanged
             if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return line }
-            let chk = lineHasChecklistPrefix(line)
-            if allChecklist, chk.has {
-                // Remove checklist prefix only
-                return String(line.dropFirst(chk.markerLen))
-            } else if !allChecklist {
-                // Add checklist prefix; strip plain bullet if present
-                let bullet = lineHasAnyBulletPrefix(line)
-                let base = bullet.has ? String(line.dropFirst(bullet.markerLen)) : line
-                return "- [ ] " + base
-            } else {
+
+            let checklist = lineHasChecklistPrefix(line)
+            if allChecklist {
+                // Remove checklist marker
+                if checklist.has {
+                    return String(line.dropFirst(checklist.markerLen))
+                }
                 return line
+            } else {
+                // Add unchecked checklist marker, stripping any bullet or number prefix first
+                var working = line
+                let bullet = lineHasAnyBulletPrefix(working)
+                if bullet.has {
+                    working = String(working.dropFirst(bullet.markerLen))
+                } else if let match = numberRegex.firstMatch(in: working, options: [], range: NSRange(location: 0, length: (working as NSString).length)) {
+                    working = (working as NSString).replacingCharacters(in: match.range, with: "")
+                } else if checklist.has {
+                    // If it's already a checklist, normalize to unchecked
+                    let dropped = String(working.dropFirst(checklist.markerLen))
+                    return "- [ ] " + dropped
+                }
+                return "- [ ] " + working
             }
         }
+
         detailsDraft = text
         detailsSelection = newSel
     }
@@ -790,22 +952,181 @@ struct CardSheetView: View {
         let lines = lineRangesCoveringSelection(in: ns, selection: sel)
         guard !lines.isEmpty else { return }
 
-        let (text, newSel) = replaceRanges(lines, in: ns) { line, _ in
-            let chk = lineHasChecklistPrefix(line)
-            guard chk.has else { return line }
-            if chk.done {
-                // [x] -> [ ]
-                return line.replacingOccurrences(of: "[x]", with: "[ ]")
-            } else {
-                // [ ] -> [x]
-                return line.replacingOccurrences(of: "[ ]", with: "[x]")
+        // Determine if any selected checklist line is unchecked; if so, we'll check all.
+        var anyUnchecked = false
+        for r in lines {
+            let s = ns.substring(with: r)
+            let c = lineHasChecklistPrefix(s)
+            if c.has && !c.done {
+                anyUnchecked = true
+                break
             }
         }
+
+        let (text, newSel) = replaceRanges(lines, in: ns) { line, _ in
+            let c = lineHasChecklistPrefix(line)
+            guard c.has else { return line } // Only toggle checklist lines
+
+            if anyUnchecked {
+                // Mark all as done
+                if c.done {
+                    return line
+                } else {
+                    // Replace "[ ] " with "[x] "
+                    if line.hasPrefix("- [ ] ") { return line.replacingOccurrences(of: "- [ ] ", with: "- [x] ") }
+                    if line.hasPrefix("* [ ] ") { return line.replacingOccurrences(of: "* [ ] ", with: "* [x] ") }
+                    return line
+                }
+            } else {
+                // Unmark all as done
+                if !c.done {
+                    return line
+                } else {
+                    if line.hasPrefix("- [x] ") { return line.replacingOccurrences(of: "- [x] ", with: "- [ ] ") }
+                    if line.hasPrefix("* [x] ") { return line.replacingOccurrences(of: "* [x] ", with: "* [ ] ") }
+                    return line
+                }
+            }
+        }
+
         detailsDraft = text
         detailsSelection = newSel
     }
 
-    // MARK: - Drop handling
+    // MARK: - Drop + paste handling
+
+    private func handleDrop(providers: [NSItemProvider]) {
+        guard !providers.isEmpty else { return }
+
+        for provider in providers {
+            // 0) Try object-based images first (UIKit/AppKit), for robustness
+            #if canImport(UIKit)
+            if provider.canLoadObject(ofClass: UIImage.self) {
+                provider.loadObject(ofClass: UIImage.self) { obj, _ in
+                    if let ui = obj as? UIImage {
+                        let data = ui.pngData() ?? ui.jpegData(compressionQuality: 0.9)
+                        if let data {
+                            Task { @MainActor in
+                                _ = self.handleDroppedImageData(data)
+                            }
+                        }
+                    } else {
+                        self.tryURLOrData(provider: provider)
+                    }
+                }
+                continue
+            }
+            #endif
+            #if canImport(AppKit)
+            if provider.canLoadObject(ofClass: NSImage.self) {
+                provider.loadObject(ofClass: NSImage.self) { obj, _ in
+                    if let img = obj as? NSImage {
+                        let data = img.pngData() ?? img.jpegData(compression: 0.9)
+                        if let data {
+                            Task { @MainActor in
+                                _ = self.handleDroppedImageData(data)
+                            }
+                        }
+                    } else {
+                        self.tryURLOrData(provider: provider)
+                    }
+                }
+                continue
+            }
+            #endif
+
+            // 1) Raw image data (PNG/JPEG/etc.)
+            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.data.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.png.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.jpeg.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.tiff.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.gif.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.heic.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.heif.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.bmp.identifier)
+            {
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                    if let data, !data.isEmpty {
+                        Task { @MainActor in
+                            _ = self.handleDroppedImageData(data)
+                        }
+                    } else {
+                        self.tryURLOrData(provider: provider)
+                    }
+                }
+                continue
+            }
+
+            // 2) File URL (Finder drag)
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                tryLoadFileURL(provider: provider)
+                continue
+            }
+
+            // 3) Web URL (Safari drag)
+            if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+                tryLoadRemoteURL(provider: provider)
+                continue
+            }
+        }
+    }
+
+    private func tryURLOrData(provider: NSItemProvider) {
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            tryLoadFileURL(provider: provider)
+        } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+            tryLoadRemoteURL(provider: provider)
+        } else {
+            // Last resort: ask for generic data and see if it's an image
+            provider.loadItem(forTypeIdentifier: UTType.data.identifier, options: nil) { item, _ in
+                if let data = item as? Data, !data.isEmpty {
+                    Task { @MainActor in
+                        _ = self.handleDroppedImageData(data)
+                    }
+                }
+            }
+        }
+    }
+
+    private func tryLoadURLBasedRepresentations(provider: NSItemProvider) {
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            tryLoadFileURL(provider: provider)
+        } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+            tryLoadRemoteURL(provider: provider)
+        }
+    }
+
+    private func tryLoadFileURL(provider: NSItemProvider) {
+        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+            if let url = item as? URL, url.isFileURL, let data = try? Data(contentsOf: url) {
+                Task { @MainActor in
+                    _ = self.handleDroppedImageData(data)
+                }
+            }
+        }
+    }
+
+    private func tryLoadRemoteURL(provider: NSItemProvider) {
+        provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { item, _ in
+            if let url = item as? URL, url.scheme?.hasPrefix("http") == true {
+                Task.detached {
+                    do {
+                        let (data, _) = try await URLSession.shared.data(from: url)
+                        if !data.isEmpty {
+                            await MainActor.run {
+                                _ = self.handleDroppedImageData(data)
+                            }
+                        }
+                    } catch {
+                        // Ignore failed remote fetch
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Drop handling dependencies
 
     @MainActor
     private func handleDroppedImageData(_ data: Data) -> Bool {
@@ -1147,8 +1468,8 @@ private struct RichTextEditor: View {
          onTab: (() -> Void)? = nil,
          onBacktab: (() -> Void)? = nil) {
         self._text = text
-               self._selectedRange = selectedRange
-        self.isFirstResponder = isFirstResponder
+        self._selectedRange = selectedRange
+               self.isFirstResponder = isFirstResponder
         self.editable = editable
         self.onTab = onTab
         self.onBacktab = onBacktab
@@ -1160,78 +1481,68 @@ private struct RichTextEditor: View {
     }
 }
 
-// No-op styling modifier if not provided elsewhere.
-private extension View {
-    func glassToolbarStyle() -> some View { self }
-}
-
-// MARK: - Local, unambiguous glass surface for this file
-
-private struct LocalGlassSurfaceModifier: ViewModifier {
+// Lightweight, native-material glass surface that never intercepts input.
+private struct NativeGlassSurfaceModifier: ViewModifier {
     @Environment(\.colorScheme) private var scheme
     let cornerRadius: CGFloat
-    let tint: Color
-    let interactive: Bool
-    @State private var hovering: Bool = false
+    let tintOpacity: Double
+    let tint: Color?
 
     func body(content: Content) -> some View {
         content
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(.regularMaterial)
+                    .allowsHitTesting(false)
+            )
+            .overlay(
+                Group {
+                    if let tint {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(tint.opacity(tintOpacity))
+                            .blendMode(.softLight)
+                            .allowsHitTesting(false)
+                    }
+                }
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                tint.opacity(scheme == .dark ? 0.14 : 0.10),
-                                tint.opacity(0.0),
-                                tint.opacity(scheme == .dark ? 0.10 : 0.06)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .blendMode(.softLight)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(.white.opacity(scheme == .dark ? 0.20 : 0.35), lineWidth: 0.75)
+                    .stroke(.white.opacity(scheme == .dark ? 0.15 : 0.30), lineWidth: 0.6)
                     .blendMode(.overlay)
+                    .allowsHitTesting(false)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(.quaternary.opacity(0.6), lineWidth: 0.5)
+                    .stroke(.quaternary.opacity(0.55), lineWidth: 0.5)
+                    .allowsHitTesting(false)
             )
-            .shadow(
-                color: .black.opacity(scheme == .dark ? 0.28 : 0.10),
-                radius: interactive ? (hovering ? 10 : 8) : 8,
-                x: 0,
-                y: interactive ? (hovering ? 6 : 4) : 4
-            )
-            .scaleEffect(interactive && hovering ? 1.01 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: hovering)
-            .onHoverIfAvailable { hovering = interactive ? $0 : false }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 
 private extension View {
-    func cardGlassSurface(cornerRadius: CGFloat = 12,
-                          tint: Color = .accentColor.opacity(0.15),
-                          interactive: Bool = false) -> some View {
-        modifier(LocalGlassSurfaceModifier(cornerRadius: cornerRadius, tint: tint, interactive: interactive))
+    func nativeGlassSurface(cornerRadius: CGFloat = 12, tintOpacity: Double = 0.12, tint: Color? = nil) -> some View {
+        modifier(NativeGlassSurfaceModifier(cornerRadius: cornerRadius, tintOpacity: tintOpacity, tint: tint))
     }
 
-    @ViewBuilder
-    func onHoverIfAvailable(_ handler: @escaping (Bool) -> Void) -> some View {
-        #if os(macOS)
-        self.onHover(perform: handler)
-        #else
-        self
-        #endif
+    // No-op styling modifier if not provided elsewhere.
+    func glassToolbarStyle() -> some View { self }
+}
+
+#if canImport(AppKit)
+private extension NSImage {
+    func pngData() -> Data? {
+        guard let tiff = self.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff) else { return nil }
+        return rep.representation(using: .png, properties: [:])
+    }
+    func jpegData(compression: CGFloat) -> Data? {
+        guard let tiff = self.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff) else { return nil }
+        return rep.representation(using: .jpeg, properties: [.compressionFactor: compression])
     }
 }
+#endif
 
 #Preview("CardSheetView") {
     let cfg = ModelConfiguration(isStoredInMemoryOnly: true)

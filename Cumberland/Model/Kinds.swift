@@ -36,6 +36,26 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
 
     var title: String { rawValue }
 
+    // Singular display name for button labels and other contexts.
+    var singularTitle: String {
+        switch self {
+        case .projects:   return "Project"
+        case .worlds:     return "World"
+        case .characters: return "Character"
+        case .chapters:   return "Chapter"
+        case .scenes:     return "Scene"
+        case .timelines:  return "Timeline"
+        case .maps:       return "Map"
+        case .locations:  return "Location"
+        case .buildings:  return "Building"
+        case .vehicles:   return "Vehicle"
+        case .artifacts:  return "Artifact"
+        case .rules:      return "Rule"
+        case .sources:    return "Source"
+        case .structure:  return "Structure"
+        }
+    }
+
     var systemImage: String {
         switch self {
         case .projects: return "folder"

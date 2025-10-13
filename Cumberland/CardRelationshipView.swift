@@ -34,7 +34,7 @@ struct GlassCard<Content: View>: View {
                         }
                     }
                 )
-        }
+        } //end ZStack
         .compositingGroup()
         .shadow(color: .black.opacity(0.08), radius: interactive ? 6 : 4, x: 0, y: interactive ? 3 : 2)
         .overlay(
@@ -45,7 +45,7 @@ struct GlassCard<Content: View>: View {
             .padding(12)
         )
     }
-}
+} //end GlassCard
 
 extension String {
     func dropLastIfPluralized() -> String {
@@ -55,8 +55,12 @@ extension String {
         }
         return self
     }
-}
+} //end extension String
 
+/****
+ * The main view.   this View shows a primary card in a panel on top, a small toolbar with some rudimentary controls
+ *  with a collection of related cards in the lower panel.
+ */
 struct CardRelationshipView: View {
     let primary: Card
 
@@ -68,17 +72,39 @@ struct CardRelationshipView: View {
 
     @State private var selectedKind: Kinds = .projects
 
+    // Track selection inside the related area
+    @State private var selectedRelatedCard: Card? = nil
+
     // Add flow state
     @State private var isPresentingAddCard: Bool = false
     @State private var pendingNewCard: Card? = nil
     // If true, and the relation type flow is canceled/dismissed, delete pendingNewCard
     @State private var shouldCleanupPendingOnCancel: Bool = false
+    // Existing-cards batch awaiting relation type choice/creation
+    @State private var pendingExistingCards: [Card] = []
+
+    // Existing-card flow state (snapshot-driven)
+    private struct ExistingPickerState: Identifiable {
+        let id = UUID()
+        let kind: Kinds
+        let candidates: [Card]
+        let initiallySelected: Set<UUID>
+    }
+    @State private var existingPickerState: ExistingPickerState?
 
     // Choose/create relation type state
     @State private var isPresentingCreateRelationType: Bool = false
     @State private var isPresentingPickRelationType: Bool = false
     @State private var relationTypeChoices: [RelationType] = []
     @State private var selectedRelationTypeCode: String?
+
+    // Retype existing edge state
+    @State private var isPresentingRetype: Bool = false
+    @State private var retypeChoices: [RelationType] = []
+    @State private var retypeSelectedCode: String?
+
+    // Edit sheet state
+    @State private var isPresentingEditCard: Bool = false
 
     private let areaCornerRadius: CGFloat = 16
 
@@ -88,6 +114,10 @@ struct CardRelationshipView: View {
     // Relation type codes
     private let citesCode: String = "cites"
     private let defaultNonSourceCode: String = "references"
+    private let canonicalSceneProjectCode: String = "stories/is-storied-by"
+
+    // Header image for the primary card
+    @State private var headerImage: Image?
 
     private func masterCards(for kind: Kinds) -> [Card] {
         // Fetch edges where to.id == primary.id (and optionally type.code == filter.code), then filter by from.kind in-memory
@@ -164,6 +194,12 @@ struct CardRelationshipView: View {
                 selectedKind = initial
             }
         }
+        .task {
+            await loadHeaderImage()
+        }
+        .task(id: primary.id) {
+            await loadHeaderImage()
+        }
         // MARK: - Sheets for Add flow
         .sheet(isPresented: $isPresentingAddCard) {
             CardEditorView(mode: .create(kind: selectedKind) { newCard in
@@ -172,25 +208,48 @@ struct CardRelationshipView: View {
             })
             .frame(minWidth: 560, minHeight: 520)
         }
+        // Existing cards picker (snapshot-based)
+        .sheet(item: $existingPickerState) { state in
+            ExistingCardPickerSheet(
+                kind: state.kind,
+                candidates: state.candidates,
+                initiallySelected: state.initiallySelected
+            ) { picked in
+                existingPickerState = nil
+                guard !picked.isEmpty else { return }
+                // Batch relation-type resolution and apply to all
+                handleExistingCardsPicked(picked)
+            }
+            .frame(minWidth: 520, minHeight: 420)
+        }
         .sheet(isPresented: $isPresentingCreateRelationType) {
             RelationTypeCreatorSheet(
                 sourceKind: selectedKind,
                 targetKind: primary.kind
             ) { newType in
-                // Success path: we created a type and will create the edge — no cleanup needed.
+                // Success path: created a type; apply to any pending items (new or existing)
                 shouldCleanupPendingOnCancel = false
                 isPresentingCreateRelationType = false
+
                 if let card = pendingNewCard {
                     createEdgeIfNeeded(from: card, to: primary, type: newType, appendToEnd: true)
                     pendingNewCard = nil
                 }
+                if !pendingExistingCards.isEmpty {
+                    for card in pendingExistingCards {
+                        createEdgeIfNeeded(from: card, to: primary, type: newType, appendToEnd: true)
+                    }
+                    pendingExistingCards = []
+                }
             } onCancel: {
-                // User canceled — delete pending card if any.
+                // User canceled — delete pending card if any (only for new card flow)
                 isPresentingCreateRelationType = false
                 if shouldCleanupPendingOnCancel, let card = pendingNewCard {
                     cleanupAndDelete(card)
                 }
+                // Never delete existing cards
                 pendingNewCard = nil
+                pendingExistingCards = []
                 shouldCleanupPendingOnCancel = false
             }
             .frame(minWidth: 420, minHeight: 300)
@@ -203,21 +262,54 @@ struct CardRelationshipView: View {
                 selectedCode: selectedRelationTypeCode
             ) { chosen in
                 isPresentingPickRelationType = false
-                if let type = chosen, let card = pendingNewCard {
-                    // Success path — relate and keep the card.
-                    createEdgeIfNeeded(from: card, to: primary, type: type, appendToEnd: true)
-                    shouldCleanupPendingOnCancel = false
+                if let type = chosen {
+                    // Apply to any pending items (new or existing)
+                    if let card = pendingNewCard {
+                        createEdgeIfNeeded(from: card, to: primary, type: type, appendToEnd: true)
+                        shouldCleanupPendingOnCancel = false
+                    }
+                    if !pendingExistingCards.isEmpty {
+                        for card in pendingExistingCards {
+                            createEdgeIfNeeded(from: card, to: primary, type: type, appendToEnd: true)
+                        }
+                    }
                 } else {
-                    // Canceled — delete pending card.
+                    // Canceled — delete pending new card only; never delete existing
                     if shouldCleanupPendingOnCancel, let card = pendingNewCard {
                         cleanupAndDelete(card)
                     }
                 }
                 pendingNewCard = nil
+                pendingExistingCards = []
                 relationTypeChoices = []
                 selectedRelationTypeCode = nil
             }
             .frame(minWidth: 420, minHeight: 320)
+        }
+        // Retype sheet for existing edge
+        .sheet(isPresented: $isPresentingRetype) {
+            RelationTypePickerSheet(
+                sourceKind: selectedKind,
+                targetKind: primary.kind,
+                types: retypeChoices,
+                selectedCode: retypeSelectedCode
+            ) { chosen in
+                isPresentingRetype = false
+                guard let chosen, let card = selectedRelatedCard else { return }
+                retypeEdge(from: card, to: primary, newType: chosen)
+                retypeChoices = []
+                retypeSelectedCode = nil
+            }
+            .frame(minWidth: 420, minHeight: 320)
+        }
+        // Edit selected related card
+        .sheet(isPresented: $isPresentingEditCard) {
+            if let card = selectedRelatedCard {
+                CardEditorView(mode: .edit(card: card) {
+                    isPresentingEditCard = false
+                })
+                .frame(minWidth: 560, minHeight: 520)
+            }
         }
         // Also handle dismissals (e.g., swipe/escape) that bypass our cancel buttons.
         .onChange(of: isPresentingCreateRelationType) { _, isPresented in
@@ -226,6 +318,9 @@ struct CardRelationshipView: View {
                 pendingNewCard = nil
                 shouldCleanupPendingOnCancel = false
             }
+            if !isPresented {
+                pendingExistingCards = []
+            }
         }
         .onChange(of: isPresentingPickRelationType) { _, isPresented in
             if !isPresented, shouldCleanupPendingOnCancel, let card = pendingNewCard {
@@ -233,8 +328,15 @@ struct CardRelationshipView: View {
                 pendingNewCard = nil
                 shouldCleanupPendingOnCancel = false
             }
+            if !isPresented {
+                pendingExistingCards = []
+            }
         }
-    }
+        .onChange(of: selectedKind) { _, _ in
+            // Clear selection when changing lanes
+            selectedRelatedCard = nil
+        }
+    } //end var body
 
     private var primaryHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -246,15 +348,51 @@ struct CardRelationshipView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Text(primary.name)
-                .font(.title3).bold()
-            if !primary.subtitle.isEmpty {
-                Text(primary.subtitle)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-        }
-    }
+            HStack(alignment: .top, spacing: 10) {
+                // Ensure the name/subtitle never collapses
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(primary.name)
+                        .font(.title3).bold()
+                    if !primary.subtitle.isEmpty {
+                        Text(primary.subtitle)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    } //end if subtitle is not empty
+                }
+                .frame(minWidth: 160, alignment: .leading)
+                .layoutPriority(3) // highest priority: keep visible
+
+                // Detailed text (if any) — allow it to yield space and wrap
+                if !primary.detailedText.isEmpty {
+                    let maxLines = (headerImage == nil) ? 10 : 6
+                    Text(primary.detailedText)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(maxLines)
+                        .truncationMode(.tail)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .layoutPriority(0) // lower than name/subtitle
+                }
+
+                // Primary image to the right of the detailed text (if available)
+                if let headerImage {
+                    headerImage
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 96, height: 96)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(.quaternary, lineWidth: 0.8)
+                        )
+                        .shadow(color: .black.opacity(0.08), radius: 3, x: 0, y: 1)
+                        .accessibilityLabel("Card Image")
+                }
+            } //end HStack
+        } //end VStack
+    } //end primary header
 
     private var topControls: some View {
         HStack(spacing: 8) {
@@ -284,6 +422,31 @@ struct CardRelationshipView: View {
                 Label(addTitle, systemImage: "plus")
             }
             .help("Create a new \(selectedKind.title.dropLastIfPluralized()) and relate it to “\(primary.name)”")
+
+            Button {
+                presentExistingPicker()
+            } label: {
+                Label("Add Existing \(selectedKind.title.dropLastIfPluralized())…", systemImage: "link.badge.plus")
+            }
+            .disabled(availableExistingCandidates(for: selectedKind).isEmpty)
+
+            // Restore Edit button
+            Button {
+                isPresentingEditCard = true
+            } label: {
+                Label("Edit Selected", systemImage: "pencil")
+            }
+            .disabled(selectedRelatedCard == nil)
+            .help("Edit the selected related card")
+
+            // New: Change Relationship Type…
+            Button {
+                presentRetypePickerForSelection()
+            } label: {
+                Label("Change Relationship Type…", systemImage: "arrow.triangle.2.circlepath")
+            }
+            .disabled(selectedRelatedCard == nil || applicableRetypeChoices().isEmpty)
+            .help("Change the relationship type between the selected card and “\(primary.name)”")
 
             Spacer()
         }
@@ -323,7 +486,11 @@ struct CardRelationshipView: View {
                                 cards: masterCardsForSelectedKind,
                                 decorationProvider: { card in
                                     relationDecoration(for: card)
-                                }
+                                },
+                                onSelect: { card in
+                                    selectedRelatedCard = card
+                                },
+                                selectedCardID: selectedRelatedCard?.id
                             )
                             // CardViewer fills the parent, its own ScrollView handles overflow.
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -351,17 +518,48 @@ struct CardRelationshipView: View {
                     }
                 }
                 .padding(12)
-            }
+            } //end ZStack
             // Explicitly size the ZStack to the GeometryReader’s available size.
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+            // Make the whole area interactive for right-clicks.
+            .contentShape(Rectangle())
             // Accept drops across the full area.
             .dropDestination(for: String.self) { items, _ in
                 return handleDrop(items: items)
+            }
+            // One context menu for both empty and non-empty states
+            .contextMenu {
+                addExistingContextMenuItem()
+                // Context edit if there is a selection
+                Button {
+                    isPresentingEditCard = true
+                } label: {
+                    Label("Edit Selected", systemImage: "pencil")
+                }
+                .disabled(selectedRelatedCard == nil)
+
+                Button {
+                    presentRetypePickerForSelection()
+                } label: {
+                    Label("Change Relationship Type…", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(selectedRelatedCard == nil || applicableRetypeChoices().isEmpty)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: areaCornerRadius, style: .continuous))
         // Give it a sensible minimum, but let it expand to fill remaining space from the parent.
         .frame(maxWidth: .infinity, minHeight: 280, maxHeight: .infinity, alignment: .top)
+    }
+
+    // Context menu item builder
+    @ViewBuilder
+    private func addExistingContextMenuItem() -> some View {
+        Button {
+            presentExistingPicker()
+        } label: {
+            Label("Add Existing \(selectedKind.title.dropLastIfPluralized())…", systemImage: "link.badge.plus")
+        }
+        .disabled(availableExistingCandidates(for: selectedKind).isEmpty)
     }
 
     // Provide the decoration text for a given related card.
@@ -381,6 +579,32 @@ struct CardRelationshipView: View {
         if let edge = try? modelContext.fetch(fetch).first {
             return edge.type?.forwardLabel
         }
+        return nil
+    }
+
+    // MARK: - Canonicalization and validation
+
+    private func canonicalizedTypeFor(source: Card, target: Card, proposed: RelationType?) -> RelationType? {
+        // If Scene -> Project, force canonical type
+        if source.kind == .scenes && target.kind == .projects {
+            let fetch = FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == canonicalSceneProjectCode })
+            if let canonical = try? modelContext.fetch(fetch).first {
+                return canonical
+            } else {
+                // Create if missing (should be present from seeding)
+                let t = RelationType(code: canonicalSceneProjectCode, forwardLabel: "stories", inverseLabel: "is storied by", sourceKind: .scenes, targetKind: .projects)
+                modelContext.insert(t)
+                try? modelContext.save()
+                return t
+            }
+        }
+
+        // Otherwise, return proposed if it matches the kinds
+        if let proposed, proposed.matches(from: source.kind, to: target.kind) {
+            return proposed
+        }
+
+        // No valid type
         return nil
     }
 
@@ -407,31 +631,31 @@ struct CardRelationshipView: View {
                 // Non-sources: consider only types that apply to selectedKind -> primary.kind and are not "cites"
                 let types = nonCitesRelationTypes(applicableFrom: selectedKind, to: primary.kind)
                 if types.isEmpty {
-                    // ambiguous with no valid types — reject drop (no silent default)
                     chosenType = nil
                 } else if types.count == 1 {
                     let only = types[0]
-                    // If the only type is 'references', require explicit choice — reject drop
                     chosenType = (only.code == defaultNonSourceCode) ? nil : only
                 } else if types.count == 2 {
-                    // If exactly two and one is 'references', use the other; otherwise ambiguous -> reject
                     if let nonRef = types.first(where: { $0.code != defaultNonSourceCode }) {
                         chosenType = nonRef
                     } else {
                         chosenType = nil
                     }
                 } else {
-                    // >= 3 non-cites types — ambiguous -> reject
                     chosenType = nil
                 }
             }
         }
-        guard let type = chosenType else { return false }
+
+        // Enforce canonicalization (e.g., Scene→Project)
+        guard let enforcedType = canonicalizedTypeFor(source: dropped, target: primary, proposed: chosenType) else {
+            return false
+        }
 
         // Avoid duplicates (compare scalar fields)
         let droppedIDOpt: UUID? = dropped.id
         let primaryIDOpt: UUID? = primary.id
-        let typeCodeOpt: String? = type.code
+        let typeCodeOpt: String? = enforcedType.code
         let existsFetch = FetchDescriptor<CardEdge>(
             predicate: #Predicate {
                 $0.from?.id == droppedIDOpt && $0.to?.id == primaryIDOpt && $0.type?.code == typeCodeOpt
@@ -452,7 +676,7 @@ struct CardRelationshipView: View {
         let last = existing.last?.createdAt ?? Date()
         let newDate = last.addingTimeInterval(0.001)
 
-        let edge = CardEdge(from: dropped, to: primary, type: type, note: nil, createdAt: newDate)
+        let edge = CardEdge(from: dropped, to: primary, type: enforcedType, note: nil, createdAt: newDate)
         modelContext.insert(edge)
         try? modelContext.save()
         return true
@@ -462,9 +686,12 @@ struct CardRelationshipView: View {
 
     @MainActor
     private func handleNewCardCreated(_ newCard: Card) {
-        // If this view is constrained to a specific relation type, use it.
+        // If this view is constrained to a specific relation type, use it (but still canonicalize).
         if let fixedType = relationTypeFilter {
-            createEdgeIfNeeded(from: newCard, to: primary, type: fixedType, appendToEnd: true)
+            let enforced = canonicalizedTypeFor(source: newCard, target: primary, proposed: fixedType)
+            if let enforced {
+                createEdgeIfNeeded(from: newCard, to: primary, type: enforced, appendToEnd: true)
+            }
             shouldCleanupPendingOnCancel = false
             return
         }
@@ -472,7 +699,9 @@ struct CardRelationshipView: View {
         // Sources: must use "cites" (auto-use/create; no picker). Option A: target = any.
         if selectedKind == .sources {
             let cites = ensureRelationType(code: "cites", forward: "cites", inverse: "cited by", sourceKind: .sources, targetKind: nil)
-            createEdgeIfNeeded(from: newCard, to: primary, type: cites, appendToEnd: true)
+            if let enforced = canonicalizedTypeFor(source: newCard, target: primary, proposed: cites) {
+                createEdgeIfNeeded(from: newCard, to: primary, type: enforced, appendToEnd: true)
+            }
             shouldCleanupPendingOnCancel = false
             return
         }
@@ -497,15 +726,31 @@ struct CardRelationshipView: View {
                 shouldCleanupPendingOnCancel = true
                 isPresentingPickRelationType = true
             } else {
-                // Use the single non-references type
-                createEdgeIfNeeded(from: newCard, to: primary, type: only, appendToEnd: true)
-                shouldCleanupPendingOnCancel = false
+                if let enforced = canonicalizedTypeFor(source: newCard, target: primary, proposed: only) {
+                    createEdgeIfNeeded(from: newCard, to: primary, type: enforced, appendToEnd: true)
+                    shouldCleanupPendingOnCancel = false
+                } else {
+                    // No valid type after enforcement; fall back to picker
+                    pendingNewCard = newCard
+                    relationTypeChoices = types
+                    selectedRelationTypeCode = types.first?.code
+                    shouldCleanupPendingOnCancel = true
+                    isPresentingPickRelationType = true
+                }
             }
         } else if types.count == 2 {
             // If one is 'references', use the other; else ambiguous -> picker
             if let nonRef = types.first(where: { $0.code != defaultNonSourceCode }) {
-                createEdgeIfNeeded(from: newCard, to: primary, type: nonRef, appendToEnd: true)
-                shouldCleanupPendingOnCancel = false
+                if let enforced = canonicalizedTypeFor(source: newCard, target: primary, proposed: nonRef) {
+                    createEdgeIfNeeded(from: newCard, to: primary, type: enforced, appendToEnd: true)
+                    shouldCleanupPendingOnCancel = false
+                } else {
+                    pendingNewCard = newCard
+                    relationTypeChoices = types
+                    selectedRelationTypeCode = types.first?.code
+                    shouldCleanupPendingOnCancel = true
+                    isPresentingPickRelationType = true
+                }
             } else {
                 pendingNewCard = newCard
                 relationTypeChoices = types
@@ -523,6 +768,84 @@ struct CardRelationshipView: View {
         }
     }
 
+    // Existing cards picked (batch)
+    @MainActor
+    private func handleExistingCardsPicked(_ cards: [Card]) {
+        guard !cards.isEmpty else { return }
+
+        // If constrained to a specific relation type, use it for all (after canonicalization)
+        if let fixedType = relationTypeFilter {
+            for c in cards {
+                if let enforced = canonicalizedTypeFor(source: c, target: primary, proposed: fixedType) {
+                    createEdgeIfNeeded(from: c, to: primary, type: enforced, appendToEnd: true)
+                }
+            }
+            return
+        }
+
+        // Sources: must use "cites" for all
+        if selectedKind == .sources {
+            let cites = ensureRelationType(code: "cites", forward: "cites", inverse: "cited by", sourceKind: .sources, targetKind: nil)
+            for c in cards {
+                if let enforced = canonicalizedTypeFor(source: c, target: primary, proposed: cites) {
+                    createEdgeIfNeeded(from: c, to: primary, type: enforced, appendToEnd: true)
+                }
+            }
+            return
+        }
+
+        // Otherwise, consider available non-“cites” types applicable to selectedKind -> primary.kind
+        let types = nonCitesRelationTypes(applicableFrom: selectedKind, to: primary.kind)
+
+        if types.isEmpty {
+            // No usable types exist — prompt to create one, then apply to all
+            pendingExistingCards = cards
+            relationTypeChoices = []
+            selectedRelationTypeCode = nil
+            // Do NOT mark shouldCleanupPendingOnCancel; we never delete existing cards
+            shouldCleanupPendingOnCancel = false
+            isPresentingCreateRelationType = true
+        } else if types.count == 1 {
+            let only = types[0]
+            if only.code == defaultNonSourceCode {
+                // Only 'references' exists — require explicit choice for batch
+                pendingExistingCards = cards
+                relationTypeChoices = types
+                selectedRelationTypeCode = types.first?.code
+                shouldCleanupPendingOnCancel = false
+                isPresentingPickRelationType = true
+            } else {
+                for c in cards {
+                    if let enforced = canonicalizedTypeFor(source: c, target: primary, proposed: only) {
+                        createEdgeIfNeeded(from: c, to: primary, type: enforced, appendToEnd: true)
+                    }
+                }
+            }
+        } else if types.count == 2 {
+            // If one is 'references', use the other; else ambiguous -> picker
+            if let nonRef = types.first(where: { $0.code != defaultNonSourceCode }) {
+                for c in cards {
+                    if let enforced = canonicalizedTypeFor(source: c, target: primary, proposed: nonRef) {
+                        createEdgeIfNeeded(from: c, to: primary, type: enforced, appendToEnd: true)
+                    }
+                }
+            } else {
+                pendingExistingCards = cards
+                relationTypeChoices = types
+                selectedRelationTypeCode = types.first?.code
+                shouldCleanupPendingOnCancel = false
+                isPresentingPickRelationType = true
+            }
+        } else {
+            // >= 3 — show picker
+            pendingExistingCards = cards
+            relationTypeChoices = types
+            selectedRelationTypeCode = types.first?.code
+            shouldCleanupPendingOnCancel = false
+            isPresentingPickRelationType = true
+        }
+    }
+
     @MainActor
     private func createEdgeIfNeeded(from source: Card, to target: Card, type: RelationType) {
         createEdgeIfNeeded(from: source, to: target, type: type, appendToEnd: true)
@@ -530,10 +853,15 @@ struct CardRelationshipView: View {
 
     @MainActor
     private func createEdgeIfNeeded(from source: Card, to target: Card, type: RelationType, appendToEnd: Bool) {
+        // Enforce canonical type for Scene→Project
+        guard let enforcedType = canonicalizedTypeFor(source: source, target: target, proposed: type) else {
+            return
+        }
+
         // Avoid duplicates (compare scalar fields)
         let sourceIDOpt: UUID? = source.id
         let targetIDOpt: UUID? = target.id
-        let typeCodeOpt: String? = type.code
+        let typeCodeOpt: String? = enforcedType.code
         let existsFetch = FetchDescriptor<CardEdge>(
             predicate: #Predicate {
                 $0.from?.id == sourceIDOpt && $0.to?.id == targetIDOpt && $0.type?.code == typeCodeOpt
@@ -559,8 +887,30 @@ struct CardRelationshipView: View {
             createdAt = Date()
         }
 
-        let edge = CardEdge(from: source, to: target, type: type, note: nil, createdAt: createdAt)
+        let edge = CardEdge(from: source, to: target, type: enforcedType, note: nil, createdAt: createdAt)
         modelContext.insert(edge)
+        try? modelContext.save()
+    }
+
+    // Retype the existing edge between source and target
+    @MainActor
+    private func retypeEdge(from source: Card, to target: Card, newType: RelationType) {
+        // Canonicalize; if Scene→Project, this will force the canonical type regardless of chosen
+        guard let enforced = canonicalizedTypeFor(source: source, target: target, proposed: newType) else { return }
+
+        let sourceIDOpt: UUID? = source.id
+        let targetIDOpt: UUID? = target.id
+        // Fetch all edges from source->target (any type); if multiple, retype the first
+        let fetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { $0.from?.id == sourceIDOpt && $0.to?.id == targetIDOpt },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        guard let edge = try? modelContext.fetch(fetch).first else { return }
+
+        // If already the same type, nothing to do
+        if edge.type?.code == enforced.code { return }
+
+        edge.type = enforced
         try? modelContext.save()
     }
 
@@ -600,9 +950,109 @@ struct CardRelationshipView: View {
     private func nonCitesRelationTypes(applicableFrom source: Kinds, to target: Kinds) -> [RelationType] {
         let fetch = FetchDescriptor<RelationType>(sortBy: [SortDescriptor(\.code, order: .forward)])
         let fetched = (try? modelContext.fetch(fetch)) ?? []
+
+        // Special case: Scene→Project — only allow the canonical type
+        if source == .scenes && target == .projects {
+            return fetched.filter { $0.code == canonicalSceneProjectCode }
+        }
+
         return fetched.filter { $0.code != citesCode && relationTypeApplies($0, from: source, to: target) }
     }
-}
+
+    // MARK: - Existing picker helpers
+
+    private func availableExistingCandidates(for kind: Kinds) -> [Card] {
+        // Fetch all cards of the selected kind (predicate avoids the problematic "!= UUID")
+        let kindRaw = kind.rawValue
+        let fetch = FetchDescriptor<Card>(predicate: #Predicate {
+            $0.kindRaw == kindRaw
+        })
+        let allOfKind = (try? modelContext.fetch(fetch)) ?? []
+
+        // Exclude the primary in-memory and deduplicate by UUID just in case
+        let filtered = allOfKind.filter { $0.id != primary.id }
+        var seen: Set<UUID> = []
+        var unique: [Card] = []
+        for c in filtered {
+            if !seen.contains(c.id) {
+                seen.insert(c.id)
+                unique.append(c)
+            }
+        }
+
+        return unique.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    @MainActor
+    private func presentExistingPicker() {
+        let candidates = availableExistingCandidates(for: selectedKind)
+        let initiallySelected: Set<UUID> = []
+        existingPickerState = ExistingPickerState(
+            kind: selectedKind,
+            candidates: candidates,
+            initiallySelected: initiallySelected
+        )
+        #if DEBUG
+        // Quick diagnostics if needed
+        print("Existing candidates for \(selectedKind): \(candidates.count)")
+        #endif
+    }
+
+    // MARK: - Retype helpers
+
+    private func applicableRetypeChoices() -> [RelationType] {
+        // Constrain by kinds and special-case Scene→Project to canonical only
+        let fromKind = selectedKind
+        let toKind = primary.kind
+        if fromKind == .scenes && toKind == .projects {
+            if let t = fetchRelationType(code: canonicalSceneProjectCode) {
+                return [t]
+            } else {
+                return []
+            }
+        }
+        // Otherwise, all applicable types (including references) but excluding "cites" unless source is Sources
+        let fetch = FetchDescriptor<RelationType>(sortBy: [SortDescriptor(\.code, order: .forward)])
+        let all = (try? modelContext.fetch(fetch)) ?? []
+        return all.filter { relationTypeApplies($0, from: fromKind, to: toKind) && ($0.code != citesCode || fromKind == .sources) }
+    }
+
+    @MainActor
+    private func presentRetypePickerForSelection() {
+        guard let card = selectedRelatedCard else { return }
+        // Only allow retyping if an edge exists
+        let cardIDOpt: UUID? = card.id
+        let primaryIDOpt: UUID? = primary.id
+        let fetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { $0.from?.id == cardIDOpt && $0.to?.id == primaryIDOpt },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        guard let edge = try? modelContext.fetch(fetch).first else { return }
+
+        let choices = applicableRetypeChoices()
+        guard !choices.isEmpty else { return }
+        retypeChoices = choices
+        retypeSelectedCode = edge.type?.code ?? choices.first?.code
+        isPresentingRetype = true
+    }
+
+    // MARK: - Header image loading
+
+    @MainActor
+    private func loadHeaderImage() async {
+        // Prefer thumbnail for header; fall back to full if needed
+        if let thumb = await primary.makeThumbnailImage() {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                self.headerImage = thumb
+            }
+            return
+        }
+        let full = await primary.makeImage()
+        withAnimation(.easeInOut(duration: 0.15)) {
+            self.headerImage = full
+        }
+    }
+} //end CardRelationshipView
 
 // MARK: - RelationType creation sheet
 
@@ -733,7 +1183,7 @@ private struct RelationTypeCreatorSheet: View {
         if let suffix {
             return "\(base)-\(suffix)"
         } else {
-            return base
+            return "\(base)"
         }
     }
 }
@@ -752,6 +1202,7 @@ private struct RelationTypePickerSheet: View {
     @Environment(\.colorScheme) private var scheme
 
     @State private var selectedCode: String?
+    @State private var isPresentingCreate: Bool = false
 
     init(sourceKind: Kinds, targetKind: Kinds, types: [RelationType], selectedCode: String?, onPick: @escaping (RelationType?) -> Void) {
         self.sourceKind = sourceKind
@@ -815,13 +1266,18 @@ private struct RelationTypePickerSheet: View {
             Spacer(minLength: 0)
 
             HStack {
+                Button("New Relation Type…") {
+                    isPresentingCreate = true
+                }
+                .keyboardShortcut("N", modifiers: [.command])
+
+                Spacer()
+
                 Button("Cancel") {
                     onPick(nil)
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
-
-                Spacer()
 
                 Button {
                     if let code = selectedCode, let chosen = types.first(where: { $0.code == code }) {
@@ -839,7 +1295,107 @@ private struct RelationTypePickerSheet: View {
         }
         .padding()
         .frame(minWidth: 420, minHeight: 320, alignment: .topLeading)
+        .sheet(isPresented: $isPresentingCreate) {
+            RelationTypeCreatorSheet(
+                sourceKind: sourceKind,
+                targetKind: targetKind
+            ) { newType in
+                // Immediately return the created type and close both sheets
+                onPick(newType)
+                isPresentingCreate = false
+                dismiss()
+            } onCancel: {
+                isPresentingCreate = false
+            }
+            .frame(minWidth: 420, minHeight: 300)
+        }
+    }
+}
+
+// MARK: - Existing Card Picker Sheet (multi-select)
+
+private struct ExistingCardPickerSheet: View {
+    let kind: Kinds
+    let candidates: [Card]
+    let initiallySelected: Set<UUID>
+    var onDone: ([Card]) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var selection: Set<UUID> = []
+
+    init(kind: Kinds, candidates: [Card], initiallySelected: Set<UUID> = [], onDone: @escaping ([Card]) -> Void) {
+        self.kind = kind
+        self.candidates = candidates
+        self.initiallySelected = initiallySelected
+        self.onDone = onDone
+        self._selection = State(initialValue: initiallySelected)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Add Existing \(kind.title.dropLastIfPluralized())")
+                .font(.title3).bold()
+
+            if candidates.isEmpty {
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("No \(kind.title.lowercased()) found.")
+                            .foregroundStyle(.secondary)
+                        Text("Create a new one to add.")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                GroupBox("\(candidates.count) available") {
+                    List(candidates, id: \.id, selection: $selection) { card in
+                        HStack(spacing: 8) {
+                            Image(systemName: card.kind.systemImage)
+                                .foregroundStyle(.secondary)
+                            VStack(alignment: .leading) {
+                                Text(card.name)
+                                    .font(.body)
+                                if !card.subtitle.isEmpty {
+                                    Text(card.subtitle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                        }
+                    }
+                    #if canImport(UIKit)
+                    .environment(\.editMode, .constant(.active))
+                    #endif
+                    .frame(minHeight: 240, maxHeight: .infinity)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            HStack {
+                Button("Cancel") {
+                    dismiss()
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Spacer()
+
+                Button {
+                    let picked = candidates.filter { selection.contains($0.id) }
+                    onDone(picked)
+                    dismiss()
+                } label: {
+                    Label("Add", systemImage: "link.badge.plus")
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(selection.isEmpty)
+            }
+        }
+        .padding()
+        .frame(minWidth: 520, minHeight: 420, alignment: .topLeading)
     }
 }
 
 import struct SwiftUI.Image
+

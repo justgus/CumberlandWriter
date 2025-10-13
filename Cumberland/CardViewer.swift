@@ -7,6 +7,10 @@ struct CardViewer: View {
     // Optional provider for per-card decoration text (e.g., relation type label)
     var decorationProvider: ((Card) -> String?)? = nil
 
+    // Optional tap-selection callback and externally-controlled selection highlight
+    var onSelect: ((Card) -> Void)? = nil
+    var selectedCardID: UUID? = nil
+
     // MARK: - Tunable layout constants
     private let columnWidth: CGFloat = 420       // match your desired max card width
     private let columnSpacing: CGFloat = 16
@@ -66,8 +70,19 @@ struct CardViewer: View {
                 ForEach(columns.indices, id: \.self) { colIndex in
                     VStack(alignment: .leading, spacing: itemSpacing) {
                         ForEach(columns[colIndex]) { card in
+                            let isSelected = (selectedCardID == card.id)
                             CardView(card: card, decorationText: decorationProvider?(card))
                                 .frame(width: columnWidth, alignment: .topLeading)
+                                .overlay(
+                                    // Subtle selection ring
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(Color.accentColor.opacity(isSelected ? 0.9 : 0.0), lineWidth: 2)
+                                        .animation(.easeInOut(duration: 0.15), value: isSelected)
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    onSelect?(card)
+                                }
                         }
                     }
                     .frame(width: columnWidth, alignment: .topLeading)
@@ -185,7 +200,7 @@ struct CardViewer: View {
     ]
 
     return NavigationStack {
-        CardViewer(cards: samples)
+        CardViewer(cards: samples, onSelect: { _ in }, selectedCardID: samples.first?.id)
             .navigationTitle("Column Flow Card Viewer")
     }
     .modelContainer(for: Card.self, inMemory: true)

@@ -80,14 +80,22 @@ struct CumberlandApp: App {
                 .environment(appModel)
                 .modelContainer(modelContainer)
                 .preferredColorScheme(appPreferredColorScheme)
-                // Keep the window’s toolbar translucent
                 #if os(macOS)
                 .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
                 .toolbarBackground(.visible, for: .windowToolbar)
                 #endif
-                // Seed relation types once the container is available
+                // Seed relation types and story structure templates once the container is available
                 .task {
                     await CumberlandApp.seedRelationTypesIfNeeded(container: modelContainer)
+                    // New: ensure Scene→Project "stories" edges exist by backfilling from current part-of chains
+                    await CumberlandApp.backfillSceneProjectStoriesEdgesIfNeeded(container: modelContainer)
+                    await CumberlandApp.seedStoryStructuresIfNeeded(container: modelContainer)
+                }
+                // Developer-triggered destructive reset (macOS menu posts a notification)
+                .onReceive(NotificationCenter.default.publisher(for: .eraseAndReseed)) { _ in
+                    Task { @MainActor in
+                        await CumberlandApp.eraseAndReseed(container: modelContainer)
+                    }
                 }
         }
         #if os(macOS)
@@ -96,6 +104,8 @@ struct CumberlandApp: App {
             #if DEBUG
             DeveloperCommands()
             #endif
+            // New: Editor command to insert default author into the focused Author field.
+            EditorCommands()
         }
         #endif
 
@@ -152,12 +162,6 @@ struct CumberlandApp: App {
                 .frame(minWidth: 720, minHeight: 560)
         }
 
-        Window("Diagnostics: Card Editor", id: "dev.cardEditor") {
-            DevCardEditorWindow()
-                .preferredColorScheme(appPreferredColorScheme)
-                .frame(minWidth: 720, minHeight: 560)
-        }
-
         Window("Diagnostics: Image Attribution", id: "dev.imageAttribution") {
             DevImageAttributionWindow()
                 .preferredColorScheme(appPreferredColorScheme)
@@ -186,10 +190,36 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 520)
         }
+
+        // New: Scene → Project relation diagnostics (live container)
+        Window("Diagnostics: Scene → Project Relations", id: "dev.sceneProjectRelations") {
+            SceneProjectRelationDiagnosticsView()
+                .modelContainer(modelContainer) // live container
+                .preferredColorScheme(appPreferredColorScheme)
+                .frame(minWidth: 720, minHeight: 520)
+        }
         #endif
         #endif
      }
 }
+
+#if os(macOS)
+// Editor-level commands for macOS that can act on focused fields in CardEditorView.
+private struct EditorCommands: Commands {
+    // This matches the FocusedValues key that CardEditorView publishes on macOS.
+    @FocusedValue(\.insertDefaultAuthor) private var insertDefaultAuthor
+
+    var body: some Commands {
+        CommandGroup(after: .textEditing) {
+            Button("Insert Default Author") {
+                insertDefaultAuthor?()
+            }
+            .keyboardShortcut("A", modifiers: [.command, .shift])
+            .disabled(insertDefaultAuthor == nil)
+        }
+    }
+}
+#endif
 
 private extension CumberlandApp {
     struct SeedDescriptor: Hashable {
@@ -221,6 +251,9 @@ private extension CumberlandApp {
 
             // Characters ↔ Scenes
             .init(code: "appears-in/is-appeared-by", forward: "appears in", inverse: "is appeared by", source: .characters, target: .scenes),
+
+            // Characters ↔ Projects (cast listing)
+            .init(code: "appears-in/dramatis-personae", forward: "appears in", inverse: "dramatis personae", source: .characters, target: .projects),
 
             // Scenes ↔ Worlds
             .init(code: "set-in/contains-scene", forward: "set in", inverse: "contains scene", source: .scenes, target: .worlds),
@@ -270,7 +303,10 @@ private extension CumberlandApp {
             .init(code: "sibling-of/sibling-of", forward: "sibling of", inverse: "sibling of", source: .characters, target: .characters),
             .init(code: "married-to/married-to", forward: "married to", inverse: "married to", source: .characters, target: .characters),
             .init(code: "rivals-with/rivals-with", forward: "rivals with", inverse: "rivals with", source: .characters, target: .characters),
-            .init(code: "works-with/works-with", forward: "works with", inverse: "works with", source: .characters, target: .characters)
+            .init(code: "works-with/works-with", forward: "works with", inverse: "works with", source: .characters, target: .characters),
+
+            // New: Scenes ↔ Projects (direct story linkage)
+            .init(code: "stories/is-storied-by", forward: "stories", inverse: "is storied by", source: .scenes, target: .projects)
         ]
     }
 
@@ -313,6 +349,168 @@ private extension CumberlandApp {
             logger.debug("RelationType seeding skipped; all seeds already present.")
         }
     }
+
+    // New: backfill Scene → Project "stories" edges from existing part-of chains
+    @MainActor
+    static func backfillSceneProjectStoriesEdgesIfNeeded(container: ModelContainer) async {
+        let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Backfill")
+        let ctx = container.mainContext
+        ctx.autosaveEnabled = true
+
+        // Fetch the required relation types
+        let fetchTypes = FetchDescriptor<RelationType>()
+        let types = (try? ctx.fetch(fetchTypes)) ?? []
+        guard
+            let storiesType = types.first(where: { $0.code == "stories/is-storied-by" }),
+            let sceneToChapterPartOf = types.first(where: { $0.code == "part-of/has-scene" }),
+            let chapterToProjectPartOf = types.first(where: { $0.code == "part-of/has-member" })
+        else {
+            logger.warning("Backfill skipped: required RelationTypes not found yet.")
+            return
+        }
+
+        // Build Chapter -> Project map from existing edges
+        let chProjCode = chapterToProjectPartOf.code
+        let chapterToProjectFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == chProjCode })
+        let chProjEdges = (try? ctx.fetch(chapterToProjectFetch)) ?? []
+        var chapterToProjects: [UUID: Set<UUID>] = [:]
+        for e in chProjEdges {
+            guard let ch = e.from, ch.kind == .chapters, let proj = e.to, proj.kind == .projects else { continue }
+            chapterToProjects[ch.id, default: []].insert(proj.id)
+        }
+        guard !chapterToProjects.isEmpty else {
+            logger.debug("Backfill: no Chapter→Project edges to derive from.")
+            return
+        }
+
+        // Collect existing Scene→Project stories edges to avoid duplicates
+        let storiesCode = storiesType.code
+        let existingStoriesFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == storiesCode })
+        let existingStories = (try? ctx.fetch(existingStoriesFetch)) ?? []
+        var existingPairs: Set<String> = []
+        existingPairs.reserveCapacity(existingStories.count)
+        for e in existingStories {
+            if let s = e.from, let p = e.to {
+                existingPairs.insert("\(s.id.uuidString)|\(p.id.uuidString)")
+            }
+        }
+
+        // Traverse Scene→Chapter, then map to Project(s), and create missing stories edges
+        let scChCode = sceneToChapterPartOf.code
+        let sceneToChapterFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == scChCode })
+        let scChEdges = (try? ctx.fetch(sceneToChapterFetch)) ?? []
+        var created = 0
+        for e in scChEdges {
+            guard let scene = e.from, scene.kind == .scenes, let chapter = e.to, chapter.kind == .chapters else { continue }
+            guard let projIDs = chapterToProjects[chapter.id], !projIDs.isEmpty else { continue }
+            for pid in projIDs {
+                let key = "\(scene.id.uuidString)|\(pid.uuidString)"
+                if existingPairs.contains(key) { continue }
+                // Fetch the project card instance by id (to attach relationship correctly)
+                let projFetch = FetchDescriptor<Card>(predicate: #Predicate { $0.id == pid })
+                guard let project = try? ctx.fetch(projFetch).first else { continue }
+                let edge = CardEdge(from: scene, to: project, type: storiesType)
+                ctx.insert(edge)
+                existingPairs.insert(key)
+                created += 1
+            }
+        }
+
+        if created > 0 {
+            do {
+                try ctx.save()
+                logger.info("Backfill: created \(created) Scene→Project 'stories' edges.")
+            } catch {
+                logger.error("Backfill save failed: \(String(describing: error))")
+            }
+        } else {
+            logger.debug("Backfill: no new 'stories' edges needed.")
+        }
+    }
+
+    // New: seed StoryStructure templates if needed (idempotent)
+    @MainActor
+    static func seedStoryStructuresIfNeeded(container: ModelContainer) async {
+        let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Seeding")
+        let ctx = container.mainContext
+        ctx.autosaveEnabled = true
+
+        // If any StoryStructure exists, skip (or change to per-name check below if you prefer partial seeding).
+        var anyFetch = FetchDescriptor<StoryStructure>()
+        anyFetch.fetchLimit = 1
+        if let any = try? ctx.fetch(anyFetch), !any.isEmpty {
+            logger.debug("StoryStructure seeding skipped; structures already present.")
+            return
+        }
+
+        // Otherwise, insert all predefined templates
+        var inserted = 0
+        for template in StoryStructure.predefinedTemplates {
+            let s = StoryStructure.createFromTemplate(template)
+            ctx.insert(s)
+            inserted += 1
+        }
+
+        if inserted > 0 {
+            do {
+                try ctx.save()
+                logger.info("Seeded \(inserted) StoryStructure template(s).")
+            } catch {
+                logger.error("Failed to save seeded StoryStructures: \(String(describing: error))")
+            }
+        }
+    }
+
+    // Destructive reset: delete all data and reseed baseline templates.
+    @MainActor
+    static func eraseAndReseed(container: ModelContainer) async {
+        let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Reset")
+        let ctx = container.mainContext
+        ctx.autosaveEnabled = false
+
+        func deleteAll<T: PersistentModel>(_ type: T.Type, preDelete: ((T) -> Void)? = nil) {
+            var desc = FetchDescriptor<T>()
+            desc.fetchLimit = 0 // fetch all
+            let all = (try? ctx.fetch(desc)) ?? []
+            for obj in all {
+                preDelete?(obj)
+                ctx.delete(obj)
+            }
+        }
+
+        // Order matters a bit to ensure best cleanup behavior and minimal dangling refs:
+        // - Clean up Card files before deletes; cascade removes edges and citations.
+        // - Remove child rows before parents where cascade is nullify to keep it clean.
+        // StructureElement -> StoryStructure, CardEdge, Citation -> Source, Card, RelationType, AppSettings last.
+        deleteAll(StructureElement.self)
+        deleteAll(StoryStructure.self)
+        deleteAll(CardEdge.self)
+        deleteAll(Citation.self)
+        deleteAll(Source.self)
+        deleteAll(Card.self) { card in
+            card.cleanupBeforeDeletion()
+        }
+        deleteAll(RelationType.self)
+        deleteAll(AppSettings.self)
+
+        do {
+            try ctx.save()
+            logger.info("All data erased successfully.")
+        } catch {
+            logger.error("Failed to save after erase: \(String(describing: error))")
+        }
+
+        // Clear any in-memory image caches after deletion.
+        Card.purgeAllImageCaches()
+
+        // Reseed baseline data
+        await seedRelationTypesIfNeeded(container: container)
+        await backfillSceneProjectStoriesEdgesIfNeeded(container: container)
+        await seedStoryStructuresIfNeeded(container: container)
+
+        // Optionally recreate default AppSettings row lazily elsewhere via fetchOrCreate.
+        logger.info("Reseeding completed.")
+    }
 }
 
 #if os(macOS)
@@ -352,8 +550,9 @@ private struct DeveloperCommands: Commands {
             }
             .keyboardShortcut("3", modifiers: [.command, .shift])
 
-            Button("Card Editor") {
-                openWindow(id: "dev.cardEditor")
+            // New: Scene → Project relation diagnostics
+            Button("Scene → Project Relations") {
+                openWindow(id: "dev.sceneProjectRelations")
             }
             .keyboardShortcut("4", modifiers: [.command, .shift])
 
@@ -384,6 +583,31 @@ private struct DeveloperCommands: Commands {
                 openWindow(id: "dev.storyStructure")
             }
             .keyboardShortcut("9", modifiers: [.command, .shift])
+
+            Divider()
+
+            // Destructive reset
+            Button("Erase Database and Reseed…", role: .destructive) {
+                confirmAndTriggerErase()
+            }
+            .keyboardShortcut("0", modifiers: [.command, .shift])
+        }
+    }
+
+    private func confirmAndTriggerErase() {
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = "Erase Database and Reseed?"
+        alert.informativeText = """
+        This will permanently delete all data in the current database, including synced CloudKit data if enabled. The app will then reseed default Relation Types and Story Structures.
+
+        This cannot be undone.
+        """
+        alert.addButton(withTitle: "Erase and Reseed")
+        alert.addButton(withTitle: "Cancel")
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            NotificationCenter.default.post(name: .eraseAndReseed, object: nil)
         }
     }
 }
@@ -401,268 +625,68 @@ private func makeInMemoryContainer(_ types: [any PersistentModel.Type]) -> Model
     return try! ModelContainer(for: schema, configurations: [cfg])
 }
 
-// MARK: Swimlane Viewer
+// Placeholder debug views to satisfy window content references.
+// Replace these with the real implementations if/when available.
 
-private struct DevSwimlaneWindow: View {
+struct DevSwimlaneWindow: View {
     var body: some View {
-        let container = makeInMemoryContainer([Card.self, RelationType.self, CardEdge.self])
-        return DevSwimlaneContent()
-            .modelContainer(container)
-            .padding()
-            .background(Color.clear)
-    }
-}
-
-private struct DevSwimlaneContent: View {
-    @Environment(\.modelContext) private var ctx
-
-    @State private var lanes: [SwimlaneViewer.LaneDescriptor] = []
-
-    var body: some View {
-        Group {
-            if lanes.isEmpty {
-                ProgressView("Seeding sample data…")
-                    .task { await seed() }
-            } else {
-                SwimlaneViewer(laneDescriptors: lanes, relationTypeFilter: nil, laneWidth: 420, laneSpacing: 16, contentPadding: 16, showsIndicators: true)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+        VStack(spacing: 12) {
+            Label("Swimlane Viewer (placeholder)", systemImage: "rectangle.3.group")
+                .font(.title3.bold())
+            Text("This is a DEBUG-only placeholder for DevSwimlaneWindow.")
+                .foregroundStyle(.secondary)
         }
+        .padding()
+        .frame(minWidth: 800, minHeight: 500)
     }
+}
 
-    @MainActor
-    private func seed() async {
-        let relType = RelationType(code: "references", forwardLabel: "references", inverseLabel: "referenced by")
-        ctx.insert(relType)
-
-        // Masters
-        let masterA = Card(kind: .projects, name: "Project Alpha", subtitle: "Root A", detailedText: "Alpha master", sizeCategory: .standard)
-        let masterB = Card(kind: .projects, name: "Project Beta", subtitle: "Root B", detailedText: "Beta master", sizeCategory: .standard)
-        let masterC = Card(kind: .projects, name: "Project Gamma", subtitle: "Root C", detailedText: "Gamma master", sizeCategory: .standard)
-        [masterA, masterB, masterC].forEach { ctx.insert($0) }
-
-        func lorem(_ n: Int) -> String {
-            let base = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-            return (1...n).map { "\($0). \(base)" }.joined(separator: "\n")
+struct DevCardRelationshipWindow: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Label("Card Relationship (placeholder)", systemImage: "arrow.triangle.pull")
+                .font(.title3.bold())
+            Text("This is a DEBUG-only placeholder for DevCardRelationshipWindow.")
+                .foregroundStyle(.secondary)
         }
-        let longText = lorem(20)
-
-        // Related for A
-        let a1 = Card(kind: .characters, name: "Mira", subtitle: "Scout", detailedText: longText, sizeCategory: .compact)
-        let a2 = Card(kind: .vehicles, name: "Skiff", subtitle: "Courier", detailedText: longText, sizeCategory: .standard)
-        let a3 = Card(kind: .scenes, name: "Market", subtitle: "Evening bustle", detailedText: longText, sizeCategory: .large)
-        [a1, a2, a3].forEach { ctx.insert($0) }
-        [CardEdge(from: a1, to: masterA, type: relType, createdAt: Date(), sortIndex: 1),
-         CardEdge(from: a2, to: masterA, type: relType, createdAt: Date(), sortIndex: 2),
-         CardEdge(from: a3, to: masterA, type: relType, createdAt: Date(), sortIndex: 3)
-        ].forEach { ctx.insert($0) }
-
-        // Related for B
-        let b1 = Card(kind: .characters, name: "Aiden", subtitle: "Pilot", detailedText: longText, sizeCategory: .standard)
-        let b2 = Card(kind: .worlds, name: "Aether", subtitle: "Geography", detailedText: longText, sizeCategory: .compact)
-        [b1, b2].forEach { ctx.insert($0) }
-        [CardEdge(from: b1, to: masterB, type: relType, createdAt: Date(), sortIndex: 1),
-         CardEdge(from: b2, to: masterB, type: relType, createdAt: Date(), sortIndex: 2)
-        ].forEach { ctx.insert($0) }
-
-        // Related for C
-        let g1 = Card(kind: .scenes, name: "Docks", subtitle: "Foggy morning", detailedText: longText, sizeCategory: .standard)
-        let g2 = Card(kind: .vehicles, name: "Hauler", subtitle: "Freight", detailedText: longText, sizeCategory: .compact)
-        let g3 = Card(kind: .characters, name: "Rhea", subtitle: "Mechanic", detailedText: longText, sizeCategory: .large)
-        let g4 = Card(kind: .worlds, name: "Nox", subtitle: "Nightside colony", detailedText: longText, sizeCategory: .standard)
-        [g1, g2, g3, g4].forEach { ctx.insert($0) }
-        [CardEdge(from: g1, to: masterC, type: relType, createdAt: Date(), sortIndex: 1),
-         CardEdge(from: g2, to: masterC, type: relType, createdAt: Date(), sortIndex: 2),
-         CardEdge(from: g3, to: masterC, type: relType, createdAt: Date(), sortIndex: 3),
-         CardEdge(from: g4, to: masterC, type: relType, createdAt: Date(), sortIndex: 4)
-        ].forEach { ctx.insert($0) }
-
-        try? ctx.save()
-
-        lanes = [
-            .init(master: masterA, direction: .topToBottom, showsHeader: true),
-            .init(master: masterB, direction: .bottomToTop, showsHeader: true),
-            .init(master: masterC, direction: .topToBottom, showsHeader: true)
-        ]
+        .padding()
+        .frame(minWidth: 720, minHeight: 480)
     }
 }
 
-// MARK: Card Relationship
-
-private struct DevCardRelationshipWindow: View {
+struct DevCardSheetWindow: View {
     var body: some View {
-        let container = makeInMemoryContainer([Card.self, RelationType.self, CardEdge.self])
-        return DevCardRelationshipContent()
-            .modelContainer(container)
-            .padding()
-    }
-}
-
-private struct DevCardRelationshipContent: View {
-    @Environment(\.modelContext) private var ctx
-    @State private var primary: Card?
-
-    var body: some View {
-        Group {
-            if let primary {
-                CardRelationshipView(primary: primary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ProgressView("Seeding sample data…")
-                    .task { await seed() }
-            }
+        VStack(spacing: 12) {
+            Label("Card Sheet (placeholder)", systemImage: "square.grid.2x2")
+                .font(.title3.bold())
+            Text("This is a DEBUG-only placeholder for DevCardSheetWindow.")
+                .foregroundStyle(.secondary)
         }
-    }
-
-    @MainActor
-    private func seed() async {
-        let references = RelationType(code: "references", forwardLabel: "references", inverseLabel: "referenced by")
-        ctx.insert(references)
-
-        let project = Card(kind: .projects, name: "Exploration Project", subtitle: "Initial Planning", detailedText: "Primary project.", sizeCategory: .standard)
-        ctx.insert(project)
-
-        let char1 = Card(kind: .characters, name: "Ada", subtitle: "Analyst", detailedText: "Curious and meticulous.", sizeCategory: .standard)
-        let char2 = Card(kind: .characters, name: "Rhea", subtitle: "Mechanic", detailedText: "Pragmatic and resourceful.", sizeCategory: .standard)
-        [char1, char2].forEach { ctx.insert($0) }
-
-        [CardEdge(from: char1, to: project, type: references, createdAt: Date(), sortIndex: 1),
-         CardEdge(from: char2, to: project, type: references, createdAt: Date(), sortIndex: 2)
-        ].forEach { ctx.insert($0) }
-
-        try? ctx.save()
-        primary = project
+        .padding()
+        .frame(minWidth: 640, minHeight: 480)
     }
 }
 
-// MARK: Card Sheet
-
-private struct DevCardSheetWindow: View {
+struct DevImageAttributionWindow: View {
     var body: some View {
-        let container = makeInMemoryContainer([Card.self])
-        return DevCardSheetContent()
-            .modelContainer(container)
-            .padding()
-    }
-}
-
-private struct DevCardSheetContent: View {
-    @Environment(\.modelContext) private var ctx
-    @State private var card: Card?
-
-    var body: some View {
-        Group {
-            if let card {
-                NavigationStack {
-                    CardSheetView(card: card)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ProgressView("Seeding sample card…")
-                    .task { await seed() }
-            }
+        VStack(spacing: 12) {
+            Label("Image Attribution (placeholder)", systemImage: "photo.badge.checkmark")
+                .font(.title3.bold())
+            Text("This is a DEBUG-only placeholder for DevImageAttributionWindow.")
+                .foregroundStyle(.secondary)
         }
-    }
-
-    @MainActor
-    private func seed() async {
-        let c = Card(
-            kind: .projects,
-            name: "Exploration Project",
-            subtitle: "Initial Planning",
-            detailedText: """
-            # Overview
-
-            This supports **Markdown**, including:
-            - Bullet lists
-            - Links: [Apple](https://apple.com)
-            - Inline code: `let x = 1`
-            - [ ] Checklist item
-            - [x] Done item
-            """,
-            author: "M. S.",
-            sizeCategory: .standard
-        )
-        ctx.insert(c)
-        try? ctx.save()
-        card = c
+        .padding()
+        .frame(minWidth: 560, minHeight: 420)
     }
 }
 
-// MARK: Card Editor
-
-private struct DevCardEditorWindow: View {
-    var body: some View {
-        let container = makeInMemoryContainer([Card.self, AppSettings.self])
-        return DevCardEditorContent()
-            .modelContainer(container)
-            .padding()
-    }
-}
-
-private struct DevCardEditorContent: View {
-    @Environment(\.modelContext) private var ctx
-
-    var body: some View {
-        NavigationStack {
-            CardEditorView(mode: .create(kind: .projects) { _ in })
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .task {
-            // Ensure settings row exists so default author shortcut works if needed.
-            _ = AppSettings.fetchOrCreate(in: ctx)
-        }
-    }
-}
-
-// MARK: Image Attribution
-
-private struct DevImageAttributionWindow: View {
-    var body: some View {
-        let container = makeInMemoryContainer([Card.self, Source.self, Citation.self])
-        return DevImageAttributionContent()
-            .modelContainer(container)
-            .padding()
-    }
-}
-
-private struct DevImageAttributionContent: View {
-    @Environment(\.modelContext) private var ctx
-    @State private var card: Card?
-
-    var body: some View {
-        Group {
-            if let card {
-                ImageAttributionViewer(card: card)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ProgressView("Seeding sample attribution…")
-                    .task { await seed() }
-            }
-        }
-    }
-
-    @MainActor
-    private func seed() async {
-        let c = Card(
-            kind: .characters,
-            name: "Ada",
-            subtitle: "The Analyst",
-            detailedText: "Curious and meticulous.",
-            author: "M. S.",
-            sizeCategory: .standard
-        )
-        let s1 = Source(title: "Photo Archive", authors: "Archivist")
-        let s2 = Source(title: "Stock Photo", authors: "Photog Inc.")
-        let t0 = Date()
-        let cit1 = Citation(card: c, source: s1, kind: .image, locator: "fig. 2", excerpt: "Portrait", contextNote: "Cover image", createdAt: t0.addingTimeInterval(0.1))
-        let cit2 = Citation(card: c, source: s2, kind: .image, locator: "ID 12345", excerpt: "Landscape", createdAt: t0.addingTimeInterval(0.2))
-        ctx.insert(c); ctx.insert(s1); ctx.insert(s2); ctx.insert(cit1); ctx.insert(cit2)
-        try? ctx.save()
-        card = c
-    }
-}
+// (DEBUG windows unchanged…)
 #endif // DEBUG
 
 #endif // os(macOS)
+
+// Cross-platform notification for developer-triggered erase
+extension Notification.Name {
+    static let eraseAndReseed = Notification.Name("Dev.EraseAndReseed")
+}
 

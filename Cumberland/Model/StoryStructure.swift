@@ -121,19 +121,132 @@ struct StructureAssignmentManager {
 // Predefined structure templates
 extension StoryStructure {
     static let predefinedTemplates: [(name: String, elements: [String])] = [
+        // Narrative templates
         ("Three-Act Structure", ["Act 1", "Act 2", "Act 3"]),
         ("Beginning-Middle-End", ["Beginning", "Middle", "End"]),
         ("Five-Act Structure", ["Exposition", "Rising Action", "Climax", "Falling Action", "Resolution"]),
+        // Formal 12-stage Hero's Journey (Vogler-style)
+        ("Hero's Journey (Formal)", [
+            "Ordinary World",
+            "Call to Adventure",
+            "Refusal of the Call",
+            "Meeting the Mentor",
+            "Crossing the First Threshold",
+            "Tests, Allies, Enemies",
+            "Approach to the Inmost Cave",
+            "Ordeal",
+            "Reward (Seizing the Sword)",
+            "The Road Back",
+            "Resurrection",
+            "Return with the Elixir"
+        ]),
+        // Retain the simplified variant for quick outlines
         ("Hero's Journey (Simplified)", ["Ordinary World", "Call to Adventure", "Trials", "Transformation", "Return"]),
         ("Four-Part Structure", ["Setup", "Confrontation", "Resolution", "Epilogue"]),
-        ("Save the Cat", ["Opening Image", "Setup", "Catalyst", "Debate", "Break into Two", "B Story", "Fun and Games", "Midpoint", "Bad Guys Close In", "All Is Lost", "Dark Night of the Soul", "Break into Three", "Finale", "Final Image"])
-    ]
+        ("Save the Cat", ["Opening Image", "Setup", "Catalyst", "Debate", "Break into Two", "B Story", "Fun and Games", "Midpoint", "Bad Guys Close In", "All Is Lost", "Dark Night of the Soul", "Break into Three", "Finale", "Final Image"]),
+        
+        // Novel (common beat-style outline)
+        ("Novel", [
+            "Opening Image",
+            "Hook",
+            "Inciting Incident",
+            "Key Event",
+            "First Plot Point",
+            "First Pinch Point",
+            "Midpoint",
+            "Second Pinch Point",
+            "Second Plot Point",
+            "Climax",
+            "Resolution",
+            "Epilogue"
+        ]),
+        
+        // Short Story (compact narrative arc)
+        ("Short Story", [
+            "Setup",
+            "Inciting Incident",
+            "Rising Action",
+            "Climax",
+            "Falling Action",
+            "Resolution"
+        ]),
+        
+        // Screenplay removed (duplicate of Save the Cat)
+        // If desired later, add a distinct Screenplay variant (e.g., three-act/sequence method)
+        
+        // Term Paper (academic coursework)
+        ("Term Paper", [
+            "Title Page",
+            "Abstract",
+            "Introduction",
+            "Literature Review",
+            "Methodology",
+            "Results",
+            "Discussion",
+            "Conclusion",
+            "References",
+            "Appendices"
+        ]),
+        
+        // Academic Paper (IMRaD-style)
+        ("Academic Paper", [
+            "Title",
+            "Abstract",
+            "Keywords",
+            "Introduction",
+            "Methods",
+            "Results",
+            "Discussion",
+            "Conclusion",
+            "Acknowledgments",
+            "References",
+            "Supplementary Material"
+        ]),
+        
+        // Technical Document (engineering/docs)
+        ("Technical Document", [
+            "Title",
+            "Revision History",
+            "Overview",
+            "Requirements",
+            "Architecture",
+            "Design",
+            "Implementation",
+            "API Reference",
+            "Usage Examples",
+            "Configuration",
+            "Deployment",
+            "Troubleshooting",
+            "Security Considerations",
+            "Performance",
+            "Glossary",
+            "Appendix"
+        ]),
+        
+        // White Paper (product/strategy)
+        ("White Paper", [
+            "Title",
+            "Executive Summary",
+            "Problem Statement",
+            "Background",
+            "Proposed Solution",
+            "Benefits",
+            "Implementation Considerations",
+            "Case Studies",
+            "Conclusion",
+            "Call to Action",
+            "References"
+        ])
+    ].sorted { lhs, rhs in
+        lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+    }
     
     static func createFromTemplate(_ template: (name: String, elements: [String]), for projectID: UUID? = nil) -> StoryStructure {
         let structure = StoryStructure(name: template.name, projectID: projectID)
         
         for (index, elementName) in template.elements.enumerated() {
             let element = StructureElement(name: elementName, orderIndex: index)
+            element.storyStructure = structure            // ensure inverse
             if structure.elements == nil { structure.elements = [] }
             structure.elements?.append(element)
         }
@@ -141,3 +254,4 @@ extension StoryStructure {
         return structure
     }
 }
+

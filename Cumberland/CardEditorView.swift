@@ -83,6 +83,42 @@ struct CardEditorView: View {
     // Photos picker
     @State private var selectedPhotoItem: PhotosPickerItem?
 
+    // Flip state for wizard-like back side
+    @State private var isFlipped: Bool = false
+
+    // MARK: - Project Structure Creation (only when creating a Project)
+
+    private enum StructureSource: String, Hashable, CaseIterable, Identifiable {
+        case template = "Template"
+        case custom = "Custom"
+        var id: String { rawValue }
+    }
+
+    // Whether to attach a structure to the project being created
+    @State private var attachStructure: Bool = true
+
+    // Source mode: template or custom
+    @State private var structureSource: StructureSource = .template
+
+    // Selected template index; used to seed editableElements
+    @State private var selectedTemplateIndex: Int = 0
+
+    // Name of the structure to be created (defaults to template name, editable)
+    @State private var structureName: String = ""
+
+    // Inline editable list of elements (names only here; description can be added as needed)
+    @State private var editableElements: [EditableElement] = []
+
+    // Reorder toggle (List edit mode)
+    @State private var isReordering: Bool = false
+
+    private struct EditableElement: Identifiable, Hashable {
+        let id = UUID()
+        var name: String
+        var description: String = ""
+        var colorHue: Double? = nil
+    }
+
     // MARK: - Tunable constants (match CardView where sensible)
     private let thumbnailSide: CGFloat = 72
     private let thumbnailTopPadding: CGFloat = 8
@@ -99,13 +135,23 @@ struct CardEditorView: View {
     init(mode: Mode) {
         self.mode = mode
         switch mode {
-        case .create(_, _):
+        case .create(let kind, _):
             _name = State(initialValue: "")
             _subtitle = State(initialValue: "")
             _author = State(initialValue: "")
             _detailedText = State(initialValue: "")
             _sizeCategory = State(initialValue: .standard)
             _imageData = State(initialValue: nil)
+
+            // Default structure UI only makes sense for Projects
+            if kind == .projects {
+                let templates = StoryStructure.predefinedTemplates
+                let initialIndex = 0
+                let initialTemplate = templates.indices.contains(initialIndex) ? templates[initialIndex] : (name: "Custom Structure", elements: [])
+                _selectedTemplateIndex = State(initialValue: initialIndex)
+                _structureName = State(initialValue: initialTemplate.name)
+                _editableElements = State(initialValue: initialTemplate.elements.map { EditableElement(name: $0) })
+            }
         case .edit(let card, _):
             _name = State(initialValue: card.name)
             _subtitle = State(initialValue: card.subtitle)
@@ -118,86 +164,29 @@ struct CardEditorView: View {
 
     var body: some View {
         let kind = mode.kind
-        let cardShape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-        let shadowColor = Color.black.opacity(scheme == .dark ? 0.25 : 0.10)
-        let tabTopAllowance = max(0, -tabOffsetTop)
 
         VStack(spacing: 16) {
-            // Editor "card" surface (mirrors CardView styling)
-            HStack(alignment: .top, spacing: 12) {
-                VStack(spacing: 8) {
-                    thumbnailDropView
-                        .frame(width: thumbnailSide, height: thumbnailSide)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .stroke(.quaternary, lineWidth: 1)
-                        }
-                        .padding(.top, thumbnailTopPadding)
-
-                    // Compact image attribution panel (only for edit mode)
-                    if case .edit(let card, _) = mode {
-                        ImageAttributionViewer(card: card)
-                    }
+            // Flip container hosting front/back faces of the editor "card" surface
+            FlipCardContainer(isFlipped: $isFlipped) {
+                // FRONT: common fields
+                cardSurface(kind: kind) {
+                    frontCardFields
                 }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
-                        TextField("Name", text: $name)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(maxWidth: .infinity)
-                            .focused($focusedField, equals: .name)
-
-                        sizePicker
-                    }
-
-                    TextField("Subtitle (optional)", text: $subtitle)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($focusedField, equals: .subtitle)
-
-                    TextField("Author (optional)", text: $author)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($focusedField, equals: .author)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Details (Markdown supported)")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        TextEditor(text: $detailedText)
-                            .focused($focusedField, equals: .details)
-                            .frame(minHeight: 160)
-                            .padding(8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(.background)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .stroke(.quaternary, lineWidth: 1)
-                            )
-                    }
+            } back: {
+                // BACK: kind-specific extras (only if available)
+                cardSurface(kind: kind) {
+                    backExtrasContent
                 }
-
-                Spacer(minLength: 0)
             }
-            .padding(.top, 20 + tabTopAllowance)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 12)
-            .background(
-                cardShape
-                    .fill(.background)
-                    .shadow(color: shadowColor, radius: 6, x: 0, y: 3)
-            )
-            .overlay(
-                cardShape
-                    .strokeBorder(kind.accentColor(for: scheme), lineWidth: 12)
-            )
-            .overlay(alignment: .topLeading) {
-                kindTab(kind: kind)
-                    .offset(x: tabOffsetLeft, y: tabOffsetTop)
-                    .accessibilityHidden(true)
+            // Ellipsis flip button (Wallet-like) only when extras exist
+            .overlay(alignment: .bottomTrailing) {
+                if hasKindExtras {
+                    flipButton
+                        .padding(12)
+                        .offset(x: 8, y: 8) // let it protrude slightly like a badge
+                }
             }
-            .frame(maxWidth: maxCardWidth, alignment: .topLeading)
+            .frame(maxWidth: maxCardWidth)
 
             // Image actions
             HStack(spacing: 12) {
@@ -205,15 +194,6 @@ struct CardEditorView: View {
                     isImportingImage = true
                 } label: {
                     Label("Choose Image…", systemImage: "photo.on.rectangle")
-                }
-
-                if isEditing {
-                    Button {
-                        Task { await regenerateThumbnailFromOriginalIfPossible() }
-                    } label: {
-                        Label("Regenerate Thumbnail", systemImage: "arrow.clockwise")
-                    }
-                    .disabled(!hasAnyImage)
                 }
 
                 Button(role: .destructive) {
@@ -242,6 +222,8 @@ struct CardEditorView: View {
                 CitationViewer(card: card)
                     .frame(maxWidth: maxCardWidth)
             }
+
+            // Note: The structure creation panel is now on the back face when creating a Project.
 
             HStack {
                 Button("Cancel") {
@@ -293,6 +275,23 @@ struct CardEditorView: View {
             (focusedField == .author && !defaultAuthorTrimmed.isEmpty) ? { insertDefaultAuthorIfAvailable() } : nil
         )
         #endif
+        // When flipping to the back in edit mode, load existing structure (if any).
+        .onChange(of: isFlipped) { _, flipped in
+            if flipped {
+                Task { await loadStructureStateForEditIfNeeded() }
+            }
+        }
+        // Keep structureName in sync with template selection if user hasn’t edited it.
+        .onChange(of: selectedTemplateIndex) { _, newIndex in
+            guard case .create(let createKind, _) = mode, createKind == .projects else { return }
+            guard structureSource == .template else { return }
+            let templates = StoryStructure.predefinedTemplates
+            guard templates.indices.contains(newIndex) else { return }
+            let t = templates[newIndex]
+            // We conservatively update to the selected template name.
+            structureName = t.name
+            editableElements = t.elements.map { EditableElement(name: $0) }
+        }
     }
 
     // MARK: - Derived
@@ -313,6 +312,361 @@ struct CardEditorView: View {
 
     private var defaultAuthorTrimmed: String {
         (settingsResults.first?.defaultAuthor ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    // Kinds that have additional controls on the back face
+    private var hasKindExtras: Bool {
+        // Show the flip button for Projects in both create and edit modes.
+        return mode.kind == .projects
+    }
+
+    // MARK: - Front/Back content
+
+    @ViewBuilder
+    private var frontCardFields: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 8) {
+                thumbnailDropView
+                    .frame(width: thumbnailSide, height: thumbnailSide)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(.quaternary, lineWidth: 1)
+                    }
+                    .padding(.top, thumbnailTopPadding)
+
+                // Compact image attribution panel (only for edit mode)
+                if case .edit(let card, _) = mode {
+                    ImageAttributionViewer(card: card)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    TextField("Name", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: .infinity)
+                        .focused($focusedField, equals: .name)
+
+                    sizePicker
+                }
+
+                TextField("Subtitle (optional)", text: $subtitle)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($focusedField, equals: .subtitle)
+
+                TextField("Author (optional)", text: $author)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($focusedField, equals: .author)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Details (Markdown supported)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    TextEditor(text: $detailedText)
+                        .focused($focusedField, equals: .details)
+                        .frame(minHeight: 160)
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(.background)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(.quaternary, lineWidth: 1)
+                        )
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private var backExtrasContent: some View {
+        // Show the panel for Projects in both create and edit modes
+        if mode.kind == .projects {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: Kinds.projects.systemImage)
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    Text("Project Options")
+                        .font(.headline)
+                    Spacer()
+                }
+                structureCreationPanel
+            }
+            // Also load existing structure if we're editing and this back face appears early.
+            .task {
+                await loadStructureStateForEditIfNeeded()
+            }
+        } else {
+            VStack(alignment: .center, spacing: 8) {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.secondary)
+                Text("No additional options")
+                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    // MARK: - Flip UI
+
+    private var flipButton: some View {
+        let diameter: CGFloat = 40
+
+        return Button {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                isFlipped.toggle()
+            }
+            #if canImport(UIKit)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            #endif
+        } label: {
+            ZStack {
+                // Glassy base
+                Circle()
+                    .fill(.ultraThinMaterial)
+
+                // Subtle top gloss
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.45),
+                                Color.white.opacity(0.12),
+                                Color.clear
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .blur(radius: 0.5)
+                    .opacity(0.9)
+
+                // Symbol
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+            .frame(width: diameter, height: diameter)
+            // Inner sheen ring
+            .overlay(
+                Circle()
+                    .stroke(Color.white.opacity(0.35), lineWidth: 0.8)
+            )
+            // Outer subtle ring glow
+            .overlay(
+                Circle()
+                    .stroke(Color.white.opacity(0.15), lineWidth: 4)
+                    .blur(radius: 2)
+            )
+            // Crisp edge
+            .overlay(
+                Circle()
+                    .stroke(.separator, lineWidth: 0.6)
+                    .opacity(0.6)
+            )
+            // Shadows for depth
+            .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 6)
+            .shadow(color: .black.opacity(0.10), radius: 3, x: 0, y: 1)
+            .accessibilityLabel(isFlipped ? "Show common fields" : "Show additional options")
+        }
+        #if os(macOS)
+        .onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+        #endif
+        .buttonStyle(.plain)
+        .keyboardShortcut(.init("\t"), modifiers: [.command, .shift]) // Cmd-Shift-Tab to flip
+    }
+
+    // A shared chrome wrapper that renders the card surface, border, and top-left kind tab.
+    @ViewBuilder
+    private func cardSurface<Content: View>(kind: Kinds, @ViewBuilder content: () -> Content) -> some View {
+        let cardShape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let shadowColor = Color.black.opacity(scheme == .dark ? 0.25 : 0.10)
+        let tabTopAllowance = max(0, -tabOffsetTop)
+
+        HStack(alignment: .top, spacing: 12) {
+            content()
+        }
+        .padding(.top, 20 + tabTopAllowance)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 12)
+        .background(
+            cardShape
+                .fill(.background)
+                .shadow(color: shadowColor, radius: 6, x: 0, y: 3)
+        )
+        .overlay(
+            cardShape
+                .strokeBorder(kind.accentColor(for: scheme), lineWidth: 12)
+        )
+        .overlay(alignment: .topLeading) {
+            kindTab(kind: kind)
+                .offset(x: tabOffsetLeft, y: tabOffsetTop)
+                .accessibilityHidden(true)
+        }
+        .frame(maxWidth: maxCardWidth, alignment: .topLeading)
+    }
+
+    // MARK: - Structure Creation Panel
+
+    @ViewBuilder
+    private var structureCreationPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider().padding(.vertical, 2)
+
+            Toggle(isOn: $attachStructure) {
+                Label("Attach Story Structure", systemImage: "list.number")
+            }
+
+            if attachStructure {
+                Picker("Source", selection: $structureSource) {
+                    ForEach(StructureSource.allCases) { src in
+                        Text(src.rawValue).tag(src)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                // Structure name (editable)
+                TextField("Structure Name", text: $structureName)
+                    .textFieldStyle(.roundedBorder)
+
+                if structureSource == .template {
+                    // Template picker
+                    Picker("Template", selection: $selectedTemplateIndex) {
+                        ForEach(Array(StoryStructure.predefinedTemplates.enumerated()), id: \.offset) { idx, t in
+                            Text(t.name).tag(idx)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    // Inline editor seeded from template (editable + reorder)
+                    structureElementEditor
+                } else {
+                    // Custom structure: start empty or previously edited
+                    HStack {
+                        Button {
+                            // If empty, seed with a single blank row to hint
+                            if editableElements.isEmpty {
+                                editableElements = [EditableElement(name: "")]
+                            }
+                        } label: {
+                            Label("Start List", systemImage: "text.badge.plus")
+                        }
+                        .disabled(!editableElements.isEmpty)
+
+                        Spacer()
+                    }
+                    structureElementEditor
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var structureElementEditor: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Elements")
+                    .font(.subheadline.bold())
+                Spacer()
+                Button(isReordering ? "Done" : "Reorder") {
+                    withAnimation { isReordering.toggle() }
+                }
+                .buttonStyle(.bordered)
+                .disabled(editableElements.count < 2)
+            }
+
+            // Use List for built-in onMove support
+            List {
+                ForEach(editableElements) { el in
+                    HStack(spacing: 8) {
+                        // Order indicator
+                        if !isReordering {
+                            if let idx = editableElements.firstIndex(of: el) {
+                                Text("\(idx + 1)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 22, alignment: .trailing)
+                            } else {
+                                Text("•").frame(width: 22, alignment: .trailing)
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            TextField("Element name", text: bindingForElement(el).name)
+                                .textFieldStyle(.roundedBorder)
+
+                            TextField("Description (optional)", text: bindingForElement(el).description)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.caption)
+                        }
+
+                        Spacer()
+
+                        Button(role: .destructive) {
+                            if let idx = editableElements.firstIndex(of: el) {
+                                editableElements.remove(at: idx)
+                            }
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Remove element")
+                    }
+                    .padding(.vertical, 2)
+                }
+                .onMove { indices, newOffset in
+                    editableElements.move(fromOffsets: indices, toOffset: newOffset)
+                }
+            }
+            #if os(iOS)
+            .environment(\.editMode, .constant(isReordering ? .active : .inactive))
+            #endif
+            .frame(minHeight: 160, maxHeight: 320)
+
+            HStack {
+                Button {
+                    editableElements.append(EditableElement(name: ""))
+                } label: {
+                    Label("Add Element", systemImage: "plus.circle")
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+
+                Text("\(editableElements.count) item(s)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func bindingForElement(_ el: EditableElement) -> (name: Binding<String>, description: Binding<String>) {
+        guard let idx = editableElements.firstIndex(of: el) else {
+            return (Binding.constant(""), Binding.constant(""))
+        }
+        return (
+            Binding(
+                get: { editableElements[idx].name },
+                set: { editableElements[idx].name = $0 }
+            ),
+            Binding(
+                get: { editableElements[idx].description },
+                set: { editableElements[idx].description = $0 }
+            )
+        )
     }
 
     // MARK: - Subviews
@@ -417,6 +771,11 @@ struct CardEditorView: View {
                 try? card.setOriginalImageData(data, preferredFileExtension: ext)
             }
 
+            // If creating a Project and structure is requested, persist it now.
+            if kind == .projects, attachStructure {
+                persistStructureForNewProject(projectCard: card)
+            }
+
             try? modelContext.save()
             onComplete(card)
             dismiss()
@@ -433,9 +792,54 @@ struct CardEditorView: View {
                 try? card.setOriginalImageData(data, preferredFileExtension: ext)
             }
 
+            // If editing a Project, sync the StoryStructure based on the back-face UI.
+            if mode.kind == .projects {
+                updateStructureForExistingProject(projectCard: card)
+            }
+
             try? modelContext.save()
             onComplete()
             dismiss()
+        }
+    }
+
+    private func persistStructureForNewProject(projectCard: Card) {
+        // Build from the current editableElements so any edits/reordering are respected.
+        let trimmedStructureName = structureName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalStructureName: String = trimmedStructureName.isEmpty
+            ? defaultStructureNameFromSource()
+            : trimmedStructureName
+
+        // Filter out empty element names
+        let elementNames = editableElements
+            .map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard !elementNames.isEmpty else { return }
+
+        // Create the structure and attach to this project via projectID
+        let structure = StoryStructure(name: finalStructureName, projectID: projectCard.id)
+
+        if structure.elements == nil { structure.elements = [] }
+        for (idx, elementName) in elementNames.enumerated() {
+            let el = StructureElement(name: elementName, elementDescription: "", orderIndex: idx)
+            el.storyStructure = structure
+            structure.elements?.append(el)
+        }
+
+        modelContext.insert(structure)
+    }
+
+    private func defaultStructureNameFromSource() -> String {
+        switch structureSource {
+        case .template:
+            let templates = StoryStructure.predefinedTemplates
+            if templates.indices.contains(selectedTemplateIndex) {
+                return templates[selectedTemplateIndex].name
+            }
+            return "Structure"
+        case .custom:
+            return "Custom Structure"
         }
     }
 
@@ -533,3 +937,146 @@ struct CardEditorView: View {
     }
 }
 
+// MARK: - Flip container
+
+private struct FlipCardContainer<Front: View, Back: View>: View {
+    @Binding var isFlipped: Bool
+    let front: Front
+    let back: Back
+
+    init(isFlipped: Binding<Bool>, @ViewBuilder front: () -> Front, @ViewBuilder back: () -> Back) {
+        self._isFlipped = isFlipped
+        self.front = front()
+        self.back = back()
+    }
+
+    var body: some View {
+        ZStack {
+            front
+                .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
+                .opacity(isFlipped ? 0.0 : 1.0)
+                .allowsHitTesting(!isFlipped)
+
+            back
+                .rotation3DEffect(.degrees(isFlipped ? 0 : -180), axis: (x: 0, y: 1, z: 0))
+                .opacity(isFlipped ? 1.0 : 0.0)
+                .allowsHitTesting(isFlipped)
+        }
+        .animation(.easeInOut(duration: 0.45), value: isFlipped)
+        .rotation3DEffect(.degrees(0.0001), axis: (x: 0, y: 0, z: 1)) // nudge to enable perspective on some platforms
+        .modifier(Perspective())
+    }
+}
+
+// Adds a bit of perspective for the 3D flip.
+private struct Perspective: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .compositingGroup()
+            .rotation3DEffect(.degrees(0), axis: (x: 0, y: 0, z: 0), perspective: 0.8)
+    }
+}
+
+extension CardEditorView {
+    // Load existing StoryStructure for the project when editing, and populate UI state.
+    @MainActor
+    private func loadStructureStateForEditIfNeeded() async {
+        guard case .edit(let card, _) = mode, mode.kind == .projects else { return }
+
+        // If we already populated once, avoid re-seeding needlessly
+        if !editableElements.isEmpty || !structureName.isEmpty || attachStructure == false {
+            return
+        }
+
+        let projectIDOpt: UUID? = card.id
+        let fetch = FetchDescriptor<StoryStructure>(
+            predicate: #Predicate { $0.projectID == projectIDOpt },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        let structures = (try? modelContext.fetch(fetch)) ?? []
+
+        if let structure = structures.first {
+            attachStructure = true
+            structureSource = .custom
+            structureName = structure.name
+            let elements = (structure.elements ?? []).sorted { $0.orderIndex < $1.orderIndex }
+            editableElements = elements.map { EditableElement(name: $0.name, description: $0.elementDescription, colorHue: $0.colorHue) }
+        } else {
+            // No structure yet for this project; default to not attached, but seed template choices
+            attachStructure = false
+            structureSource = .template
+            let templates = StoryStructure.predefinedTemplates
+            if let first = templates.first {
+                selectedTemplateIndex = 0
+                structureName = first.name
+                editableElements = first.elements.map { EditableElement(name: $0) }
+            }
+        }
+    }
+
+    // Create, update, or delete the project's StoryStructure when saving edits.
+    @MainActor
+    private func updateStructureForExistingProject(projectCard: Card) {
+        let projectIDOpt: UUID? = projectCard.id
+        let fetch = FetchDescriptor<StoryStructure>(
+            predicate: #Predicate { $0.projectID == projectIDOpt },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        let existing = (try? modelContext.fetch(fetch)) ?? []
+
+        // If user turned off "Attach Story Structure", delete any existing structure.
+        if attachStructure == false {
+            for s in existing {
+                modelContext.delete(s) // cascade deletes elements
+            }
+            return
+        }
+
+        // Build from current UI state
+        let trimmedName = structureName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalName: String = trimmedName.isEmpty ? defaultStructureNameFromSource() : trimmedName
+
+        let cleanedElements = editableElements
+            .map { ($0.name.trimmingCharacters(in: .whitespacesAndNewlines), $0.description.trimmingCharacters(in: .whitespacesAndNewlines), $0.colorHue) }
+            .filter { !$0.0.isEmpty }
+
+        guard !cleanedElements.isEmpty else {
+            // Nothing to persist; keep any existing structure as-is to avoid accidental wipe.
+            return
+        }
+
+        if let structure = existing.first {
+            // Update name
+            structure.name = finalName
+
+            // Remove all existing element rows to replace cleanly
+            if let current = structure.elements {
+                for el in current {
+                    modelContext.delete(el)
+                }
+            }
+            structure.elements = []
+
+            // Recreate elements with new ordering
+            for (idx, tuple) in cleanedElements.enumerated() {
+                let (name, desc, hue) = tuple
+                let el = StructureElement(name: name, elementDescription: desc, orderIndex: idx)
+                el.colorHue = hue
+                el.storyStructure = structure
+                structure.elements?.append(el)
+            }
+        } else {
+            // Create new structure and elements
+            let structure = StoryStructure(name: finalName, projectID: projectCard.id)
+            structure.elements = []
+            for (idx, tuple) in cleanedElements.enumerated() {
+                let (name, desc, hue) = tuple
+                let el = StructureElement(name: name, elementDescription: desc, orderIndex: idx)
+                el.colorHue = hue
+                el.storyStructure = structure
+                structure.elements?.append(el)
+            }
+            modelContext.insert(structure)
+        }
+    }
+}

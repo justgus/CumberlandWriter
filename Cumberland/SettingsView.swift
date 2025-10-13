@@ -4,6 +4,7 @@ import SwiftData
 enum SettingsSection: String, CaseIterable, Identifiable {
     case display = "Display"
     case cards = "Cards"
+    case views = "Views"
     case author = "Author"
 
     var id: String { rawValue }
@@ -14,6 +15,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .display: return "sun.max"
         case .cards:   return "rectangle.grid.2x2"
+        case .views:   return "rectangle.3.offgrid"
         case .author:  return "person.text.rectangle"
         }
     }
@@ -31,14 +33,6 @@ extension SizeCategory {
         case .large:    return "rectangle.expand.vertical"
         }
     }
-}
-
-// Custom alignment for right-justifying the numeric value column across rows
-private extension HorizontalAlignment {
-    enum ValueColumn: AlignmentID {
-        static func defaultValue(in d: ViewDimensions) -> CGFloat { d[.trailing] }
-    }
-    static let valueColumn = HorizontalAlignment(ValueColumn.self)
 }
 
 struct SettingsView: View {
@@ -116,12 +110,10 @@ struct SettingsView: View {
             ForEach(SettingsSection.allCases) { section in
                 Label(section.title, systemImage: section.systemImage)
                     .tag(section)
-                    .glassButtonStyle()
                     .contentShape(Rectangle())
             }
         }
         .listStyle(.sidebar)
-        .background(.ultraThinMaterial, in: Rectangle())
     }
 
     // MARK: - Detail
@@ -142,6 +134,12 @@ struct SettingsView: View {
                     onSave: save
                 )
                 .navigationTitle("Cards")
+            case .views:
+                ViewsSettingsPane(
+                    settings: settingsBinding(for: \.self),
+                    onSave: save
+                )
+                .navigationTitle("Views")
             case .author:
                 AuthorSettingsPane(
                     settings: settingsBinding(for: \.self),
@@ -233,42 +231,29 @@ private struct DisplaySettingsPane: View {
     var onSave: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            GlassFormSection(
-                "Appearance",
-                footer: "The app can follow System appearance or always use Light/Dark. This preference takes effect app-wide.",
-                tint: .blue
-            ) {
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("Color Scheme")
-                            .font(.body)
-                        Spacer()
+        Form {
+            Section {
+                Picker("Color Scheme", selection: Binding(
+                    get: { settings.colorSchemePreference },
+                    set: { newValue in
+                        settings.colorSchemePreference = newValue
+                        onSave()
                     }
-                    
-                    Picker("Color Scheme", selection: Binding(
-                        get: { settings.colorSchemePreference },
-                        set: { newValue in
-                            settings.colorSchemePreference = newValue
-                            onSave()
-                        }
-                    )) {
-                        ForEach(ColorSchemePreference.allCases, id: \.self) { pref in
-                            Text(pref.displayName).tag(pref)
-                        }
+                )) {
+                    ForEach(ColorSchemePreference.allCases, id: \.self) { pref in
+                        Text(pref.displayName).tag(pref)
                     }
-                    .pickerStyle(.segmented)
-                    .accessibilityLabel("Color Scheme Preference")
-                    .help("Choose Light, Dark, or follow the System setting.")
                 }
-                .padding()
+                .pickerStyle(.segmented)
+                .accessibilityLabel("Color Scheme Preference")
+                .help("Choose Light, Dark, or follow the System setting.")
+            } header: {
+                Text("Appearance")
+            } footer: {
+                Text("The app can follow System appearance or always use Light/Dark. This preference takes effect app-wide.")
             }
-            
-            Spacer(minLength: 0)
         }
-        .padding(.top, 16)
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .formStyle(.grouped)
     }
 }
 
@@ -277,31 +262,32 @@ private struct CardSettingsPane: View {
     var onSave: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            GlassFormSection(
-                "Size Category Configuration",
-                footer: "Configure how many lines each card size category displays in your layouts.",
-                tint: .green
-            ) {
-                VStack(spacing: 0) {
-                    ForEach(Array(SizeCategory.allCases.enumerated()), id: \.element) { index, category in
-                        if index > 0 {
-                            Divider()
-                                .padding(.leading, 16)
+        Form {
+            Section {
+                ForEach(SizeCategory.allCases, id: \.self) { category in
+                    HStack {
+                        Label(category.displayName, systemImage: category.systemImage)
+                        Spacer()
+                        Stepper(
+                            value: lineLimitBinding(for: category),
+                            in: 1...99,
+                            step: 1
+                        ) {
+                            Text("\(lineLimitBinding(for: category).wrappedValue) lines")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
                         }
-                        
-                        cardSettingRow(for: category)
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
+                        .labelsHidden()
+                        .accessibilityLabel("\(category.displayName) line limit")
                     }
                 }
+            } header: {
+                Text("Size Category Configuration")
+            } footer: {
+                Text("Configure how many lines each card size category displays in your layouts.")
             }
-            
-            Spacer(minLength: 0)
         }
-        .padding(.top, 16)
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .formStyle(.grouped)
     }
 
     // Binding for the appropriate field on AppSettings
@@ -324,76 +310,51 @@ private struct CardSettingsPane: View {
             }
         )
     }
+}
 
-    @ViewBuilder
-    private func cardSettingRow(for category: SizeCategory) -> some View {
-        let binding = lineLimitBinding(for: category)
+private struct ViewsSettingsPane: View {
+    @Binding var settings: AppSettings
+    var onSave: () -> Void
 
-        HStack(spacing: 12) {
-            Label(category.displayName, systemImage: category.systemImage)
-                .font(.body)
+    private let minZoom: Double = 0.6
+    private let maxZoom: Double = 1.8
 
-            Spacer()
-
-            HStack(spacing: 8) {
-                Text("\(binding.wrappedValue)")
-                    .font(.body.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 24)
-
-                Text("lines")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                GlassEffectContainer(spacing: 8) {
-                    HStack(spacing: 0) {
-                        Button {
-                            if binding.wrappedValue > 1 {
-                                binding.wrappedValue -= 1
+    var body: some View {
+        Form {
+            Section {
+                HStack {
+                    Label("Structure Board Zoom", systemImage: "magnifyingglass")
+                    Spacer()
+                    Slider(
+                        value: Binding(
+                            get: { settings.structureBoardZoom.clamped(to: minZoom...maxZoom) },
+                            set: { newValue in
+                                settings.structureBoardZoom = newValue.clamped(to: minZoom...maxZoom)
                                 onSave()
                             }
-                        } label: {
-                            Image(systemName: "minus")
-                                .font(.caption.weight(.semibold))
-                                .frame(width: 20, height: 20)
-                        }
-                        .glassButtonStyle()
-                        .disabled(binding.wrappedValue <= 1)
-                        
-                        Button {
-                            if binding.wrappedValue < 99 {
-                                binding.wrappedValue += 1
-                                onSave()
-                            }
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.caption.weight(.semibold))
-                                .frame(width: 20, height: 20)
-                        }
-                        .glassButtonStyle()
-                        .disabled(binding.wrappedValue >= 99)
+                        ),
+                        in: minZoom...maxZoom
+                    )
+                    .frame(maxWidth: 220)
+
+                    Text("\(Int(round(settings.structureBoardZoom * 100)))%")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+
+                    Button("Reset") {
+                        settings.structureBoardZoom = 1.0
+                        onSave()
                     }
+                    .buttonStyle(.bordered)
+                    .help("Reset to 100%")
                 }
+            } header: {
+                Text("Structure Board")
+            } footer: {
+                Text("Default zoom level for the Structure Board. You can also adjust zoom directly in the board with gestures or toolbar controls.")
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(category.displayName): \(binding.wrappedValue) lines")
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment:
-                if binding.wrappedValue < 99 {
-                    binding.wrappedValue += 1
-                    onSave()
-                }
-            case .decrement:
-                if binding.wrappedValue > 1 {
-                    binding.wrappedValue -= 1
-                    onSave()
-                }
-            @unknown default:
-                break
-            }
-        }
+        .formStyle(.grouped)
     }
 }
 
@@ -404,47 +365,30 @@ private struct AuthorSettingsPane: View {
     @State private var tempAuthor: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            GlassFormSection(
-                "Default Author",
-                footer: "Use Shift–Command–A in the Author field while editing a Card to insert this default.",
-                tint: .purple
-            ) {
-                VStack(spacing: 16) {
-                    HStack {
-                        Image(systemName: "person.crop.circle")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
-                        
-                        TextField("Name", text: Binding(
-                            get: { tempAuthor },
-                            set: { newValue in
-                                tempAuthor = newValue
-                                settings.defaultAuthor = newValue
-                                onSave()
-                            }
-                        ))
-                        .textFieldStyle(.plain)
-                        .textContentType(.name)
-                        #if os(iOS) || os(visionOS)
-                        .textInputAutocapitalization(.words)
-                        #endif
-                        .padding(.vertical, 8)
+        Form {
+            Section {
+                TextField("Name", text: Binding(
+                    get: { tempAuthor },
+                    set: { newValue in
+                        tempAuthor = newValue
+                        settings.defaultAuthor = newValue
+                        onSave()
                     }
-                    .padding(.horizontal, 16)
-                    .glassSurfaceStyle(cornerRadius: 8, tint: .purple.opacity(0.1), interactive: true)
-                }
-                .padding()
+                ))
+                .textContentType(.name)
+                #if os(iOS) || os(visionOS)
+                .textInputAutocapitalization(.words)
+                #endif
+            } header: {
+                Text("Default Author")
+            } footer: {
+                Text("Use Shift–Command–A in the Author field while editing a Card to insert this default.")
             }
-            
-            Spacer(minLength: 0)
         }
-        .padding(.top, 16)
-        .padding(.horizontal, 20)
+        .formStyle(.grouped)
         .onAppear {
             tempAuthor = settings.defaultAuthor
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -457,9 +401,10 @@ private struct AuthorSettingsPane: View {
     }()
 
     return SettingsView(
-        initialSelection: .display,
+        initialSelection: .views,
         previewSettings: AppSettings(
-            colorSchemePreference: .system
+            colorSchemePreference: .system,
+            structureBoardZoom: 0.9
         )
     )
     .frame(minWidth: 520, minHeight: 380)
@@ -497,4 +442,10 @@ private struct AuthorSettingsPane: View {
     return SettingsView(initialSelection: .author)
         .frame(minWidth: 520, minHeight: 380)
         .modelContainer(container)
+}
+
+private extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
+    }
 }

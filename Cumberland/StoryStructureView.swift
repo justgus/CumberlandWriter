@@ -10,86 +10,145 @@ import SwiftData
 
 struct StoryStructureView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var structures: [StoryStructure]
-    
-    @State private var selectedStructure: StoryStructure?
+    @Query(sort: \StoryStructure.name, order: .forward) private var structures: [StoryStructure]
+
+    // Use a stable UUID-based selection to avoid Hashable conformance on @Model classes.
+    @State private var selectedStructureID: UUID?
+    private var selectedStructure: StoryStructure? {
+        guard let id = selectedStructureID else { return nil }
+        return structures.first(where: { $0.id == id })
+    }
+
     @State private var showingNewStructureSheet = false
     @State private var showingTemplateSheet = false
-    
+
+    // Left pane sizing
+    private let sidebarMinWidth: CGFloat = 260
+    private let sidebarIdealWidth: CGFloat = 320
+    private let sidebarMaxWidth: CGFloat = 480
+
     var body: some View {
-        NavigationSplitView {
-            // Structure list
-            List(selection: $selectedStructure) {
-                Section("Your Structures") {
-                    ForEach(structures) { structure in
-                        NavigationLink(value: structure) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(structure.name)
-                                    .font(.headline)
-                                
-                                Text("\((structure.elements ?? []).count) elements")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .onDelete(perform: deleteStructures)
-                }
-                
-                Section("Quick Actions") {
-                    Button {
-                        showingTemplateSheet = true
-                    } label: {
-                        Text("Create from Template")
-                    }
-                    .buttonStyle(GlassButtonStyle())
-                    
-                    Button {
-                        showingNewStructureSheet = true
-                    } label: {
-                        Text("Create Custom Structure")
-                    }
-                    .buttonStyle(GlassButtonStyle())
+        // Two-pane layout to avoid nested NavigationSplitView
+        HStack(spacing: 0) {
+            sidebar
+                .frame(minWidth: sidebarMinWidth, idealWidth: sidebarIdealWidth, maxWidth: sidebarMaxWidth)
+                .overlay(Divider(), alignment: .trailing)
+
+            // Detail
+            Group {
+                if let structure = selectedStructure {
+                    StructureDetailView(structure: structure)
+                } else {
+                    ContentPlaceholderView(
+                        title: "Select a Structure",
+                        subtitle: "Choose a story structure to view and edit its elements.",
+                        systemImage: "list.number"
+                    )
+                    .padding()
                 }
             }
-            .navigationTitle("Story Structures")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Menu("Add Structure", systemImage: "plus") {
-                        Button("Custom Structure") {
-                            showingNewStructureSheet = true
-                        }
-                        
-                        Button("From Template") {
-                            showingTemplateSheet = true
-                        }
-                    }
-                    .buttonStyle(GlassButtonStyle())
-                }
-            }
-        } detail: {
-            if let structure = selectedStructure {
-                StructureDetailView(structure: structure)
-            } else {
-                ContentPlaceholderView(
-                    title: "Select a Structure",
-                    subtitle: "Choose a story structure to view and edit its elements.",
-                    systemImage: "list.number"
-                )
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .navigationTitle("Story Structures")
         .sheet(isPresented: $showingNewStructureSheet) {
             NewStructureSheet()
         }
         .sheet(isPresented: $showingTemplateSheet) {
             StructureTemplateSheet()
         }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu("Add Structure", systemImage: "plus") {
+                    Button("Custom Structure") {
+                        showingNewStructureSheet = true
+                    }
+
+                    Button("From Template") {
+                        showingTemplateSheet = true
+                    }
+                }
+                .buttonStyle(GlassButtonStyle())
+            }
+        }
+        .onAppear {
+            // Auto-select the first structure if nothing is selected
+            if selectedStructureID == nil, let first = structures.first {
+                selectedStructureID = first.id
+            }
+        }
+        .onChange(of: structures) { _, newList in
+            // Maintain selection if possible; otherwise select first available
+            if let sel = selectedStructureID, newList.contains(where: { $0.id == sel }) {
+                // keep
+            } else {
+                selectedStructureID = newList.first?.id
+            }
+        }
     }
-    
+
+    // MARK: - Sidebar
+
+    private var sidebar: some View {
+        List(selection: $selectedStructureID) {
+            Section("Your Structures") {
+                ForEach(structures) { structure in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(structure.name)
+                                .font(.callout)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+
+                            Text("\((structure.elements ?? []).count) elements")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .tag(structure.id as UUID?)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedStructureID = structure.id
+                    }
+                }
+                .onDelete(perform: deleteStructures)
+            }
+
+            Section("Quick Actions") {
+                Button {
+                    showingTemplateSheet = true
+                } label: {
+                    Text("Create from Template")
+                }
+                .buttonStyle(GlassButtonStyle())
+
+                Button {
+                    showingNewStructureSheet = true
+                } label: {
+                    Text("Create Custom Structure")
+                }
+                .buttonStyle(GlassButtonStyle())
+            }
+        }
+        .listStyle(.sidebar)
+    }
+
+    // MARK: - Deletion
+
     private func deleteStructures(offsets: IndexSet) {
         withAnimation {
-            for index in offsets {
-                modelContext.delete(structures[index])
+            let toDelete = offsets.map { structures[$0] }
+            // Clear selection if we are deleting the selected structure
+            if let sel = selectedStructureID, toDelete.contains(where: { $0.id == sel }) {
+                selectedStructureID = nil
+            }
+            for item in toDelete {
+                modelContext.delete(item)
+            }
+            do {
+                try modelContext.save()
+            } catch {
+                print("Failed to delete structures: \(error)")
             }
         }
     }
@@ -98,10 +157,10 @@ struct StoryStructureView: View {
 struct StructureDetailView: View {
     @Bindable var structure: StoryStructure
     @Environment(\.modelContext) private var modelContext
-    
+
     @State private var newElementName = ""
     @State private var showingAddElement = false
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Header
@@ -110,22 +169,22 @@ struct StructureDetailView: View {
                     .font(.title2)
                     .fontWeight(.semibold)
                     .textFieldStyle(.plain)
-                
+
                 Text("\((structure.elements ?? []).count) elements")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal)
-            
+
             Divider()
-            
+
             // Elements list
             ScrollView {
                 LazyVStack(spacing: 8) {
                     ForEach((structure.elements ?? []).sorted { $0.orderIndex < $1.orderIndex }) { element in
                         StructureElementRow(element: element)
                     }
-                    
+
                     // Add element button
                     Button(action: { showingAddElement = true }) {
                         HStack {
@@ -155,14 +214,14 @@ struct StructureDetailView: View {
             Text("Enter a name for the new structural element.")
         }
     }
-    
+
     private func addElement() {
         let trimmed = newElementName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        
+
         // Determine next order index from current count (nil-safe)
         let nextIndex = (structure.elements ?? []).count
-        
+
         let newElement = StructureElement(
             name: trimmed,
             orderIndex: nextIndex
@@ -172,7 +231,7 @@ struct StructureDetailView: View {
         if structure.elements == nil { structure.elements = [] }
         structure.elements?.append(newElement)
         newElementName = ""
-        
+
         do {
             try modelContext.save()
         } catch {
@@ -184,7 +243,7 @@ struct StructureDetailView: View {
 struct StructureElementRow: View {
     @Bindable var element: StructureElement
     @Environment(\.modelContext) private var modelContext
-    
+
     var body: some View {
         HStack(spacing: 12) {
             // Order indicator
@@ -193,28 +252,28 @@ struct StructureElementRow: View {
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
                 .frame(width: 20)
-            
+
             // Color indicator
             Circle()
                 .fill(element.displayColor)
                 .frame(width: 12, height: 12)
                 .glassEffect(GlassEffect.regular, in: Circle())
-            
+
             // Element details
             VStack(alignment: .leading, spacing: 2) {
                 TextField("Element name", text: $element.name)
                     .font(.body)
                     .fontWeight(.medium)
                     .textFieldStyle(.plain)
-                
+
                 TextField("Description (optional)", text: $element.elementDescription)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .textFieldStyle(.plain)
             }
-            
+
             Spacer()
-            
+
             // Assigned cards count
             Text("\((element.assignedCards ?? []).count)")
                 .font(.caption2)
@@ -235,10 +294,10 @@ struct StructureElementRow: View {
 struct NewStructureSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    
+
     @State private var structureName = ""
     @State private var elements: [String] = [""]
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -253,7 +312,7 @@ struct NewStructureSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Create") {
                         createStructure()
@@ -263,7 +322,7 @@ struct NewStructureSheet: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private var detailsSection: some View {
         Section("Structure Details") {
@@ -271,7 +330,7 @@ struct NewStructureSheet: View {
                 .font(.headline)
         }
     }
-    
+
     @ViewBuilder
     private var elementsSection: some View {
         Section("Elements") {
@@ -286,7 +345,7 @@ struct NewStructureSheet: View {
                     onRemove: { elements.remove(at: index) }
                 )
             }
-            
+
             Button {
                 elements.append("")
             } label: {
@@ -295,10 +354,10 @@ struct NewStructureSheet: View {
             .buttonStyle(GlassButtonStyle())
         }
     }
-    
+
     private func createStructure() {
         let structure = StoryStructure(name: structureName)
-        
+
         let validElements = elements.filter { !$0.isEmpty }
         if structure.elements == nil { structure.elements = [] }
         for (index, elementName) in validElements.enumerated() {
@@ -306,9 +365,9 @@ struct NewStructureSheet: View {
             element.storyStructure = structure
             structure.elements?.append(element)
         }
-        
+
         modelContext.insert(structure)
-        
+
         do {
             try modelContext.save()
             dismiss()
@@ -316,17 +375,17 @@ struct NewStructureSheet: View {
             print("Failed to save structure: \(error)")
         }
     }
-    
+
     private struct NewElementRow: View {
         let index: Int
         @Binding var text: String
         let canRemove: Bool
         let onRemove: () -> Void
-        
+
         var body: some View {
             HStack {
                 TextField("Element \(index + 1)", text: $text)
-                
+
                 if canRemove {
                     Button(role: .destructive, action: onRemove) {
                         Label("Remove", systemImage: "minus.circle")
@@ -343,7 +402,7 @@ struct NewStructureSheet: View {
 struct StructureTemplateSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    
+
     var body: some View {
         NavigationStack {
             List {
@@ -351,7 +410,7 @@ struct StructureTemplateSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(template.name)
                             .font(.headline)
-                        
+
                         Text(template.elements.joined(separator: " • "))
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -373,11 +432,11 @@ struct StructureTemplateSheet: View {
             }
         }
     }
-    
+
     private func createFromTemplate(_ template: (name: String, elements: [String])) {
         let structure = StoryStructure.createFromTemplate(template)
         modelContext.insert(structure)
-        
+
         do {
             try modelContext.save()
             dismiss()
@@ -389,5 +448,5 @@ struct StructureTemplateSheet: View {
 
 #Preview {
     StoryStructureView()
-        .modelContainer(for: [StoryStructure.self, StructureElement.self], inMemory: true)
+        .modelContainer(for: [StoryStructure.self, StructureElement.self, Card.self], inMemory: true)
 }

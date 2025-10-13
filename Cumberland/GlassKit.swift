@@ -17,15 +17,18 @@ private struct GlassButtonModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     // Slightly heavier material when "prominent"
                     .fill(prominent ? .thinMaterial : .ultraThinMaterial)
+                    .allowsHitTesting(false)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(.white.opacity(scheme == .dark ? 0.20 : 0.30), lineWidth: 0.75)
                     .blendMode(.overlay)
+                    .allowsHitTesting(false)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(.quaternary.opacity(0.6), lineWidth: 0.5)
+                    .allowsHitTesting(false)
             )
             // Slightly stronger shadow/scale when prominent or hovering
             .shadow(
@@ -71,6 +74,7 @@ private struct GlassSurfaceModifier: ViewModifier {
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.ultraThinMaterial)
+                    .allowsHitTesting(false)
             )
             .overlay(
                 // Subtle tint wash to get that caustic/liquid feel
@@ -87,17 +91,20 @@ private struct GlassSurfaceModifier: ViewModifier {
                         )
                     )
                     .blendMode(.softLight)
+                    .allowsHitTesting(false)
             )
             .overlay(
                 // Inner highlight hairline
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(.white.opacity(scheme == .dark ? 0.20 : 0.35), lineWidth: 0.75)
                     .blendMode(.overlay)
+                    .allowsHitTesting(false)
             )
             .overlay(
                 // Outer subtle keyline to define edges on busy backgrounds
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(.quaternary.opacity(0.6), lineWidth: 0.5)
+                    .allowsHitTesting(false)
             )
             .shadow(color: .black.opacity(scheme == .dark ? 0.28 : 0.10), radius: interactive ? (hovering ? 10 : 8) : 8, x: 0, y: interactive ? (hovering ? 6 : 4) : 4)
             .scaleEffect(interactive && hovering ? 1.01 : 1.0)
@@ -135,15 +142,18 @@ public struct GlassEffectContainer<Content: View>: View {
         .background(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(.thinMaterial)
+                .allowsHitTesting(false)
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(.white.opacity(scheme == .dark ? 0.18 : 0.28), lineWidth: 0.75)
                 .blendMode(.overlay)
+                .allowsHitTesting(false)
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(.quaternary.opacity(0.6), lineWidth: 0.5)
+                .allowsHitTesting(false)
         )
         .shadow(color: .black.opacity(scheme == .dark ? 0.22 : 0.08), radius: 6, x: 0, y: 3)
     }
