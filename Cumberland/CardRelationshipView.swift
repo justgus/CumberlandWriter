@@ -591,9 +591,18 @@ struct CardRelationshipView: View {
             if let canonical = try? modelContext.fetch(fetch).first {
                 return canonical
             } else {
-                // Create if missing (should be present from seeding)
+                // Create if missing (should be present from seeding) + create its mirror
                 let t = RelationType(code: canonicalSceneProjectCode, forwardLabel: "stories", inverseLabel: "is storied by", sourceKind: .scenes, targetKind: .projects)
                 modelContext.insert(t)
+
+                // Ensure mirror exists: Projects -> Scenes with swapped labels
+                let mirrorCode = "is-storied-by/stories"
+                let existsMirror = (try? modelContext.fetch(FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == mirrorCode })))?.first
+                if existsMirror == nil {
+                    let mirror = RelationType(code: mirrorCode, forwardLabel: "is storied by", inverseLabel: "stories", sourceKind: .projects, targetKind: .scenes)
+                    modelContext.insert(mirror)
+                }
+
                 try? modelContext.save()
                 return t
             }
@@ -652,33 +661,8 @@ struct CardRelationshipView: View {
             return false
         }
 
-        // Avoid duplicates (compare scalar fields)
-        let droppedIDOpt: UUID? = dropped.id
-        let primaryIDOpt: UUID? = primary.id
-        let typeCodeOpt: String? = enforcedType.code
-        let existsFetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate {
-                $0.from?.id == droppedIDOpt && $0.to?.id == primaryIDOpt && $0.type?.code == typeCodeOpt
-            }
-        )
-        if let found = try? modelContext.fetch(existsFetch), found.isEmpty == false {
-            return false
-        }
-
-        // Append to end by using createdAt slightly after current max
-        let fetchForMax = FetchDescriptor<CardEdge>(
-            predicate: #Predicate {
-                $0.to?.id == primaryIDOpt && $0.type?.code == typeCodeOpt
-            },
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
-        let existing = (try? modelContext.fetch(fetchForMax)) ?? []
-        let last = existing.last?.createdAt ?? Date()
-        let newDate = last.addingTimeInterval(0.001)
-
-        let edge = CardEdge(from: dropped, to: primary, type: enforcedType, note: nil, createdAt: newDate)
-        modelContext.insert(edge)
-        try? modelContext.save()
+        // Create both forward and reverse edges (if missing), appending to end of their lanes
+        createEdgeIfNeeded(from: dropped, to: primary, type: enforcedType, appendToEnd: true)
         return true
     }
 
@@ -846,6 +830,83 @@ struct CardRelationshipView: View {
         }
     }
 
+    // MARK: - Mirror helpers (types + edges)
+
+    private func mirrorType(for type: RelationType, sourceKind: Kinds, targetKind: Kinds) -> RelationType {
+        // Expected code derived from labels with swapped order
+        let desiredCode = makeCode(forward: type.inverseLabel, inverse: type.forwardLabel)
+        if let existing = fetchRelationType(code: desiredCode) {
+            return existing
+        }
+
+        // If not found, ensure/create mirror with swapped kinds and labels
+        ensureMirror(forwardLabel: type.forwardLabel, inverseLabel: type.inverseLabel, sourceKind: sourceKind, targetKind: targetKind)
+        // Try to fetch again (with or without suffix)
+        if let exact = fetchRelationType(code: desiredCode) {
+            return exact
+        }
+        // Fallback: find any applicable type that matches swapped kinds and swapped labels
+        let all = (try? modelContext.fetch(FetchDescriptor<RelationType>())) ?? []
+        if let match = all.first(where: {
+            ($0.sourceKindRaw == targetKind.rawValue || $0.sourceKindRaw == nil) &&
+            ($0.targetKindRaw == sourceKind.rawValue || $0.targetKindRaw == nil) &&
+            $0.forwardLabel == type.inverseLabel &&
+            $0.inverseLabel == type.forwardLabel
+        }) {
+            return match
+        }
+        // As a last step, create one with a unique code.
+        var codeToUse = desiredCode
+        var suffix = 1
+        while fetchRelationType(code: codeToUse) != nil {
+            suffix += 1
+            codeToUse = makeCode(forward: type.inverseLabel, inverse: type.forwardLabel, suffix: suffix)
+        }
+        let mirror = RelationType(code: codeToUse, forwardLabel: type.inverseLabel, inverseLabel: type.forwardLabel, sourceKind: targetKind, targetKind: sourceKind)
+        modelContext.insert(mirror)
+        try? modelContext.save()
+        return mirror
+    }
+
+    // Create the reverse edge if it doesn’t exist, using the mirror type.
+    @MainActor
+    private func ensureReverseEdge(forwardEdge: CardEdge, appendToEnd: Bool) {
+        guard let src = forwardEdge.from, let dst = forwardEdge.to, let t = forwardEdge.type else { return }
+        // Avoid duplicates
+        let srcID: UUID? = src.id
+        let dstID: UUID? = dst.id
+        let existsFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
+            $0.from?.id == dstID && $0.to?.id == srcID
+        })
+        if let found = try? modelContext.fetch(existsFetch), found.isEmpty == false {
+            return
+        }
+
+        // Compute mirror type
+        let mirror = mirrorType(for: t, sourceKind: src.kind, targetKind: dst.kind)
+
+        // Determine createdAt for reverse lane
+        let createdAt: Date
+        if appendToEnd {
+            let mirrorCode: String? = mirror.code
+            let fetchForMax = FetchDescriptor<CardEdge>(
+                predicate: #Predicate {
+                    $0.to?.id == srcID && $0.type?.code == mirrorCode
+                },
+                sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+            )
+            let existing = (try? modelContext.fetch(fetchForMax)) ?? []
+            let last = existing.last?.createdAt ?? (forwardEdge.createdAt)
+            createdAt = last.addingTimeInterval(0.001)
+        } else {
+            createdAt = forwardEdge.createdAt
+        }
+
+        let reverse = CardEdge(from: dst, to: src, type: mirror, note: forwardEdge.note, createdAt: createdAt)
+        modelContext.insert(reverse)
+        try? modelContext.save()
+    }
+
     @MainActor
     private func createEdgeIfNeeded(from source: Card, to target: Card, type: RelationType) {
         createEdgeIfNeeded(from: source, to: target, type: type, appendToEnd: true)
@@ -868,6 +929,10 @@ struct CardRelationshipView: View {
             }
         )
         if let found = try? modelContext.fetch(existsFetch), found.isEmpty == false {
+            // Even if forward exists, make sure reverse exists
+            if let existingEdge = found.first {
+                ensureReverseEdge(forwardEdge: existingEdge, appendToEnd: appendToEnd)
+            }
             return
         }
 
@@ -890,9 +955,12 @@ struct CardRelationshipView: View {
         let edge = CardEdge(from: source, to: target, type: enforcedType, note: nil, createdAt: createdAt)
         modelContext.insert(edge)
         try? modelContext.save()
+
+        // Ensure reverse edge exists using mirror type
+        ensureReverseEdge(forwardEdge: edge, appendToEnd: appendToEnd)
     }
 
-    // Retype the existing edge between source and target
+    // Retype the existing edge between source and target (and mirror in reverse)
     @MainActor
     private func retypeEdge(from source: Card, to target: Card, newType: RelationType) {
         // Canonicalize; if Scene→Project, this will force the canonical type regardless of chosen
@@ -912,6 +980,20 @@ struct CardRelationshipView: View {
 
         edge.type = enforced
         try? modelContext.save()
+
+        // Also retype reverse edge if present
+        let reverseFetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { $0.from?.id == targetIDOpt && $0.to?.id == sourceIDOpt },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        if let reverseEdge = try? modelContext.fetch(reverseFetch).first {
+            let mirror = mirrorType(for: enforced, sourceKind: source.kind, targetKind: target.kind)
+            reverseEdge.type = mirror
+            try? modelContext.save()
+        } else {
+            // If reverse edge missing, create it now to keep pairs consistent
+            ensureReverseEdge(forwardEdge: edge, appendToEnd: true)
+        }
     }
 
     // Delete a pending card safely (including its image files/caches)
@@ -929,16 +1011,48 @@ struct CardRelationshipView: View {
         return try? modelContext.fetch(fetch).first
     }
 
+    // Ensure a forward type exists and also ensure its mirror exists.
     @discardableResult
     private func ensureRelationType(code: String, forward: String, inverse: String, sourceKind: Kinds? = nil, targetKind: Kinds? = nil) -> RelationType {
         if let existing = fetchRelationType(code: code) {
-            // If it already exists, use it as-is (it may be global).
+            // Ensure its mirror exists even if forward already did
+            ensureMirror(forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind)
             return existing
         }
         let type = RelationType(code: code, forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind)
         modelContext.insert(type)
+
+        // Create the mirror pair
+        ensureMirror(forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind)
+
         try? modelContext.save()
         return type
+    }
+
+    // Create the inverted relation type if it doesn't exist yet.
+    private func ensureMirror(forwardLabel: String, inverseLabel: String, sourceKind: Kinds?, targetKind: Kinds?) {
+        // Mirror swaps source/target kinds and swaps labels.
+        let mirrorForward = inverseLabel
+        let mirrorInverse = forwardLabel
+        let mirrorSource = targetKind
+        let mirrorTarget = sourceKind
+
+        // Prefer a code derived from labels "inverse/forward" to be symmetric with the forward "forward/inverse".
+        let desiredCode = makeCode(forward: mirrorForward, inverse: mirrorInverse)
+        if fetchRelationType(code: desiredCode) != nil {
+            return
+        }
+
+        // If that desired code collides, add a numeric suffix until unique.
+        var codeToUse = desiredCode
+        var suffix = 1
+        while fetchRelationType(code: codeToUse) != nil {
+            suffix += 1
+            codeToUse = makeCode(forward: mirrorForward, inverse: mirrorInverse, suffix: suffix)
+        }
+
+        let mirror = RelationType(code: codeToUse, forwardLabel: mirrorForward, inverseLabel: mirrorInverse, sourceKind: mirrorSource, targetKind: mirrorTarget)
+        modelContext.insert(mirror)
     }
 
     private func relationTypeApplies(_ t: RelationType, from source: Kinds, to target: Kinds) -> Bool {
@@ -1052,6 +1166,30 @@ struct CardRelationshipView: View {
             self.headerImage = full
         }
     }
+
+    // MARK: - Code building helpers (shared with creator)
+
+    private func sanitize(_ s: String) -> String {
+        let lowered = s.lowercased()
+        let replaced = lowered.replacingOccurrences(of: " ", with: "-")
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
+        let filtered = String(replaced.unicodeScalars.filter { allowed.contains($0) })
+        // collapse repeating dashes
+        var result = filtered
+        while result.contains("--") {
+            result = result.replacingOccurrences(of: "--", with: "-")
+        }
+        return result
+    }
+
+    private func makeCode(forward: String, inverse: String, suffix: Int? = nil) -> String {
+        let base = "\(sanitize(forward))/\(sanitize(inverse))"
+        if let suffix {
+            return "\(base)-\(suffix)"
+        } else {
+            return base
+        }
+    }
 } //end CardRelationshipView
 
 // MARK: - RelationType creation sheet
@@ -1092,7 +1230,7 @@ private struct RelationTypeCreatorSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("Forward label (e.g., “appears in”)", text: $forwardLabel)
                         .textFieldStyle(.roundedBorder)
-                    TextField("Inverse label (e.g., “is appeared by”)", text: $inverseLabel)
+                    TextField("Inverse label (e.g., “dramatis personae”)", text: $inverseLabel)
                         .textFieldStyle(.roundedBorder)
                     if let err = errorMessage, !err.isEmpty {
                         Text(err)
@@ -1157,6 +1295,10 @@ private struct RelationTypeCreatorSheet: View {
             targetKind: targetKind
         )
         modelContext.insert(type)
+
+        // Also create the mirror if missing: swap kinds and labels
+        createMirrorIfMissing(forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind)
+
         try? modelContext.save()
         onCreate(type)
         dismiss()
@@ -1175,7 +1317,11 @@ private struct RelationTypeCreatorSheet: View {
         let replaced = lowered.replacingOccurrences(of: " ", with: "-")
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
         let filtered = String(replaced.unicodeScalars.filter { allowed.contains($0) })
-        return filtered.replacingOccurrences(of: "--", with: "-")
+        var result = filtered
+        while result.contains("--") {
+            result = result.replacingOccurrences(of: "--", with: "-")
+        }
+        return result
     }
 
     private func makeCode(forward: String, inverse: String, suffix: Int? = nil) -> String {
@@ -1185,6 +1331,35 @@ private struct RelationTypeCreatorSheet: View {
         } else {
             return "\(base)"
         }
+    }
+
+    private func createMirrorIfMissing(forwardLabel: String, inverseLabel: String, sourceKind: Kinds, targetKind: Kinds) {
+        let mirrorForward = inverseLabel
+        let mirrorInverse = forwardLabel
+        let mirrorSource = targetKind
+        let mirrorTarget = sourceKind
+
+        var mirrorCode = makeCode(forward: mirrorForward, inverse: mirrorInverse)
+        var suffix = 1
+        while codeExists(mirrorCode) {
+            suffix += 1
+            mirrorCode = makeCode(forward: mirrorForward, inverse: mirrorInverse, suffix: suffix)
+        }
+
+        // If a type with that code already exists, do nothing; else insert mirror.
+        let fetch = FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == mirrorCode })
+        if let found = try? modelContext.fetch(fetch), found.isEmpty == false {
+            return
+        }
+
+        let mirror = RelationType(
+            code: mirrorCode,
+            forwardLabel: mirrorForward,
+            inverseLabel: mirrorInverse,
+            sourceKind: mirrorSource,
+            targetKind: mirrorTarget
+        )
+        modelContext.insert(mirror)
     }
 }
 
@@ -1398,4 +1573,3 @@ private struct ExistingCardPickerSheet: View {
 }
 
 import struct SwiftUI.Image
-

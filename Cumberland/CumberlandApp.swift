@@ -24,8 +24,8 @@ struct CumberlandApp: App {
     private static func makeContainer() -> ModelContainer {
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "SwiftData")
 
-        // Construct a Schema from the current model list. This avoids the migration-plan overload entirely.
-        let schema = Schema(AppSchema.models)
+        // Build a Schema from the latest version’s models (V2).
+        let schema = Schema(AppSchemaV2.models)
 
         // 1) Try CloudKit-backed configuration first.
         do {
@@ -84,10 +84,11 @@ struct CumberlandApp: App {
                 .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
                 .toolbarBackground(.visible, for: .windowToolbar)
                 #endif
-                // Seed relation types and story structure templates once the container is available
+                // Post-upgrade backfill and seed data once the container is available
                 .task {
+                    await CumberlandApp.backfillOriginalImagesIfNeeded(container: modelContainer)
                     await CumberlandApp.seedRelationTypesIfNeeded(container: modelContainer)
-                    // New: ensure Scene→Project "stories" edges exist by backfilling from current part-of chains
+                    // Ensure Scene→Project "stories" edges exist by backfilling from current part-of chains
                     await CumberlandApp.backfillSceneProjectStoriesEdgesIfNeeded(container: modelContainer)
                     await CumberlandApp.seedStoryStructuresIfNeeded(container: modelContainer)
                 }
@@ -198,6 +199,14 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 520)
         }
+
+        // New: Fix incomplete relationships (live container)
+        Window("Diagnostics: Fix Incomplete Relationships", id: "dev.fixInverseEdges") {
+            FixIncompleteRelationshipsView()
+                .modelContainer(modelContainer) // live container
+                .preferredColorScheme(appPreferredColorScheme)
+                .frame(minWidth: 780, minHeight: 560)
+        }
         #endif
         #endif
      }
@@ -253,7 +262,7 @@ private extension CumberlandApp {
             .init(code: "appears-in/is-appeared-by", forward: "appears in", inverse: "is appeared by", source: .characters, target: .scenes),
 
             // Characters ↔ Projects (cast listing)
-            .init(code: "appears-in/dramatis-personae", forward: "appears in", inverse: "dramatis personae", source: .characters, target: .projects),
+            .init(code: "appears-in/dramatis personae", forward: "appears in", inverse: "dramatis personae", source: .characters, target: .projects),
 
             // Scenes ↔ Worlds
             .init(code: "set-in/contains-scene", forward: "set in", inverse: "contains scene", source: .scenes, target: .worlds),
@@ -308,6 +317,45 @@ private extension CumberlandApp {
             // New: Scenes ↔ Projects (direct story linkage)
             .init(code: "stories/is-storied-by", forward: "stories", inverse: "is storied by", source: .scenes, target: .projects)
         ]
+    }
+
+    @MainActor
+    static func backfillOriginalImagesIfNeeded(container: ModelContainer) async {
+        let ctx = container.mainContext
+        ctx.autosaveEnabled = true
+
+        let urls = ImageStore.shared.listAllOriginalImageURLs()
+        guard urls.isEmpty == false else { return }
+
+        // Build a map of id -> URL for quick lookup
+        var byID: [UUID: URL] = [:]
+        byID.reserveCapacity(urls.count)
+        for u in urls {
+            if let id = ImageStore.shared.originalID(from: u) {
+                byID[id] = u
+            }
+        }
+        guard !byID.isEmpty else { return }
+
+        var fetch = FetchDescriptor<Card>()
+        fetch.fetchLimit = 0
+        let cards: [Card] = (try? ctx.fetch(fetch)) ?? []
+        var updated = 0
+
+        for card in cards {
+            guard card.originalImageData == nil, let url = byID[card.id] else { continue }
+            if let data = try? Data(contentsOf: url), !data.isEmpty {
+                card.originalImageData = data
+                if card.thumbnailData == nil, let cg = Card.makeCGImage(from: data) {
+                    card.thumbnailData = Card.makePNGThumbnailData(from: cg, maxPixel: 256)
+                }
+                updated += 1
+            }
+        }
+
+        if updated > 0 {
+            try? ctx.save()
+        }
     }
 
     @MainActor
@@ -371,7 +419,8 @@ private extension CumberlandApp {
 
         // Build Chapter -> Project map from existing edges
         let chProjCode = chapterToProjectPartOf.code
-        let chapterToProjectFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == chProjCode })
+        let chProjCodeOpt: String? = chProjCode
+        let chapterToProjectFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == chProjCodeOpt })
         let chProjEdges = (try? ctx.fetch(chapterToProjectFetch)) ?? []
         var chapterToProjects: [UUID: Set<UUID>] = [:]
         for e in chProjEdges {
@@ -385,7 +434,8 @@ private extension CumberlandApp {
 
         // Collect existing Scene→Project stories edges to avoid duplicates
         let storiesCode = storiesType.code
-        let existingStoriesFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == storiesCode })
+        let storiesCodeOpt: String? = storiesCode
+        let existingStoriesFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == storiesCodeOpt })
         let existingStories = (try? ctx.fetch(existingStoriesFetch)) ?? []
         var existingPairs: Set<String> = []
         existingPairs.reserveCapacity(existingStories.count)
@@ -397,7 +447,8 @@ private extension CumberlandApp {
 
         // Traverse Scene→Chapter, then map to Project(s), and create missing stories edges
         let scChCode = sceneToChapterPartOf.code
-        let sceneToChapterFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == scChCode })
+        let scChCodeOpt: String? = scChCode
+        let sceneToChapterFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == scChCodeOpt })
         let scChEdges = (try? ctx.fetch(sceneToChapterFetch)) ?? []
         var created = 0
         for e in scChEdges {
@@ -504,6 +555,7 @@ private extension CumberlandApp {
         Card.purgeAllImageCaches()
 
         // Reseed baseline data
+        await backfillOriginalImagesIfNeeded(container: container)
         await seedRelationTypesIfNeeded(container: container)
         await backfillSceneProjectStoriesEdgesIfNeeded(container: container)
         await seedStoryStructuresIfNeeded(container: container)
@@ -583,6 +635,14 @@ private struct DeveloperCommands: Commands {
                 openWindow(id: "dev.storyStructure")
             }
             .keyboardShortcut("9", modifiers: [.command, .shift])
+
+            Divider()
+
+            // New: Fix incomplete relationships
+            Button("Fix Incomplete Relationships…") {
+                openWindow(id: "dev.fixInverseEdges")
+            }
+            .keyboardShortcut("R", modifiers: [.command, .shift])
 
             Divider()
 
@@ -683,10 +743,273 @@ struct DevImageAttributionWindow: View {
 // (DEBUG windows unchanged…)
 #endif // DEBUG
 
+// MARK: - Fix Incomplete Relationships Tool (DEBUG, macOS)
+
+#if DEBUG
+struct FixIncompleteRelationshipsView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var scheme
+
+    @State private var isRunning: Bool = false
+    @State private var report: String = ""
+    @State private var createdInverseEdges: Int = 0
+    @State private var createdMirrorTypes: Int = 0
+    @State private var scannedEdges: Int = 0
+    @State private var errors: Int = 0
+
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Diagnostics.RepairInverse")
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            header
+
+            HStack(spacing: 8) {
+                Button {
+                    Task { await runRepair() }
+                } label: {
+                    Label("Scan and Fix", systemImage: "wrench.and.screwdriver.fill")
+                }
+                .disabled(isRunning)
+
+                Button {
+                    report = ""
+                    scannedEdges = 0
+                    createdInverseEdges = 0
+                    createdMirrorTypes = 0
+                    errors = 0
+                } label: {
+                    Label("Clear Report", systemImage: "trash")
+                }
+                .disabled(isRunning || report.isEmpty)
+
+                Spacer()
+
+                if isRunning {
+                    ProgressView().controlSize(.small)
+                }
+
+                if !report.isEmpty {
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(report, forType: .string)
+                    } label: {
+                        Label("Copy Report", systemImage: "doc.on.doc")
+                    }
+                }
+            }
+
+            summary
+
+            GroupBox("Report") {
+                ScrollView {
+                    Text(report.isEmpty ? "No report yet. Click “Scan and Fix” to begin." : report)
+                        .textSelection(.enabled)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 4)
+                }
+                .frame(minHeight: 320)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding()
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Fix Incomplete Relationships", systemImage: "arrow.triangle.2.circlepath")
+                .font(.title3.bold())
+            Text("Ensures every CardEdge has an inverse edge using a mirrored RelationType. Creates missing mirror RelationTypes as needed and reports all changes.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var summary: some View {
+        HStack(spacing: 16) {
+            statView(title: "Scanned Edges", value: scannedEdges, color: .secondary)
+            statView(title: "Inverse Edges Created", value: createdInverseEdges, color: .green)
+            statView(title: "Mirror Types Created", value: createdMirrorTypes, color: .blue)
+            statView(title: "Errors", value: errors, color: .red)
+            Spacer()
+        }
+    }
+
+    private func statView(title: String, value: Int, color: Color) -> some View {
+        VStack(alignment: .leading) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text("\(value)").font(.headline).foregroundStyle(color)
+        }
+    }
+
+    // MARK: - Repair
+
+    @MainActor
+    private func runRepair() async {
+        isRunning = true
+        defer { isRunning = false }
+
+        var lines: [String] = []
+        lines.append("=== Fix Incomplete Relationships ===")
+        lines.append("Date: \(Date().formatted(date: .abbreviated, time: .standard))")
+        lines.append("")
+
+        let ctx = modelContext
+        ctx.autosaveEnabled = true
+
+        let allEdges = (try? ctx.fetch(FetchDescriptor<CardEdge>())) ?? []
+        scannedEdges = allEdges.count
+        lines.append("Scanned edges: \(scannedEdges)")
+        lines.append("")
+
+        // Cache all relation types once to reduce fetches
+        var typeCache = (try? ctx.fetch(FetchDescriptor<RelationType>())) ?? []
+
+        func fetchType(code: String) -> RelationType? {
+            typeCache.first(where: { $0.code == code })
+        }
+
+        var createdEdges = 0
+        var createdTypes = 0
+        var errorCount = 0
+
+        for e in allEdges {
+            guard let from = e.from, let to = e.to else { continue }
+
+            // Check if inverse edge already exists (any type); if so, skip
+            let toIDOpt: UUID? = to.id
+            let fromIDOpt: UUID? = from.id
+            let invFetch = FetchDescriptor<CardEdge>(
+                predicate: #Predicate {
+                    $0.from?.id == toIDOpt && $0.to?.id == fromIDOpt
+                }
+            )
+            if let inv = try? ctx.fetch(invFetch), inv.isEmpty == false {
+                continue
+            }
+
+            // Determine mirror RelationType
+            let mirror: RelationType
+            if let t = e.type {
+                mirror = ensureMirrorType(for: t, sourceKind: from.kind, targetKind: to.kind, typeCache: &typeCache)
+                if !typeCache.contains(where: { $0.code == mirror.code }) {
+                    typeCache.append(mirror)
+                }
+            } else {
+                // If original edge has no type, create/use a generic symmetric type
+                let forward = "related to"
+                let inverse = "related to"
+                let code = makeCode(forward: forward, inverse: inverse)
+                if let existing = fetchType(code: code) {
+                    mirror = existing
+                } else {
+                    let newType = RelationType(code: code, forwardLabel: forward, inverseLabel: inverse, sourceKind: nil, targetKind: nil)
+                    ctx.insert(newType)
+                    mirror = newType
+                    typeCache.append(newType)
+                    createdTypes += 1
+                    lines.append("Created type: \(code) (generic, for missing type)")
+                }
+            }
+
+            // Create inverse edge
+            let invEdge = CardEdge(from: to, to: from, type: mirror, note: e.note, createdAt: e.createdAt.addingTimeInterval(0.001))
+            ctx.insert(invEdge)
+            createdEdges += 1
+            lines.append("Inverse edge created: \(from.kind.singularTitle) “\(from.name)” ⇄ \(to.kind.singularTitle) “\(to.name)” using type “\(mirror.code)”")
+        }
+
+        do {
+            try ctx.save()
+        } catch {
+            errorCount += 1
+            logger.error("Repair save failed: \(String(describing: error))")
+            lines.append("ERROR: Failed to save changes: \(String(describing: error))")
+        }
+
+        createdInverseEdges = createdEdges
+        createdMirrorTypes = createdTypes
+        errors = errorCount
+
+        lines.append("")
+        lines.append("--- Summary ---")
+        lines.append("Scanned: \(scannedEdges)")
+        lines.append("Inverse edges created: \(createdInverseEdges)")
+        lines.append("Mirror types created: \(createdMirrorTypes)")
+        lines.append("Errors: \(errors)")
+
+        report = lines.joined(separator: "\n")
+    }
+
+    // MARK: - Mirror helpers
+
+    // Ensure a mirrored type exists (swap source/target kinds and labels).
+    @MainActor
+    private func ensureMirrorType(for t: RelationType, sourceKind: Kinds, targetKind: Kinds, typeCache: inout [RelationType]) -> RelationType {
+        // Desired mirror code from swapped labels
+        let desiredCode = makeCode(forward: t.inverseLabel, inverse: t.forwardLabel)
+
+        if let existing = typeCache.first(where: { $0.code == desiredCode }) {
+            return existing
+        }
+
+        // Try to find a type that matches swapped kinds and swapped labels (even if code differs)
+        if let match = typeCache.first(where: {
+            ($0.sourceKindRaw == targetKind.rawValue || $0.sourceKindRaw == nil) &&
+            ($0.targetKindRaw == sourceKind.rawValue || $0.targetKindRaw == nil) &&
+            $0.forwardLabel == t.inverseLabel &&
+            $0.inverseLabel == t.forwardLabel
+        }) {
+            return match
+        }
+
+        // Create a new mirror type with a unique code if needed
+        var codeToUse = desiredCode
+        var suffix = 1
+        while typeCache.contains(where: { $0.code == codeToUse }) {
+            suffix += 1
+            codeToUse = makeCode(forward: t.inverseLabel, inverse: t.forwardLabel, suffix: suffix)
+        }
+
+        let mirror = RelationType(
+            code: codeToUse,
+            forwardLabel: t.inverseLabel,
+            inverseLabel: t.forwardLabel,
+            sourceKind: targetKind,
+            targetKind: sourceKind
+        )
+        modelContext.insert(mirror)
+        createdMirrorTypes += 1
+        return mirror
+    }
+
+    // Code building helpers
+    private func sanitize(_ s: String) -> String {
+        let lowered = s.lowercased()
+        let replaced = lowered.replacingOccurrences(of: " ", with: "-")
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
+        let filtered = String(replaced.unicodeScalars.filter { allowed.contains($0) })
+        var result = filtered
+        while result.contains("--") {
+            result = result.replacingOccurrences(of: "--", with: "-")
+        }
+        return result
+    }
+
+    private func makeCode(forward: String, inverse: String, suffix: Int? = nil) -> String {
+        let base = "\(sanitize(forward))/\(sanitize(inverse))"
+        if let suffix {
+            return "\(base)-\(suffix)"
+        } else {
+            return base
+        }
+    }
+}
+#endif // DEBUG
+
 #endif // os(macOS)
 
 // Cross-platform notification for developer-triggered erase
 extension Notification.Name {
     static let eraseAndReseed = Notification.Name("Dev.EraseAndReseed")
 }
-

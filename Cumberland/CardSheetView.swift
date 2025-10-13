@@ -20,6 +20,10 @@ struct CardSheetView: View {
     @State private var fullImage: Image?
     @State private var isDropTargeted: Bool = false
 
+    // Persist Focus Mode across launches and remember which card was focused
+    @AppStorage("CardDetailFocusModeEnabled") private var isFocusModeEnabled: Bool = false
+    @AppStorage("CardDetailFocusModeCardID") private var focusModeCardIDRaw: String = ""
+
     // Editor mode
     private enum EditorMode: String, CaseIterable, Identifiable {
         case edit = "Edit"
@@ -57,6 +61,11 @@ struct CardSheetView: View {
         editorMode != .preview
     }
 
+    // Hover state for the floating focus control (macOS)
+    #if os(macOS)
+    @State private var isHoveringFocusButton: Bool = false
+    #endif
+
     var body: some View {
         ZStack {
             // Canvas background
@@ -79,6 +88,11 @@ struct CardSheetView: View {
                     Divider()
 
                     editorArea
+                        // Floating round, translucent focus toggle (top-trailing)
+                        .overlay(alignment: .topTrailing) {
+                            focusGlassButton
+                                .padding(10)
+                        }
                 }
                 .padding()
             }
@@ -92,6 +106,20 @@ struct CardSheetView: View {
         .toolbarBackground(.visible, for: .windowToolbar)
         .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
         #endif
+        // Add a global toolbar toggle for discoverability
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    toggleFocusForThisCard()
+                } label: {
+                    Image(systemName: isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString
+                          ? "arrow.down.right.and.arrow.up.left"
+                          : "arrow.up.left.and.arrow.down.right")
+                }
+                .help(isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString ? "Exit Focus" : "Enter Focus")
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+            }
+        }
         .task {
             await loadFullImage()
         }
@@ -116,6 +144,13 @@ struct CardSheetView: View {
 
             // Default to Preview for a newly selected card
             editorMode = .preview
+
+            // If focus mode was active for another card, disable it for this card.
+            if isFocusModeEnabled, focusModeCardIDRaw != card.id.uuidString {
+                // Toggle off; .onChange will dismiss overlay
+                isFocusModeEnabled = false
+                focusModeCardIDRaw = ""
+            }
         }
         .onChange(of: card.detailedText) { _, _ in
             // Keep the draft in sync when model changes externally
@@ -157,7 +192,218 @@ struct CardSheetView: View {
             nameDraft = card.name
             subtitleDraft = card.subtitle
             detailsDraft = card.detailedText
+
+            // If focus mode was on for this card, present overlay now (without re-toggling AppStorage)
+            if isFocusModeEnabled, focusModeCardIDRaw == card.id.uuidString {
+                prepareEditorForFocus()
+                #if os(macOS)
+                FocusOverlayPresenter.shared.present(
+                    for: card,
+                    text: $detailsDraft,
+                    selection: $detailsSelection,
+                    toolbar: adaptiveFormattingToolbar,
+                    onExit: {
+                        // Toggle off; .onChange will dismiss
+                        isFocusModeEnabled = false
+                        focusModeCardIDRaw = ""
+                    }
+                )
+                #endif
+            }
         }
+        #if os(macOS)
+        .onExitCommand {
+            if isFocusModeEnabled {
+                // Toggle off; .onChange will dismiss
+                isFocusModeEnabled = false
+                focusModeCardIDRaw = ""
+            }
+        }
+        #endif
+        // Present/dismiss the macOS overlay only when AppStorage changes
+        .onChange(of: isFocusModeEnabled) { _, on in
+            #if os(macOS)
+            if on {
+                // Only present if this view's card is the one to focus
+                guard focusModeCardIDRaw == card.id.uuidString else { return }
+                prepareEditorForFocus()
+                FocusOverlayPresenter.shared.present(
+                    for: card,
+                    text: $detailsDraft,
+                    selection: $detailsSelection,
+                    toolbar: adaptiveFormattingToolbar,
+                    onExit: {
+                        isFocusModeEnabled = false
+                        focusModeCardIDRaw = ""
+                    }
+                )
+            } else {
+                exitFocusMode(save: true)
+            }
+            #endif
+        }
+        // Fallback inline overlay on non-macOS platforms
+        .overlay {
+            #if !os(macOS)
+            if isFocusModeEnabled, focusModeCardIDRaw == card.id.uuidString {
+                focusInlineOverlay
+                    .transition(.opacity)
+                    .ignoresSafeArea()
+            }
+            #endif
+        }
+    }
+
+    // MARK: - Focus Mode UI
+
+    // New floating, round, translucent focus button
+    @ViewBuilder
+    private var focusGlassButton: some View {
+        let isActive = isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString
+        let icon = isActive ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right"
+
+        Button {
+            toggleFocusForThisCard()
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .frame(width: 30, height: 30) // macOS/iPadOS size; iOS hit target still >=44 via padding if needed
+        }
+        .buttonStyle(.plain)
+        .background(
+            Circle().fill(.ultraThinMaterial)
+        )
+        .overlay(
+            Circle()
+                .stroke(.white.opacity(scheme == .dark ? 0.15 : 0.30), lineWidth: 0.6)
+                .blendMode(.overlay)
+        )
+        .overlay(
+            Circle()
+                .stroke(.separator.opacity(0.6), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(scheme == .dark ? 0.22 : 0.12), radius: 6, x: 0, y: 3)
+        .accessibilityLabel(isActive ? "Exit Focus" : "Enter Focus")
+        .help(isActive ? "Exit Focus" : "Enter Focus")
+        #if os(macOS)
+        .opacity(isActive ? 1.0 : (isHoveringFocusButton ? 1.0 : 0.0))
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.18)) {
+                isHoveringFocusButton = hovering
+            }
+        }
+        #endif
+    }
+
+    // Keep old toggle (unused now); safe to remove later if you like.
+    private var focusToggleButton: some View {
+        // Long, narrow toggle on the left edge of the details area
+        VStack {
+            Button {
+                if isFocusModeEnabled {
+                    // Toggle off; overlay will be dismissed by .onChange handler
+                    isFocusModeEnabled = false
+                    focusModeCardIDRaw = ""
+                } else {
+                    // Toggle on for this card; .onChange will present and prepare
+                    focusModeCardIDRaw = card.id.uuidString
+                    isFocusModeEnabled = true
+                }
+            } label: {
+                VStack(spacing: 6) {
+                    Image(systemName: isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Focus")
+                        .font(.system(size: 10, weight: .medium))
+                        .rotationEffect(.degrees(-90))
+                        .fixedSize()
+                }
+                .padding(.vertical, 10)
+                .frame(width: 28)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help(isFocusModeEnabled ? "Exit Focus Mode (Esc)" : "Enter Focus Mode")
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, -6) // tuck into the gutter
+    }
+
+    private func toggleFocusForThisCard() {
+        if isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString {
+            // Turn off
+            isFocusModeEnabled = false
+            focusModeCardIDRaw = ""
+        } else {
+            // Turn on for this card
+            focusModeCardIDRaw = card.id.uuidString
+            isFocusModeEnabled = true
+        }
+    }
+
+    // Inline overlay fallback (iOS, etc.)
+    @ViewBuilder
+    private var focusInlineOverlay: some View {
+        ZStack(alignment: .topLeading) {
+            Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 8) {
+                // Top bar with Exit
+                HStack {
+                    Button {
+                        // Toggle off; overlay disappears
+                        isFocusModeEnabled = false
+                        focusModeCardIDRaw = ""
+                    } label: {
+                        Label("Exit Focus", systemImage: "xmark.circle.fill")
+                    }
+                    .keyboardShortcut(.cancelAction)
+                    Spacer()
+                }
+                .padding(.bottom, 4)
+
+                adaptiveFormattingToolbar
+                    .glassToolbarStyle()
+
+                RichTextEditor(
+                    text: $detailsDraft,
+                    selectedRange: $detailsSelection,
+                    isFirstResponder: true,
+                    editable: true,
+                    onTab: { handleIndentOutdent(isOutdent: false) },
+                    onBacktab: { handleIndentOutdent(isOutdent: true) }
+                )
+                .frame(minHeight: 280)
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(.regularMaterial)
+                        .allowsHitTesting(false)
+                )
+            }
+            .padding()
+        }
+    }
+
+    // Prepare editor state when entering focus (without touching AppStorage)
+    @MainActor
+    private func prepareEditorForFocus() {
+        if editorMode == .preview {
+            editorMode = .edit
+        }
+        detailsDraft = card.detailedText
+        detailsSelection = NSRange(location: (detailsDraft as NSString).length, length: 0)
+        focusedField = .details
+    }
+
+    @MainActor
+    private func exitFocusMode(save: Bool) {
+        if save {
+            saveDetailsIfDirty(actionName: "Edit Details")
+        }
+        #if os(macOS)
+        FocusOverlayPresenter.shared.dismiss()
+        #endif
     }
 
     // MARK: - UI Sections
@@ -1540,6 +1786,220 @@ private extension NSImage {
         guard let tiff = self.tiffRepresentation,
               let rep = NSBitmapImageRep(data: tiff) else { return nil }
         return rep.representation(using: .jpeg, properties: [.compressionFactor: compression])
+    }
+}
+#endif
+
+// MARK: - macOS Focus Overlay Presenter
+
+#if os(macOS)
+private final class FocusOverlayPresenter: NSObject, NSWindowDelegate {
+    static let shared = FocusOverlayPresenter()
+
+    private weak var parentWindow: NSWindow?
+    private var panel: FocusPanel?
+    private var hosting: NSHostingController<AnyView>?
+    private var observers: [NSObjectProtocol] = []
+    private var appearanceObservation: NSKeyValueObservation?
+
+    func present(for card: Card,
+                 text: Binding<String>,
+                 selection: Binding<NSRange>,
+                 toolbar: some View,
+                 onExit: @escaping () -> Void) {
+        guard let keyWindow = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isKeyWindow }) ?? NSApp.mainWindow else {
+            return
+        }
+
+        // If already shown for this parent, update content and return
+        if let existing = panel, existing.parent == keyWindow {
+            updateContent(text: text, selection: selection, toolbar: toolbar, onExit: onExit)
+            return
+        }
+
+        parentWindow = keyWindow
+
+        let screenRect = keyWindow.convertToScreen(keyWindow.contentLayoutRect)
+
+        let p = FocusPanel(contentRect: screenRect, styleMask: [.borderless], backing: .buffered, defer: false)
+        p.level = .modalPanel
+        p.hasShadow = false
+        p.isOpaque = false
+        p.backgroundColor = .clear
+        p.ignoresMouseEvents = false
+        p.isMovable = false
+        p.isMovableByWindowBackground = false
+        p.hidesOnDeactivate = false
+        p.collectionBehavior = [.fullScreenAuxiliary, .stationary, .ignoresCycle]
+
+        // Match parent window appearance (light/dark)
+        p.appearance = keyWindow.effectiveAppearance
+
+        // Build SwiftUI content
+        let root = FocusOverlayRoot(
+            toolbar: AnyView(toolbar),
+            text: text,
+            selection: selection,
+            onExit: onExit
+        )
+        let host = NSHostingController(rootView: AnyView(root))
+        host.view.frame = CGRect(origin: .zero, size: screenRect.size)
+        host.view.autoresizingMask = [.width, .height]
+        // Ensure hosted view matches the panel’s appearance
+        host.view.appearance = keyWindow.effectiveAppearance
+
+        p.contentView = host.view
+
+        // Add as child above and size/position to the content area in screen coords
+        keyWindow.addChildWindow(p, ordered: .above)
+        p.setFrame(screenRect, display: true)
+        p.orderFront(nil)
+
+        hosting = host
+        panel = p
+
+        attachObservers(for: keyWindow, panel: p)
+        p.makeKey() // become key so editor receives key events
+    }
+
+    func dismiss() {
+        if let p = panel {
+            if let parent = p.parent {
+                parent.removeChildWindow(p)
+            }
+            p.orderOut(nil)
+        }
+        panel = nil
+        hosting = nil
+        removeObservers()
+    }
+
+    private func updateContent(text: Binding<String>, selection: Binding<NSRange>, toolbar: some View, onExit: @escaping () -> Void) {
+        hosting?.rootView = AnyView(
+            FocusOverlayRoot(
+                toolbar: AnyView(toolbar),
+                text: text,
+                selection: selection,
+                onExit: onExit
+            )
+        )
+    }
+
+    private func attachObservers(for window: NSWindow, panel: NSWindow) {
+        removeObservers()
+
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: NSWindow.didResizeNotification, object: window, queue: .main) { [weak panel, weak window] _ in
+            guard let w = window, let p = panel else { return }
+            let screenRect = w.convertToScreen(w.contentLayoutRect)
+            p.setFrame(screenRect, display: true)
+        })
+        observers.append(center.addObserver(forName: NSWindow.didMoveNotification, object: window, queue: .main) { [weak panel, weak window] _ in
+            guard let w = window, let p = panel else { return }
+            let screenRect = w.convertToScreen(w.contentLayoutRect)
+            p.setFrame(screenRect, display: false)
+        })
+        observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak panel] _ in
+            panel?.makeKey()
+        })
+
+        // Observe effectiveAppearance changes on the application via KVO
+        appearanceObservation = NSApp.observe(\.effectiveAppearance, options: [.new]) { [weak panel, weak window, weak hosting] _, _ in
+            guard let w = window else { return }
+            panel?.appearance = w.effectiveAppearance
+            hosting?.view.appearance = w.effectiveAppearance
+        }
+    }
+
+    private func removeObservers() {
+        let center = NotificationCenter.default
+        for o in observers {
+            center.removeObserver(o)
+        }
+        observers.removeAll()
+        appearanceObservation = nil
+    }
+}
+
+// A borderless panel that can become key to accept text input.
+private final class FocusPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+}
+
+// SwiftUI root hosted in the overlay panel
+private struct FocusOverlayRoot: View {
+    let toolbar: AnyView
+    @Binding var text: String
+    @Binding var selection: NSRange
+    var onExit: () -> Void
+
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        ZStack {
+            // Glassy backdrop that obscures the host window content
+            VisualEffectView(material: .underWindowBackground, blendingMode: .withinWindow)
+                .background(Color.black.opacity(scheme == .dark ? 0.25 : 0.20))
+                .ignoresSafeArea()
+
+            // Focus editor content centered with margins
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Button {
+                        onExit()
+                    } label: {
+                        Label("Exit Focus", systemImage: "xmark.circle.fill")
+                    }
+                    .keyboardShortcut(.cancelAction)
+
+                    Spacer()
+                }
+
+                AdaptiveGlassToolbar(tint: .orange, interactive: true) {
+                    toolbar
+                }
+
+                RichTextEditor(
+                    text: $text,
+                    selectedRange: $selection,
+                    isFirstResponder: true,
+                    editable: true
+                )
+                .frame(minHeight: 320)
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(.regularMaterial)
+                )
+            }
+            .padding(20)
+        }
+        // Allow Esc to exit even if button isn’t focused
+        .onExitCommand {
+            onExit()
+        }
+    }
+}
+
+// Native NSVisualEffectView wrapper for a proper window-wide blur
+private struct VisualEffectView: NSViewRepresentable {
+    let material: NSVisualEffectView.Material
+    let blendingMode: NSVisualEffectView.BlendingMode
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let v = NSVisualEffectView()
+        v.state = .active
+        v.material = material
+        v.blendingMode = blendingMode
+        v.isEmphasized = true
+        return v
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.state = .active
+        nsView.material = material
+        nsView.blendingMode = blendingMode
     }
 }
 #endif

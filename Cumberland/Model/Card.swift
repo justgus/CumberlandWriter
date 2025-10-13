@@ -16,7 +16,8 @@ import UniformTypeIdentifiers
 // - id is unique to support stable identity across sync and devices.
 // - We index key string fields to speed up searches and sorts.
 // - thumbnailData uses external storage to keep row payloads small; it remains synced.
-// - imageFileURL is local-only by design and will not be synced.
+// - originalImageData uses external storage so SwiftData/CloudKit can store it efficiently (CKAsset).
+// - imageFileURL is a local cache path only (not synced).
 //
 @Model
 final class Card: Identifiable {
@@ -53,8 +54,11 @@ final class Card: Identifiable {
     @Attribute(.externalStorage)
     var thumbnailData: Data?
 
-    // File URL to original image stored on disk (not synced)
-    // Local-only: do not mirror device paths to CloudKit.
+    // Synced original image bytes (external storage -> CKAsset under the hood when CloudKit is enabled)
+    @Attribute(.externalStorage)
+    var originalImageData: Data?
+
+    // File URL to original image stored on disk (local cache only, not synced)
     @Transient
     var imageFileURL: URL?
 
@@ -86,6 +90,7 @@ final class Card: Identifiable {
         author: String? = nil,
         sizeCategory: SizeCategory = .standard,
         thumbnailData: Data? = nil,
+        originalImageData: Data? = nil,
         imageFileURL: URL? = nil
     ) {
         self.id = id
@@ -96,6 +101,7 @@ final class Card: Identifiable {
         self.author = author
         self.sizeCategoryRaw = sizeCategory.rawValue
         self.thumbnailData = thumbnailData
+        self.originalImageData = originalImageData
         self.imageFileURL = imageFileURL
         self.normalizedSearchText = ""
         recomputeNormalizedSearchText()
@@ -154,13 +160,17 @@ extension Card {
         let inferredExt = Self.inferFileExtension(from: data) ?? "jpg"
         let ext = (preferredFileExtension?.lowercased()).flatMap { $0.isEmpty ? nil : $0 } ?? inferredExt
 
+        // Update synced original first so we always have a copy in the database/CloudKit
+        self.originalImageData = data
+
+        // Replace local cache file
         if let oldURL = imageFileURL {
             try? ImageStore.shared.deleteOriginalImage(at: oldURL)
         }
-
         let fileURL = try ImageStore.shared.writeOriginalImageData(data, for: id, fileExtension: ext)
         self.imageFileURL = fileURL
 
+        // Build/refresh thumbnail + caches
         if let cg = Self.makeCGImage(from: data) {
             self.thumbnailData = Self.makePNGThumbnailData(from: cg, maxPixel: Self.thumbnailMaxPixel)
             Self.cache(set: cg, for: cacheKeyFull)
@@ -172,6 +182,7 @@ extension Card {
                 }
             }
         } else {
+            // Fallback: try reading back from the cache file we just wrote
             if let cg = cgImageFromFileURL() {
                 self.thumbnailData = Self.makePNGThumbnailData(from: cg, maxPixel: Self.thumbnailMaxPixel)
                 Self.cache(set: cg, for: cacheKeyFull)
@@ -187,20 +198,32 @@ extension Card {
     }
 
     func removeOriginalImage() {
+        // Remove local cache file
         if let url = imageFileURL {
             try? ImageStore.shared.deleteOriginalImage(at: url)
         }
         imageFileURL = nil
+        // Remove synced original and caches
+        originalImageData = nil
         Self.cache(removeFor: cacheKeyFull)
     }
 
     func regenerateThumbnailFromOriginal() {
-        guard let cg = cgImageFromFileURL() else { return }
-        self.thumbnailData = Self.makePNGThumbnailData(from: cg, maxPixel: Self.thumbnailMaxPixel)
+        // Prefer local file; fall back to synced original data
+        if let cg = cgImageFromFileURL() {
+            self.thumbnailData = Self.makePNGThumbnailData(from: cg, maxPixel: Self.thumbnailMaxPixel)
+        } else if let data = originalImageData, let cg = Self.makeCGImage(from: data) {
+            self.thumbnailData = Self.makePNGThumbnailData(from: cg, maxPixel: Self.thumbnailMaxPixel)
+        } else {
+            self.thumbnailData = nil
+        }
+
         if let thumbCG = Self.makeCGImage(from: self.thumbnailData ?? Data()) {
             Self.cache(set: thumbCG, for: cacheKeyThumb)
-        } else if let scaled = Self.makeScaledCGImage(from: cg, maxPixel: Self.thumbnailMaxPixel) {
-            Self.cache(set: scaled, for: cacheKeyThumb)
+        } else if let fullCG = Self.cache(get: cacheKeyFull) {
+            if let scaled = Self.makeScaledCGImage(from: fullCG, maxPixel: Self.thumbnailMaxPixel) {
+                Self.cache(set: scaled, for: cacheKeyThumb)
+            }
         }
     }
 
@@ -233,7 +256,50 @@ extension Card {
     }
 }
 
-// MARK: - Image decoding/encoding helpers
+// MARK: - Image decoding/encoding helpers (internal access for cross-file use)
+
+extension Card {
+    // Decode a CGImage from raw image data (PNG, JPEG, etc.)
+    static func makeCGImage(from data: Data) -> CGImage? {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(src, 0, nil)
+    }
+
+    // Produce a PNG thumbnail Data by scaling to fit within maxPixel
+    static func makePNGThumbnailData(from cg: CGImage, maxPixel: Int) -> Data? {
+        // Scale first (self-contained; does not rely on private helpers)
+        let w = cg.width
+        let h = cg.height
+        let maxDim = max(w, h)
+        let scale = maxDim > maxPixel ? CGFloat(maxPixel) / CGFloat(maxDim) : 1.0
+        let targetW = max(1, Int(CGFloat(w) * scale))
+        let targetH = max(1, Int(CGFloat(h) * scale))
+
+        guard let colorSpace = cg.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
+        guard let ctx = CGContext(
+            data: nil,
+            width: targetW,
+            height: targetH,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+
+        ctx.interpolationQuality = .high
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: targetW, height: targetH))
+        guard let scaled = ctx.makeImage() else { return nil }
+
+        // Encode PNG
+        let data = NSMutableData()
+        guard let dest = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(dest, scaled, nil)
+        guard CGImageDestinationFinalize(dest) else { return nil }
+        return data as Data
+    }
+}
+
+// MARK: - Image decoding/encoding helpers (private internals)
 
 private extension Card {
     static let thumbnailMaxPixel: Int = 256
@@ -277,6 +343,7 @@ private extension Card {
             }
         }
 
+        // Derive from full image (local cache or synced original)
         guard let original = await loadFullCGImage() else { return nil }
         if let scaled = Self.makeScaledCGImage(from: original, maxPixel: Self.thumbnailMaxPixel) {
             Self.cache(set: scaled, for: cacheKeyThumb)
@@ -289,11 +356,27 @@ private extension Card {
         if let cached = Self.cache(get: cacheKeyFull) {
             return cached
         }
-        guard let url = imageFileURL else { return nil }
-        if let cg = await Self.decodeCGImageAsync(fromURL: url) {
+
+        // Try local cache file first
+        if let url = imageFileURL, let cg = await Self.decodeCGImageAsync(fromURL: url) {
             Self.cache(set: cg, for: cacheKeyFull)
             return cg
         }
+
+        // Fall back to synced original data
+        if let data = originalImageData, let cg = await Self.decodeCGImageAsync(fromData: data) {
+            Self.cache(set: cg, for: cacheKeyFull)
+
+            // Opportunistically reconstruct the local cache file for faster subsequent loads
+            if imageFileURL == nil {
+                let ext = Self.inferFileExtension(from: data) ?? "jpg"
+                if let fileURL = try? await ImageStore.shared.writeOriginalImageData(data, for: id, fileExtension: ext) {
+                    imageFileURL = fileURL
+                }
+            }
+            return cg
+        }
+
         return nil
     }
 
@@ -331,11 +414,6 @@ private extension Card {
         return CGImageSourceCreateImageAtIndex(src, 0, nil)
     }
 
-    static func makeCGImage(from data: Data) -> CGImage? {
-        guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-        return CGImageSourceCreateImageAtIndex(src, 0, nil)
-    }
-
     static func makeScaledCGImage(from cg: CGImage, maxPixel: Int) -> CGImage? {
         let w = cg.width
         let h = cg.height
@@ -358,15 +436,6 @@ private extension Card {
         ctx.interpolationQuality = .high
         ctx.draw(cg, in: CGRect(x: 0, y: 0, width: targetW, height: targetH))
         return ctx.makeImage()
-    }
-
-    static func makePNGThumbnailData(from cg: CGImage, maxPixel: Int) -> Data? {
-        guard let scaled = makeScaledCGImage(from: cg, maxPixel: maxPixel) else { return nil }
-        let data = NSMutableData()
-        guard let dest = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil) else { return nil }
-        CGImageDestinationAddImage(dest, scaled, nil)
-        guard CGImageDestinationFinalize(dest) else { return nil }
-        return data as Data
     }
 
     static func inferFileExtension(from data: Data) -> String? {

@@ -353,8 +353,66 @@ private struct ViewsSettingsPane: View {
             } footer: {
                 Text("Default zoom level for the Structure Board. You can also adjust zoom directly in the board with gestures or toolbar controls.")
             }
+
+            // New: Remembered detail tab per Kind (UserDefaults-backed)
+            Section {
+                ForEach(Kinds.orderedCases.filter { $0 != .structure }, id: \.self) { kind in
+                    HStack {
+                        Label(kind.singularTitle, systemImage: kind.systemImage)
+                        Spacer()
+                        Picker("Default Tab", selection: tabBinding(for: kind)) {
+                            ForEach(CardDetailTab.allowedTabs(for: kind), id: \.self) { tab in
+                                Text(tab.title).tag(tab.rawValue)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(maxWidth: 220)
+                        .help("Default and remembered tab for \(kind.title)")
+                    }
+                }
+
+                Button("Reset Remembered Tabs") {
+                    resetRememberedTabs()
+                }
+                .buttonStyle(.bordered)
+                .help("Clear the saved default/last-selected detail tab per Kind")
+            } header: {
+                Text("Card Detail Tabs")
+            } footer: {
+                Text("Choose the default tab per card type. The app remembers your last selection per type and restores it next time. Tabs not available for a type will fall back to Details.")
+            }
         }
         .formStyle(.grouped)
+    }
+
+    // MARK: - UserDefaults helpers for tab preference
+
+    private func tabKey(for kind: Kinds) -> String { "DetailTab.\(kind.rawValue)" }
+
+    private func getStoredTabRaw(for kind: Kinds) -> String {
+        let raw = UserDefaults.standard.string(forKey: tabKey(for: kind))
+        // Default to Details; coerce if invalid for the kind
+        let tab = CardDetailTab.coerce(CardDetailTab.from(raw: raw, default: .details), for: kind)
+        return tab.rawValue
+    }
+
+    private func setStoredTabRaw(_ raw: String, for kind: Kinds) {
+        let desired = CardDetailTab.from(raw: raw, default: .details)
+        let coerced = CardDetailTab.coerce(desired, for: kind)
+        UserDefaults.standard.set(coerced.rawValue, forKey: tabKey(for: kind))
+    }
+
+    private func tabBinding(for kind: Kinds) -> Binding<String> {
+        Binding(
+            get: { getStoredTabRaw(for: kind) },
+            set: { newRaw in setStoredTabRaw(newRaw, for: kind) }
+        )
+    }
+
+    private func resetRememberedTabs() {
+        for k in Kinds.orderedCases where k != .structure {
+            UserDefaults.standard.removeObject(forKey: tabKey(for: k))
+        }
     }
 }
 
@@ -449,3 +507,4 @@ private extension Comparable {
         min(max(self, range.lowerBound), range.upperBound)
     }
 }
+

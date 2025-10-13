@@ -41,8 +41,8 @@ struct MainAppView: View {
     // Three-pane split visibility (keep all visible on macOS by default)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
-    // Default to Relationships, as before
-    @State private var selectedDetailTab: CardDetailTab = .relationships
+    // Default to Details (and remember per Kind thereafter)
+    @State private var selectedDetailTab: CardDetailTab = .details
 
     // Filtered cards for the current selection + search
     private var filteredCards: [Card] {
@@ -204,13 +204,35 @@ struct MainAppView: View {
                     sidebarSelectionRaw = serializeSidebarSelection(sidebarSelection)
                 }
             }
+
+            // Initialize the detail tab based on current context
+            if let card = selectedCard {
+                selectedDetailTab = loadRememberedTab(for: card.kind)
+                coerceSelectedTabIfNeeded(for: card)
+            } else {
+                // No card selected; if we’re scoped to a kind, use that kind’s remembered tab.
+                switch sidebarSelection {
+                case .kind(let k):
+                    selectedDetailTab = loadRememberedTab(for: k)
+                default:
+                    // Default app-wide startup to Projects’ default (Details)
+                    selectedDetailTab = loadRememberedTab(for: .projects)
+                }
+            }
         }
         // Persist selection when it changes
         .onChange(of: sidebarSelection) { _, newValue in
             sidebarSelectionRaw = serializeSidebarSelection(newValue)
-            // Reset card selection and detail tab when changing context
+            // Reset card selection when changing context
             selectedCardID = nil
-            selectedDetailTab = .relationships
+            // Load remembered tab for the newly selected kind (or default)
+            switch newValue {
+            case .kind(let k):
+                selectedDetailTab = loadRememberedTab(for: k)
+            default:
+                // For All/Structure use the Projects default as a sensible baseline
+                selectedDetailTab = loadRememberedTab(for: .projects)
+            }
         }
         // Keep the force flag in sync with search mode:
         // When entering search mode, force CardSheetView; when leaving, clear it.
@@ -226,15 +248,36 @@ struct MainAppView: View {
         // Reset/validate the selected tab when the selected card changes
         .onChange(of: selectedCardID) { _, _ in
             guard let card = selectedCard else {
-                selectedDetailTab = .relationships
+                // If no card selected, base on current kind context (or projects default)
+                switch sidebarSelection {
+                case .kind(let k):
+                    selectedDetailTab = loadRememberedTab(for: k)
+                default:
+                    selectedDetailTab = loadRememberedTab(for: .projects)
+                }
                 return
             }
+            // Load remembered tab for this card’s kind and validate
+            selectedDetailTab = loadRememberedTab(for: card.kind)
             coerceSelectedTabIfNeeded(for: card)
         }
         // Also revalidate when force mode changes (e.g., leaving search)
         .onChange(of: navigationCoordinator.forceCardSheetView) { _, _ in
             if let card = selectedCard {
                 coerceSelectedTabIfNeeded(for: card)
+            }
+        }
+        // Persist any user-initiated tab changes per Kind
+        .onChange(of: selectedDetailTab) { _, newValue in
+            // Persist the selection for the active Kind context
+            if let card = selectedCard {
+                rememberTab(newValue, for: card.kind)
+            } else {
+                // No card selected: remember against the sidebar’s Kind if present; else Projects
+                switch sidebarSelection {
+                case .kind(let k): rememberTab(newValue, for: k)
+                default: rememberTab(newValue, for: .projects)
+                }
             }
         }
     }
@@ -585,24 +628,32 @@ struct MainAppView: View {
     // MARK: - Detail tabs helpers
 
     private func availableTabs(for card: Card) -> [CardDetailTab] {
-        var tabs: [CardDetailTab] = [.details, .relationships]
-        if card.kind == .projects {
-            tabs.append(.board)
-        }
-        // Future: insert kind-specific tabs here, e.g. if card.kind == .characters { tabs.append(.xyz) }
-        return tabs
+        CardDetailTab.allowedTabs(for: card.kind)
     }
 
     private func coerceSelectedTabIfNeeded(for card: Card) {
-        let tabs = availableTabs(for: card)
-        if !tabs.contains(selectedDetailTab) {
-            // Prefer Relationships if available; else fallback to Details
-            if tabs.contains(.relationships) {
-                selectedDetailTab = .relationships
-            } else {
-                selectedDetailTab = .details
-            }
+        let coerced = CardDetailTab.coerce(selectedDetailTab, for: card.kind)
+        if coerced != selectedDetailTab {
+            selectedDetailTab = coerced
         }
+    }
+
+    // MARK: - Remembered tab persistence (UserDefaults)
+
+    private func tabKey(for kind: Kinds) -> String {
+        "DetailTab.\(kind.rawValue)"
+    }
+
+    private func rememberTab(_ tab: CardDetailTab, for kind: Kinds) {
+        let key = tabKey(for: kind)
+        UserDefaults.standard.set(tab.rawValue, forKey: key)
+    }
+
+    private func loadRememberedTab(for kind: Kinds) -> CardDetailTab {
+        let key = tabKey(for: kind)
+        let raw = UserDefaults.standard.string(forKey: key)
+        let desired = CardDetailTab.from(raw: raw, default: .details)
+        return CardDetailTab.coerce(desired, for: kind)
     }
 
     // MARK: - Sidebar selection persistence
@@ -641,3 +692,4 @@ struct MainAppView: View {
     return MainAppView()
         .modelContainer(container)
 }
+

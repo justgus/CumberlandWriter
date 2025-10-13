@@ -24,4 +24,28 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
         case .board: return "Structural Spine"
         }
     }
+
+    // MARK: - Availability and coercion helpers
+
+    // Tabs available for a given Kind (e.g., Board only for Projects)
+    static func allowedTabs(for kind: Kinds) -> [CardDetailTab] {
+        var tabs: [CardDetailTab] = [.details, .relationships]
+        if kind == .projects {
+            tabs.append(.board)
+        }
+        return tabs
+    }
+
+    // Coerce a desired tab to a valid one for the given Kind
+    static func coerce(_ desired: CardDetailTab, for kind: Kinds) -> CardDetailTab {
+        let allowed = allowedTabs(for: kind)
+        return allowed.contains(desired) ? desired : .details
+    }
+
+    // Failable mapping from a raw string with fallback to Details
+    static func from(raw: String?, default def: CardDetailTab = .details) -> CardDetailTab {
+        guard let raw, let v = CardDetailTab(rawValue: raw) else { return def }
+        return v
+    }
 }
+
