@@ -7,6 +7,20 @@
 	objects = {
 
 /* Begin PBXContainerItemProxy section */
+		8663005D2E9DA49D005F471B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8663004B2E9DA49C005F471B;
+			remoteInfo = "Cumberland IOS";
+		};
+		866300672E9DA49D005F471B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8663004B2E9DA49C005F471B;
+			remoteInfo = "Cumberland IOS";
+		};
 		866A3A482E8DC16F006D3723 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
@@ -26,12 +40,84 @@
 /* Begin PBXFileReference section */
 		8646BDF02E999EB00056F575 /* Cumberland-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Cumberland-macOS.entitlements"; sourceTree = "<group>"; };
 		8646BE022E99A1CE0056F575 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
+		8663004C2E9DA49C005F471B /* Cumberland IOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cumberland IOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8663005C2E9DA49D005F471B /* Cumberland IOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Cumberland IOSTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		866300662E9DA49D005F471B /* Cumberland IOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Cumberland IOSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		866A3A362E8DC16D006D3723 /* Cumberland.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cumberland.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		866A3A472E8DC16F006D3723 /* CumberlandTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		866A3A512E8DC16F006D3723 /* CumberlandUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		866300742E9DA49D005F471B /* Exceptions for "Cumberland IOS" folder in "Cumberland IOS" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Assets.xcassets,
+				Info.plist,
+			);
+			target = 8663004B2E9DA49C005F471B /* Cumberland IOS */;
+		};
+		866300952E9DA638005F471B /* Exceptions for "Cumberland" folder in "Cumberland IOS" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AboutView.swift,
+				AdaptiveGlassToolbar.swift,
+				AppModel.swift,
+				Assets.xcassets,
+				BackgroundDownloadHandler.swift,
+				BackupDTOs.swift,
+				CardDetailTab.swift,
+				CardEditorView.swift,
+				CardRelationshipView.swift,
+				CardSheetView.swift,
+				CardView.swift,
+				CardViewer.swift,
+				Citation/CitationEditor.swift,
+				Citation/CitationViewer.swift,
+				Citation/ImageAttributionEditor.swift,
+				Citation/ImageAttributionViewer.swift,
+				ContentPlaceholderView.swift,
+				ContentView.swift,
+				CumberlandApp.swift,
+				"Diagnostic Views/CardDiagnosticsView.swift",
+				"Diagnostic Views/RecentEdgesDiagnosticsView.swift",
+				"Diagnostic Views/RelationTypesDiagnosticsView.swift",
+				"Diagnostic Views/StoryStructureDiagnosticsView.swift",
+				GlassDropZone.swift,
+				GlassEffects.swift,
+				GlassKit.swift,
+				GlassSurfaceStyle.swift,
+				GlassToolbarStyle.swift,
+				Images/ImageStore.swift,
+				MainAppView.swift,
+				ManuscriptAssembler.swift,
+				Model/AppSettings.swift,
+				Model/Card.swift,
+				Model/CardEdge.swift,
+				Model/Citation.swift,
+				Model/CitationKind.swift,
+				Model/Kinds.swift,
+				Model/Migrations.swift,
+				Model/RelationType.swift,
+				Model/Source.swift,
+				Model/StoryStructure.swift,
+				RelatedEdgesList.swift,
+				SceneProjectRelationDiagnosticsView.swift,
+				Search/NavigationCoordinator.swift,
+				Search/SearchEngine.swift,
+				Search/SearchOverlay.swift,
+				Search/SearchRouter.swift,
+				Selection/CardSelectionRouter.swift,
+				Selection/ProjectSelectionRouter.swift,
+				SettingsView.swift,
+				SourcesView.swift,
+				StoryStructureView.swift,
+				StructureBoardView.swift,
+				Swimlane.swift,
+				SwimlaneViewer.swift,
+			);
+			target = 8663004B2E9DA49C005F471B /* Cumberland IOS */;
+		};
 		866A3A592E8DC16F006D3723 /* Exceptions for "Cumberland" folder in "Cumberland" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -48,10 +134,29 @@
 			path = CumberlandTests;
 			sourceTree = "<group>";
 		};
+		8663004D2E9DA49C005F471B /* Cumberland IOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				866300742E9DA49D005F471B /* Exceptions for "Cumberland IOS" folder in "Cumberland IOS" target */,
+			);
+			path = "Cumberland IOS";
+			sourceTree = "<group>";
+		};
+		8663005F2E9DA49D005F471B /* Cumberland IOSTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Cumberland IOSTests";
+			sourceTree = "<group>";
+		};
+		866300692E9DA49D005F471B /* Cumberland IOSUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Cumberland IOSUITests";
+			sourceTree = "<group>";
+		};
 		866A3A382E8DC16D006D3723 /* Cumberland */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				866A3A592E8DC16F006D3723 /* Exceptions for "Cumberland" folder in "Cumberland" target */,
+				866300952E9DA638005F471B /* Exceptions for "Cumberland" folder in "Cumberland IOS" target */,
 			);
 			path = Cumberland;
 			sourceTree = "<group>";
@@ -69,6 +174,27 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		866300492E9DA49C005F471B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		866300592E9DA49D005F471B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		866300632E9DA49D005F471B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		866A3A332E8DC16D006D3723 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -109,6 +235,9 @@
 				866A3A4A2E8DC16F006D3723 /* CumberlandTests */,
 				866A3A542E8DC16F006D3723 /* CumberlandUITests */,
 				8646BE152E99A1D00056F575 /* CumberlandTests */,
+				8663004D2E9DA49C005F471B /* Cumberland IOS */,
+				8663005F2E9DA49D005F471B /* Cumberland IOSTests */,
+				866300692E9DA49D005F471B /* Cumberland IOSUITests */,
 				866A3A372E8DC16D006D3723 /* Products */,
 				8646BE012E99A1CE0056F575 /* Packages */,
 			);
@@ -120,6 +249,9 @@
 				866A3A362E8DC16D006D3723 /* Cumberland.app */,
 				866A3A472E8DC16F006D3723 /* CumberlandTests.xctest */,
 				866A3A512E8DC16F006D3723 /* CumberlandUITests.xctest */,
+				8663004C2E9DA49C005F471B /* Cumberland IOS.app */,
+				8663005C2E9DA49D005F471B /* Cumberland IOSTests.xctest */,
+				866300662E9DA49D005F471B /* Cumberland IOSUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -127,6 +259,74 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		8663004B2E9DA49C005F471B /* Cumberland IOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 866300752E9DA49D005F471B /* Build configuration list for PBXNativeTarget "Cumberland IOS" */;
+			buildPhases = (
+				866300482E9DA49C005F471B /* Sources */,
+				866300492E9DA49C005F471B /* Frameworks */,
+				8663004A2E9DA49C005F471B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8663004D2E9DA49C005F471B /* Cumberland IOS */,
+			);
+			name = "Cumberland IOS";
+			packageProductDependencies = (
+			);
+			productName = "Cumberland IOS";
+			productReference = 8663004C2E9DA49C005F471B /* Cumberland IOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		8663005B2E9DA49D005F471B /* Cumberland IOSTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 866300762E9DA49D005F471B /* Build configuration list for PBXNativeTarget "Cumberland IOSTests" */;
+			buildPhases = (
+				866300582E9DA49D005F471B /* Sources */,
+				866300592E9DA49D005F471B /* Frameworks */,
+				8663005A2E9DA49D005F471B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8663005E2E9DA49D005F471B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				8663005F2E9DA49D005F471B /* Cumberland IOSTests */,
+			);
+			name = "Cumberland IOSTests";
+			packageProductDependencies = (
+			);
+			productName = "Cumberland IOSTests";
+			productReference = 8663005C2E9DA49D005F471B /* Cumberland IOSTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		866300652E9DA49D005F471B /* Cumberland IOSUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 866300772E9DA49D005F471B /* Build configuration list for PBXNativeTarget "Cumberland IOSUITests" */;
+			buildPhases = (
+				866300622E9DA49D005F471B /* Sources */,
+				866300632E9DA49D005F471B /* Frameworks */,
+				866300642E9DA49D005F471B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				866300682E9DA49D005F471B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				866300692E9DA49D005F471B /* Cumberland IOSUITests */,
+			);
+			name = "Cumberland IOSUITests";
+			packageProductDependencies = (
+			);
+			productName = "Cumberland IOSUITests";
+			productReference = 866300662E9DA49D005F471B /* Cumberland IOSUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		866A3A352E8DC16D006D3723 /* Cumberland */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 866A3A5A2E8DC16F006D3723 /* Build configuration list for PBXNativeTarget "Cumberland" */;
@@ -205,6 +405,17 @@
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					8663004B2E9DA49C005F471B = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					8663005B2E9DA49D005F471B = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 8663004B2E9DA49C005F471B;
+					};
+					866300652E9DA49D005F471B = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 8663004B2E9DA49C005F471B;
+					};
 					866A3A352E8DC16D006D3723 = {
 						CreatedOnToolsVersion = 26.0;
 					};
@@ -233,13 +444,37 @@
 			projectRoot = "";
 			targets = (
 				866A3A352E8DC16D006D3723 /* Cumberland */,
+				8663004B2E9DA49C005F471B /* Cumberland IOS */,
 				866A3A462E8DC16F006D3723 /* CumberlandTests */,
 				866A3A502E8DC16F006D3723 /* CumberlandUITests */,
+				8663005B2E9DA49D005F471B /* Cumberland IOSTests */,
+				866300652E9DA49D005F471B /* Cumberland IOSUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		8663004A2E9DA49C005F471B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8663005A2E9DA49D005F471B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		866300642E9DA49D005F471B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		866A3A342E8DC16D006D3723 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -264,6 +499,27 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		866300482E9DA49C005F471B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		866300582E9DA49D005F471B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		866300622E9DA49D005F471B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		866A3A322E8DC16D006D3723 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -288,6 +544,16 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		8663005E2E9DA49D005F471B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8663004B2E9DA49C005F471B /* Cumberland IOS */;
+			targetProxy = 8663005D2E9DA49D005F471B /* PBXContainerItemProxy */;
+		};
+		866300682E9DA49D005F471B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8663004B2E9DA49C005F471B /* Cumberland IOS */;
+			targetProxy = 866300672E9DA49D005F471B /* PBXContainerItemProxy */;
+		};
 		866A3A492E8DC16F006D3723 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 866A3A352E8DC16D006D3723 /* Cumberland */;
@@ -301,6 +567,179 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		8663006E2E9DA49D005F471B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-iOS";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = "Cumberland IOS/Cumberland_IOS.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Cumberland IOS/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Cumberland;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.caposoft.Cumberland.Cumberland-IOS";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8663006F2E9DA49D005F471B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-iOS";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = "Cumberland IOS/Cumberland_IOS.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Cumberland IOS/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Cumberland;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.caposoft.Cumberland.Cumberland-IOS";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		866300702E9DA49D005F471B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.caposoft.Cumberland.Cumberland-IOSTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cumberland IOS.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Cumberland IOS";
+			};
+			name = Debug;
+		};
+		866300712E9DA49D005F471B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.caposoft.Cumberland.Cumberland-IOSTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cumberland IOS.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Cumberland IOS";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		866300722E9DA49D005F471B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.caposoft.Cumberland.Cumberland-IOSUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Cumberland IOS";
+			};
+			name = Debug;
+		};
+		866300732E9DA49D005F471B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.caposoft.Cumberland.Cumberland-IOSUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Cumberland IOS";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		866A3A5B2E8DC16F006D3723 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -620,6 +1059,33 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		866300752E9DA49D005F471B /* Build configuration list for PBXNativeTarget "Cumberland IOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8663006E2E9DA49D005F471B /* Debug */,
+				8663006F2E9DA49D005F471B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		866300762E9DA49D005F471B /* Build configuration list for PBXNativeTarget "Cumberland IOSTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				866300702E9DA49D005F471B /* Debug */,
+				866300712E9DA49D005F471B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		866300772E9DA49D005F471B /* Build configuration list for PBXNativeTarget "Cumberland IOSUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				866300722E9DA49D005F471B /* Debug */,
+				866300732E9DA49D005F471B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		866A3A312E8DC16D006D3723 /* Build configuration list for PBXProject "Cumberland" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
