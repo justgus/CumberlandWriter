@@ -86,6 +86,15 @@ struct CardEditorView: View {
     // Flip state for wizard-like back side
     @State private var isFlipped: Bool = false
 
+    // MARK: - Quick Attribution Prompt State (for dropped text/images)
+    private struct PendingAttribution: Identifiable, Equatable {
+        let id = UUID()
+        let kind: CitationKind
+        let suggestedURL: URL?
+        let prefilledExcerpt: String?
+    }
+    @State private var pendingAttribution: PendingAttribution?
+
     // MARK: - Project Structure Creation (only when creating a Project)
 
     private enum StructureSource: String, Hashable, CaseIterable, Identifiable {
@@ -214,6 +223,7 @@ struct CardEditorView: View {
                 if case let .success(url) = result,
                    let data = try? Data(contentsOf: url) {
                     imageData = data
+                    // Treat file-import as local; no URL attribution prompt needed.
                 }
             }
 
@@ -291,6 +301,25 @@ struct CardEditorView: View {
             // We conservatively update to the selected template name.
             structureName = t.name
             editableElements = t.elements.map { EditableElement(name: $0) }
+        }
+        // Present the quick attribution sheet right after text/image drop succeeds (edit mode only)
+        .sheet(item: $pendingAttribution) { ctx in
+            if case .edit(let card, _) = mode {
+                QuickAttributionSheetEditor(card: card,
+                                            kind: ctx.kind,
+                                            suggestedURL: ctx.suggestedURL,
+                                            prefilledExcerpt: ctx.prefilledExcerpt,
+                                            onSave: { _ in
+                                                // Citation created; nothing else to do here
+                                            },
+                                            onSkip: {
+                                                // Leave dropped content unattributed
+                                            })
+                .frame(minWidth: 420, minHeight: 360)
+            } else {
+                // In create mode there is no persisted Card yet; skip.
+                EmptyView()
+            }
         }
     }
 
@@ -375,6 +404,10 @@ struct CardEditorView: View {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .stroke(.quaternary, lineWidth: 1)
                         )
+                        // Accept dragged text or URLs and append into the details
+                        .onDrop(of: [.plainText, .text, .url], isTargeted: nil) { providers in
+                            handleTextDrop(providers)
+                        }
                 }
             }
 
@@ -693,6 +726,26 @@ struct CardEditorView: View {
             }
         }
         .contentShape(Rectangle())
+        // Rich image drop handling (parity with CardSheetView)
+        .onDrop(
+            of: [
+                UTType.data.identifier,
+                UTType.image.identifier,
+                UTType.png.identifier,
+                UTType.jpeg.identifier,
+                UTType.tiff.identifier,
+                UTType.gif.identifier,
+                UTType.heic.identifier,
+                UTType.heif.identifier,
+                UTType.bmp.identifier,
+                UTType.fileURL.identifier,
+                UTType.url.identifier
+            ],
+            isTargeted: nil
+        ) { providers in
+            handleImageDrop(providers: providers)
+            return true
+        }
         .contextMenu {
             Button {
                 isImportingImage = true
@@ -908,6 +961,219 @@ struct CardEditorView: View {
         }
     }
 
+    // MARK: - Text drop handling (details)
+
+    private func handleTextDrop(_ providers: [NSItemProvider]) -> Bool {
+        var didHandle = false
+
+        // Try to extract a URL (if present) to prefill source
+        var suggestedURL: URL?
+        if let urlProvider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.url.identifier) }) {
+            urlProvider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { item, _ in
+                if let u = item as? URL, u.scheme?.hasPrefix("http") == true {
+                    suggestedURL = u
+                }
+            }
+            didHandle = true
+        }
+
+        // Plain text (primary trigger for the citation prompt)
+        if let textProvider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) || $0.hasItemConformingToTypeIdentifier(UTType.text.identifier) }) {
+            textProvider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { item, _ in
+                let s: String? = (item as? String) ?? (item as? NSString).map { String($0) }
+                if let s, !s.isEmpty {
+                    Task { @MainActor in
+                        self.appendIntoDetails(s)
+                        // Only prompt when editing an existing card (we need a Card to attach the citation)
+                        if case .edit = self.mode {
+                            let excerpt = String(s.prefix(280))
+                            self.pendingAttribution = PendingAttribution(kind: .quote,
+                                                                         suggestedURL: suggestedURL,
+                                                                         prefilledExcerpt: excerpt)
+                        }
+                    }
+                }
+            }
+            didHandle = true
+        }
+
+        return didHandle
+    }
+
+    @MainActor
+    private func appendIntoDetails(_ incoming: String) {
+        let textToInsert = incoming
+
+        // Ensure separation with a newline
+        if !detailedText.isEmpty && !detailedText.hasSuffix("\n") {
+            detailedText.append("\n")
+        }
+        detailedText.append(textToInsert)
+    }
+
+    // MARK: - Image drop handling (parity with CardSheetView)
+
+    private func handleImageDrop(providers: [NSItemProvider]) {
+        guard !providers.isEmpty else { return }
+
+        for provider in providers {
+            // 0) Try object-based images first (UIKit/AppKit)
+            #if canImport(UIKit)
+            if provider.canLoadObject(ofClass: UIImage.self) {
+                provider.loadObject(ofClass: UIImage.self) { obj, _ in
+                    if let ui = obj as? UIImage {
+                        let data = ui.pngData() ?? ui.jpegData(compressionQuality: 0.9)
+                        if let data {
+                            Task { @MainActor in
+                                self.imageData = data
+                                // No URL context; for edit mode, prompt for local image attribution if desired
+                                if self.isEditing {
+                                    self.pendingAttribution = PendingAttribution(kind: .image,
+                                                                                 suggestedURL: nil,
+                                                                                 prefilledExcerpt: nil)
+                                }
+                            }
+                        }
+                    } else {
+                        self.tryURLOrData(provider: provider)
+                    }
+                }
+                continue
+            }
+            #endif
+            #if canImport(AppKit)
+            if provider.canLoadObject(ofClass: NSImage.self) {
+                provider.loadObject(ofClass: NSImage.self) { obj, _ in
+                    if let img = obj as? NSImage {
+                        var outData: Data?
+                        if let tiff = img.tiffRepresentation,
+                           let rep = NSBitmapImageRep(data: tiff) {
+                            outData = rep.representation(using: .png, properties: [:])
+                                ?? rep.representation(using: .jpeg, properties: [.compressionFactor: 0.9])
+                        }
+                        if let data = outData {
+                            Task { @MainActor in
+                                self.imageData = data
+                                if self.isEditing {
+                                    self.pendingAttribution = PendingAttribution(kind: .image,
+                                                                                 suggestedURL: nil,
+                                                                                 prefilledExcerpt: nil)
+                                }
+                            }
+                        }
+                    } else {
+                        self.tryURLOrData(provider: provider)
+                    }
+                }
+                continue
+            }
+            #endif
+
+            // 1) Raw image data (PNG/JPEG/etc.)
+            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.data.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.png.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.jpeg.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.tiff.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.gif.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.heic.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.heif.identifier) ||
+               provider.hasItemConformingToTypeIdentifier(UTType.bmp.identifier)
+            {
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                    if let data, !data.isEmpty {
+                        Task { @MainActor in
+                            self.imageData = data
+                            if self.isEditing {
+                                self.pendingAttribution = PendingAttribution(kind: .image,
+                                                                             suggestedURL: nil,
+                                                                             prefilledExcerpt: nil)
+                            }
+                        }
+                    } else {
+                        self.tryURLOrData(provider: provider)
+                    }
+                }
+                continue
+            }
+
+            // 2) File URL (Finder drag)
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                tryLoadFileURL(provider: provider)
+                continue
+            }
+
+            // 3) Web URL (Safari drag)
+            if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+                tryLoadRemoteURL(provider: provider)
+                continue
+            }
+        }
+    }
+
+    private func tryURLOrData(provider: NSItemProvider) {
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            tryLoadFileURL(provider: provider)
+        } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+            tryLoadRemoteURL(provider: provider)
+        } else {
+            // Last resort: ask for generic data and see if it's an image
+            provider.loadItem(forTypeIdentifier: UTType.data.identifier, options: nil) { item, _ in
+                if let data = item as? Data, !data.isEmpty {
+                    Task { @MainActor in
+                        self.imageData = data
+                        if self.isEditing {
+                            self.pendingAttribution = PendingAttribution(kind: .image,
+                                                                         suggestedURL: nil,
+                                                                         prefilledExcerpt: nil)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func tryLoadFileURL(provider: NSItemProvider) {
+        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+            if let url = item as? URL, url.isFileURL, let data = try? Data(contentsOf: url) {
+                Task { @MainActor in
+                    self.imageData = data
+                    // Local file: for edit mode, you may still want to prompt (no URL)
+                    if self.isEditing {
+                        self.pendingAttribution = PendingAttribution(kind: .image,
+                                                                     suggestedURL: nil,
+                                                                     prefilledExcerpt: nil)
+                    }
+                }
+            }
+        }
+    }
+
+    private func tryLoadRemoteURL(provider: NSItemProvider) {
+        provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { item, _ in
+            if let url = item as? URL, url.scheme?.hasPrefix("http") == true {
+                Task.detached {
+                    do {
+                        let (data, _) = try await URLSession.shared.data(from: url)
+                        if !data.isEmpty {
+                            await MainActor.run {
+                                self.imageData = data
+                                // Web: prefill URL in attribution (edit mode only)
+                                if self.isEditing {
+                                    self.pendingAttribution = PendingAttribution(kind: .image,
+                                                                                 suggestedURL: url,
+                                                                                 prefilledExcerpt: nil)
+                                }
+                            }
+                        }
+                    } catch {
+                        // Ignore failed remote fetch
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Image helpers
 
     private static func isSupportedImageURL(_ url: URL) -> Bool {
@@ -1080,3 +1346,150 @@ extension CardEditorView {
         }
     }
 }
+
+// MARK: - Quick Attribution Sheet (local to CardEditorView)
+
+private struct QuickAttributionSheetEditor: View {
+    let card: Card
+    let kind: CitationKind
+    let suggestedURL: URL?
+    let prefilledExcerpt: String?
+    var onSave: (Citation) -> Void
+    var onSkip: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var sourceTitle: String = ""
+    @State private var sourceAuthors: String = ""
+    @State private var sourceURLString: String = ""
+    @State private var locator: String = ""
+    @State private var excerpt: String = ""
+    @State private var note: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(kind == .image ? "Image Attribution" : "Add Citation")
+                .font(.title3).bold()
+
+            GroupBox("Source") {
+                VStack(alignment: .leading, spacing: 8) {
+                    TextField("Title (e.g., site, collection, book, etc.)", text: $sourceTitle)
+                    TextField("Authors (optional)", text: $sourceAuthors)
+                    TextField("URL (optional)", text: $sourceURLString)
+                        .urlEntryTraits()
+                }
+            }
+
+            GroupBox("Details") {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: kind == .image ? "photo" : "text.quote")
+                        Text("Kind: \(kind.displayName)")
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                    TextField("Locator (e.g., fig. 2, p. 42, 00:12:15)", text: $locator)
+                    TextField("Excerpt (optional)", text: $excerpt)
+                    TextField("Note (optional)", text: $note)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            HStack {
+                Button("Skip") {
+                    onSkip()
+                    dismiss()
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Spacer()
+
+                Button {
+                    saveAttribution()
+                } label: {
+                    Label("Save", systemImage: "checkmark.circle.fill")
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!canSave)
+            }
+        }
+        .padding()
+        .onAppear {
+            if let u = suggestedURL {
+                sourceURLString = u.absoluteString
+                // If title empty, infer from host
+                if sourceTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    sourceTitle = (u.host ?? "").isEmpty ? "Web Source" : (u.host ?? "Web Source")
+                }
+            }
+            if let prefill = prefilledExcerpt, excerpt.isEmpty {
+                excerpt = prefill
+            }
+        }
+    }
+
+    private var canSave: Bool {
+        // Allow save if at least a title or a URL is provided
+        let hasTitle = !sourceTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasURL = !sourceURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return hasTitle || hasURL
+    }
+
+    @MainActor
+    private func saveAttribution() {
+        // Normalize fields
+        let title = sourceTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let authors = sourceAuthors.trimmingCharacters(in: .whitespacesAndNewlines)
+        let urlStr = sourceURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let loc = locator.trimmingCharacters(in: .whitespacesAndNewlines)
+        let exc = excerpt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let noteVal = note.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let finalTitle: String = title.isEmpty
+            ? (URL(string: urlStr)?.host ?? (kind == .image ? "Image Source" : "Source"))
+            : title
+
+        let src = Source(title: finalTitle, authors: authors, url: urlStr.isEmpty ? nil : urlStr, accessedDate: urlStr.isEmpty ? nil : Date())
+        modelContext.insert(src)
+
+        let citation = Citation(card: card,
+                                source: src,
+                                kind: kind,
+                                locator: loc,
+                                excerpt: exc,
+                                contextNote: noteVal.isEmpty ? nil : noteVal,
+                                createdAt: Date())
+        modelContext.insert(citation)
+        try? modelContext.save()
+
+        onSave(citation)
+        dismiss()
+    }
+}
+
+// MARK: - Cross-platform input traits helpers (local copy)
+
+private extension View {
+    @ViewBuilder
+    func urlEntryTraits() -> some View {
+        #if os(iOS) || os(tvOS) || os(visionOS)
+        if #available(iOS 15.0, tvOS 15.0, visionOS 1.0, *) {
+            self
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled(true)
+        } else {
+            // Fallback for older OSes
+            self
+                .autocapitalization(.none)
+                .disableAutocorrection(true)
+        }
+        #else
+        // macOS: no-op
+        self
+        #endif
+    }
+}
+

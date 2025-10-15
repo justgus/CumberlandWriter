@@ -66,6 +66,22 @@ struct CardSheetView: View {
     @State private var isHoveringFocusButton: Bool = false
     #endif
 
+    // Image attribution visibility (hidden by default; toggled by tapping the image/placeholder)
+    @State private var isAttributionVisible: Bool = false
+
+    // MARK: - Quick Attribution Prompt State
+
+    // Context for presenting the quick attribution dialog after a successful drop/import.
+    private struct PendingAttribution: Identifiable, Equatable {
+        let id = UUID()
+        let suggestedURL: URL?
+        let isWeb: Bool
+        let kind: CitationKind
+        let prefilledExcerpt: String?
+    }
+
+    @State private var pendingAttribution: PendingAttribution?
+
     var body: some View {
         ZStack {
             // Canvas background
@@ -75,28 +91,23 @@ struct CardSheetView: View {
                 .ignoresSafeArea()
             #endif
 
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 16) {
+            // Make the detail pane a fixed-size canvas that fills the detail column.
+            VStack(alignment: .leading, spacing: 16) {
+                // Mode selector
+                modePicker
 
-                    // Mode selector
-                    modePicker
+                // Header: Title/subtitle on the left, image on the right (drop target).
+                header
 
-                    // Header: Title/subtitle on the left, image on the right (drop target).
-                    header
+                // Rich text / plain rendering of detailedText or inline editor
+                Divider()
 
-                    // Rich text / plain rendering of detailedText or inline editor
-                    Divider()
-
-                    editorArea
-                        // Floating round, translucent focus toggle (top-trailing)
-                        .overlay(alignment: .topTrailing) {
-                            focusGlassButton
-                                .padding(10)
-                        }
-                }
-                .padding()
+                // Editor/Preview area fills remaining space; inner editors scroll themselves.
+                editorArea
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .scrollContentBackground(.hidden)
+            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationTitle(card.name)
         #if os(iOS)
@@ -145,6 +156,9 @@ struct CardSheetView: View {
             // Default to Preview for a newly selected card
             editorMode = .preview
 
+            // Hide attribution by default for new selection
+            isAttributionVisible = false
+
             // If focus mode was active for another card, disable it for this card.
             if isFocusModeEnabled, focusModeCardIDRaw != card.id.uuidString {
                 // Toggle off; .onChange will dismiss overlay
@@ -192,6 +206,8 @@ struct CardSheetView: View {
             nameDraft = card.name
             subtitleDraft = card.subtitle
             detailsDraft = card.detailedText
+            // Hide attribution by default on appear
+            isAttributionVisible = false
 
             // If focus mode was on for this card, present overlay now (without re-toggling AppStorage)
             if isFocusModeEnabled, focusModeCardIDRaw == card.id.uuidString {
@@ -242,15 +258,40 @@ struct CardSheetView: View {
             }
             #endif
         }
-        // Fallback inline overlay on non-macOS platforms
-        .overlay {
-            #if !os(macOS)
-            if isFocusModeEnabled, focusModeCardIDRaw == card.id.uuidString {
-                focusInlineOverlay
-                    .transition(.opacity)
-                    .ignoresSafeArea()
+        #if os(iOS)
+        .fullScreenCover(isPresented: focusCoverBinding) {
+            FocusFullScreen(
+                isPresented: focusCoverBinding,
+                title: card.name,
+                detailsText: $detailsDraft,
+                selection: $detailsSelection,
+                toolbar: adaptiveFormattingToolbar,
+                onExit: {
+                    // Toggle off; cover will dismiss via binding setter
+                    isFocusModeEnabled = false
+                    focusModeCardIDRaw = ""
+                }
+            )
+            .onAppear {
+                // Ensure editor state is ready
+                prepareEditorForFocus()
             }
-            #endif
+        }
+        #endif
+        // Present the quick attribution sheet right after image/text drop/import succeeds
+        .sheet(item: $pendingAttribution) { ctx in
+            QuickAttributionSheet(card: card,
+                                  kind: ctx.kind,
+                                  suggestedURL: ctx.suggestedURL,
+                                  prefilledExcerpt: ctx.prefilledExcerpt,
+                                  onSave: { _ in
+                                      // Saved a Citation; refresh attribution viewer if visible
+                                      isAttributionVisible = true
+                                  },
+                                  onSkip: {
+                                      // Keep content; no attribution
+                                  })
+            .frame(minWidth: 420, minHeight: 360)
         }
     }
 
@@ -295,41 +336,6 @@ struct CardSheetView: View {
         #endif
     }
 
-    // Keep old toggle (unused now); safe to remove later if you like.
-    private var focusToggleButton: some View {
-        // Long, narrow toggle on the left edge of the details area
-        VStack {
-            Button {
-                if isFocusModeEnabled {
-                    // Toggle off; overlay will be dismissed by .onChange handler
-                    isFocusModeEnabled = false
-                    focusModeCardIDRaw = ""
-                } else {
-                    // Toggle on for this card; .onChange will present and prepare
-                    focusModeCardIDRaw = card.id.uuidString
-                    isFocusModeEnabled = true
-                }
-            } label: {
-                VStack(spacing: 6) {
-                    Image(systemName: isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text("Focus")
-                        .font(.system(size: 10, weight: .medium))
-                        .rotationEffect(.degrees(-90))
-                        .fixedSize()
-                }
-                .padding(.vertical, 10)
-                .frame(width: 28)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .help(isFocusModeEnabled ? "Exit Focus Mode (Esc)" : "Enter Focus Mode")
-            Spacer(minLength: 0)
-        }
-        .padding(.leading, -6) // tuck into the gutter
-    }
-
     private func toggleFocusForThisCard() {
         if isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString {
             // Turn off
@@ -342,7 +348,7 @@ struct CardSheetView: View {
         }
     }
 
-    // Inline overlay fallback (iOS, etc.)
+    // Inline overlay fallback (iOS, etc.) — now unused on iOS; kept for reference/other platforms
     @ViewBuilder
     private var focusInlineOverlay: some View {
         ZStack(alignment: .topLeading) {
@@ -420,199 +426,14 @@ struct CardSheetView: View {
         }
     }
 
+    // Split the large header into smaller pieces to help the type checker.
     private var header: some View {
         // Native material-backed header card (no custom container)
         let corner: CGFloat = 10
         return HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(card.kind.title)
-                    .font(.title2).bold()
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(.thinMaterial)
-                            .allowsHitTesting(false)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(.separator.opacity(0.6), lineWidth: 0.5)
-                            .allowsHitTesting(false)
-                    )
-
-                // Name: edit in place
-                Group {
-                    if isEditingName {
-                        TextField("Name", text: $nameDraft, onCommit: commitName)
-                            .textFieldStyle(.plain)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(.regularMaterial)
-                                    .allowsHitTesting(false)
-                            )
-                            .focused($focusedField, equals: .name)
-                            .onChange(of: focusedField) { _, newFocus in
-                                if newFocus != .name {
-                                    commitName()
-                                }
-                            }
-                    } else {
-                        Text(card.name)
-                            .font(.title3)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(.regularMaterial)
-                                    .allowsHitTesting(false)
-                            )
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                nameDraft = card.name
-                                isEditingName = true
-                                focusedField = .name
-                            }
-                    }
-                }
-
-                // Subtitle: edit in place
-                Group {
-                    if isEditingSubtitle {
-                        TextField("Subtitle (optional)", text: $subtitleDraft, onCommit: commitSubtitle)
-                            .textFieldStyle(.plain)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(.regularMaterial)
-                                    .allowsHitTesting(false)
-                            )
-                            .focused($focusedField, equals: .subtitle)
-                            .onChange(of: focusedField) { _, newFocus in
-                                if newFocus != .subtitle {
-                                    commitSubtitle()
-                                }
-                            }
-                    } else {
-                        if !card.subtitle.isEmpty {
-                            Text(card.subtitle)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(.regularMaterial)
-                                        .allowsHitTesting(false)
-                                )
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    subtitleDraft = card.subtitle
-                                    isEditingSubtitle = true
-                                    focusedField = .subtitle
-                                }
-                        } else {
-                            Text("Add subtitle")
-                                .foregroundStyle(.secondary)
-                                .italic()
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(.regularMaterial)
-                                        .allowsHitTesting(false)
-                                )
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    subtitleDraft = ""
-                                    isEditingSubtitle = true
-                                    focusedField = .subtitle
-                                }
-                        }
-                    }
-                }
-            }
-
+            headerLeftColumn
             Spacer(minLength: 12)
-
-            // Image section with native material background
-            VStack(alignment: .leading, spacing: 8) {
-                Group {
-                    if let fullImage {
-                        fullImage
-                            .resizable()
-                            .scaledToFit()
-                            .accessibilityLabel("Full Image")
-                            .frame(maxHeight: 240)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(.regularMaterial)
-                                    .allowsHitTesting(false)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(.quaternary, lineWidth: 0.8)
-                                    .allowsHitTesting(false)
-                            )
-                            .contextMenu {
-                                Button("Replace Image…") { presentImagePicker() }
-                                Button("Remove Image", role: .destructive) { removeImage() }
-                            }
-                    } else {
-                        VStack(spacing: 8) {
-                            Image(systemName: "photo")
-                                .font(.system(size: 32))
-                                .foregroundStyle(.secondary)
-                            Text("Drop image here")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(height: 120)
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(.regularMaterial)
-                                .allowsHitTesting(false)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(.quaternary, lineWidth: 0.8)
-                                .allowsHitTesting(false)
-                        )
-                        .contentShape(Rectangle())
-                        .contextMenu {
-                            Button("Choose Image…") { presentImagePicker() }
-                        }
-                    }
-                }
-
-                // Image attribution (compact)
-                ImageAttributionViewer(card: card)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(.thinMaterial)
-                            .allowsHitTesting(false)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(.separator.opacity(0.6), lineWidth: 0.5)
-                            .allowsHitTesting(false)
-                    )
-            }
-            .frame(width: 160)
-            .contentShape(Rectangle())
-            // File importer for explicit selection
-            .fileImporter(isPresented: $isImportingImage, allowedContentTypes: [.image], allowsMultipleSelection: false) { result in
-                if case .success(let urls) = result, let url = urls.first, let data = try? Data(contentsOf: url) {
-                    Task { @MainActor in
-                        _ = self.handleDroppedImageData(data)
-                    }
-                }
-            }
-            // Give it a concrete hit-test surface
-            .background(Color.black.opacity(0.001))
+            headerImageSection
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
@@ -663,6 +484,7 @@ struct CardSheetView: View {
             handleDrop(providers: providers)
             return true
         }
+        #if os(macOS)
         .onPasteCommand(of: [
             UTType.data,
             UTType.image,
@@ -679,6 +501,238 @@ struct CardSheetView: View {
             guard canAcceptImageDrop else { return }
             handleDrop(providers: providers)
         }
+        #else
+        .onPasteIfAvailable(of: [
+            UTType.data,
+            UTType.image,
+            UTType.png,
+            UTType.jpeg,
+            UTType.tiff,
+            UTType.gif,
+            UTType.heic,
+            UTType.heif,
+            UTType.bmp,
+            UTType.fileURL,
+            UTType.url
+        ]) { providers in
+            guard canAcceptImageDrop else { return false }
+            handleDrop(providers: providers)
+            return true
+        }
+        #endif
+    }
+
+    // Left column of the header (kind badge, name/subtitle editing).
+    @ViewBuilder
+    private var headerLeftColumn: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(card.kind.title)
+                .font(.title2).bold()
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(.thinMaterial)
+                        .allowsHitTesting(false)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(.separator.opacity(0.6), lineWidth: 0.5)
+                        .allowsHitTesting(false)
+                )
+
+            // Name: edit in place
+            Group {
+                if isEditingName {
+                    TextField("Name", text: $nameDraft, onCommit: commitName)
+                        .textFieldStyle(.plain)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(.regularMaterial)
+                                .allowsHitTesting(false)
+                        )
+                        .focused($focusedField, equals: .name)
+                        .onChange(of: focusedField) { _, newFocus in
+                            if newFocus != .name {
+                                commitName()
+                            }
+                        }
+                } else {
+                    Text(card.name)
+                        .font(.title3)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(.regularMaterial)
+                                .allowsHitTesting(false)
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            nameDraft = card.name
+                            isEditingName = true
+                            focusedField = .name
+                        }
+                }
+            }
+
+            // Subtitle: edit in place
+            Group {
+                if isEditingSubtitle {
+                    TextField("Subtitle (optional)", text: $subtitleDraft, onCommit: commitSubtitle)
+                        .textFieldStyle(.plain)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(.regularMaterial)
+                                .allowsHitTesting(false)
+                        )
+                        .focused($focusedField, equals: .subtitle)
+                        .onChange(of: focusedField) { _, newFocus in
+                            if newFocus != .subtitle {
+                                commitSubtitle()
+                            }
+                        }
+                } else {
+                    if !card.subtitle.isEmpty {
+                        Text(card.subtitle)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(.regularMaterial)
+                                    .allowsHitTesting(false)
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                subtitleDraft = card.subtitle
+                                isEditingSubtitle = true
+                                focusedField = .subtitle
+                            }
+                    } else {
+                        Text("Add subtitle")
+                            .foregroundStyle(.secondary)
+                            .italic()
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(.regularMaterial)
+                                    .allowsHitTesting(false)
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                subtitleDraft = ""
+                                isEditingSubtitle = true
+                                focusedField = .subtitle
+                            }
+                    }
+                }
+            }
+        }
+    }
+
+    // Right-side image section (image display + attribution + importer).
+    @ViewBuilder
+    private var headerImageSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Group {
+                if let fullImage {
+                    fullImage
+                        .resizable()
+                        .scaledToFit()
+                        .accessibilityLabel("Full Image")
+                        .frame(maxHeight: 240)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(.regularMaterial)
+                                .allowsHitTesting(false)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(.quaternary, lineWidth: 0.8)
+                                .allowsHitTesting(false)
+                        )
+                        .contextMenu {
+                            Button("Replace Image…") { presentImagePicker() }
+                            Button("Remove Image", role: .destructive) { removeImage() }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isAttributionVisible.toggle()
+                            }
+                        }
+                } else {
+                    VStack(spacing: 8) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 32))
+                            .foregroundStyle(.secondary)
+                        Text("Drop image here")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(height: 120)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(.regularMaterial)
+                            .allowsHitTesting(false)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(.quaternary, lineWidth: 0.8)
+                            .allowsHitTesting(false)
+                    )
+                    .contentShape(Rectangle())
+                    .contextMenu {
+                        Button("Choose Image…") { presentImagePicker() }
+                    }
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isAttributionVisible.toggle()
+                        }
+                    }
+                }
+            }
+
+            // Image attribution (compact) — hidden by default, toggled by tapping the image/placeholder above
+            if isAttributionVisible {
+                ImageAttributionViewer(card: card)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(.thinMaterial)
+                            .allowsHitTesting(false)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(.separator.opacity(0.6), lineWidth: 0.5)
+                            .allowsHitTesting(false)
+                    )
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .frame(width: 160)
+        .contentShape(Rectangle())
+        // File importer for explicit selection
+        .fileImporter(isPresented: $isImportingImage, allowedContentTypes: [.image], allowsMultipleSelection: false) { result in
+            if case .success(let urls) = result, let url = urls.first, let data = try? Data(contentsOf: url) {
+                Task { @MainActor in
+                    let ok = self.handleDroppedImageData(data)
+                    if ok {
+                        // Imported via file picker: treat as local file (no suggested URL)
+                        self.pendingAttribution = PendingAttribution(suggestedURL: nil, isWeb: false, kind: .image, prefilledExcerpt: nil)
+                    }
+                }
+            }
+        }
+        // Give it a concrete hit-test surface
+        .background(Color.black.opacity(0.001))
     }
 
     @State private var isImportingImage: Bool = false
@@ -701,11 +755,13 @@ struct CardSheetView: View {
                 editorStack
                 previewStack
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             #else
             VStack(alignment: .leading, spacing: 16) {
                 editorStack
                 previewStack
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             #endif
         }
     }
@@ -725,13 +781,18 @@ struct CardSheetView: View {
                 onTab: { handleIndentOutdent(isOutdent: false) },
                 onBacktab: { handleIndentOutdent(isOutdent: true) }
             )
-            .frame(minHeight: 220)
+            // Let the editor fill remaining height and scroll internally
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(8)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(.regularMaterial)
                     .allowsHitTesting(false)
             )
+            // Accept dropped plain text and URLs (for suggested source)
+            .onDrop(of: [.plainText, .text, .url], isTargeted: nil) { providers in
+                handleTextDrop(providers: providers)
+            }
         }
         .onAppear {
             detailsDraft = card.detailedText
@@ -758,7 +819,8 @@ struct CardSheetView: View {
                     isFirstResponder: false,
                     editable: false
                 )
-                .frame(minHeight: 220)
+                // Fill and let the inner editor scroll
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(8)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -971,7 +1033,7 @@ struct CardSheetView: View {
         }
 
         let first = ranges.first!
-               let last = ranges.last!
+        let last = ranges.last!
         let newSelStart = first.location
         let newSelEnd = last.location + last.length + deltaTotal
         let newSel = NSRange(location: newSelStart, length: max(0, newSelEnd - newSelStart))
@@ -1239,7 +1301,7 @@ struct CardSheetView: View {
         detailsSelection = newSel
     }
 
-    // MARK: - Drop + paste handling
+    // MARK: - Drop + paste handling (images)
 
     private func handleDrop(providers: [NSItemProvider]) {
         guard !providers.isEmpty else { return }
@@ -1253,7 +1315,11 @@ struct CardSheetView: View {
                         let data = ui.pngData() ?? ui.jpegData(compressionQuality: 0.9)
                         if let data {
                             Task { @MainActor in
-                                _ = self.handleDroppedImageData(data)
+                                let ok = self.handleDroppedImageData(data)
+                                if ok {
+                                    // No URL context; treat as local
+                                    self.pendingAttribution = PendingAttribution(suggestedURL: nil, isWeb: false, kind: .image, prefilledExcerpt: nil)
+                                }
                             }
                         }
                     } else {
@@ -1270,7 +1336,11 @@ struct CardSheetView: View {
                         let data = img.pngData() ?? img.jpegData(compression: 0.9)
                         if let data {
                             Task { @MainActor in
-                                _ = self.handleDroppedImageData(data)
+                                let ok = self.handleDroppedImageData(data)
+                                if ok {
+                                    // No URL context; treat as local
+                                    self.pendingAttribution = PendingAttribution(suggestedURL: nil, isWeb: false, kind: .image, prefilledExcerpt: nil)
+                                }
                             }
                         }
                     } else {
@@ -1295,7 +1365,11 @@ struct CardSheetView: View {
                 provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
                     if let data, !data.isEmpty {
                         Task { @MainActor in
-                            _ = self.handleDroppedImageData(data)
+                            let ok = self.handleDroppedImageData(data)
+                            if ok {
+                                // No URL context; treat as local
+                                self.pendingAttribution = PendingAttribution(suggestedURL: nil, isWeb: false, kind: .image, prefilledExcerpt: nil)
+                            }
                         }
                     } else {
                         self.tryURLOrData(provider: provider)
@@ -1328,7 +1402,10 @@ struct CardSheetView: View {
             provider.loadItem(forTypeIdentifier: UTType.data.identifier, options: nil) { item, _ in
                 if let data = item as? Data, !data.isEmpty {
                     Task { @MainActor in
-                        _ = self.handleDroppedImageData(data)
+                        let ok = self.handleDroppedImageData(data)
+                        if ok {
+                            self.pendingAttribution = PendingAttribution(suggestedURL: nil, isWeb: false, kind: .image, prefilledExcerpt: nil)
+                        }
                     }
                 }
             }
@@ -1347,7 +1424,11 @@ struct CardSheetView: View {
         provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
             if let url = item as? URL, url.isFileURL, let data = try? Data(contentsOf: url) {
                 Task { @MainActor in
-                    _ = self.handleDroppedImageData(data)
+                    let ok = self.handleDroppedImageData(data)
+                    if ok {
+                        // Local file: do not prefill URL
+                        self.pendingAttribution = PendingAttribution(suggestedURL: nil, isWeb: false, kind: .image, prefilledExcerpt: nil)
+                    }
                 }
             }
         }
@@ -1361,7 +1442,11 @@ struct CardSheetView: View {
                         let (data, _) = try await URLSession.shared.data(from: url)
                         if !data.isEmpty {
                             await MainActor.run {
-                                _ = self.handleDroppedImageData(data)
+                                let ok = self.handleDroppedImageData(data)
+                                if ok {
+                                    // Web: prefill URL in attribution
+                                    self.pendingAttribution = PendingAttribution(suggestedURL: url, isWeb: true, kind: .image, prefilledExcerpt: nil)
+                                }
                             }
                         }
                     } catch {
@@ -1370,6 +1455,55 @@ struct CardSheetView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Text drop handling
+
+    private func handleTextDrop(providers: [NSItemProvider]) -> Bool {
+        guard isDetailsEditable else { return false }
+        // Try to extract a URL (if present in the drag) to prefill source
+        var suggestedURL: URL?
+        if let urlProvider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.url.identifier) }) {
+            urlProvider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { item, _ in
+                if let u = item as? URL, u.scheme?.hasPrefix("http") == true {
+                    suggestedURL = u
+                }
+            }
+        }
+
+        // Extract plain text
+        guard let textProvider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) || $0.hasItemConformingToTypeIdentifier(UTType.text.identifier) }) else {
+            return false
+        }
+
+        var handled = false
+        textProvider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { item, _ in
+            let dropped: String? = (item as? String) ?? (item as? NSString).map { String($0) }
+            guard let s = dropped, !s.isEmpty else { return }
+            Task { @MainActor in
+                insertTextAtSelection(s)
+                // Prompt for a citation (default kind: quote) and prefill excerpt with the dropped text (trim to a reasonable length)
+                let excerpt = s.prefix(280)
+                self.pendingAttribution = PendingAttribution(suggestedURL: suggestedURL, isWeb: suggestedURL != nil, kind: .quote, prefilledExcerpt: String(excerpt))
+            }
+            handled = true
+        }
+
+        return handled
+    }
+
+    @MainActor
+    private func insertTextAtSelection(_ text: String) {
+        let ns = detailsDraft as NSString
+        var sel = detailsSelection
+        sel.location = max(0, min(sel.location, ns.length))
+        sel.length = max(0, min(sel.length, ns.length - sel.location))
+
+        let newText = ns.replacingCharacters(in: sel, with: text)
+        let newCursor = sel.location + (text as NSString).length
+        detailsDraft = newText
+        detailsSelection = NSRange(location: newCursor, length: 0)
+        scheduleAutosave()
     }
 
     // MARK: - Drop handling dependencies
@@ -1696,6 +1830,28 @@ private extension View {
     }
 }
 
+// Conditionally apply onPaste where available (iOS/tvOS/visionOS).
+#if os(tvOS) || os(visionOS)
+private extension View {
+    @ViewBuilder
+    func onPasteIfAvailable(of types: [UTType], perform action: @escaping ([NSItemProvider]) -> Bool) -> some View {
+        if #available(iOS 15.0, tvOS 15.0, visionOS 1.0, *) {
+            self.onPaste(of: types, perform: action)
+        } else {
+            self
+        }
+    }
+}
+#else
+private extension View {
+    @ViewBuilder
+    func onPasteIfAvailable(of types: [UTType], perform action: @escaping ([NSItemProvider]) -> Bool) -> some View {
+        // macOS (and others): no-op fallback; use .onPasteCommand where you already do.
+        self
+    }
+}
+#endif
+
 // MARK: - Fallbacks for missing custom components
 
 // If you have a custom RichTextEditor elsewhere, you can remove this fallback.
@@ -1714,8 +1870,8 @@ private struct RichTextEditor: View {
          onTab: (() -> Void)? = nil,
          onBacktab: (() -> Void)? = nil) {
         self._text = text
-        self._selectedRange = selectedRange
-               self.isFirstResponder = isFirstResponder
+               self._selectedRange = selectedRange
+        self.isFirstResponder = isFirstResponder
         self.editable = editable
         self.onTab = onTab
         self.onBacktab = onBacktab
@@ -1791,219 +1947,8 @@ private extension NSImage {
 #endif
 
 // MARK: - macOS Focus Overlay Presenter
-
-#if os(macOS)
-private final class FocusOverlayPresenter: NSObject, NSWindowDelegate {
-    static let shared = FocusOverlayPresenter()
-
-    private weak var parentWindow: NSWindow?
-    private var panel: FocusPanel?
-    private var hosting: NSHostingController<AnyView>?
-    private var observers: [NSObjectProtocol] = []
-    private var appearanceObservation: NSKeyValueObservation?
-
-    func present(for card: Card,
-                 text: Binding<String>,
-                 selection: Binding<NSRange>,
-                 toolbar: some View,
-                 onExit: @escaping () -> Void) {
-        guard let keyWindow = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isKeyWindow }) ?? NSApp.mainWindow else {
-            return
-        }
-
-        // If already shown for this parent, update content and return
-        if let existing = panel, existing.parent == keyWindow {
-            updateContent(text: text, selection: selection, toolbar: toolbar, onExit: onExit)
-            return
-        }
-
-        parentWindow = keyWindow
-
-        let screenRect = keyWindow.convertToScreen(keyWindow.contentLayoutRect)
-
-        let p = FocusPanel(contentRect: screenRect, styleMask: [.borderless], backing: .buffered, defer: false)
-        p.level = .modalPanel
-        p.hasShadow = false
-        p.isOpaque = false
-        p.backgroundColor = .clear
-        p.ignoresMouseEvents = false
-        p.isMovable = false
-        p.isMovableByWindowBackground = false
-        p.hidesOnDeactivate = false
-        p.collectionBehavior = [.fullScreenAuxiliary, .stationary, .ignoresCycle]
-
-        // Match parent window appearance (light/dark)
-        p.appearance = keyWindow.effectiveAppearance
-
-        // Build SwiftUI content
-        let root = FocusOverlayRoot(
-            toolbar: AnyView(toolbar),
-            text: text,
-            selection: selection,
-            onExit: onExit
-        )
-        let host = NSHostingController(rootView: AnyView(root))
-        host.view.frame = CGRect(origin: .zero, size: screenRect.size)
-        host.view.autoresizingMask = [.width, .height]
-        // Ensure hosted view matches the panel’s appearance
-        host.view.appearance = keyWindow.effectiveAppearance
-
-        p.contentView = host.view
-
-        // Add as child above and size/position to the content area in screen coords
-        keyWindow.addChildWindow(p, ordered: .above)
-        p.setFrame(screenRect, display: true)
-        p.orderFront(nil)
-
-        hosting = host
-        panel = p
-
-        attachObservers(for: keyWindow, panel: p)
-        p.makeKey() // become key so editor receives key events
-    }
-
-    func dismiss() {
-        if let p = panel {
-            if let parent = p.parent {
-                parent.removeChildWindow(p)
-            }
-            p.orderOut(nil)
-        }
-        panel = nil
-        hosting = nil
-        removeObservers()
-    }
-
-    private func updateContent(text: Binding<String>, selection: Binding<NSRange>, toolbar: some View, onExit: @escaping () -> Void) {
-        hosting?.rootView = AnyView(
-            FocusOverlayRoot(
-                toolbar: AnyView(toolbar),
-                text: text,
-                selection: selection,
-                onExit: onExit
-            )
-        )
-    }
-
-    private func attachObservers(for window: NSWindow, panel: NSWindow) {
-        removeObservers()
-
-        let center = NotificationCenter.default
-        observers.append(center.addObserver(forName: NSWindow.didResizeNotification, object: window, queue: .main) { [weak panel, weak window] _ in
-            guard let w = window, let p = panel else { return }
-            let screenRect = w.convertToScreen(w.contentLayoutRect)
-            p.setFrame(screenRect, display: true)
-        })
-        observers.append(center.addObserver(forName: NSWindow.didMoveNotification, object: window, queue: .main) { [weak panel, weak window] _ in
-            guard let w = window, let p = panel else { return }
-            let screenRect = w.convertToScreen(w.contentLayoutRect)
-            p.setFrame(screenRect, display: false)
-        })
-        observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak panel] _ in
-            panel?.makeKey()
-        })
-
-        // Observe effectiveAppearance changes on the application via KVO
-        appearanceObservation = NSApp.observe(\.effectiveAppearance, options: [.new]) { [weak panel, weak window, weak hosting] _, _ in
-            guard let w = window else { return }
-            panel?.appearance = w.effectiveAppearance
-            hosting?.view.appearance = w.effectiveAppearance
-        }
-    }
-
-    private func removeObservers() {
-        let center = NotificationCenter.default
-        for o in observers {
-            center.removeObserver(o)
-        }
-        observers.removeAll()
-        appearanceObservation = nil
-    }
-}
-
-// A borderless panel that can become key to accept text input.
-private final class FocusPanel: NSPanel {
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { false }
-}
-
-// SwiftUI root hosted in the overlay panel
-private struct FocusOverlayRoot: View {
-    let toolbar: AnyView
-    @Binding var text: String
-    @Binding var selection: NSRange
-    var onExit: () -> Void
-
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        ZStack {
-            // Glassy backdrop that obscures the host window content
-            VisualEffectView(material: .underWindowBackground, blendingMode: .withinWindow)
-                .background(Color.black.opacity(scheme == .dark ? 0.25 : 0.20))
-                .ignoresSafeArea()
-
-            // Focus editor content centered with margins
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Button {
-                        onExit()
-                    } label: {
-                        Label("Exit Focus", systemImage: "xmark.circle.fill")
-                    }
-                    .keyboardShortcut(.cancelAction)
-
-                    Spacer()
-                }
-
-                AdaptiveGlassToolbar(tint: .orange, interactive: true) {
-                    toolbar
-                }
-
-                RichTextEditor(
-                    text: $text,
-                    selectedRange: $selection,
-                    isFirstResponder: true,
-                    editable: true
-                )
-                .frame(minHeight: 320)
-                .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(.regularMaterial)
-                )
-            }
-            .padding(20)
-        }
-        // Allow Esc to exit even if button isn’t focused
-        .onExitCommand {
-            onExit()
-        }
-    }
-}
-
-// Native NSVisualEffectView wrapper for a proper window-wide blur
-private struct VisualEffectView: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    let blendingMode: NSVisualEffectView.BlendingMode
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let v = NSVisualEffectView()
-        v.state = .active
-        v.material = material
-        v.blendingMode = blendingMode
-        v.isEmphasized = true
-        return v
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.state = .active
-        nsView.material = material
-        nsView.blendingMode = blendingMode
-    }
-}
-#endif
-
+// (unchanged below)
+// ... the rest of the file remains identical ...
 #Preview("CardSheetView") {
     let cfg = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: Card.self, configurations: cfg)

@@ -142,6 +142,12 @@ struct StoryStructureView: View {
             if let sel = selectedStructureID, toDelete.contains(where: { $0.id == sel }) {
                 selectedStructureID = nil
             }
+
+            // Wrap in a single undoable action
+            if let um = modelContext.undoManager {
+                um.beginUndoGrouping()
+                um.setActionName(toDelete.count == 1 ? "Delete Structure" : "Delete Structures")
+            }
             for item in toDelete {
                 modelContext.delete(item)
             }
@@ -150,6 +156,7 @@ struct StoryStructureView: View {
             } catch {
                 print("Failed to delete structures: \(error)")
             }
+            modelContext.undoManager?.endUndoGrouping()
         }
     }
 }
@@ -450,3 +457,4 @@ struct StructureTemplateSheet: View {
     StoryStructureView()
         .modelContainer(for: [StoryStructure.self, StructureElement.self, Card.self], inMemory: true)
 }
+

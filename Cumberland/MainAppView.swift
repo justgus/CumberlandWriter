@@ -7,6 +7,9 @@
 
 import SwiftUI
 import SwiftData
+#if os(iOS)
+import UIKit
+#endif
 
 struct MainAppView: View {
     @Environment(\.modelContext) private var modelContext
@@ -43,6 +46,10 @@ struct MainAppView: View {
 
     // Default to Details (and remember per Kind thereafter)
     @State private var selectedDetailTab: CardDetailTab = .details
+
+    // Observe Focus Mode (toggled inside CardSheetView) so we can collapse content on iOS when active.
+    @AppStorage("CardDetailFocusModeEnabled") private var isFocusModeEnabled: Bool = false
+    @AppStorage("CardDetailFocusModeCardID") private var focusModeCardIDRaw: String = ""
 
     // Filtered cards for the current selection + search
     private var filteredCards: [Card] {
@@ -173,7 +180,8 @@ struct MainAppView: View {
                 .disabled(selectedCard == nil)
             }
 
-            // Generalized picker: Details | Relationships (all kinds) | Board (projects only)
+            // macOS segmented picker can remain at outer level
+            #if !os(iOS)
             ToolbarItemGroup(placement: .automatic) {
                 if let card = selectedCard, !navigationCoordinator.forceCardSheetView {
                     let tabs = availableTabs(for: card)
@@ -190,6 +198,7 @@ struct MainAppView: View {
                     }
                 }
             }
+            #endif
         }
         .onAppear {
             // Keep all columns visible when the window allows
@@ -219,6 +228,9 @@ struct MainAppView: View {
                     selectedDetailTab = loadRememberedTab(for: .projects)
                 }
             }
+
+            // Ensure initial split visibility reflects current selection/focus on iPad
+            updateSplitVisibilityForSelection()
         }
         // Persist selection when it changes
         .onChange(of: sidebarSelection) { _, newValue in
@@ -247,6 +259,9 @@ struct MainAppView: View {
         }
         // Reset/validate the selected tab when the selected card changes
         .onChange(of: selectedCardID) { _, _ in
+            // Update split visibility for iPadOS only
+            updateSplitVisibilityForSelection()
+
             guard let card = selectedCard else {
                 // If no card selected, base on current kind context (or projects default)
                 switch sidebarSelection {
@@ -279,6 +294,13 @@ struct MainAppView: View {
                 default: rememberTab(newValue, for: .projects)
                 }
             }
+        }
+        // React to Focus Mode toggles (from CardSheetView) to hide/show the content list on iPadOS.
+        .onChange(of: isFocusModeEnabled) { _, _ in
+            updateSplitVisibilityForSelection()
+        }
+        .onChange(of: focusModeCardIDRaw) { _, _ in
+            updateSplitVisibilityForSelection()
         }
     }
 
@@ -351,6 +373,14 @@ struct MainAppView: View {
                             CardSheetView(card: card)
                                 .navigationTitle(card.name)
                         }
+                    case .timeline:
+                        if card.kind == .timelines {
+                            TimelineChartView(timeline: card)
+                                .navigationTitle(card.name.isEmpty ? "Timeline" : card.name)
+                        } else {
+                            CardSheetView(card: card)
+                                .navigationTitle(card.name)
+                        }
                     }
                 }
             } else {
@@ -361,6 +391,27 @@ struct MainAppView: View {
                 )
                 .padding()
             }
+        }
+        // Attach the segmented picker to the DETAIL column’s toolbar on iPadOS so it appears in the right nav bar.
+        .toolbar {
+            #if os(iOS)
+            if let card = selectedCard, !navigationCoordinator.forceCardSheetView {
+                let tabs = availableTabs(for: card)
+                if !tabs.isEmpty {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Picker("Card View", selection: $selectedDetailTab) {
+                            ForEach(tabs) { tab in
+                                Label(tab.title, systemImage: tab.systemImage)
+                                    .tag(tab)
+                                    .help(tab.helpText)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(maxWidth: 420)
+                    }
+                }
+            }
+            #endif
         }
     }
 
@@ -681,6 +732,28 @@ struct MainAppView: View {
             }
         }
         return nil
+    }
+
+    // MARK: - iPadOS split visibility behavior
+
+    private func updateSplitVisibilityForSelection() {
+        #if os(iOS)
+        guard UIDevice.current.userInterfaceIdiom == .pad else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            // When Focus Mode is enabled for the currently selected card, hide both sidebar and content
+            if isFocusModeEnabled,
+               let selID = selectedCardID,
+               focusModeCardIDRaw == selID.uuidString {
+                columnVisibility = .detailOnly
+            } else if selectedCardID != nil {
+                // Keep content + detail visible; hide only the sidebar
+                columnVisibility = .doubleColumn
+            } else {
+                // No selection: show all three columns
+                columnVisibility = .all
+            }
+        }
+        #endif
     }
 }
 

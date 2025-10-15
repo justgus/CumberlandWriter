@@ -83,7 +83,13 @@ struct CumberlandApp: App {
                 #if os(macOS)
                 .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
                 .toolbarBackground(.visible, for: .windowToolbar)
+                // Persist/restore window frame and state
+                .background(WindowStateBridge(id: "mainWindow",
+                                              autosaveName: "CumberlandMainWindow",
+                                              defaults: .standard))
                 #endif
+                // Bridge the window’s UndoManager into SwiftData so Command-Z works.
+                .background(UndoBridge(modelContext: modelContainer.mainContext))
                 // Post-upgrade backfill and seed data once the container is available
                 .task {
                     await CumberlandApp.backfillOriginalImagesIfNeeded(container: modelContainer)
@@ -229,6 +235,21 @@ private struct EditorCommands: Commands {
     }
 }
 #endif
+
+// A tiny helper view that attaches the window’s UndoManager to the SwiftData ModelContext.
+private struct UndoBridge: View {
+    @Environment(\.undoManager) private var undoManager
+    let modelContext: ModelContext
+
+    var body: some View {
+        // Use task and onChange so we catch initial and future changes.
+        Color.clear
+            .task { modelContext.undoManager = undoManager }
+            .onChange(of: undoManager) { _, newValue in
+                modelContext.undoManager = newValue
+            }
+    }
+}
 
 private extension CumberlandApp {
     struct SeedDescriptor: Hashable {
@@ -1013,3 +1034,166 @@ struct FixIncompleteRelationshipsView: View {
 extension Notification.Name {
     static let eraseAndReseed = Notification.Name("Dev.EraseAndReseed")
 }
+
+#if os(macOS)
+import AppKit
+
+// MARK: - Window State Bridge (macOS)
+
+private struct WindowStateBridge: NSViewRepresentable {
+    let id: String
+    let autosaveName: String
+    let defaults: UserDefaults
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            if let window = view.window {
+                context.coordinator.attach(to: window, id: id, autosaveName: autosaveName, defaults: defaults)
+            } else {
+                // Try again on next runloop if window not yet attached
+                DispatchQueue.main.async {
+                    if let window = view.window {
+                        context.coordinator.attach(to: window, id: id, autosaveName: autosaveName, defaults: defaults)
+                    }
+                }
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) { }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator: NSObject, NSWindowDelegate {
+        private weak var window: NSWindow?
+        private var id: String = ""
+        private var defaults: UserDefaults = .standard
+        private var observing = false
+
+        private var frameKey: String { "Window.\(id).frame" }
+        private var zoomedKey: String { "Window.\(id).zoomed" }
+        private var fullScreenKey: String { "Window.\(id).fullScreen" }
+
+        func attach(to window: NSWindow, id: String, autosaveName: String, defaults: UserDefaults) {
+            guard self.window !== window else { return }
+            self.window = window
+            self.id = id
+            self.defaults = defaults
+
+            // Enable AppKit autosave of frame
+            window.setFrameAutosaveName(autosaveName)
+
+            // Restore saved state (frame, zoomed, full-screen)
+            restoreState(for: window)
+
+            if !observing {
+                observing = true
+                window.delegate = self
+                let center = NotificationCenter.default
+                center.addObserver(self, selector: #selector(handleResize), name: NSWindow.didResizeNotification, object: window)
+                center.addObserver(self, selector: #selector(handleMove), name: NSWindow.didMoveNotification, object: window)
+                center.addObserver(self, selector: #selector(handleZoom), name: NSWindow.didEndLiveResizeNotification, object: window)
+                center.addObserver(self, selector: #selector(handleEnterFullScreen), name: NSWindow.didEnterFullScreenNotification, object: window)
+                center.addObserver(self, selector: #selector(handleExitFullScreen), name: NSWindow.didExitFullScreenNotification, object: window)
+            }
+
+            // Save initial state too (in case user quits without moving/resizing)
+            saveState(for: window)
+        }
+
+        // MARK: - Persist/Restore
+
+        private func restoreState(for window: NSWindow) {
+            // Restore frame if we have it (in case autosave didn’t apply yet)
+            if let rectString = defaults.string(forKey: frameKey) {
+                let rect = NSRectFromString(rectString)
+                if let fitted = fit(rect: rect) {
+                    window.setFrame(fitted, display: false)
+                }
+            }
+
+            // Restore full-screen first (if was full screen)
+            let wasFull = defaults.bool(forKey: fullScreenKey)
+            if wasFull {
+                // Enter full screen asynchronously after window is on screen
+                DispatchQueue.main.async {
+                    if !window.styleMask.contains(.fullScreen) {
+                        window.toggleFullScreen(nil)
+                    }
+                }
+                return // zoomed state is irrelevant in full screen
+            }
+
+            // Restore zoomed (maximized) state
+            let wasZoomed = defaults.bool(forKey: zoomedKey)
+            if wasZoomed && !window.isZoomed {
+                DispatchQueue.main.async {
+                    if !window.isZoomed {
+                        window.performZoom(nil)
+                    }
+                }
+            }
+        }
+
+        private func saveState(for window: NSWindow) {
+            defaults.set(NSStringFromRect(window.frame), forKey: frameKey)
+            defaults.set(window.isZoomed, forKey: zoomedKey)
+            let isFull = window.styleMask.contains(.fullScreen)
+            defaults.set(isFull, forKey: fullScreenKey)
+        }
+
+        // Ensure restored frame is at least partially visible on current screens
+        private func fit(rect: NSRect) -> NSRect? {
+            let screens = NSScreen.screens
+            guard !screens.isEmpty else { return rect }
+            // If any screen intersects significantly, keep it; otherwise, move to primary visibleFrame
+            for s in screens {
+                if s.visibleFrame.insetBy(dx: -50, dy: -50).intersects(rect) {
+                    return rect
+                }
+            }
+            // Fallback: place in primary screen’s visible area with same size clamped
+            let primary = screens.first!.visibleFrame
+            var size = rect.size
+            size.width = min(size.width, primary.width)
+            size.height = min(size.height, primary.height)
+            return NSRect(x: primary.minX + 40, y: primary.minY + 40, width: size.width, height: size.height)
+        }
+
+        // MARK: - Notifications
+
+        @objc private func handleResize(_ note: Notification) {
+            guard let w = window else { return }
+            saveState(for: w)
+        }
+
+        @objc private func handleMove(_ note: Notification) {
+            guard let w = window else { return }
+            saveState(for: w)
+        }
+
+        @objc private func handleZoom(_ note: Notification) {
+            guard let w = window else { return }
+            saveState(for: w)
+        }
+
+        @objc private func handleEnterFullScreen(_ note: Notification) {
+            guard let w = window else { return }
+            saveState(for: w)
+        }
+
+        @objc private func handleExitFullScreen(_ note: Notification) {
+            guard let w = window else { return }
+            saveState(for: w)
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
+    }
+}
+#endif

@@ -456,10 +456,15 @@ struct Swimlane: View {
         let fetch = FetchDescriptor<CardEdge>(predicate: predicate)
         if let edges = try? modelContext.fetch(fetch) {
             withAnimation(.snappy(duration: 0.22)) {
+                if let um = modelContext.undoManager {
+                    um.beginUndoGrouping()
+                    um.setActionName("Remove from Swimlane")
+                }
                 for e in edges {
                     modelContext.delete(e)
                 }
                 try? modelContext.save()
+                modelContext.undoManager?.endUndoGrouping()
             }
         }
     }
@@ -660,3 +665,4 @@ private func makeBottomToTopPreview() -> some View {
 #Preview("Swimlane - Bottom to Top (Dark)") {
     makeBottomToTopPreview()
 }
+
