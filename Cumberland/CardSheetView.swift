@@ -8,6 +8,10 @@ import AppKit
 #if canImport(UIKit)
 import UIKit
 #endif
+#if canImport(PhotosUI)
+import PhotosUI
+#endif
+import CoreTransferable
 
 struct CardSheetView: View {
     let card: Card
@@ -82,7 +86,49 @@ struct CardSheetView: View {
 
     @State private var pendingAttribution: PendingAttribution?
 
+    // MARK: - Import state (Files + Photos)
+
+    // Existing image importer (Files)
+    @State private var isImportingImage: Bool = false
+
+    // New: Text importer (Files)
+    @State private var isImportingText: Bool = false
+
+    // New: Photos picker (iPadOS)
+    #if os(iOS)
+    @State private var isPresentingPhotosPicker: Bool = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    #endif
+
+    // MARK: - Type lists extracted to reduce type-checker load
+
+    private static let imageUTTypes: [UTType] = [
+        .data, .image, .png, .jpeg, .tiff, .gif, .heic, .heif, .bmp, .fileURL, .url
+    ]
+    private static let imageTypeIdentifiers: [String] = CardSheetView.imageUTTypes.map { $0.identifier }
+
+    private static let pasteImageTypes: [UTType] = CardSheetView.imageUTTypes
+
+    private static let textDropTypes: [UTType] = [
+        .plainText, .text, .url
+    ]
+
+    // MARK: - Body split to reduce complexity
+
     var body: some View {
+        // Break the large modifier chain into smaller groups and add type-erasure
+        let step1 = applyNavigationAndToolbar(to: mainScaffold).eraseToAnyView()
+        let step2 = applyImageLoadingTasks(to: step1).eraseToAnyView()
+        let step3 = applyLifecycleHandlers(to: step2).eraseToAnyView()
+        let step4 = applyFocusPresentation(to: step3).eraseToAnyView()
+        let step5 = applyQuickAttributionSheet(to: step4).eraseToAnyView()
+        let step6 = applyImporters(to: step5)
+        return step6
+    }
+
+    // Extracted main scaffold from body to shorten the primary expression
+    @ViewBuilder
+    private var mainScaffold: some View {
         ZStack {
             // Canvas background
             #if !os(visionOS)
@@ -109,190 +155,289 @@ struct CardSheetView: View {
             .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .navigationTitle(card.name)
-        #if os(iOS)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
-        #elseif os(macOS)
-        .toolbarBackground(.visible, for: .windowToolbar)
-        .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
-        #endif
-        // Add a global toolbar toggle for discoverability
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    toggleFocusForThisCard()
-                } label: {
-                    Image(systemName: isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString
-                          ? "arrow.down.right.and.arrow.up.left"
-                          : "arrow.up.left.and.arrow.down.right")
-                }
-                .help(isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString ? "Exit Focus" : "Enter Focus")
-                .keyboardShortcut("f", modifiers: [.command, .shift])
-            }
-        }
-        .task {
-            await loadFullImage()
-        }
-        .task(id: card.id) {
-            // Ensure image refresh when the selected card changes
-            await loadFullImage()
-        }
-        .task(id: card.imageFileURL) {
-            await loadFullImage()
-        }
-        .onChange(of: card.id) { _, _ in
-            // Reset local editor state to reflect the newly selected card
-            autosaveTask?.cancel()
-            isEditingName = false
-            isEditingSubtitle = false
-            focusedField = nil
+    }
 
-            nameDraft = card.name
-            subtitleDraft = card.subtitle
-            detailsDraft = card.detailedText
-            detailsSelection = NSRange(location: 0, length: 0)
+    // MARK: - Grouped modifier helpers
 
-            // Default to Preview for a newly selected card
-            editorMode = .preview
-
-            // Hide attribution by default for new selection
-            isAttributionVisible = false
-
-            // If focus mode was active for another card, disable it for this card.
-            if isFocusModeEnabled, focusModeCardIDRaw != card.id.uuidString {
-                // Toggle off; .onChange will dismiss overlay
-                isFocusModeEnabled = false
-                focusModeCardIDRaw = ""
-            }
-        }
-        .onChange(of: card.detailedText) { _, _ in
-            // Keep the draft in sync when model changes externally
-            if !isDetailsEditable {
-                detailsDraft = card.detailedText
-            }
-        }
-        .onChange(of: editorMode) { old, new in
-            // When leaving an editable mode, save if dirty
-            if (old == .edit || old == .split), !(new == .edit || new == .split) {
-                saveDetailsIfDirty(actionName: "Edit Details")
-            }
-            // Ensure the editor is primed with current text when entering an editable mode
-            if (new == .edit || new == .split) {
-                detailsDraft = card.detailedText
-                // Place caret at end when entering edit
-                detailsSelection = NSRange(location: (detailsDraft as NSString).length, length: 0)
-                focusedField = .details
-            }
-            // Clear drop targeting when mode changes to non-editable
-            if !(new != .preview) {
-                isDropTargeted = false
-            }
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .inactive || newPhase == .background {
-                // Save pending edits when leaving the foreground
-                Task { @MainActor in
-                    saveDetailsIfDirty(actionName: "Autosave Details")
-                }
-            }
-        }
-        .onChange(of: detailsDraft) { _, _ in
-            guard isDetailsEditable else { return }
-            scheduleAutosave()
-        }
-        .onAppear {
-            // Initialize drafts on first appear
-            nameDraft = card.name
-            subtitleDraft = card.subtitle
-            detailsDraft = card.detailedText
-            // Hide attribution by default on appear
-            isAttributionVisible = false
-
-            // If focus mode was on for this card, present overlay now (without re-toggling AppStorage)
-            if isFocusModeEnabled, focusModeCardIDRaw == card.id.uuidString {
-                prepareEditorForFocus()
-                #if os(macOS)
-                FocusOverlayPresenter.shared.present(
-                    for: card,
-                    text: $detailsDraft,
-                    selection: $detailsSelection,
-                    toolbar: adaptiveFormattingToolbar,
-                    onExit: {
-                        // Toggle off; .onChange will dismiss
-                        isFocusModeEnabled = false
-                        focusModeCardIDRaw = ""
+    @ViewBuilder
+    private func applyNavigationAndToolbar<V: View>(to base: V) -> some View {
+        base
+            .navigationTitle(card.name)
+            #if os(iOS)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            #elseif os(macOS)
+            .toolbarBackground(.visible, for: .windowToolbar)
+            .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        toggleFocusForThisCard()
+                    } label: {
+                        Image(systemName: isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString
+                              ? "arrow.down.right.and.arrow.up.left"
+                              : "arrow.up.left.and.arrow.down.right")
                     }
-                )
+                    .help(isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString ? "Exit Focus" : "Enter Focus")
+                    .keyboardShortcut("f", modifiers: [.command, .shift])
+                }
+
+                #if os(iOS)
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button {
+                            isPresentingPhotosPicker = true
+                        } label: {
+                            Label("Image from Photos…", systemImage: "photo.on.rectangle")
+                        }
+                        Button {
+                            presentImagePicker()
+                        } label: {
+                            Label("Image from Files…", systemImage: "folder")
+                        }
+                        Divider()
+                        Button {
+                            presentTextImporter()
+                        } label: {
+                            Label("Text from Files…", systemImage: "doc.text")
+                        }
+                    } label: {
+                        Label("Import", systemImage: "square.and.arrow.down")
+                    }
+                    .help("Import content into this card")
+                }
                 #endif
             }
-        }
-        #if os(macOS)
-        .onExitCommand {
-            if isFocusModeEnabled {
-                // Toggle off; .onChange will dismiss
-                isFocusModeEnabled = false
-                focusModeCardIDRaw = ""
+    }
+
+    @ViewBuilder
+    private func applyImageLoadingTasks<V: View>(to base: V) -> some View {
+        base
+            .task {
+                await loadFullImage()
             }
-        }
-        #endif
-        // Present/dismiss the macOS overlay only when AppStorage changes
-        .onChange(of: isFocusModeEnabled) { _, on in
-            #if os(macOS)
-            if on {
-                // Only present if this view's card is the one to focus
-                guard focusModeCardIDRaw == card.id.uuidString else { return }
-                prepareEditorForFocus()
-                FocusOverlayPresenter.shared.present(
-                    for: card,
-                    text: $detailsDraft,
-                    selection: $detailsSelection,
-                    toolbar: adaptiveFormattingToolbar,
-                    onExit: {
-                        isFocusModeEnabled = false
-                        focusModeCardIDRaw = ""
-                    }
-                )
-            } else {
-                exitFocusMode(save: true)
+            .task(id: card.id) {
+                await loadFullImage()
             }
-            #endif
-        }
-        #if os(iOS)
-        .fullScreenCover(isPresented: focusCoverBinding) {
-            FocusFullScreen(
-                isPresented: focusCoverBinding,
-                title: card.name,
-                detailsText: $detailsDraft,
-                selection: $detailsSelection,
-                toolbar: adaptiveFormattingToolbar,
-                onExit: {
-                    // Toggle off; cover will dismiss via binding setter
+            .task(id: card.imageFileURL) {
+                await loadFullImage()
+            }
+    }
+
+    @ViewBuilder
+    private func applyLifecycleHandlers<V: View>(to base: V) -> some View {
+        base
+            .onChange(of: card.id) { _, _ in
+                // Reset local editor state to reflect the newly selected card
+                autosaveTask?.cancel()
+                isEditingName = false
+                isEditingSubtitle = false
+                focusedField = nil
+
+                nameDraft = card.name
+                subtitleDraft = card.subtitle
+                detailsDraft = card.detailedText
+                detailsSelection = NSRange(location: 0, length: 0)
+
+                // Default to Preview for a newly selected card
+                editorMode = .preview
+
+                // Hide attribution by default for new selection
+                isAttributionVisible = false
+
+                // If focus mode was active for another card, disable it for this card.
+                if isFocusModeEnabled, focusModeCardIDRaw != card.id.uuidString {
                     isFocusModeEnabled = false
                     focusModeCardIDRaw = ""
                 }
-            )
-            .onAppear {
-                // Ensure editor state is ready
-                prepareEditorForFocus()
             }
-        }
+            .onChange(of: card.detailedText) { _, _ in
+                // Keep the draft in sync when model changes externally
+                if !isDetailsEditable {
+                    detailsDraft = card.detailedText
+                }
+            }
+            .onChange(of: editorMode) { old, new in
+                // When leaving an editable mode, save if dirty
+                if (old == .edit || old == .split), !(new == .edit || new == .split) {
+                    saveDetailsIfDirty(actionName: "Edit Details")
+                }
+                // Ensure the editor is primed with current text when entering an editable mode
+                if (new == .edit || new == .split) {
+                    detailsDraft = card.detailedText
+                    detailsSelection = NSRange(location: (detailsDraft as NSString).length, length: 0)
+                    focusedField = .details
+                }
+                // Clear drop targeting when mode changes to non-editable
+                if !(new != .preview) {
+                    isDropTargeted = false
+                }
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .inactive || newPhase == .background {
+                    Task { @MainActor in
+                        saveDetailsIfDirty(actionName: "Autosave Details")
+                    }
+                }
+            }
+            .onChange(of: detailsDraft) { _, _ in
+                guard isDetailsEditable else { return }
+                scheduleAutosave()
+            }
+            .onAppear {
+                // Initialize drafts on first appear
+                nameDraft = card.name
+                subtitleDraft = card.subtitle
+                detailsDraft = card.detailedText
+                // Hide attribution by default on appear
+                isAttributionVisible = false
+
+                // If focus mode was on for this card, present overlay now (without re-toggling AppStorage)
+                if isFocusModeEnabled, focusModeCardIDRaw == card.id.uuidString {
+                    prepareEditorForFocus()
+                    #if os(macOS)
+                    FocusOverlayPresenter.shared.present(
+                        for: card,
+                        text: $detailsDraft,
+                        selection: $detailsSelection,
+                        toolbar: adaptiveFormattingToolbar,
+                        onExit: {
+                            isFocusModeEnabled = false
+                            focusModeCardIDRaw = ""
+                        }
+                    )
+                    #endif
+                }
+            }
+            #if os(macOS)
+            .onExitCommand {
+                if isFocusModeEnabled {
+                    isFocusModeEnabled = false
+                    focusModeCardIDRaw = ""
+                }
+            }
+            #endif
+            .onChange(of: isFocusModeEnabled) { _, on in
+                #if os(macOS)
+                if on {
+                    guard focusModeCardIDRaw == card.id.uuidString else { return }
+                    prepareEditorForFocus()
+                    FocusOverlayPresenter.shared.present(
+                        for: card,
+                        text: $detailsDraft,
+                        selection: $detailsSelection,
+                        toolbar: adaptiveFormattingToolbar,
+                        onExit: {
+                            isFocusModeEnabled = false
+                            focusModeCardIDRaw = ""
+                        }
+                    )
+                } else {
+                    exitFocusMode(save: true)
+                }
+                #endif
+            }
+    }
+
+    @ViewBuilder
+    private func applyFocusPresentation<V: View>(to base: V) -> some View {
+        #if os(iOS)
+        base
+            .fullScreenCover(isPresented: focusCoverBinding) {
+                FocusFullScreen(
+                    isPresented: focusCoverBinding,
+                    title: card.name,
+                    detailsText: $detailsDraft,
+                    selection: $detailsSelection,
+                    toolbar: adaptiveFormattingToolbar,
+                    onExit: {
+                        isFocusModeEnabled = false
+                        focusModeCardIDRaw = ""
+                    }
+                )
+                .onAppear {
+                    // Ensure editor state is ready
+                    prepareEditorForFocus()
+                }
+            }
+        #else
+        base
         #endif
-        // Present the quick attribution sheet right after image/text drop/import succeeds
-        .sheet(item: $pendingAttribution) { ctx in
-            QuickAttributionSheet(card: card,
-                                  kind: ctx.kind,
-                                  suggestedURL: ctx.suggestedURL,
-                                  prefilledExcerpt: ctx.prefilledExcerpt,
-                                  onSave: { _ in
-                                      // Saved a Citation; refresh attribution viewer if visible
-                                      isAttributionVisible = true
-                                  },
-                                  onSkip: {
-                                      // Keep content; no attribution
-                                  })
-            .frame(minWidth: 420, minHeight: 360)
-        }
+    }
+
+    @ViewBuilder
+    private func applyQuickAttributionSheet<V: View>(to base: V) -> some View {
+        base
+            .sheet(item: $pendingAttribution) { ctx in
+                QuickAttributionSheet(card: card,
+                                      kind: ctx.kind,
+                                      suggestedURL: ctx.suggestedURL,
+                                      prefilledExcerpt: ctx.prefilledExcerpt,
+                                      onSave: { _ in
+                                          isAttributionVisible = true
+                                      },
+                                      onSkip: {
+                                          // Keep content; no attribution
+                                      })
+                .frame(minWidth: 420, minHeight: 360)
+            }
+    }
+
+    @ViewBuilder
+    private func applyImporters<V: View>(to base: V) -> some View {
+        base
+            .fileImporter(isPresented: $isImportingImage, allowedContentTypes: [.image], allowsMultipleSelection: false) { result in
+                if case .success(let urls) = result, let url = urls.first, let data = try? Data(contentsOf: url) {
+                    Task { @MainActor in
+                        let ok = self.handleDroppedImageData(data)
+                        if ok {
+                            self.pendingAttribution = PendingAttribution(suggestedURL: nil, isWeb: false, kind: .image, prefilledExcerpt: nil)
+                        }
+                    }
+                }
+            }
+            .fileImporter(isPresented: $isImportingText, allowedContentTypes: [.plainText, .text], allowsMultipleSelection: false) { result in
+                guard case .success(let urls) = result, let url = urls.first else { return }
+                Task { @MainActor in
+                    if let data = try? Data(contentsOf: url),
+                       let s = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .utf16) {
+                        insertTextAtSelection(s)
+                        let excerpt = String(s.prefix(280))
+                        self.pendingAttribution = PendingAttribution(suggestedURL: url.isFileURL ? nil : url,
+                                                                     isWeb: url.scheme?.hasPrefix("http") == true,
+                                                                     kind: .quote,
+                                                                     prefilledExcerpt: excerpt)
+                    }
+                }
+            }
+            #if os(iOS)
+            .photosPicker(isPresented: $isPresentingPhotosPicker, selection: $selectedPhotoItem, matching: .images)
+            .onChange(of: selectedPhotoItem) { _, newItem in
+                guard let item = newItem else { return }
+                Task {
+                    if let data = try? await item.loadTransferable(type: Data.self) {
+                        await MainActor.run {
+                            let ok = self.handleDroppedImageData(data)
+                            if ok {
+                                self.pendingAttribution = PendingAttribution(suggestedURL: nil, isWeb: false, kind: .image, prefilledExcerpt: nil)
+                            }
+                        }
+                    } else if let uiImage = try? await item.loadTransferable(type: UIImage.self),
+                              let data = uiImage.pngData() ?? uiImage.jpegData(compressionQuality: 0.9) {
+                        await MainActor.run {
+                            let ok = self.handleDroppedImageData(data)
+                            if ok {
+                                self.pendingAttribution = PendingAttribution(suggestedURL: nil, isWeb: false, kind: .image, prefilledExcerpt: nil)
+                            }
+                        }
+                    }
+                    await MainActor.run {
+                        selectedPhotoItem = nil
+                    }
+                }
+            }
+            #endif
     }
 
     // MARK: - Focus Mode UI
@@ -412,6 +557,32 @@ struct CardSheetView: View {
         #endif
     }
 
+    #if os(iOS)
+    // Binding driving the iOS full-screen focus cover
+    private var focusCoverBinding: Binding<Bool> {
+        Binding<Bool>(
+            get: {
+                isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString
+            },
+            set: { newValue in
+                if newValue {
+                    // Engage focus for this card
+                    focusModeCardIDRaw = card.id.uuidString
+                    isFocusModeEnabled = true
+                    // Prepare editor state
+                    prepareEditorForFocus()
+                } else {
+                    // Dismiss focus
+                    isFocusModeEnabled = false
+                    focusModeCardIDRaw = ""
+                    // Persist any edits made in focus
+                    exitFocusMode(save: true)
+                }
+            }
+        )
+    }
+    #endif
+
     // MARK: - UI Sections
 
     private var modePicker: some View {
@@ -461,19 +632,7 @@ struct CardSheetView: View {
         // Make the whole header a drop/paste target for images, but only target when editable
         .contentShape(Rectangle())
         .onDrop(
-            of: [
-                UTType.data.identifier,
-                UTType.image.identifier,
-                UTType.png.identifier,
-                UTType.jpeg.identifier,
-                UTType.tiff.identifier,
-                UTType.gif.identifier,
-                UTType.heic.identifier,
-                UTType.heif.identifier,
-                UTType.bmp.identifier,
-                UTType.fileURL.identifier,
-                UTType.url.identifier
-            ],
+            of: CardSheetView.imageTypeIdentifiers,
             isTargeted: Binding(
                 get: { self.canAcceptImageDrop && self.isDropTargeted },
                 set: { newValue in self.isDropTargeted = newValue }
@@ -485,36 +644,12 @@ struct CardSheetView: View {
             return true
         }
         #if os(macOS)
-        .onPasteCommand(of: [
-            UTType.data,
-            UTType.image,
-            UTType.png,
-            UTType.jpeg,
-            UTType.tiff,
-            UTType.gif,
-            UTType.heic,
-            UTType.heif,
-            UTType.bmp,
-            UTType.fileURL,
-            UTType.url
-        ]) { providers in
+        .onPasteCommand(of: CardSheetView.pasteImageTypes) { providers in
             guard canAcceptImageDrop else { return }
             handleDrop(providers: providers)
         }
         #else
-        .onPasteIfAvailable(of: [
-            UTType.data,
-            UTType.image,
-            UTType.png,
-            UTType.jpeg,
-            UTType.tiff,
-            UTType.gif,
-            UTType.heic,
-            UTType.heif,
-            UTType.bmp,
-            UTType.fileURL,
-            UTType.url
-        ]) { providers in
+        .onPasteIfAvailable(of: CardSheetView.pasteImageTypes) { providers in
             guard canAcceptImageDrop else { return false }
             handleDrop(providers: providers)
             return true
@@ -659,6 +794,9 @@ struct CardSheetView: View {
                                 .allowsHitTesting(false)
                         )
                         .contextMenu {
+                            #if os(iOS)
+                            Button("Replace from Photos…") { isPresentingPhotosPicker = true }
+                            #endif
                             Button("Replace Image…") { presentImagePicker() }
                             Button("Remove Image", role: .destructive) { removeImage() }
                         }
@@ -691,6 +829,9 @@ struct CardSheetView: View {
                     )
                     .contentShape(Rectangle())
                     .contextMenu {
+                        #if os(iOS)
+                        Button("Choose from Photos…") { isPresentingPhotosPicker = true }
+                        #endif
                         Button("Choose Image…") { presentImagePicker() }
                     }
                     .onTapGesture {
@@ -719,25 +860,16 @@ struct CardSheetView: View {
         }
         .frame(width: 160)
         .contentShape(Rectangle())
-        // File importer for explicit selection
-        .fileImporter(isPresented: $isImportingImage, allowedContentTypes: [.image], allowsMultipleSelection: false) { result in
-            if case .success(let urls) = result, let url = urls.first, let data = try? Data(contentsOf: url) {
-                Task { @MainActor in
-                    let ok = self.handleDroppedImageData(data)
-                    if ok {
-                        // Imported via file picker: treat as local file (no suggested URL)
-                        self.pendingAttribution = PendingAttribution(suggestedURL: nil, isWeb: false, kind: .image, prefilledExcerpt: nil)
-                    }
-                }
-            }
-        }
         // Give it a concrete hit-test surface
         .background(Color.black.opacity(0.001))
     }
 
-    @State private var isImportingImage: Bool = false
     private func presentImagePicker() {
         isImportingImage = true
+    }
+
+    private func presentTextImporter() {
+        isImportingText = true
     }
 
     // The host (ContentView) can add a .fileImporter wrapper if desired; here we keep context menus.
@@ -790,7 +922,7 @@ struct CardSheetView: View {
                     .allowsHitTesting(false)
             )
             // Accept dropped plain text and URLs (for suggested source)
-            .onDrop(of: [.plainText, .text, .url], isTargeted: nil) { providers in
+            .onDrop(of: CardSheetView.textDropTypes, isTargeted: nil) { providers in
                 handleTextDrop(providers: providers)
             }
         }
@@ -1307,8 +1439,8 @@ struct CardSheetView: View {
         guard !providers.isEmpty else { return }
 
         for provider in providers {
-            // 0) Try object-based images first (UIKit/AppKit), for robustness
             #if canImport(UIKit)
+            // 0) Try object-based images first (UIKit/AppKit), for robustness
             if provider.canLoadObject(ofClass: UIImage.self) {
                 provider.loadObject(ofClass: UIImage.self) { obj, _ in
                     if let ui = obj as? UIImage {
@@ -1838,6 +1970,7 @@ private extension View {
         if #available(iOS 15.0, tvOS 15.0, visionOS 1.0, *) {
             self.onPaste(of: types, perform: action)
         } else {
+            // Fallback for older OSes
             self
         }
     }
@@ -1870,9 +2003,9 @@ private struct RichTextEditor: View {
          onTab: (() -> Void)? = nil,
          onBacktab: (() -> Void)? = nil) {
         self._text = text
-               self._selectedRange = selectedRange
+        self._selectedRange = selectedRange
         self.isFirstResponder = isFirstResponder
-        self.editable = editable
+               self.editable = editable
         self.onTab = onTab
         self.onBacktab = onBacktab
     }
@@ -1929,6 +2062,9 @@ private extension View {
 
     // No-op styling modifier if not provided elsewhere.
     func glassToolbarStyle() -> some View { self }
+
+    // Type-erasure to help the compiler with very long chains
+    func eraseToAnyView() -> AnyView { AnyView(self) }
 }
 
 #if canImport(AppKit)
@@ -1942,6 +2078,24 @@ private extension NSImage {
         guard let tiff = self.tiffRepresentation,
               let rep = NSBitmapImageRep(data: tiff) else { return nil }
         return rep.representation(using: .jpeg, properties: [.compressionFactor: compression])
+    }
+}
+#endif
+
+#if os(iOS)
+// Make UIImage loadable via PhotosPickerItem.loadTransferable(type:)
+extension UIImage: @retroactive Transferable {
+    public static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(importedContentType: .image) { data in
+            guard let image = UIImage(data: data) else {
+                throw TransferError.importFailed
+            }
+            return image
+        }
+    }
+
+    enum TransferError: Error {
+        case importFailed
     }
 }
 #endif

@@ -157,6 +157,8 @@ struct MainAppView: View {
             #endif
         }
         .toolbar {
+            // Keep the leading nav-space free on iOS so the system sidebar toggle remains native.
+            #if !os(iOS)
             ToolbarItem(placement: .navigation) {
                 Button {
                     showingSettings = true
@@ -164,6 +166,8 @@ struct MainAppView: View {
                     Label("Settings", systemImage: "gear")
                 }
             }
+            #endif
+
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     showingCardEditor = true
@@ -201,6 +205,9 @@ struct MainAppView: View {
             #endif
         }
         .onAppear {
+            // One-time data repair to purge any foreign BoardNodes from other contexts (e.g., previews)
+            DataRepair.repairForeignBoardNodes(in: modelContext)
+
             // Keep all columns visible when the window allows
             columnVisibility = .all
 
@@ -346,6 +353,18 @@ struct MainAppView: View {
             }
         }
         .navigationTitle(contentNavigationTitle)
+        // Put iOS Settings button on the content column so it’s always visible.
+        .toolbar {
+            #if os(iOS)
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showingSettings = true
+                } label: {
+                    Label("Settings", systemImage: "gear")
+                }
+            }
+            #endif
+        }
     }
 
     // MARK: - Detail Column
@@ -365,10 +384,13 @@ struct MainAppView: View {
                         CardRelationshipView(primary: card)
                             .navigationTitle("Relationships: \(card.name)")
                     case .board:
-                        // Board only makes sense for projects; guard just in case.
+                        // Route by kind:
                         if card.kind == .projects {
                             StructureBoardView(project: card)
                                 .navigationTitle("Structure Board: \(card.name)")
+                        } else if card.kind == .worlds || card.kind == .characters {
+                            MurderBoardView(primary: card)
+                                .navigationTitle("\(card.name.isEmpty ? card.kind.singularTitle : card.name) Board")
                         } else {
                             CardSheetView(card: card)
                                 .navigationTitle(card.name)
@@ -415,7 +437,7 @@ struct MainAppView: View {
         }
     }
 
-    // MARK: - List of Cards (with thumbnails, deletion)
+    // MARK: - Card list
 
     private var cardList: some View {
         // Bind selection of the list to our selectedCardID to control the detail pane.
@@ -464,79 +486,6 @@ struct MainAppView: View {
         #endif
     }
 
-    private struct CardListRow: View {
-        let card: Card
-        @State private var thumbnailImage: Image?
-
-        private let thumbSize: CGFloat = 40
-        // Slightly wider container to preserve aspect ratio while keeping rows aligned
-        private let thumbWidth: CGFloat = 60
-
-        // Equatable token for .task(id:) to avoid tuple-Equatable issues on older toolchains
-        private struct ThumbnailChangeToken: Equatable {
-            let id: UUID
-            let count: Int
-        }
-
-        var body: some View {
-            HStack(spacing: 12) {
-                ZStack {
-                    // Background placeholder/border area
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(.quaternary.opacity(0.15))
-
-                    if let thumbnailImage {
-                        thumbnailImage
-                            .resizable()
-                            .scaledToFit() // preserve original aspect ratio
-                            .frame(maxWidth: thumbWidth - 4, maxHeight: thumbSize - 4)
-                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    } else {
-                        // Subtle placeholder
-                        Image(systemName: "photo")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(width: thumbWidth, height: thumbSize)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .stroke(.quaternary, lineWidth: 1)
-                )
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(card.name.isEmpty ? "Untitled" : card.name)
-                            .font(.headline)
-                            .lineLimit(1)
-                        Spacer()
-                        Text(card.kind.singularTitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    if !card.subtitle.isEmpty {
-                        Text(card.subtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                }
-            }
-            .padding(.vertical, 4)
-            // Initial load and subsequent refreshes when the image changes.
-            // Use a stable change token so the task re-runs when thumbnailData changes.
-            .task(id: ThumbnailChangeToken(id: card.id, count: card.thumbnailData?.count ?? 0)) {
-                let img = await card.makeThumbnailImage()
-                // Animate small updates for polish; nil when no image
-                await MainActor.run {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        thumbnailImage = img
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: - Deletion helpers
 
     private func deleteCards(at offsets: IndexSet) {
@@ -563,8 +512,9 @@ struct MainAppView: View {
             selectedCardID = nil
         }
 
-        // Clean up associated image files/caches first
-        card.cleanupBeforeDeletion()
+        // Clean up associated image files/caches and context-local related rows first
+        card.cleanupBeforeDeletion(in: modelContext)
+
         // Delete the card; cascades remove edges/citations as modeled
         modelContext.delete(card)
         try? modelContext.save()
@@ -757,12 +707,84 @@ struct MainAppView: View {
     }
 }
 
-#Preview {
-    // Empty in-memory container; no sample data seeded.
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Card.self, configurations: config)
+private struct CardListRow: View {
+    let card: Card
+    @State private var thumbnailImage: Image?
 
-    return MainAppView()
-        .modelContainer(container)
+    private let thumbSize: CGFloat = 40
+    // Slightly wider container to preserve aspect ratio while keeping rows aligned
+    private let thumbWidth: CGFloat = 60
+
+    // Equatable token for .task(id:) to avoid tuple-Equatable issues on older toolchains
+    private struct ThumbnailChangeToken: Equatable {
+        let id: UUID
+        let count: Int
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                // Background placeholder/border area
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(.quaternary.opacity(0.15))
+
+                if let thumbnailImage {
+                    thumbnailImage
+                        .resizable()
+                        .scaledToFit() // preserve original aspect ratio
+                        .frame(maxWidth: thumbWidth - 4, maxHeight: thumbSize - 4)
+                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                } else {
+                    // Subtle placeholder
+                    Image(systemName: "photo")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: thumbWidth, height: thumbSize)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(.quaternary, lineWidth: 1)
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(card.name.isEmpty ? "Untitled" : card.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(card.kind.singularTitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if !card.subtitle.isEmpty {
+                    Text(card.subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+        // Initial load and subsequent refreshes when the image changes.
+        // Use a stable change token so the task re-runs when thumbnailData changes.
+        .task(id: ThumbnailChangeToken(id: card.id, count: card.thumbnailData?.count ?? 0)) {
+            let img = await card.makeThumbnailImage()
+            // Animate small updates for polish; nil when no image
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    thumbnailImage = img
+                }
+            }
+        }
+    }
 }
 
+#Preview {
+// Empty in-memory container; no sample data seeded.
+let config = ModelConfiguration(isStoredInMemoryOnly: true)
+let container = try! ModelContainer(for: Card.self, configurations: config)
+
+return MainAppView()
+    .modelContainer(container)
+}

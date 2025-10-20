@@ -15,7 +15,16 @@ enum AppSchemaV1: VersionedSchema {
     static var versionIdentifier = Schema.Version(1, 0, 0)
 
     static var models: [any PersistentModel.Type] {
-        [AppSettings.self, Card.self, RelationType.self, CardEdge.self, Source.self, Citation.self, StoryStructure.self, StructureElement.self]
+        [
+            AppSettings.self,
+            Card.self,
+            RelationType.self,
+            CardEdge.self,
+            Source.self,
+            Citation.self,
+            StoryStructure.self,
+            StructureElement.self
+        ]
     }
 }
 
@@ -24,14 +33,45 @@ enum AppSchemaV2: VersionedSchema {
     static var versionIdentifier = Schema.Version(2, 0, 0)
 
     static var models: [any PersistentModel.Type] {
-        [AppSettings.self, Card.self, RelationType.self, CardEdge.self, Source.self, Citation.self, StoryStructure.self, StructureElement.self]
+        [
+            AppSettings.self,
+            Card.self,
+            RelationType.self,
+            CardEdge.self,
+            Source.self,
+            Citation.self,
+            StoryStructure.self,
+            StructureElement.self
+        ]
+    }
+}
+
+// V3: adds Board and BoardNode models (and your current model definitions already include the inverses)
+enum AppSchemaV3: VersionedSchema {
+    static var versionIdentifier = Schema.Version(3, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            AppSettings.self,
+            Card.self,
+            RelationType.self,
+            CardEdge.self,
+            Source.self,
+            Citation.self,
+            StoryStructure.self,
+            StructureElement.self,
+            Board.self,
+            BoardNode.self
+        ]
     }
 }
 
 // MARK: - Migration Plan
 
 enum AppMigrations: SchemaMigrationPlan {
-    // One stage from V1 to V2 with a data backfill for originals from local files.
+    // Stages:
+    // - V1 -> V2: backfill Card.originalImageData from local files.
+    // - V2 -> V3: add Board/BoardNode (no-op data migration).
     static var stages: [MigrationStage] = [
         MigrationStage.custom(
             fromVersion: AppSchemaV1.self,
@@ -41,7 +81,6 @@ enum AppMigrations: SchemaMigrationPlan {
             },
             didMigrate: { context in
                 // Backfill Card.originalImageData for cards that have a local original file but no synced data yet.
-                // We scan the ImageStore for files named "<UUID>.<ext>" and match them to Cards by id.
                 let urls = ImageStore.shared.listAllOriginalImageURLs()
                 guard urls.isEmpty == false else { return }
 
@@ -78,11 +117,16 @@ enum AppMigrations: SchemaMigrationPlan {
                     try? context.save()
                 }
             }
+        ),
+        MigrationStage.lightweight(
+            fromVersion: AppSchemaV2.self,
+            toVersion: AppSchemaV3.self
         )
     ]
 
     static var schemas: [any VersionedSchema.Type] = [
         AppSchemaV1.self,
-        AppSchemaV2.self
+        AppSchemaV2.self,
+        AppSchemaV3.self
     ]
 }

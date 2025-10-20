@@ -4,7 +4,7 @@ import SwiftUI
 enum CardDetailTab: String, CaseIterable, Identifiable {
     case details = "Details"
     case relationships = "Relationships"
-    case board = "Board" // Structural Spine (Projects only)
+    case board = "Board" // Structural Spine (Projects) or Murder Board (Worlds/Characters)
     case timeline = "Timeline" // Timeline chart (Timelines only)
 
     var id: String { rawValue }
@@ -23,17 +23,22 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
         switch self {
         case .details: return "Show Details"
         case .relationships: return "Manage Relationships"
-        case .board: return "Structural Spine"
+        case .board: return "Board"
         case .timeline: return "Timeline Chart"
         }
     }
 
     // MARK: - Availability and coercion helpers
 
-    // Tabs available for a given Kind (e.g., Board only for Projects, Timeline only for Timelines)
+    // Tabs available for a given Kind
     static func allowedTabs(for kind: Kinds) -> [CardDetailTab] {
         var tabs: [CardDetailTab] = [.details, .relationships]
+        // Projects: Structure Board (existing)
         if kind == .projects {
+            tabs.append(.board)
+        }
+        // Worlds and Characters: Murder Board
+        if kind == .worlds || kind == .characters {
             tabs.append(.board)
         }
         if kind == .timelines {
@@ -53,5 +58,5 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
         guard let raw, let v = CardDetailTab(rawValue: raw) else { return def }
         return v
     }
-}
+}    // MARK: - Availability and coercion helpers
 

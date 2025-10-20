@@ -24,14 +24,17 @@ struct CumberlandApp: App {
     private static func makeContainer() -> ModelContainer {
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "SwiftData")
 
-        // Build a Schema from the latest version’s models (V2).
-        let schema = Schema(AppSchemaV2.models)
+        // Build a concrete Schema from the latest versioned schema's models.
+        // Latest is V3 (V4 was collapsed because it was structurally identical to V3).
+        let schema = Schema(AppSchemaV3.models)
 
+        // Use the latest versioned schema and the migration plan.
         // 1) Try CloudKit-backed configuration first.
         do {
             let cloudConfig = ModelConfiguration("iCloud.CumberlandCloud")
             let container = try ModelContainer(
                 for: schema,
+                migrationPlan: AppMigrations.self,
                 configurations: [cloudConfig]
             )
             logger.info("SwiftData ModelContainer initialized with CloudKit.")
@@ -45,6 +48,7 @@ struct CumberlandApp: App {
             let localConfig = ModelConfiguration() // default on-disk location
             let container = try ModelContainer(
                 for: schema,
+                migrationPlan: AppMigrations.self,
                 configurations: [localConfig]
             )
             logger.warning("Using local on-disk SwiftData store (CloudKit unavailable).")
@@ -58,6 +62,7 @@ struct CumberlandApp: App {
             let memoryConfig = ModelConfiguration(isStoredInMemoryOnly: true)
             let container = try ModelContainer(
                 for: schema,
+                migrationPlan: AppMigrations.self,
                 configurations: [memoryConfig]
             )
             logger.warning("Using in-memory SwiftData store as a fallback.")
@@ -560,7 +565,7 @@ private extension CumberlandApp {
         deleteAll(Citation.self)
         deleteAll(Source.self)
         deleteAll(Card.self) { card in
-            card.cleanupBeforeDeletion()
+            card.cleanupBeforeDeletion(in: container.mainContext)
         }
         deleteAll(RelationType.self)
         deleteAll(AppSettings.self)
@@ -1071,7 +1076,7 @@ private struct WindowStateBridge: NSViewRepresentable {
     final class Coordinator: NSObject, NSWindowDelegate {
         private weak var window: NSWindow?
         private var id: String = ""
-        private var defaults: UserDefaults = .standard
+               private var defaults: UserDefaults = .standard
         private var observing = false
 
         private var frameKey: String { "Window.\(id).frame" }

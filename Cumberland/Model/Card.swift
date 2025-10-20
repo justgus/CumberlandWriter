@@ -81,6 +81,14 @@ final class Card: Identifiable {
     @Relationship(deleteRule: .cascade, inverse: \Citation.card)
     var citations: [Citation]? = []
 
+    // New: Inverse relationships for Board and BoardNode (CloudKit requires declared inverses)
+    // Boards where this card is the primaryCard. Deleting the card nullifies primaryCard on those boards.
+    var primaryBoards: [Board]? = []
+
+    // All BoardNode placements that reference this card. Deleting the card should remove those nodes.
+    @Relationship(deleteRule: .cascade, inverse: \BoardNode.card)
+    var boardNodes: [BoardNode]? = []
+
     init(
         id: UUID = UUID(),
         kind: Kinds = .projects,
@@ -241,9 +249,57 @@ extension Card {
         return exists
     }
 
-    func cleanupBeforeDeletion() {
+    // Updated: accept a context and perform safe, context-local cleanup of related rows.
+    func cleanupBeforeDeletion(in ctx: ModelContext) {
+        // 1) Image/caches first (purely local)
         removeOriginalImage()
         clearImageCaches()
+
+        // 2) Purge BoardNodes that reference this Card (context-local fetch by ID)
+        let myID = self.id
+        do {
+            var nodeFetch = FetchDescriptor<BoardNode>(
+                predicate: #Predicate { $0.card?.id == myID }
+            )
+            nodeFetch.fetchLimit = 0
+            let nodes = try ctx.fetch(nodeFetch)
+            for n in nodes {
+                ctx.delete(n)
+            }
+        } catch {
+            // Best-effort; continue
+        }
+
+        // 3) Nullify any Boards where this card is set as primaryCard
+        do {
+            var boardFetch = FetchDescriptor<Board>(
+                predicate: #Predicate { $0.primaryCard?.id == myID }
+            )
+            boardFetch.fetchLimit = 0
+            let boards = try ctx.fetch(boardFetch)
+            for b in boards {
+                b.primaryCard = nil
+            }
+        } catch {
+            // continue
+        }
+
+        // 4) Purge CardEdges where this Card is either endpoint (by ID)
+        do {
+            var edgeFetch = FetchDescriptor<CardEdge>(
+                predicate: #Predicate { $0.from?.id == myID || $0.to?.id == myID }
+            )
+            edgeFetch.fetchLimit = 0
+            let edges = try ctx.fetch(edgeFetch)
+            for e in edges {
+                ctx.delete(e)
+            }
+        } catch {
+            // continue
+        }
+
+        // 5) Save if anything changed (best-effort)
+        try? ctx.save()
     }
 
     func clearImageCaches() {
@@ -475,3 +531,4 @@ enum SizeCategory: Int, Codable, CaseIterable, Hashable, Sendable {
         }
     }
 }
+

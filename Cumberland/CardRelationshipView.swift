@@ -431,7 +431,8 @@ struct CardRelationshipView: View {
                     removeRelationship(between: card, and: primary)
                 }
             } label: {
-                Label("Remove Relationship", systemImage: "link.badge.minus")
+                Label("Remove Relationship", systemImage: "link")
+                    .symbolVariant(.slash)
             }
             .disabled(selectedRelatedCard == nil)
             .help("Remove the relationship between the selected card and “\(primary.name)”")
@@ -540,7 +541,8 @@ struct CardRelationshipView: View {
                         removeRelationship(between: card, and: primary)
                     }
                 } label: {
-                    Label("Remove Relationship", systemImage: "link.badge.minus")
+                    Label("Remove Relationship", systemImage: "link")
+                        .symbolVariant(.slash)
                 }
                 .disabled(selectedRelatedCard == nil)
             }
@@ -968,7 +970,7 @@ struct CardRelationshipView: View {
 
     @MainActor
     private func cleanupAndDelete(_ card: Card) {
-        card.cleanupBeforeDeletion()
+        card.cleanupBeforeDeletion(in: modelContext)
         modelContext.delete(card)
         try? modelContext.save()
     }
