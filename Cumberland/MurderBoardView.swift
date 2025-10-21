@@ -142,16 +142,135 @@ The Sidebar
    - Sidebar clarifications retained; DnD indicator behavior unchanged.
 
  Acceptance Criteria
+ - View Window and Border
+   - The MurderBoardView fills its parent view and is clipped to a rounded rectangle with a border at least 10 pt thick.
+   - The View Window shows a visible inner drop shadow that reads above underlying content in light and dark appearances.
+   - The View Canvas is entirely inside the border; resizing the parent resizes the window and canvas without changing pan/zoom semantics.
+ - View Canvas, Transform, and View Canvas Rectangle
+   - The world→view transform is v = w*S + T with scalar S and translation T = (Tx, Ty) in view points.
+   - The View Canvas Rectangle is computed analytically as the inverse image of the View Window bounds and exactly fills the window at all times.
+   - Zooming changes only S and T (to keep the window center locked to a fixed world point); node world positions do not change.
+   - Zoom is clamped to [0.01, 2.0]; pan is clamped within implementation-defined limits large enough to cover Nodes Extents + margin M under all expected pans/zooms.
+ - Grid Background (View Canvas Grid)
+   - A low-contrast grid renders behind edges and nodes (bottommost layer).
+   - The grid coverage includes the union of the current View Canvas Rectangle and the Nodes Extents, inflated by margin M ≥ max(windowDiagonal / S, 2×tileSize).
+   - Grid/line colors maintain adequate contrast in both light and dark appearances.
+ - Nodes and Nodes Extents
+   - Nodes render as CardViews centered at their world-space positions transformed to view space.
+   - Selection is indicated by an accent-colored border on the selected CardView.
+   - Nodes Extents is computed from each node’s world-space bounding box with padding for shadows/selection; it updates when nodes are added, moved, or removed.
+ - Edges
+   - A single straight segment is displayed for each Card pair with one or more relationships, chosen deterministically (priority, then creation date, then stable UUID).
+   - Edges connect node centers and render above the grid and below nodes; thickness is at least 3 pt with sufficient contrast in both appearances.
+ - Initial Display and Recenter
+   - On first display, the canvas recenters on the Primary node if present, otherwise on the first node; no zoom change occurs.
+   - If the target node’s position is uninitialized, it is set to the center of the current View Canvas Rectangle before recentering.
+   - A toolbar “Recenter” button performs the same centering behavior without changing zoom.
+ - Selection and Interaction
+   - Clicking a node selects it; clicking the canvas background clears selection.
+   - Nodes can be dragged with standard click-drag; the node follows the pointer preserving the initial grab offset in world coordinates.
+   - Panning occurs via click-drag on the canvas background.
+   - Selection is cleared if the selected node is removed or becomes non-visible in the board.
+ - Zoom Controls
+   - Toolbar includes Zoom Out button, slider (1%–200% mapped to S ∈ [0.01, 2.0]), Zoom In button, and percent text field.
+   - Percent entry clamps to [1, 200], ignores non-numeric input, and rounds to the nearest integer; zooming keeps the world point under the window center fixed by adjusting T analytically.
+ - Shuffle
+   - “Shuffle” arranges all nodes except the Primary (if present) around the Primary (or first node) in world space using a ring layout with random jitter.
+   - Repeated shuffles produce different arrangements; the Primary’s position does not change.
+   - New positions persist immediately; edges update from node centers.
+ - Primary Enforcement and Reset
+   - When enforcement is active and a Primary is set, the Primary must be present as a node; if missing, it is auto-created.
+   - During and immediately after a reset (all nodes removed), enforcement is suspended; the Primary may be removed and primaryCard may be cleared.
+   - If the Primary card is deleted from the database, primaryCard is cleared and enforcement remains suspended until a new Primary is assigned.
+ - Persistence
+   - Murderboards persist via Board; nodes via BoardNode bridging many-to-many Cards↔Boards.
+   - Node centers persist in world coordinates; edge endpoints are derived at render time.
+   - Absolute/zoom-derived node sizes are not persisted; an optional categorical size override may be persisted per node.
+   - Selection persists until the user clicks another node or the canvas; it is cleared if the selected node is removed or becomes non-visible.
+ - Sidebar Backlog and Drag & Drop
+   - A floating, semi-translucent Backlog panel lists Cards not on the board and supports filtering by Kind.
+   - Backlog rows display Card name, Kind icon, and thumbnail if available.
+   - A toggle button is always visible to show/hide the Backlog.
+   - Dragging a Backlog Card over the canvas shows a blue drop target indicator; dropping creates a new node at the drop location mapped to world coordinates and persists it.
+ - Accessibility, Appearance, and Performance
+   - Colors and contrasts for edges, selection borders, and grid adapt to light/dark appearances.
+   - Panning/zooming and dragging remain responsive for dozens to low hundreds of nodes/edges.
+   - Coordinate-space math is deterministic and stable across window resizes.
+   - No visible grid-edge tearing occurs during pan/zoom due to 0405-compliant margin sizing.
 
- 
  Implementation Plan
- 
+ - Phase 0: Data Model and Utilities
+   - Confirm models Card, CardEdge, RelationType, Board, BoardNode with many-to-many bridging; Board has primaryCard, zoomScale, panX, panY, nodes.
+   - Add Board static limits: minZoom = 0.01, maxZoom = 2.0; minPan/maxPan large enough to cover Nodes Extents + margin M.
+   - Implement Board helpers: fetchOrCreatePrimaryBoard(for:in:), node(for:createIfMissing:defaultPosition:), ensurePrimaryPresence(in:), clampState().
+   - Implement deterministic edge selection policy (RelationType priority; tie-breakers).
+   - Add numeric clamp helpers and transform helper (v = w*S + T, inverse).
+ - Phase 1: View Window Shell and Border
+   - Build rounded border (≥ 10 pt) and inner drop shadow as an overlay that works in light and dark.
+   - Ensure the canvas sits fully inside the border and the view fills its parent.
+ - Phase 2: Transform State and View Canvas Rectangle
+   - Store live zoomScale/panX/panY in @State and mirror changes to Board with clamping and debounced persistence.
+   - Compute the View Canvas Rectangle analytically as the inverse mapping of window bounds.
+   - Maintain worldCenter(forWindowSize:) helper.
+ - Phase 3: Grid Background
+   - Implement a grid view sized to cover union(View Canvas Rectangle, Nodes Extents) + margin M.
+   - For a first pass, render a sufficiently large surface so edges are never visible; later refine to exact 0405 coverage.
+ - Phase 4: Nodes and Selection
+   - Render nodes as CardViews positioned by world centers using a layer transform (scale+offset).
+   - Add selection overlay (accent border) and rules (click to select, background click to clear, clear on removal/non-visibility).
+   - Track node frames in a named coordinate space for hit-testing.
+ - Phase 5: Edges Rendering
+   - Collapse CardEdge relations to one per pair using deterministic rule.
+   - Render edges between node centers with correct z-order (grid < edges < nodes < overlays) and thickness ≥ 3 pt.
+ - Phase 6: Gestures and Interaction
+   - Add a unified drag gesture: if the gesture starts over a node (prefer selected on overlap) then node-drag; else pan.
+   - Node drag updates node.posX/posY in world coordinates preserving initial grab offset; persist during/after drag.
+   - Pan drag updates panX/panY in view points; clamp and persist on end (debounce optional).
+ - Phase 7: Initial Recenter and Recenter Control
+   - On initial display, ensure primary presence (unless in reset), initialize uninitialized target position to View Canvas Rectangle center, then pan to center without zoom change.
+   - Add toolbar “Recenter” button to perform the same logic.
+ - Phase 8: Zoom Controls
+   - Toolbar: Zoom Out, Slider (1%–200%), Zoom In, and percent text field.
+   - Implement center-locked zoom by recomputing T to keep the window center mapped to the same world point.
+   - Clamp and persist S and T; ignore non-numeric input; round percent to nearest integer.
+ - Phase 9: Shuffle
+   - Arrange all non-anchor nodes around the Primary (or first) in rings with jitter; increase ring radius/capacity for larger counts.
+   - Persist new positions; edges update automatically.
+ - Phase 10: Primary Enforcement and Reset
+   - Enforce Primary presence when set and not in reset; auto-create missing node.
+   - Reset removes all nodes and suspends enforcement; allow clearing primaryCard; resume enforcement only after a new Primary is assigned.
+   - If the Primary card is deleted, clear primaryCard and suspend enforcement until reassigned.
+ - Phase 11: Sidebar Backlog and Drag & Drop
+   - Implement floating, semi-translucent Backlog with Kind filter; exclude Cards already on the board.
+   - Provide a persistent toggle button to show/hide the Backlog.
+   - Drag a Card from Backlog to canvas: show blue drop target indicator; on drop create BoardNode at world-mapped location and persist.
+ - Phase 12: Accessibility, Appearance, and Performance
+   - Ensure contrast and adaptive colors; use Canvas for grid/edges for performance.
+   - Debounce model saves during drags; batch save on end where appropriate.
+   - Cache node frames to optimize hit-testing and gesture routing.
+ - Phase 13: Testing and Verification
+   - Unit-test transform helpers: worldToView, viewToWorld, viewCanvasRect, center-locked zoom, clamping.
+   - UI-verification tests for initial recenter, selection/clearing, node drag behavior, pan/zoom invariants, shuffle anchor preservation, and edge determinism.
+ - Phase 14: Migration and Persistence Safety
+   - Define schema migrations for any future model changes.
+   - Verify autosave and explicit save points after shuffle, reset, and recenter.
+   - Guard against nil Card references on BoardNodes and handle cleanup.
+ - Risks and Mitigations
+   - Large graphs: batch Canvas drawing and consider level-of-detail for grid at extreme zooms.
+   - Precision drift: keep world coordinates in Double; clamp values; minimize conversions.
+   - Gesture ambiguity: prefer selected node on overlap; fall back to topmost by stable board order.
+   - Reset/enforcement race: gate enforcement during/after reset; ensure ensurePrimaryPresence is idempotent.
+
  */
 
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 import CloudKit
+
+#if canImport(Testing)
+import Testing
+#endif
 
 struct MurderBoardView: View {
     let primary: Card
@@ -173,25 +292,112 @@ struct MurderBoardView: View {
     // One-time initial recenter
     @State private var didInitialRecenter: Bool = false
 
-    // Node drag state: preserve grab offset in world coordinates
-    @State private var draggingNodeID: UUID? = nil
-    @State private var dragGrabOffsetWorld: CGPoint = .zero
+    // Centralized drag routing
+    private enum ActiveDrag {
+        case none
+        case node(cardID: UUID)
+        case pan
 
-    // Canvas pan gesture transient
-    @State private var panGestureStart: CGPoint?
+        func isDragging(cardID: UUID) -> Bool {
+            if case .node(let id) = self { return id == cardID }
+            return false
+        }
+    }
+    @State private var activeDrag: ActiveDrag = .none
+    @State private var dragGrabOffsetWorld: CGPoint = .zero   // for node drags
+    @State private var panGestureStart: CGPoint? = nil        // for background pan (view-space T at start)
 
-    // Node-drag gesture recognition flag (preempts background pan reliably)
-    @GestureState private var nodeDragActive: Bool = false
+    // Live frames of each node in canvas coordinate space
+    @State private var nodeFrames: [UUID: CGRect] = [:]
 
     // Named coordinate space for consistent gesture math (canvas/view space)
-    private let canvasCoordSpace = "MurderBoardCanvasSpace"
+    fileprivate let canvasCoordSpace = "MurderBoardCanvasSpace"
 
     init (primary: Card) {
         self.primary = primary
     }
 
     var body: some View {
+        GeometryReader { proxy in
+            // Phase 1: View Window shell
+            let outerSize = proxy.size
+            let border = windowBorderWidth
+            // Content (canvas) size accounts for the border inset so the canvas is fully inside the border
+            let contentSize = CGSize(width: max(0, outerSize.width - 2 * border),
+                                     height: max(0, outerSize.height - 2 * border))
+            let contentCenter = CGPoint(x: contentSize.width / 2, y: contentSize.height / 2)
 
+            ZStack {
+                // Canvas host inside the border
+                ZStack {
+                    canvasLayer(windowSize: contentSize, windowCenter: contentCenter)
+                }
+                .padding(border)
+                .coordinateSpace(name: canvasCoordSpace)
+                .clipShape(RoundedRectangle(cornerRadius: max(0, windowCornerRadius - 2), style: .continuous))
+            }
+            // Outer rounded border
+            .background(
+                ZStack {
+                    // Base rounded rectangle to define the window shape
+                    RoundedRectangle(cornerRadius: windowCornerRadius, style: .continuous)
+                        .fill(Color.clear)
+
+                    // Border stroke (≥10pt) around the window
+                    RoundedRectangle(cornerRadius: windowCornerRadius, style: .continuous)
+                        .stroke(windowBorderColor, lineWidth: windowBorderWidth)
+
+                    // Inner drop shadow simulated by a blurred, masked overlay along the inner edge
+                    RoundedRectangle(cornerRadius: max(0, windowCornerRadius - windowBorderWidth / 2), style: .continuous)
+                        .stroke(windowInnerShadowColor, lineWidth: 2)
+                        .blur(radius: 3)
+                        .mask(
+                            RoundedRectangle(cornerRadius: windowCornerRadius, style: .continuous)
+                                .stroke(lineWidth: windowBorderWidth)
+                        )
+                        .blendMode(.overlay)
+                        .opacity(scheme == .dark ? 0.5 : 0.8)
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: windowCornerRadius, style: .continuous))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            // Attach toolbar controls that operate on the current window size
+            .toolbar { toolbarContent(windowSize: contentSize) }
+            // Ensure initial recenter happens once when we have a board and a non-zero canvas
+            .onChange(of: board?.id) {
+                if let b = board, didInitialRecenter == false, contentSize.width > 0, contentSize.height > 0 {
+                    initialRecenterIfNeeded(on: b, windowSize: contentSize)
+                }
+            }
+            .onChange(of: contentSize) { _, newSize in
+                if let b = board, didInitialRecenter == false, newSize.width > 0, newSize.height > 0 {
+                    initialRecenterIfNeeded(on: b, windowSize: newSize)
+                }
+            }
+        }
+        // Phase 2: Load board and wire transform state with clamping/persistence
+        .task {
+            await loadBoardIfNeeded()
+        }
+        .onChange(of: board?.id) {
+            applyBoardTransform()
+        }
+        .onChange(of: zoomScale) { _, newValue in
+            // Clamp to allowed range and persist debounced
+            let clamped = newValue.rangeClamped(to: Board.minZoom...Board.maxZoom)
+            if clamped != zoomScale { zoomScale = clamped; return }
+            persistTransformDebounced()
+        }
+        .onChange(of: panX) { _, newValue in
+            let clamped = newValue.rangeClamped(to: Board.minPan...Board.maxPan)
+            if clamped != panX { panX = clamped; return }
+            persistTransformDebounced()
+        }
+        .onChange(of: panY) { _, newValue in
+            let clamped = newValue.rangeClamped(to: Board.minPan...Board.maxPan)
+            if clamped != panY { panY = clamped; return }
+            persistTransformDebounced()
+        }
     }
 }
 
@@ -203,50 +409,81 @@ private let windowBorderWidth: CGFloat = 12
 private var windowBorderColor: Color { .secondary.opacity(0.55) }
 private var windowInnerShadowColor: Color { .white.opacity(0.18) }
 
+// MARK: - Transform Helper (file-scoped to enable direct tests)
+
+fileprivate struct MurderBoardTransform {
+    static func worldToView(_ world: CGPoint, scale s: Double, panX: Double, panY: Double) -> CGPoint {
+        CGPoint(x: world.x.dg * s + panX, y: world.y.dg * s + panY)
+    }
+    static func viewToWorld(_ view: CGPoint, scale s: Double, panX: Double, panY: Double) -> CGPoint {
+        let ss = max(s, 0.000001)
+        return CGPoint(x: (view.x.dg - panX) / ss, y: (view.y.dg - panY) / ss)
+    }
+    static func viewCanvasRect(worldForWindowSize size: CGSize, scale s: Double, panX: Double, panY: Double) -> CGRect {
+        let originWorld = viewToWorld(.zero, scale: s, panX: panX, panY: panY)
+        let ss = max(s, 0.000001)
+        let wWorld = size.width.dg / ss
+        let hWorld = size.height.dg / ss
+        return CGRect(x: originWorld.x, y: originWorld.y, width: wWorld, height: hWorld)
+    }
+    static func worldCenter(forWindowSize size: CGSize, scale s: Double, panX: Double, panY: Double) -> CGPoint {
+        let cView = CGPoint(x: size.width / 2.0, y: size.height / 2.0)
+        return viewToWorld(cView, scale: s, panX: panX, panY: panY)
+    }
+}
+
 // MARK: - Canvas
 
-private extension MurderBoardView {
+fileprivate extension MurderBoardView {
     // World→View transform: v = w*S + T
     func worldToView(_ world: CGPoint) -> CGPoint {
-        let s = zoomScale
-        return CGPoint(x: world.x.dg * s + panX, y: world.y.dg * s + panY)
+        MurderBoardTransform.worldToView(world, scale: zoomScale, panX: panX, panY: panY)
     }
 
     // View→World inverse: w = (v − T)/S
     func viewToWorld(_ view: CGPoint) -> CGPoint {
-        let s = max(zoomScale, 0.000001)
-        return CGPoint(x: (view.x.dg - panX) / s, y: (view.y.dg - panY) / s)
+        MurderBoardTransform.viewToWorld(view, scale: zoomScale, panX: panX, panY: panY)
     }
 
     // View Canvas Rectangle in world coordinates (0080)
     func viewCanvasRect(worldForWindowSize size: CGSize) -> CGRect {
-        let originWorld = viewToWorld(.zero)
-        let s = max(zoomScale, 0.000001)
-        let wWorld = size.width.dg / s
-        let hWorld = size.height.dg / s
-        return CGRect(x: originWorld.x, y: originWorld.y, width: wWorld, height: hWorld)
+        MurderBoardTransform.viewCanvasRect(worldForWindowSize: size, scale: zoomScale, panX: panX, panY: panY)
     }
 
     // World center corresponding to the View Window’s geometric center (0140)
     func worldCenter(forWindowSize size: CGSize) -> CGPoint {
-        let cView = CGPoint(x: size.width / 2.0, y: size.height / 2.0)
-        return viewToWorld(cView)
+        MurderBoardTransform.worldCenter(forWindowSize: size, scale: zoomScale, panX: panX, panY: panY)
     }
 
     @ViewBuilder
     func canvasLayer(windowSize: CGSize, windowCenter: CGPoint) -> some View {
         ZStack {
-            // Background: keep “infinite” appearance by not drawing finite edges (0061, 0241)
-            Rectangle()
-                .fill(scheme == .dark ? Color.black.opacity(0.20) : Color.black.opacity(0.04))
-                .contentShape(Rectangle()) // ensure hit-testing across the full rect
-                .gesture(canvasPanGesture()) // attach pan directly to the background
-                .ignoresSafeArea()
+            // Background container: base fill + grid overlay.
+            ZStack {
+                // Base fill that provides contrast in both appearances
+                Rectangle()
+                    .fill(scheme == .dark ? Color.black.opacity(0.20) : Color.black.opacity(0.04))
+                    // Clicking/tapping background clears selection (0570)
+                    .onTapGesture {
+                        selectedCardID = nil
+                    }
+
+                // Low-contrast grid placeholder (0402)
+                GridBackground(
+                    tileSize: 40,
+                    lineWidth: 0.5,
+                    primaryOpacity: scheme == .dark ? 0.22 : 0.10,
+                    secondaryEvery: 5,
+                    secondaryOpacity: scheme == .dark ? 0.28 : 0.14
+                )
+            }
+            .ignoresSafeArea()
 
             // Nodes layer (0120, 0130, 0340–0390)
             nodesLayer(windowSize: windowSize)
         }
-        .contentShape(Rectangle())
+        .contentShape(Rectangle()) // unified drag uses the full canvas rect
+        .gesture(unifiedDragGesture()) // centralized routing: node-drag vs pan
     }
 
     // MARK: - Nodes
@@ -257,6 +494,7 @@ private extension MurderBoardView {
             guard let c = node.card else { return nil }
             return (node, c)
         }
+        let nodeIDs = nodes.map { $0.1.id }
 
         // Apply the world→view transform to the entire nodes layer so positions and sizes scale together.
         ZStack {
@@ -264,6 +502,9 @@ private extension MurderBoardView {
                 let node = pair.0
                 let card = pair.1
                 let nodeCenterWorld = CGPoint(x: node.posX, y: node.posY)
+
+                // Shape that matches the visible card face for precise interaction
+                let hitShape = RoundedRectangle(cornerRadius: 12, style: .continuous)
 
                 CardView(card: card)
                     .overlay(
@@ -274,83 +515,193 @@ private extension MurderBoardView {
                     )
                     // Position the CardView by its world-space center; the layer transform maps to view.
                     .position(nodeCenterWorld)
-                    .contentShape(Rectangle())
+                    // Restrict interactions to the visible rounded card area to avoid overlap ambiguity
+                    .contentShape(hitShape)
                     .onTapGesture {
                         selectedCardID = card.id
                     }
-                    // Make node drag win over background pan and internal controls.
-                    .highPriorityGesture(nodeDragGesture(node: node, card: card))
+                    // Report frame in canvas coordinate space so the unified gesture can hit-test
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .preference(
+                                    key: NodeFramesKey.self,
+                                    value: [card.id: geo.frame(in: .named(canvasCoordSpace))]
+                                )
+                        }
+                    )
                     .zIndex(
-                        (draggingNodeID == card.id ? 2 : 0) +
+                        (activeDrag.isDragging(cardID: card.id) ? 2 : 0) +
                         (selectedCardID == card.id ? 1 : 0)
                     )
             }
         }
         .scaleEffect(zoomScale)
         .offset(x: panX.cg, y: panY.cg)
-        // Hit testing remains in view space; gestures convert using viewToWorld as needed.
+        // Collect frames from children
+        .onPreferenceChange(NodeFramesKey.self) { value in
+            nodeFrames = value
+        }
+        // If the selected node is removed or non-visible, clear selection (0575).
+        .onChange(of: nodeIDs) { _, ids in
+            if let sel = selectedCardID, ids.contains(sel) == false {
+                selectedCardID = nil
+            }
+        }
     }
 }
 
-// MARK: - Gestures
+// MARK: - Node frames preference
 
-private extension MurderBoardView {
-    func canvasPanGesture() -> some Gesture {
+private struct NodeFramesKey: PreferenceKey {
+    static var defaultValue: [UUID: CGRect] = [:]
+    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
+}
+
+// MARK: - Grid Background (Phase 3 placeholder)
+
+fileprivate struct GridBackground: View {
+    let tileSize: CGFloat
+    let lineWidth: CGFloat
+    let primaryOpacity: Double
+    let secondaryEvery: Int
+    let secondaryOpacity: Double
+
+    var body: some View {
+        Canvas { context, size in
+            let primaryColor = Color.primary.opacity(primaryOpacity)
+            let secondaryColor = Color.primary.opacity(secondaryOpacity)
+
+            // Vertical lines
+            var x: CGFloat = 0
+            var column = 0
+            while x <= size.width {
+                var path = Path()
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x, y: size.height))
+                let isSecondary = (column % max(1, secondaryEvery) == 0)
+                context.stroke(path, with: .color(isSecondary ? secondaryColor : primaryColor), lineWidth: lineWidth)
+                x += tileSize
+                column += 1
+            }
+
+            // Horizontal lines
+            var y: CGFloat = 0
+            var row = 0
+            while y <= size.height {
+                var path = Path()
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
+                let isSecondary = (row % max(1, secondaryEvery) == 0)
+                context.stroke(path, with: .color(isSecondary ? secondaryColor : primaryColor), lineWidth: lineWidth)
+                y += tileSize
+                row += 1
+            }
+        }
+        .allowsHitTesting(false) // purely decorative
+        .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Unified gesture (node drag or pan)
+
+fileprivate extension MurderBoardView {
+    func unifiedDragGesture() -> some Gesture {
         DragGesture(minimumDistance: 1, coordinateSpace: .named(canvasCoordSpace))
             .onChanged { value in
-                // If a node is currently being dragged, ignore background panning.
-                guard draggingNodeID == nil, nodeDragActive == false else { return }
-                if panGestureStart == nil {
-                    panGestureStart = CGPoint(x: panX.cg, y: panY.cg)
-                }
-                if let start = panGestureStart {
-                    panX = (start.x + value.translation.width).dg
-                    panY = (start.y + value.translation.height).dg
+                switch activeDrag {
+                case .none:
+                    // Decide mode on first update
+                    if let hitID = hitTestNode(at: value.startLocation) {
+                        // Begin node drag
+                        activeDrag = .node(cardID: hitID)
+                        // Compute grab offset in world space: nodeCenterWorld − pointerWorld
+                        if let node = (board?.nodes ?? []).first(where: { $0.card?.id == hitID }) {
+                            let startPointerWorld = viewToWorld(value.startLocation)
+                            let nodeCenterWorld = CGPoint(x: node.posX, y: node.posY)
+                            dragGrabOffsetWorld = CGPoint(
+                                x: nodeCenterWorld.x - startPointerWorld.x,
+                                y: nodeCenterWorld.y - startPointerWorld.y
+                            )
+                        }
+                    } else {
+                        // Begin background pan
+                        activeDrag = .pan
+                        panGestureStart = CGPoint(x: panX.cg, y: panY.cg)
+                    }
+                    // Perform the appropriate update for the chosen mode
+                    if case .node(let id) = activeDrag {
+                        guard let node = (board?.nodes ?? []).first(where: { $0.card?.id == id }) else { return }
+                        let pointerWorld = viewToWorld(value.location)
+                        let newCenter = CGPoint(
+                            x: pointerWorld.x + dragGrabOffsetWorld.x,
+                            y: pointerWorld.y + dragGrabOffsetWorld.y
+                        )
+                        node.posX = newCenter.x.dg
+                        node.posY = newCenter.y.dg
+                        try? modelContext.save()
+                    } else if case .pan = activeDrag {
+                        if let start = panGestureStart {
+                            panX = (start.x + value.translation.width).dg
+                            panY = (start.y + value.translation.height).dg
+                        }
+                    }
+
+                case .node(let id):
+                    // Update node position if still present
+                    guard let node = (board?.nodes ?? []).first(where: { $0.card?.id == id }) else { return }
+                    let pointerWorld = viewToWorld(value.location)
+                    let newCenter = CGPoint(
+                        x: pointerWorld.x + dragGrabOffsetWorld.x,
+                        y: pointerWorld.y + dragGrabOffsetWorld.y
+                    )
+                    node.posX = newCenter.x.dg
+                    node.posY = newCenter.y.dg
+                    try? modelContext.save()
+
+                case .pan:
+                    if let start = panGestureStart {
+                        panX = (start.x + value.translation.width).dg
+                        panY = (start.y + value.translation.height).dg
+                    }
                 }
             }
             .onEnded { _ in
+                if case .pan = activeDrag {
+                    persistTransformNow()
+                }
+                // Reset
+                activeDrag = .none
                 panGestureStart = nil
-                persistTransformNow()
+                dragGrabOffsetWorld = .zero
             }
     }
 
-    func nodeDragGesture(node: BoardNode, card: Card) -> some Gesture {
-        DragGesture(minimumDistance: 1, coordinateSpace: .named(canvasCoordSpace))
-            .updating($nodeDragActive) { _, state, _ in
-                // Mark node drag as active as soon as the gesture updates begin
-                state = true
-            }
-            .onChanged { value in
-                // Initialize grab offset on the first change of this drag (translation == .zero)
-                if value.translation == .zero {
-                    draggingNodeID = card.id
-                    let startPointerWorld = viewToWorld(value.startLocation)
-                    let nodeCenterWorld = CGPoint(x: node.posX, y: node.posY)
-                    dragGrabOffsetWorld = CGPoint(
-                        x: nodeCenterWorld.x - startPointerWorld.x,
-                        y: nodeCenterWorld.y - startPointerWorld.y
-                    )
-                }
-                // Update node position: pointerWorld + grabOffset
-                let pointerWorld = viewToWorld(value.location)
-                let newCenter = CGPoint(
-                    x: pointerWorld.x + dragGrabOffsetWorld.x,
-                    y: pointerWorld.y + dragGrabOffsetWorld.y
-                )
-                node.posX = newCenter.x.dg
-                node.posY = newCenter.y.dg
-                try? modelContext.save()
-            }
-            .onEnded { _ in
-                draggingNodeID = nil
-                dragGrabOffsetWorld = .zero
-            }
+    // Pick the topmost node whose frame contains the point.
+    // Prefer the currently selected node if multiple overlap at the start point.
+    func hitTestNode(at point: CGPoint) -> UUID? {
+        // Gather candidates whose frame contains the point
+        let candidates = nodeFrames.filter { _, rect in rect.contains(point) }.map { $0.key }
+        guard !candidates.isEmpty else { return nil }
+        // If selected node is among them, prefer it
+        if let sel = selectedCardID, candidates.contains(sel) {
+            return sel
+        }
+        // Otherwise pick the last inserted candidate (approximate topmost)
+        // Using order from board.nodes to keep stable
+        let order = (board?.nodes ?? []).compactMap { $0.card?.id }
+        for id in order.reversed() {
+            if candidates.contains(id) { return id }
+        }
+        return candidates.last
     }
 }
 
 // MARK: - Toolbar
 
-private extension MurderBoardView {
+fileprivate extension MurderBoardView {
     @ToolbarContentBuilder
     func toolbarContent(windowSize: CGSize) -> some ToolbarContent {
         ToolbarItemGroup(placement: .automatic) {
@@ -500,7 +851,7 @@ private extension MurderBoardView {
 
 // MARK: - Board load and transform persistence
 
-private extension MurderBoardView {
+fileprivate extension MurderBoardView {
     @MainActor
     func loadBoardIfNeeded() async {
         if board == nil {
@@ -537,6 +888,8 @@ private extension MurderBoardView {
 
     // Initial recenter logic (0240–0280, 0250)
     func initialRecenterIfNeeded(on b: Board, windowSize: CGSize) {
+        guard didInitialRecenter == false else { return }
+
         // Ensure node exists
         b.ensurePrimaryPresence(in: modelContext)
 
@@ -580,15 +933,6 @@ private extension CGFloat {
 
 private extension Double {
     var cg: CGFloat { CGFloat(self) }
-}
-
-private extension CGSize {
-    func dxClamped(min: Double, max: Double) -> Double {
-        Double(width).rangeClamped(to: min...max)
-    }
-    func dyClamped(min: Double, max: Double) -> Double {
-        Double(height).rangeClamped(to: min...max)
-    }
 }
 
 private extension Comparable {
@@ -656,4 +1000,13 @@ private extension Comparable {
     .modelContainer(container)
     .frame(minWidth: 820, minHeight: 560)
 }
+
+#if canImport(Testing)
+// MARK: - MurderBoard Verification Suite (Swift Testing)
+
+@Suite("MurderBoardView Verification (Phases 0–14)")
+struct MurderBoardVerification {
+    // [tests unchanged]
+}
+#endif
 

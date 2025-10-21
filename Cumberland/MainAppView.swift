@@ -40,6 +40,9 @@ struct MainAppView: View {
     @State private var showingCardEditor = false
     @State private var showingEditCardEditor = false
     @State private var showingSettings = false
+    #if DEBUG
+    @State private var showingDeveloperBoards = false
+    #endif
 
     // Three-pane split visibility (keep all visible on macOS by default)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -156,6 +159,23 @@ struct MainAppView: View {
             .presentationSizing(.fitted)
             #endif
         }
+        #if DEBUG
+        .sheet(isPresented: $showingDeveloperBoards) {
+            #if os(iOS)
+            NavigationStack {
+                DeveloperBoardsView()
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #else
+            NavigationView {
+                DeveloperBoardsView()
+            }
+            .frame(minWidth: 920, minHeight: 560)
+            .presentationSizing(.fitted)
+            #endif
+        }
+        #endif
         .toolbar {
             // Keep the leading nav-space free on iOS so the system sidebar toggle remains native.
             #if !os(iOS)
@@ -182,6 +202,15 @@ struct MainAppView: View {
                     Label("Edit", systemImage: "pencil")
                 }
                 .disabled(selectedCard == nil)
+
+                #if DEBUG
+                Button {
+                    showingDeveloperBoards = true
+                } label: {
+                    Label("Developer Boards", systemImage: "wrench.and.screwdriver")
+                }
+                .help("Inspect and repair Boards and BoardNodes")
+                #endif
             }
 
             // macOS segmented picker can remain at outer level

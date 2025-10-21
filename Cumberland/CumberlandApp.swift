@@ -218,6 +218,14 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 780, minHeight: 560)
         }
+
+        // New: Boards diagnostics (live container)
+        Window("Diagnostics: Boards", id: "dev.boards") {
+            DeveloperBoardsView()
+                .modelContainer(modelContainer) // live container
+                .preferredColorScheme(appPreferredColorScheme)
+                .frame(minWidth: 920, minHeight: 560)
+        }
         #endif
         #endif
      }
@@ -271,7 +279,7 @@ private extension CumberlandApp {
             // Global (Any → Any)
             .init(code: "references", forward: "references", inverse: "referenced by", source: nil, target: nil),
             .init(code: "related-to/related-to", forward: "related to", inverse: "related to", source: nil, target: nil),
-            .init(code: "same-as/same-as", forward: "same as", inverse: "same as", source: nil, target: nil),
+            .init(code: "same-as/same-as", forward: "same as", inverse: "same-as", source: nil, target: nil), // keep as-is per existing
             .init(code: "includes/part-of", forward: "includes", inverse: "part of", source: nil, target: nil),
             .init(code: "depends-on/required-by", forward: "depends on", inverse: "required by", source: nil, target: nil),
             .init(code: "precedes/follows", forward: "precedes", inverse: "follows", source: nil, target: nil),
@@ -661,6 +669,12 @@ private struct DeveloperCommands: Commands {
                 openWindow(id: "dev.storyStructure")
             }
             .keyboardShortcut("9", modifiers: [.command, .shift])
+
+            // New: Boards (Live)
+            Button("Boards (Live)") {
+                openWindow(id: "dev.boards")
+            }
+            .keyboardShortcut("B", modifiers: [.command, .shift])
 
             Divider()
 

@@ -79,6 +79,7 @@
 				ContentPlaceholderView.swift,
 				ContentView.swift,
 				CumberlandApp.swift,
+				DeveloperBoardsView.swift,
 				"Diagnostic Views/CardDiagnosticsView.swift",
 				"Diagnostic Views/RecentEdgesDiagnosticsView.swift",
 				"Diagnostic Views/RelationTypesDiagnosticsView.swift",
