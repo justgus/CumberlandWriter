@@ -105,7 +105,7 @@
 				Model/RelationType.swift,
 				Model/Source.swift,
 				Model/StoryStructure.swift,
-				MurderboardView.swift,
+				MurderBoardViewSpec.md,
 				QuickAttributionSheet.swift,
 				ReassignRelationTypeSheet.swift,
 				RelatedEdgesList.swift,
@@ -974,6 +974,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;

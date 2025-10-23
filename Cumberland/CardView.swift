@@ -117,6 +117,24 @@ struct CardView: View {
         }
         // Cap the overall width so long text doesn’t try to render on one line
         .frame(maxWidth: maxCardWidth, alignment: .topLeading)
+        // Report the visual “card shape” size (excluding outer padding used only to accommodate tabs)
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .preference(
+                        key: CardViewVisualSizeKey.self,
+                        value: {
+                            // Whole view size includes outer padding we added explicitly:
+                            // Horizontal: 20 (left) + 20 (right) = 40
+                            // Vertical:   (20 + tabTopAllowance) + (20 + tabBottomAllowance)
+                            let full = geo.size
+                            let visualWidth = max(1, full.width - 40)
+                            let visualHeight = max(1, full.height - ((20 + tabTopAllowance) + (20 + tabBottomAllowance)))
+                            return [card.id: CGSize(width: visualWidth, height: visualHeight)]
+                        }()
+                    )
+            }
+        )
         .task(id: card.thumbnailData) {
             // Reload when the embedded thumbnail changes
             await loadThumbnail()
@@ -261,6 +279,15 @@ struct CardView: View {
         withAnimation(.easeInOut(duration: 0.15)) {
             self.thumbnail = img
         }
+    }
+}
+
+// MARK: - Visual size preference for hit-testing
+
+struct CardViewVisualSizeKey: PreferenceKey {
+    static var defaultValue: [UUID: CGSize] = [:]
+    static func reduce(value: inout [UUID: CGSize], nextValue: () -> [UUID: CGSize]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }
 
