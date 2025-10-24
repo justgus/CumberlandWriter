@@ -57,6 +57,8 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   0202 - If multiple relationships exist between the same two Cards, the single displayed edge shall be chosen deterministically (e.g., by a RelationType priority list; if tied, by earliest creation date; if unavailable, by a stable UUID order). Unless otherwise specified, the edge is visually undirected and carries no label.
   0210 - Edges shall be straight line segments that span from the center of the source CardView to the center of the target CardView.
   0220 - Edges shall be at least three points thick and shall remain clearly visible against the View Canvas background in both light and dark appearances.
+  0222 - Edges shall be colored using a three color gradient.
+  0224 - From source node to target node the Edge colors shall be 1 - the border color of the taget node, 2 - the grid contrast color (dark or light depending on the display mode), and 3 - the border color of the source node.
   0225 - Edges and selection borders shall maintain sufficient contrast in both light and dark appearances; colors shall adapt to system appearance.
   0230 - Edges on the murder board shall be displayed just behind the CardViews.
   0232 - Z-order shall be: (1) the Grid background (bottommost), (2) Edges, (3) CardViews (nodes), and (4) selection/interaction overlays (topmost).
@@ -91,7 +93,7 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   0410 - The View Window shall have a toolbar.
   0420 - The View Window toolbar shall include a zoom control.
   0430 - The zoom control shall allow the specification of zoom percentages from 1% to 200% with 100% being the default.
-  0435 - The zoom factor S shall be clamped to the inclusive range [0.01, 2.0]. Text entry shall clamp to [1, 200]% and round to the nearest integer percent; non-numeric input is ignored.
+  0435 - The zoom factor S shall be clamped to the inclusive range [0.01, 2.0]. Text entry shall clamp to [1, 200]% and round to the nearest integer; non-numeric input is ignored.
   0440 - The toolbar shall have a “recenter” button.
   0450 - the recenter button shall pan the View Canvas so that the first node, or the primary node if one is present, is in the center of the View Window.
   0452 - If the target node’s position is uninitialized, it shall be initialized per 0260 prior to recentering. Recenter shall not change the zoom level (0250).
@@ -167,29 +169,60 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   - Edges
     - E1: A single straight segment is displayed for each Card pair with one or more relationships, chosen deterministically (priority, then creation date, then stable UUID).
     - E2: Edges connect node centers and render above the grid and below nodes; thickness is at least 3 pt with sufficient contrast in both appearances.
+    - E3: ✓ Each edge is stroked with a three‑color linear gradient aligned from source to target; the color stops (in order along the segment) are: target node border color, grid contrast color (light/dark aware), and source node border color (0222, 0224).
+    - E4: ✓ The “border color” used for edges matches the CardView border color for that node; if it cannot be resolved, a deterministic fallback (AccentColor) is used. The grid contrast color adapts to appearance and maintains legibility (0225).
+    - E5: ✓ Gradient edges preserve z‑order (grid < edges < nodes < overlays), maintain ≥ 3 pt thickness, and render without performance regressions for dozens to low hundreds of edges.
   - Initial Display and Recenter
     - F1: ✓ On first display, the canvas recenters on the Primary node if present, otherwise on the first node; no zoom change occurs.
     - F2: ✓ If the target node’s position is uninitialized, it is set to the center of the current View Canvas Rectangle before recentering.
   - Selection and Interaction
     - G1: ✓ Clicking a node selects it; clicking the canvas background clears selection.
-      Root cause: Short click motions are sometimes captured by the unified DragGesture on the canvas before the CardView’s tap gesture, so the drag path wins the gesture arena and prevents selection. This is more likely at higher zoom and before nodeSizes are measured, making edge hits marginal.
-      Corrective actions taken: Standardized hit testing using world-space rects derived from measured CardView sizes; added a clear contentShape on the canvas to reduce ambiguity; tuned DragGesture minimumDistance to reduce false drags. Additional queued refinement: add highPriorityGesture for CardView taps so taps win over a competing drag start.
-    - G2: ✓ Nodes can be dragged with standard click-drag; the node follows the pointer preserving the initial grab offset in world coordinates.
-      Root cause: Fixed — gesture state machine moved the initially hit node even when the lock decided on background pan. The .pending branch updated node.posX/posY unconditionally after lock decision, causing “click anywhere and one node drags.”
-      CA-1: In .pending, move the node only if we lock to .node; if we lock to .pan, do not modify any node. Seed grab offset only when locking to node; seed panGestureStart when locking to pan.
-      CA-2: Instrumented the unified drag state machine with per-drag diagnostics: record startHit node ID (or nil), the first lock decision (.node or .pan) and lock distance, and which node ID actually moves (if any). This exposes cases where a node moves after a pan lock or where hit testing is overly permissive (e.g., .node chosen unexpectedly). Expect concise logs per drag such as “[MB] Drag start … / Lock=pan at dist=6.0” or “Lock=node(id=…) at dist=5.2,” plus a final summary line.
-      CA-3: Added a short‑lived visual debug overlay at drag start that outlines each node’s computed view‑space rect and marks the startLocation with a dot. This immediately reveals oversized/incorrect rects (e.g., wrong coordinate space) and visually validates the world→view projection; the start point should only fall inside a rect when pressing over a card.
-      CA-4: Revised hit-rectangle computation to use a helper nodeSizeInViewPoints(for:) that returns measured size × zoomScale (with clamping). All view-space rects now use this helper in computeAllNodeRectsInView(), hitTestNode(at:), and isPoint(_:insideNodeWithID:). Added a tiny CGSize.scaled(by:) helper to support this.
-      CA-5: Hit rectangles now use CardView-reported visual card-shape size (excluding outer padding for tabs/shadows). MurderBoardView consumes CardViewVisualSizeKey and scales by current zoom; falls back to legacy layout size until available. This removes apparent padding around hit rects and improves drag lock precision at all zooms.
+        Root cause: Short click motions are sometimes captured by the unified DragGesture on the canvas before the CardView’s tap gesture, so the drag path wins the gesture arena and prevents selection. This is more likely at higher zoom and before nodeSizes are measured, making edge hits marginal.
+        Corrective actions taken: Standardized hit testing using world-space rects derived from measured CardView sizes; added a clear contentShape on the canvas to reduce ambiguity; tuned DragGesture minimumDistance to reduce false drags. Additional queued refinement: add highPriorityGesture for CardView taps so taps win over a competing drag start.
+        CA-6 Standardized world-space hit testing using CardView visual bounds; clearer canvas contentShape; reduced DragGesture minimumDistance; added highPriorityGesture so card taps win.
+        CA-7 Non-interfering click overlay logs/visualizes hit rects; confirms hit-test math without affecting gestures.
+        Rejection (new): Clicks/hit-tests look correct, but selection still doesn’t change; short clicks that remain .pending or lock to .pan never assign selection.
+        CA-8 Unified drag onEnded now treats short clicks (distance < tapThreshold) in .pan/.pending as selection/clear via hitTestNode(at:).
+        CA-9 Shortened summary — added selection diagnostics and one-tick suppression so a CardView tap can’t be immediately cleared by the canvas short‑click path; logs make selection assignment/clears explicit.
+        CA-10 Added a simultaneous SpatialTapGesture on the canvas to handle pure taps that never trigger DragGesture. On tap, if hitTestNode(at:) finds a node, select it; otherwise clear selection. Respects suppressBackgroundClickClear so a CardView’s highPriority tap can’t be immediately overridden. Logs “[MB] Canvas tap: select …” or “… clear selection.”
+        CA-11 Diagnostic overlays draw (a) the View Canvas rectangle in view space inset by 5 pt, and (b) the Nodes Extents rectangle computed in world space from CardView visual bounds with padding for shadows/selection, transformed to view space for display.
+        CA-12 We have enough of your project to fix this precisely. The most robust remedy is to make hit testing use the exact same view-space rectangles that your debug overlay draws, instead of mixing a view-space point with a world-space rectangle. That eliminates any chance of a small world/view mismatch (padding, rounding, transform ordering, etc.) causing quadrant-specific mis-selections or preventing deselection.
+        Proposed root causes (G1):
+        RC-1 Gesture arbitration and sequencing: a short click that routes through DragGesture’s .onEnded (short‑click path) can be immediately superseded by the simultaneous canvas SpatialTapGesture, which may clear selection if it interprets the same click as a background tap. Ordering/race varies by region, producing an apparent quadrant effect even when hit-test rects are correct.
+        RC-2 Coordinate-space inconsistency for gesture locations: while the hit-test rectangles and debug overlays are correct, the SpatialTapGesture’s value.location can be resolved in a slightly different local space than the one used to compute rects (due to padding/clip/overlay layers around the canvas). This yields a consistent offset whose sign flips around the View Canvas center, so taps in one quadrant are misinterpreted as background.
+        RC-3 Suppression scope: suppressBackgroundClickClear is applied for CardView’s highPriority tap, but not for the DragGesture short‑click selection path. When selection is assigned by the drag’s .onEnded handler, the canvas tap may still run and clear it in the same event turn.
+        CA-13 Normalize gesture locations and serialize selection handling:
+            - CA-13.1 Explicitly convert all gesture points (DragGesture start/location and SpatialTapGesture location) into the named canvasCoordSpace using GeometryProxy.convert(…, from: .global, to: .named(canvasCoordSpace)) before hit testing.
+            - CA-13.2 Attach both gestures at the same view that defines coordinateSpace(name: canvasCoordSpace) after the border padding/clip so their locations are measured in the exact same space as the rects.
+            - CA-13.3 Extend suppressBackgroundClickClear to the drag short‑click selection path: set it when assigning selection in .onEnded for distance < tapThreshold and clear it on the next runloop tick. This prevents the canvas tap from immediately clearing a just‑assigned selection.
+            - CA-13.4 Prefer a single path to assign/clear selection for taps (the SpatialTapGesture), and keep the drag short‑click as a fallback only. Guard the fallback with the same suppression flag to avoid double‑processing.
+            - CA-13.5 Add concise logs showing converted points and which handler ultimately set/cleared selection to verify that only one path wins per click.    - G2: ✓ Nodes can be dragged with standard click-drag; the node follows the pointer preserving the initial grab offset in world coordinates.
+        RC-4 Conflicting dual tap paths: both the canvas SpatialTapGesture and a highPriority TapGesture on each CardView independently assign selection. Ordering varies, so the child tap can override a correct canvas decision or re-select after a canvas clear, matching the observed logs.
+        CA-13 Normalize gesture locations and serialize selection handling (C13.1–C13.5).
+        CA-14 Single-source tap selection from the canvas: remove CardView’s highPriority tap; keep drag short‑click fallback guarded by suppression. Also remove the broad contentShape on the transformed nodes container to reduce parent over‑hittability. This eliminates the race so only one authoritative selection decision runs per click.
     - G3: ✓ Panning occurs via click-drag on the canvas background.
+        RC-0: Fixed — gesture state machine moved the initially hit node even when the lock decided on background pan. The .pending branch updated node.posX/posY unconditionally after lock decision, causing “click anywhere and one node drags.”
+        CA-1: In .pending, move the node only if we lock to .node; if we lock to .pan, do not modify any node. Seed grab offset only when locking to node; seed panGestureStart when locking to pan.
+        CA-2: Instrumented the unified drag state machine with per-drag diagnostics: record startHit node ID (or nil), the first lock decision (.node or .pan) and lock distance, and which node ID actually moves (if any). This exposes cases where a node moves after a pan lock or where hit testing is overly permissive (e.g., .node chosen unexpectedly). Expect concise logs per drag such as “[MB] Drag start … / Lock=pan at dist=6.0” or “Lock=node(id=…) at dist=5.2,” plus a final summary line.
+        CA-3: Added a short‑lived visual debug overlay at drag start that outlines each node’s computed view‑space rect and marks the startLocation with a dot. This immediately reveals oversized/incorrect rects (e.g., wrong coordinate space) and visually validates the world→view projection; the start point should only fall inside a rect when pressing over a card.
+        CA-4: Revised hit-rectangle computation to use a helper nodeSizeInViewPoints(for:) that returns measured size × zoomScale (with clamping). All view-space rects now use this helper in computeAllNodeRectsInView(), hitTestNode(at:), and isPoint(_:insideNodeWithID:). Added a tiny CGSize.scaled(by:) helper to support this.
+        CA-5: Hit rectangles now use CardView-reported visual card-shape size (excluding outer padding for tabs/shadows). MurderBoardView consumes CardViewVisualSizeKey and scales by current zoom; falls back to legacy layout size until available. This removes apparent padding around hit rects and improves drag lock precision at all zooms.
     - G4: Selection is cleared if the selected node is removed or becomes non-visible in the board.
-  - Zoom Controls
-    - H1: Toolbar includes Zoom Out button, slider (1%–200%), Zoom In button, and percent text field.
-    - H2: Percent entry clamps to [1, 200], ignores non-numeric input, and rounds to the nearest integer; zooming keeps the world point under the window center fixed by adjusting T analytically.
-  - Shuffle
+ - Zoom Controls
+    - H1: ✓ Toolbar includes Zoom Out button, slider (1%–200%), Zoom In button, and percent text field.
+    - H2: ✓ Percent entry clamps to [1, 200], ignores non-numeric input, and rounds to the nearest integer; zooming keeps the world point under the window center fixed by adjusting T analytically.
+ - Shuffle
     - I1: “Shuffle” arranges all nodes except the Primary (if present) around the Primary (or first) in world space using a ring layout with random jitter.
+      RC-5: Fixed-radius rings ignored actual CardView sizes expressed in world units, so circumference-per-node was too small at typical zooms. Because node sizes scale inversely with zoom in world space, a constant radius causes overlaps regardless of zoom percentage.
+      CA-15: Make ring radii and per-ring capacity adaptive in world space:
+        - Compute each node’s world-space size using the same CardView visual bounds used for hit testing (nodeSizeInWorldPoints).
+        - Choose a base radius from the anchor’s world size plus margin.
+        - For each ring, compute desired arc spacing = avg node width × spacingMultiplier (e.g., 1.25).
+        - Capacity = floor(2πr / desiredSpacing). If remaining nodes exceed capacity, increase r until capacity ≥ remaining for that ring.
+        - Use a zoom‑independent ring separation based on max node span in world units to avoid cross‑ring overlaps.
+        - Place nodes evenly with small jitter; persist immediately.
     - I2: Repeated shuffles produce different arrangements; the Primary’s position does not change.
-    - I3: New positions persist immediately; edges update automatically from node centers.
+    - I3: New positions persist immediately; edges update automatically.
   - Primary Enforcement and Reset
     - J1: When enforcement is active and a Primary is set, the Primary must be present as a node; if missing, it is auto-created.
     - J2: During and immediately after a reset (all nodes removed), enforcement is suspended; the Primary may be removed and primaryCard may be cleared.
@@ -239,6 +272,7 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   - Phase 5: Edges Rendering
     - Collapse CardEdge relations to one per pair using deterministic rule.
     - Render edges between node centers with correct z-order (grid < edges < nodes < overlays) and thickness ≥ 3 pt.
+    - New (0222/0224): Stroke each displayed segment with a three-stop linear gradient aligned from source→target with stops [target border color, grid contrast color (light/dark aware), source border color]. Derive node border colors from the same source used by CardView (Kinds.accentColor(for:)); fall back to AccentColor if unavailable. Cache per-node colors during a pass to avoid redundant lookups.
  
   - Phase 6: Gestures and Interaction
     - Add a unified drag gesture: if the gesture starts over a node (prefer selected on overlap) then node-drag; else pan.
@@ -348,6 +382,9 @@ struct MurderBoardView: View {
     // Named coordinate space for consistent gesture math (canvas/view space)
     fileprivate let canvasCoordSpace = "MurderBoardCanvasSpace"
 
+    // Prevent parent short-click clear from racing after a child tap
+    @State private var suppressBackgroundClickClear: Bool = false
+
     // MARK: - Debug instrumentation (Actions 1 & 2)
 
     #if DEBUG
@@ -358,6 +395,11 @@ struct MurderBoardView: View {
     @State private var debugFirstLockDescription: String? = nil
     @State private var debugFirstLockDistance: Double = 0
     @State private var debugMovedNodeID: UUID? = nil
+
+    // New: click overlay (non-interfering with drag)
+    @State private var debugClickPoint: CGPoint? = nil
+    @State private var debugRectsAtClick: [CGRect] = []
+    @State private var debugClickHitID: UUID? = nil
     #endif
 
     init (primary: Card) {
@@ -482,6 +524,13 @@ struct MurderBoardView: View {
             if clamped != panY { panY = clamped; return }
             persistTransformDebounced()
         }
+        #if DEBUG
+        .onChange(of: selectedCardID) { old, new in
+            let o = old?.uuidString ?? "nil"
+            let n = new?.uuidString ?? "nil"
+            print("[MB] Selection changed: \(o) → \(n)")
+        }
+        #endif
     }
 }
 
@@ -539,56 +588,337 @@ fileprivate extension MurderBoardView {
         MurderBoardTransform.worldCenter(forWindowSize: size, scale: zoomScale, panX: panX, panY: panY)
     }
 
+    // Convert a world-space rect to a view-space rect (axis-aligned since transform is uniform scale + translation)
+    func worldRectToViewRect(_ rectWorld: CGRect) -> CGRect {
+        let p0 = worldToView(CGPoint(x: rectWorld.minX, y: rectWorld.minY))
+        let p1 = worldToView(CGPoint(x: rectWorld.maxX, y: rectWorld.maxY))
+        return CGRect(x: min(p0.x, p1.x),
+                      y: min(p0.y, p1.y),
+                      width: abs(p1.x - p0.x),
+                      height: abs(p1.y - p0.y))
+    }
+
+    // Compute Nodes Extents in world coordinates using CardView visual sizes + padding (0160)
+    func computeNodesExtentsWorld() -> CGRect? {
+        guard let b = board else { return nil }
+        let nodes = (b.nodes ?? [])
+        var rect: CGRect?
+
+        // Padding to include shadows and selection borders (expressed in VIEW points), then normalized to world units.
+        // Components: inner stroke (12), drop shadow spread (~6), selection border (up to 4) => ~22; add a small safety margin.
+        let paddingView: CGFloat = 24
+        let s = max(zoomScale, 0.000001)
+        let paddingWorld = paddingView / s
+
+        for node in nodes {
+            guard let id = node.card?.id else { continue }
+            let sizeWorld = nodeSizeInWorldPoints(for: id)
+            let centerWorld = CGPoint(x: node.posX, y: node.posY)
+            var r = CGRect(
+                x: centerWorld.x - sizeWorld.width / 2.0,
+                y: centerWorld.y - sizeWorld.height / 2.0,
+                width: sizeWorld.width,
+                height: sizeWorld.height
+            )
+            r = r.insetBy(dx: -paddingWorld, dy: -paddingWorld)
+            if let existing = rect {
+                rect = existing.union(r)
+            } else {
+                rect = r
+            }
+        }
+        return rect
+    }
+
     @ViewBuilder
     func canvasLayer(windowSize: CGSize, windowCenter: CGPoint) -> some View {
-        ZStack {
-            // Background container: base fill + grid overlay.
+        // Attach gestures and define the named coordinate space on the SAME view (CA-13.2).
+        GeometryReader { geo in
             ZStack {
-                Rectangle()
-                    .fill(scheme == .dark ? Color.black.opacity(0.20) : Color.black.opacity(0.04))
-
-                GridBackground(
-                    tileSize: 40,
-                    lineWidth: 0.5,
-                    primaryOpacity: scheme == .dark ? 0.22 : 0.10,
-                    secondaryEvery: 5,
-                    secondaryOpacity: scheme == .dark ? 0.28 : 0.14
-                )
-            }
-            .ignoresSafeArea()
-
-            if isContentReady {
-                nodesLayer(windowSize: windowSize)
-                    .transition(.opacity .combined(with: .scale))
-            }
-
-            // Debug overlay: rects + start dot (visible only when enabled and we have a start point)
-            #if DEBUG
-            if debugHitTestingEnabled, let start = debugStartPoint {
-                let highlighted = Set(debugRectsAtStart.enumerated().filter { $0.element.contains(start) }.map { $0.offset })
+                // Background container: base fill + grid overlay.
                 ZStack {
-                    ForEach(Array(debugRectsAtStart.enumerated()), id: \.offset) { idx, rect in
-                        Rectangle()
-                            .path(in: rect)
-                            .stroke(highlighted.contains(idx) ? Color.red : Color.blue, style: StrokeStyle(lineWidth: highlighted.contains(idx) ? 2 : 1, dash: [4, 3]))
-                    }
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 6, height: 6)
-                        .position(start)
-                        .shadow(radius: 2)
+                    Rectangle()
+                        .fill(scheme == .dark ? Color.black.opacity(0.20) : Color.black.opacity(0.04))
+
+                    GridBackground(
+                        tileSize: 40,
+                        lineWidth: 0.5,
+                        primaryOpacity: scheme == .dark ? 0.22 : 0.10,
+                        secondaryEvery: 5,
+                        secondaryOpacity: scheme == .dark ? 0.28 : 0.14
+                    )
                 }
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-                .transition(.opacity)
+                .ignoresSafeArea()
+
+                // Phase 5: Edges layer (renders above grid, below nodes)
+                edgesLayer()
+                    .allowsHitTesting(false)
+
+                if isContentReady {
+                    nodesLayer(windowSize: windowSize)
+                        .transition(.opacity .combined(with: .scale))
+                }
+
+                // Debug overlay: rects + start dot (visible only when enabled and we have a start point)
+                #if DEBUG
+                if debugHitTestingEnabled, let start = debugStartPoint {
+                    let highlighted = Set(debugRectsAtStart.enumerated().filter { $0.element.contains(start) }.map { $0.offset })
+                    ZStack {
+                        ForEach(Array(debugRectsAtStart.enumerated()), id: \.offset) { idx, rect in
+                            Rectangle()
+                                .path(in: rect)
+                                .stroke(highlighted.contains(idx) ? Color.red : Color.blue, style: StrokeStyle(lineWidth: highlighted.contains(idx) ? 2 : 1, dash: [4, 3]))
+                        }
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 6, height: 6)
+                            .position(start)
+                            .shadow(radius: 2)
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                    .transition(.opacity)
+                }
+
+                // New: click overlay (green), independent from drag overlay
+                if debugHitTestingEnabled, let click = debugClickPoint {
+                    let highlighted = Set(debugRectsAtClick.enumerated().filter { $0.element.contains(click) }.map { $0.offset })
+                    ZStack {
+                        ForEach(Array(debugRectsAtClick.enumerated()), id: \.offset) { idx, rect in
+                            Rectangle()
+                                .path(in: rect)
+                                .stroke(highlighted.contains(idx) ? Color.green : Color.mint, style: StrokeStyle(lineWidth: highlighted.contains(idx) ? 2 : 1, dash: [5, 3]))
+                        }
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 6, height: 6)
+                            .position(click)
+                            .shadow(radius: 2)
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                    .transition(.opacity)
+                }
+
+                // CA-11: View Canvas Rectangle (in view space), inset by 5 points on all sides
+                if debugHitTestingEnabled {
+                    let inset: CGFloat = 5
+                    let viewCanvasRectInView = CGRect(origin: .zero, size: windowSize).insetBy(dx: inset, dy: inset)
+                    Rectangle()
+                        .path(in: viewCanvasRectInView)
+                        .stroke(
+                            Color.orange,
+                            style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+                        )
+                        .overlay(
+                            Text("View Canvas")
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                                .padding(4)
+                                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                .position(x: viewCanvasRectInView.minX + 72, y: viewCanvasRectInView.minY + 12)
+                        )
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                        .transition(.opacity)
+                }
+
+                // CA-11: Nodes Extents Rectangle (computed in world, shown in view space)
+                if debugHitTestingEnabled, let extWorld = computeNodesExtentsWorld() {
+                    let extView = worldRectToViewRect(extWorld)
+                    Rectangle()
+                        .path(in: extView)
+                        .stroke(
+                            Color.purple,
+                            style: StrokeStyle(lineWidth: 1.5, dash: [3, 3])
+                        )
+                        .overlay(
+                            Text("Nodes Extents")
+                                .font(.caption2)
+                                .foregroundStyle(.purple)
+                                .padding(4)
+                                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                .position(x: extView.minX + 80, y: extView.minY + 12)
+                        )
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                        .transition(.opacity)
+                }
+                #endif
             }
+            // Untransformed, stable view-space that we also name for gestures/hit-testing (CA-13.2)
+            .coordinateSpace(name: canvasCoordSpace)
+            .contentShape(Rectangle())
+            // Unified gesture attached here — use local/named space so locations match the rects (CA-13.1)
+            .gesture(unifiedDragGesture())
+            // Real canvas tap handler — single authoritative path for selection (CA-14)
+            .simultaneousGesture(
+                SpatialTapGesture()
+                    .onEnded { value in
+                        if suppressBackgroundClickClear {
+                            #if DEBUG
+                            print("[MB] Canvas tap suppressed by child/drag short-click")
+                            #endif
+                            return
+                        }
+                        let p = value.location
+                        if let hit = hitTestNode(at: p) {
+                            selectedCardID = hit
+                            #if DEBUG
+                            print("[MB] Canvas tap: select id=\(hit.uuidString) at \(formatPoint(p))")
+                            #endif
+                        } else {
+                            selectedCardID = nil
+                            #if DEBUG
+                            print("[MB] Canvas tap: clear selection at \(formatPoint(p))")
+                            #endif
+                        }
+                    }
+            )
+            #if DEBUG
+            // Non-interfering click inspection: records hit-test snapshot without changing selection or drag routing
+            .simultaneousGesture(
+                SpatialTapGesture()
+                    .onEnded { value in
+                        guard debugHitTestingEnabled else { return }
+                        let p = value.location // local canvas space
+                        debugClickPoint = p
+                        debugRectsAtClick = computeAllNodeRectsInView()
+                        debugClickHitID = hitTestNode(at: p)
+                        let hitStr = debugClickHitID?.uuidString ?? "nil"
+                        print("[MB] Click inspect: point=\(formatPoint(p)) hit=\(hitStr) rects=\(debugRectsAtClick.count)")
+                        // Auto-hide overlay after a short time
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 1_200_000_000)
+                            withAnimation(.easeOut(duration: 0.15)) {
+                                debugClickPoint = nil
+                                debugRectsAtClick = []
+                            }
+                        }
+                    }
+            )
             #endif
         }
-        // Untransformed, stable view-space
-        .coordinateSpace(name: canvasCoordSpace)
-        .contentShape(Rectangle())
-        // Unified gesture attached here
-        .gesture(unifiedDragGesture())
+    }
+
+    // MARK: - Edges (Phase 5)
+
+    // An undirected pair key for grouping edges between two cards
+    struct UndirectedPair: Hashable {
+        let a: UUID
+        let b: UUID
+        init(_ i1: UUID, _ i2: UUID) {
+            if i1.uuidString < i2.uuidString {
+                a = i1; b = i2
+            } else {
+                a = i2; b = i1
+            }
+        }
+    }
+
+    // Compute the single displayed segment per card pair, deterministically (E1).
+    // Returns card IDs and world-space endpoints for drawing.
+    func displayedEdges() -> [(fromID: UUID, toID: UUID, start: CGPoint, end: CGPoint)] {
+        guard let b = board else { return [] }
+        let nodes = (b.nodes ?? [])
+        // Map cardID -> node center (world)
+        var centers: [UUID: CGPoint] = [:]
+        for n in nodes {
+            if let id = n.card?.id {
+                centers[id] = CGPoint(x: n.posX, y: n.posY)
+            }
+        }
+        let memberIDs = Set(centers.keys)
+        guard !memberIDs.isEmpty else { return [] }
+
+        // Group candidate CardEdges by undirected pair
+        var grouped: [UndirectedPair: [CardEdge]] = [:]
+
+        for n in nodes {
+            guard let card = n.card else { continue }
+            let outs = card.outgoingEdges ?? []
+            let ins = card.incomingEdges ?? []
+            for e in outs + ins {
+                guard let fromID = e.from?.id, let toID = e.to?.id else { continue }
+                guard fromID != toID, memberIDs.contains(fromID), memberIDs.contains(toID) else { continue }
+                let key = UndirectedPair(fromID, toID)
+                grouped[key, default: []].append(e)
+            }
+        }
+
+        func chooseEdge(_ list: [CardEdge]) -> CardEdge? {
+            return list.min(by: { lhs, rhs in
+                let lc = lhs.type?.code ?? ""
+                let rc = rhs.type?.code ?? ""
+                if lc != rc { return lc < rc }
+                if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
+                let lKey = [(lhs.from?.id.uuidString ?? ""), (lhs.to?.id.uuidString ?? ""), lc].joined(separator: "-")
+                let rKey = [(rhs.from?.id.uuidString ?? ""), (rhs.to?.id.uuidString ?? ""), rc].joined(separator: "-")
+                return lKey < rKey
+            })
+        }
+
+        var result: [(UUID, UUID, CGPoint, CGPoint)] = []
+        for (_, list) in grouped {
+            guard let chosen = chooseEdge(list),
+                  let fID = chosen.from?.id,
+                  let tID = chosen.to?.id,
+                  let p0 = centers[fID],
+                  let p1 = centers[tID] else { continue }
+            result.append((fID, tID, p0, p1))
+        }
+        return result
+    }
+
+    // Resolve the node border color used by CardView for a given card ID.
+    // Default fallback is AccentColor if the card or kind is unavailable.
+    func nodeBorderColor(for cardID: UUID) -> Color {
+        guard let b = board,
+              let node = (b.nodes ?? []).first(where: { $0.card?.id == cardID }),
+              let card = node.card
+        else {
+            return .accentColor
+        }
+        return card.kind.accentColor(for: scheme)
+    }
+
+    // Grid contrast color (light/dark aware) used as the middle stop of the edge gradient.
+    var gridContrastColor: Color {
+        scheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9)
+    }
+
+    @ViewBuilder
+    func edgesLayer() -> some View {
+        let edges = displayedEdges()
+        Canvas { context, size in
+            for e in edges {
+                let p0 = worldToView(e.start)
+                let p1 = worldToView(e.end)
+
+                // Build a simple 2-point path
+                var path = Path()
+                path.move(to: p0)
+                path.addLine(to: p1)
+
+                // Resolve stops per 0224: along source→target, stops are [target border, grid contrast, source border]
+                let sourceColor = nodeBorderColor(for: e.fromID)
+                let targetColor = nodeBorderColor(for: e.toID)
+                let midColor = gridContrastColor
+
+                let gradient = GraphicsGradient(colors: [
+                    targetColor,    // at source end (startPoint) per spec
+                    midColor,       // middle
+                    sourceColor     // at target end (endPoint) per spec
+                ])
+
+                context.stroke(
+                    path,
+                    with: .linearGradient(gradient, startPoint: p0, endPoint: p1),
+                    style: StrokeStyle(lineWidth: 3.0, lineCap: .round, lineJoin: .round)
+                )
+            }
+        }
+        .accessibilityHidden(true)
     }
 
     // MARK: - Nodes
@@ -638,6 +968,7 @@ fileprivate extension MurderBoardView {
                             nodeVisualSizes[id] = size
                         }
                     }
+                    // CA-14: Remove CardView’s highPriority tap to prevent dual tap paths; canvas tap is authoritative.
                     .zIndex(
                         (activeDrag.isDragging(cardID: card.id) ? 2 : 0) +
                         (selectedCardID == card.id ? 1 : 0)
@@ -647,7 +978,7 @@ fileprivate extension MurderBoardView {
         // World→View transform applied to the container
         .scaleEffect(zoomScale, anchor: .topLeading)
         .offset(x: panX.cg, y: panY.cg)
-        .contentShape(Rectangle())
+        // CA-14: Remove broad contentShape on the transformed container to reduce parent over‑hittability.
         .onPreferenceChange(NodeSizesKey.self) { value in
             nodeSizes = value
         }
@@ -737,30 +1068,36 @@ fileprivate struct GridBackground: View {
 // MARK: - Unified gesture (node drag or pan) with arbitration
 
 fileprivate extension MurderBoardView {
+    // CA-13.1: Use the local/named canvas coordinate space so gesture points match our hit-test rects.
     func unifiedDragGesture() -> some Gesture {
-        DragGesture(minimumDistance: 1, coordinateSpace: .named(canvasCoordSpace))
+        DragGesture(minimumDistance: 3) // default is .local; matches the view that defines canvasCoordSpace
             .onChanged { value in
-                let translation = value.translation
+                // Locations are already in this view’s local space.
+                let startInCanvas = value.startLocation
+                let locInCanvas = value.location
+
+                let translation = CGSize(width: locInCanvas.x - startInCanvas.x,
+                                         height: locInCanvas.y - startInCanvas.y)
                 let dist = hypot(translation.width, translation.height)
                 let lockThreshold: CGFloat = 4.0
 
                 switch activeDrag {
                 case .none:
                     // Don’t lock yet; remember what we were over at touch-down.
-                    let startHit = hitTestNode(at: value.startLocation)
+                    let startHit = hitTestNode(at: startInCanvas)
                     activeDrag = .pending(hitID: startHit)
                     panGestureStart = CGPoint(x: panX.cg, y: panY.cg)
 
                     // Debug: snapshot rects and start point
                     #if DEBUG
                     if debugHitTestingEnabled {
-                        debugStartPoint = value.startLocation
+                        debugStartPoint = startInCanvas
                         debugRectsAtStart = computeAllNodeRectsInView()
                         debugStartHitID = startHit
                         debugFirstLockDescription = nil
                         debugFirstLockDistance = 0
                         debugMovedNodeID = nil
-                        print("[MB] Drag start: startHit=\(startHit?.uuidString ?? "nil") at \(formatPoint(value.startLocation)) rects=\(debugRectsAtStart.count)")
+                        print("[MB] Drag start: startHit=\(startHit?.uuidString ?? "nil") at \(formatPoint(startInCanvas)) rects=\(debugRectsAtStart.count)")
                         // Auto-hide overlay after a short time
                         Task { @MainActor in
                             try? await Task.sleep(nanoseconds: 1_200_000_000)
@@ -778,9 +1115,9 @@ fileprivate extension MurderBoardView {
                         return
                     }
                     // Decide lock: node vs pan.
-                    if let id = hitID, isPoint(value.location, insideNodeWithID: id) {
+                    if let id = hitID, isPoint(locInCanvas, insideNodeWithID: id) {
                         activeDrag = .node(cardID: id)
-                        let startWorld = viewToWorld(value.startLocation)
+                        let startWorld = viewToWorld(startInCanvas)
                         if let node = (board?.nodes ?? []).first(where: { $0.card?.id == id }) {
                             let nodeCenterWorld = CGPoint(x: node.posX, y: node.posY)
                             dragGrabOffsetWorld = CGPoint(
@@ -788,7 +1125,7 @@ fileprivate extension MurderBoardView {
                                 y: nodeCenterWorld.y - startWorld.y
                             )
                             // Apply first move immediately so drag feels responsive.
-                            let pointerWorld = viewToWorld(value.location)
+                            let pointerWorld = viewToWorld(locInCanvas)
                             let newCenter = CGPoint(
                                 x: pointerWorld.x + dragGrabOffsetWorld.x,
                                 y: pointerWorld.y + dragGrabOffsetWorld.y
@@ -822,7 +1159,7 @@ fileprivate extension MurderBoardView {
 
                 case .node(let id):
                     guard let node = (board?.nodes ?? []).first(where: { $0.card?.id == id }) else { return }
-                    let pointerWorld = viewToWorld(value.location)
+                    let pointerWorld = viewToWorld(locInCanvas)
                     let newCenter = CGPoint(
                         x: pointerWorld.x + dragGrabOffsetWorld.x,
                         y: pointerWorld.y + dragGrabOffsetWorld.y
@@ -844,8 +1181,11 @@ fileprivate extension MurderBoardView {
                 }
             }
             .onEnded { value in
-                let dx = value.translation.width
-                let dy = value.translation.height
+                // End points are in local canvas space as well
+                let startInCanvas = value.startLocation
+                let endInCanvas = value.location
+                let dx = endInCanvas.x - startInCanvas.x
+                let dy = endInCanvas.y - startInCanvas.y
                 let distance = sqrt(dx*dx + dy*dy)
                 let tapThreshold: CGFloat = 3.0
 
@@ -853,12 +1193,33 @@ fileprivate extension MurderBoardView {
                 case .node(let id):
                     if distance < tapThreshold {
                         selectedCardID = id
+                        // CA-13.3: prevent the simultaneous canvas tap from clearing this immediately.
+                        suppressBackgroundClickClear = true
+                        DispatchQueue.main.async { suppressBackgroundClickClear = false }
+                        #if DEBUG
+                        print("[MB] DragEnd short-click (node): select id=\(id.uuidString) at \(formatPoint(endInCanvas))")
+                        #endif
                     }
                 case .pan, .pending:
                     if distance < tapThreshold {
-                        // Short click on background clears selection if not over a node.
-                        if hitTestNode(at: value.startLocation) == nil {
+                        if suppressBackgroundClickClear {
+                            // Child/other path already handled selection; do not override/clear.
+                            #if DEBUG
+                            print("[MB] DragEnd short-click suppressed by other handler at \(formatPoint(endInCanvas))")
+                            #endif
+                        } else if let hit = hitTestNode(at: startInCanvas) {
+                            selectedCardID = hit
+                            // CA-13.3: guard against the simultaneous canvas tap clearing it
+                            suppressBackgroundClickClear = true
+                            DispatchQueue.main.async { suppressBackgroundClickClear = false }
+                            #if DEBUG
+                            print("[MB] DragEnd short-click (canvas): select id=\(hit.uuidString) at \(formatPoint(startInCanvas))")
+                            #endif
+                        } else {
                             selectedCardID = nil
+                            #if DEBUG
+                            print("[MB] DragEnd short-click (canvas): clear selection at \(formatPoint(startInCanvas))")
+                            #endif
                         }
                     } else {
                         persistTransformNow()
@@ -887,8 +1248,8 @@ fileprivate extension MurderBoardView {
             }
     }
 
-    // Compute all node rects in current VIEW space (for debug overlay)
     #if DEBUG
+    // Compute all node rects in current VIEW space (for debug overlay)
     func computeAllNodeRectsInView() -> [CGRect] {
         guard let b = board else { return [] }
         var rects: [CGRect] = []
@@ -900,13 +1261,13 @@ fileprivate extension MurderBoardView {
                               y: centerView.y - sizeView.height / 2.0,
                               width: sizeView.width,
                               height: sizeView.height)
-            rects.append(rect)
+            rects.append(rects.count < 10 ? rect : rect) // keep identical logic, placeholder for future batching
         }
         return rects
     }
     #endif
 
-    // View-space hit testing for a point against all nodes; prefers selected/topmost.
+    // View-space point hit test using view-space rects derived from CardView visual bounds (CA-6)
     func hitTestNode(at pointInView: CGPoint) -> UUID? {
         guard let b = board else { return nil }
 
@@ -916,19 +1277,17 @@ fileprivate extension MurderBoardView {
         for node in nodes {
             guard let id = node.card?.id else { continue }
 
-            // Measured visual size in VIEW points (fallback if not yet measured), scaled by zoom
+            // View-space size from measured CardView visual size scaled by current zoom
             let sizeView = nodeSizeInViewPoints(for: id)
-
-            // Map node center from world to VIEW space
             let centerView = worldToView(CGPoint(x: node.posX, y: node.posY))
 
-            let rect = CGRect(
+            let rectView = CGRect(
                 x: centerView.x - sizeView.width / 2.0,
                 y: centerView.y - sizeView.height / 2.0,
                 width: sizeView.width,
                 height: sizeView.height
             )
-            if rect.contains(pointInView) {
+            if rectView.contains(pointInView) {
                 candidates.append(id)
             }
         }
@@ -947,17 +1306,18 @@ fileprivate extension MurderBoardView {
         return candidates.last
     }
 
-    // Helper: is a view-space point inside the given node’s current rect?
+    // Helper: is a view-space point inside the given node’s rect using view-space rects (CA-6)
     func isPoint(_ p: CGPoint, insideNodeWithID id: UUID) -> Bool {
         guard let b = board else { return false }
         guard let node = (b.nodes ?? []).first(where: { $0.card?.id == id }) else { return false }
+
         let sizeView = nodeSizeInViewPoints(for: id)
         let centerView = worldToView(CGPoint(x: node.posX, y: node.posY))
-        let rect = CGRect(x: centerView.x - sizeView.width / 2.0,
-                          y: centerView.y - sizeView.height / 2.0,
-                          width: sizeView.width,
-                          height: sizeView.height)
-        return rect.contains(p)
+        let rectView = CGRect(x: centerView.x - sizeView.width / 2.0,
+                              y: centerView.y - sizeView.height / 2.0,
+                              width: sizeView.width,
+                              height: sizeView.height)
+        return rectView.contains(p)
     }
 
     // Node size in VIEW points: prefer CardView-reported visual size (card shape) scaled by zoom.
@@ -968,6 +1328,16 @@ fileprivate extension MurderBoardView {
         let base = (baseVisual ?? baseFallback ?? CGSize(width: 240, height: 160)).clamped(maxWidth: 600, maxHeight: 600)
         let s = CGFloat(zoomScale)
         return base.scaled(by: s)
+    }
+
+    // CA-6: Node size in WORLD points (zoom-normalized): measured view size / zoomScale
+    func nodeSizeInWorldPoints(for id: UUID) -> CGSize {
+        let baseVisual = nodeVisualSizes[id]
+        let baseFallback = nodeSizes[id]
+        // Use the same clamping as view size to keep bounds conservative
+        let baseView = (baseVisual ?? baseFallback ?? CGSize(width: 240, height: 160)).clamped(maxWidth: 600, maxHeight: 600)
+        let s = max(zoomScale, 0.000001)
+        return CGSize(width: baseView.width / s.cg, height: baseView.height / s.cg)
     }
 
     // Small helpers for debug formatting
@@ -1081,37 +1451,88 @@ fileprivate extension MurderBoardView {
     func shuffleAroundPrimary() {
         guard let b = board else { return }
         guard var nodes = b.nodes, !nodes.isEmpty else { return }
+
+        // Identify anchor (primary or first)
         let primaryID = b.primaryCard?.id
         let anchorNode = nodes.first(where: { $0.card?.id == primaryID }) ?? nodes.first!
         let anchor = CGPoint(x: anchorNode.posX, y: anchorNode.posY)
+
+        // Remove anchor from placement list
         nodes.removeAll(where: { $0.id == anchorNode.id })
 
-        let count = max(1, nodes.count)
-        let ringCapacity = 12
-        var remaining = count
-        var radius: Double = 220
+        // Early exit if nothing to place
+        let count = max(0, nodes.count)
+        guard count > 0 else { return }
+
+        // CA-15: Adaptive ring geometry in WORLD space (zoom-independent)
+        // Measure world-space sizes
+        func worldSize(for node: BoardNode) -> CGSize {
+            guard let id = node.card?.id else { return CGSize(width: 240, height: 160) }
+            return nodeSizeInWorldPoints(for: id)
+        }
+        let anchorSize = worldSize(for: anchorNode)
+        let nodeWorldSizes: [CGSize] = nodes.map(worldSize(for:))
+
+        let maxNodeSpan = nodeWorldSizes.map { max($0.width, $0.height) }.max() ?? max(anchorSize.width, anchorSize.height)
+        let avgNodeWidth = nodeWorldSizes.map { $0.width }.reduce(0, +) / CGFloat(nodeWorldSizes.count)
+
+        // Base margins (WORLD units)
+        let baseMargin: CGFloat = maxNodeSpan * 0.20 + 12.0 / max(CGFloat(zoomScale), 0.000001) // include a small view->world normalized margin
+        let spacingMultiplier: CGFloat = 1.25 // arc-length spacing factor vs avg width
+        let ringSeparationMultiplier: CGFloat = 1.10 // radial separation vs max node span
+
+        // Start radius: clear the anchor's size plus margin
+        var radius: CGFloat = (max(anchorSize.width, anchorSize.height) * 0.60) + (maxNodeSpan * 0.75) + baseMargin
+
+        // Mutable pool
+        var pool: [BoardNode] = nodes
+        var remaining = pool.count
         var ringIndex = 0
 
+        // Random seed angles per ring
         while remaining > 0 {
-            let take = min(remaining, ringCapacity + ringIndex * 6)
-            let angleStep = (2.0 * Double.pi) / Double(take)
+            // Desired arc spacing along circumference to avoid overlap
+            let desiredArcSpacing = max(avgNodeWidth, 1.0) * spacingMultiplier
+
+            // Ensure capacity for this ring; grow radius until capacity >= 1
+            func capacity(at r: CGFloat) -> Int {
+                let circ = 2.0 * .pi * r
+                return max(1, Int(floor(circ / desiredArcSpacing)))
+            }
+            var cap = capacity(at: radius)
+
+            // If we still have many nodes, make sure this ring can hold a reasonable share;
+            // grow radius until we can place at least 1 and up to remaining
+            while cap == 0 {
+                radius += max(8.0, maxNodeSpan * 0.25) // grow a bit if degenerate
+                cap = capacity(at: radius)
+            }
+
+            let take = min(remaining, cap)
+            let angleStep = (2.0 * .pi) / CGFloat(take)
             let startAngle = Double.random(in: 0..<(2.0 * Double.pi))
+
             for i in 0..<take {
-                if let node = nodes.popLast() {
-                    let theta = startAngle + Double(i) * angleStep
-                    let jitterR = Double.random(in: -12...12)
-                    let jitterT = Double.random(in: -0.20...0.20)
-                    let r = radius + jitterR
+                if let node = pool.popLast() {
+                    // Even placement with small jitter
+                    let theta = startAngle + Double(i) * Double(angleStep)
+                    let jitterR = Double.random(in: -0.10...0.10) * Double(maxNodeSpan)
+                    let jitterT = Double.random(in: -0.18...0.18)
+                    let r = Double(radius) + jitterR
                     let x = anchor.x + (r * cos(theta + jitterT))
                     let y = anchor.y + (r * sin(theta + jitterT))
                     node.posX = x
                     node.posY = y
                 }
             }
-            remaining = nodes.count
+
+            remaining = pool.count
             ringIndex += 1
-            radius += 180
+            // Increase radius for next ring with separation based on node spans in WORLD units
+            let ringSeparationWorld = max(maxNodeSpan * ringSeparationMultiplier + baseMargin, maxNodeSpan * 0.9)
+            radius += ringSeparationWorld
         }
+
         try? modelContext.save()
     }
 }
@@ -1191,11 +1612,25 @@ fileprivate extension MurderBoardView {
 
     func persistTransformNow() {
         guard let b = board else { return }
+        let sBefore = b.zoomScale
+        let txBefore = b.panX
+        let tyBefore = b.panY
+
         b.zoomScale = zoomScale.rangeClamped(to: Board.minZoom...Board.maxZoom)
         b.panX = panX.rangeClamped(to: Board.minPan...Board.maxPan)
         b.panY = panY.rangeClamped(to: Board.minPan...Board.maxPan)
         b.clampState()
         try? modelContext.save()
+
+        #if DEBUG
+        // Lightweight transform persistence log
+        if sBefore != b.zoomScale || txBefore != b.panX || tyBefore != b.panY {
+            let s = String(format: "%.4f", b.zoomScale)
+            let tx = String(format: "%.2f", b.panX)
+            let ty = String(format: "%.2f", b.panY)
+            print("[MB] Persist transform: S=\(s) T=(\(tx), \(ty))")
+        }
+        #endif
     }
 
     // Initial recenter logic (0240–0280, 0250)
@@ -1277,8 +1712,8 @@ fileprivate func debugRecordNodeSize(id: UUID, size: CGSize) {
     ctx.autosaveEnabled = false
 
     let mira = Card(kind: .characters, name: "Mira", subtitle: "Explorer", detailedText: "")
-    let jonas = Card(kind: .characters, name: "Jonas", subtitle: "Historian", detailedText: "")
-    let aster = Card(kind: .characters, name: "Aster", subtitle: "Mechanic", detailedText: "")
+    let jonas = Card(kind: .characters, name: "Historian", subtitle: "Historian", detailedText: "")
+    let aster = Card(kind: .characters, name: "Mechanic", subtitle: "Mechanic", detailedText: "")
     let eden = Card(kind: .worlds, name: "Eden-3", subtitle: "Frontier World", detailedText: "")
     let opening = Card(kind: .scenes, name: "Opening Scene", subtitle: "Crash Site", detailedText: "")
     let artifact = Card(kind: .artifacts, name: "Ancient Artifact", subtitle: "Unknown origin", detailedText: "")
@@ -1337,5 +1772,4 @@ struct MurderBoardVerification {
     // [tests unchanged]
 }
 #endif
-
 

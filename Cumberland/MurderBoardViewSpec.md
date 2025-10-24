@@ -49,6 +49,8 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   0202 - If multiple relationships exist between the same two Cards, the single displayed edge shall be chosen deterministically (e.g., by a RelationType priority list; if tied, by earliest creation date; if unavailable, by a stable UUID order). Unless otherwise specified, the edge is visually undirected and carries no label.
   0210 - Edges shall be straight line segments that span from the center of the source CardView to the center of the target CardView.
   0220 - Edges shall be at least three points thick and shall remain clearly visible against the View Canvas background in both light and dark appearances.
+  0222 - Edges shall be colored using a three color gradient.
+  0224 - From source node to target node the Edge colors shall be 1 - the border color of the taget node, 2 - the grid contrast color (dark or light depending on the display mode), and 3 - the border color of the source node.
   0225 - Edges and selection borders shall maintain sufficient contrast in both light and dark appearances; colors shall adapt to system appearance.
   0230 - Edges on the murder board shall be displayed just behind the CardViews.
   0232 - Z-order shall be: (1) the Grid background (bottommost), (2) Edges, (3) CardViews (nodes), and (4) selection/interaction overlays (topmost).
@@ -83,7 +85,7 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   0410 - The View Window shall have a toolbar.
   0420 - The View Window toolbar shall include a zoom control.
   0430 - The zoom control shall allow the specification of zoom percentages from 1% to 200% with 100% being the default.
-  0435 - The zoom factor S shall be clamped to the inclusive range [0.01, 2.0]. Text entry shall clamp to [1, 200]% and round to the nearest integer percent; non-numeric input is ignored.
+  0435 - The zoom factor S shall be clamped to the inclusive range [0.01, 2.0]. Text entry shall clamp to [1, 200]% and round to the nearest integer; non-numeric input is ignored.
   0440 - The toolbar shall have a “recenter” button.
   0450 - the recenter button shall pan the View Canvas so that the first node, or the primary node if one is present, is in the center of the View Window.
   0452 - If the target node’s position is uninitialized, it shall be initialized per 0260 prior to recentering. Recenter shall not change the zoom level (0250).
@@ -159,29 +161,60 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   - Edges
     - E1: A single straight segment is displayed for each Card pair with one or more relationships, chosen deterministically (priority, then creation date, then stable UUID).
     - E2: Edges connect node centers and render above the grid and below nodes; thickness is at least 3 pt with sufficient contrast in both appearances.
+    - E3: ✓ Each edge is stroked with a three‑color linear gradient aligned from source to target; the color stops (in order along the segment) are: target node border color, grid contrast color (light/dark aware), and source node border color (0222, 0224).
+    - E4: ✓ The “border color” used for edges matches the CardView border color for that node; if it cannot be resolved, a deterministic fallback (AccentColor) is used. The grid contrast color adapts to appearance and maintains legibility (0225).
+    - E5: ✓ Gradient edges preserve z‑order (grid < edges < nodes < overlays), maintain ≥ 3 pt thickness, and render without performance regressions for dozens to low hundreds of edges.
   - Initial Display and Recenter
     - F1: ✓ On first display, the canvas recenters on the Primary node if present, otherwise on the first node; no zoom change occurs.
     - F2: ✓ If the target node’s position is uninitialized, it is set to the center of the current View Canvas Rectangle before recentering.
   - Selection and Interaction
     - G1: ✓ Clicking a node selects it; clicking the canvas background clears selection.
-      Root cause: Short click motions are sometimes captured by the unified DragGesture on the canvas before the CardView’s tap gesture, so the drag path wins the gesture arena and prevents selection. This is more likely at higher zoom and before nodeSizes are measured, making edge hits marginal.
-      Corrective actions taken: Standardized hit testing using world-space rects derived from measured CardView sizes; added a clear contentShape on the canvas to reduce ambiguity; tuned DragGesture minimumDistance to reduce false drags. Additional queued refinement: add highPriorityGesture for CardView taps so taps win over a competing drag start.
-    - G2: ✓ Nodes can be dragged with standard click-drag; the node follows the pointer preserving the initial grab offset in world coordinates.
-      Root cause: Fixed — gesture state machine moved the initially hit node even when the lock decided on background pan. The .pending branch updated node.posX/posY unconditionally after lock decision, causing “click anywhere and one node drags.”
-      CA-1: In .pending, move the node only if we lock to .node; if we lock to .pan, do not modify any node. Seed grab offset only when locking to node; seed panGestureStart when locking to pan.
-      CA-2: Instrumented the unified drag state machine with per-drag diagnostics: record startHit node ID (or nil), the first lock decision (.node or .pan) and lock distance, and which node ID actually moves (if any). This exposes cases where a node moves after a pan lock or where hit testing is overly permissive (e.g., .node chosen unexpectedly). Expect concise logs per drag such as “[MB] Drag start … / Lock=pan at dist=6.0” or “Lock=node(id=…) at dist=5.2,” plus a final summary line.
-      CA-3: Added a short‑lived visual debug overlay at drag start that outlines each node’s computed view‑space rect and marks the startLocation with a dot. This immediately reveals oversized/incorrect rects (e.g., wrong coordinate space) and visually validates the world→view projection; the start point should only fall inside a rect when pressing over a card.
-      CA-4: Revised hit-rectangle computation to use a helper nodeSizeInViewPoints(for:) that returns measured size × zoomScale (with clamping). All view-space rects now use this helper in computeAllNodeRectsInView(), hitTestNode(at:), and isPoint(_:insideNodeWithID:). Added a tiny CGSize.scaled(by:) helper to support this.
-      CA-5: Hit rectangles now use CardView-reported visual card-shape size (excluding outer padding for tabs/shadows). MurderBoardView consumes CardViewVisualSizeKey and scales by current zoom; falls back to legacy layout size until available. This removes apparent padding around hit rects and improves drag lock precision at all zooms.
+        Root cause: Short click motions are sometimes captured by the unified DragGesture on the canvas before the CardView’s tap gesture, so the drag path wins the gesture arena and prevents selection. This is more likely at higher zoom and before nodeSizes are measured, making edge hits marginal.
+        Corrective actions taken: Standardized hit testing using world-space rects derived from measured CardView sizes; added a clear contentShape on the canvas to reduce ambiguity; tuned DragGesture minimumDistance to reduce false drags. Additional queued refinement: add highPriorityGesture for CardView taps so taps win over a competing drag start.
+        CA-6 Standardized world-space hit testing using CardView visual bounds; clearer canvas contentShape; reduced DragGesture minimumDistance; added highPriorityGesture so card taps win.
+        CA-7 Non-interfering click overlay logs/visualizes hit rects; confirms hit-test math without affecting gestures.
+        Rejection (new): Clicks/hit-tests look correct, but selection still doesn’t change; short clicks that remain .pending or lock to .pan never assign selection.
+        CA-8 Unified drag onEnded now treats short clicks (distance < tapThreshold) in .pan/.pending as selection/clear via hitTestNode(at:).
+        CA-9 Shortened summary — added selection diagnostics and one-tick suppression so a CardView tap can’t be immediately cleared by the canvas short‑click path; logs make selection assignment/clears explicit.
+        CA-10 Added a simultaneous SpatialTapGesture on the canvas to handle pure taps that never trigger DragGesture. On tap, if hitTestNode(at:) finds a node, select it; otherwise clear selection. Respects suppressBackgroundClickClear so a CardView’s highPriority tap can’t be immediately overridden. Logs “[MB] Canvas tap: select …” or “… clear selection.”
+        CA-11 Diagnostic overlays draw (a) the View Canvas rectangle in view space inset by 5 pt, and (b) the Nodes Extents rectangle computed in world space from CardView visual bounds with padding for shadows/selection, transformed to view space for display.
+        CA-12 We have enough of your project to fix this precisely. The most robust remedy is to make hit testing use the exact same view-space rectangles that your debug overlay draws, instead of mixing a view-space point with a world-space rectangle. That eliminates any chance of a small world/view mismatch (padding, rounding, transform ordering, etc.) causing quadrant-specific mis-selections or preventing deselection.
+        Proposed root causes (G1):
+        RC-1 Gesture arbitration and sequencing: a short click that routes through DragGesture’s .onEnded (short‑click path) can be immediately superseded by the simultaneous canvas SpatialTapGesture, which may clear selection if it interprets the same click as a background tap. Ordering/race varies by region, producing an apparent quadrant effect even when hit-test rects are correct.
+        RC-2 Coordinate-space inconsistency for gesture locations: while the hit-test rectangles and debug overlays are correct, the SpatialTapGesture’s value.location can be resolved in a slightly different local space than the one used to compute rects (due to padding/clip/overlay layers around the canvas). This yields a consistent offset whose sign flips around the View Canvas center, so taps in one quadrant are misinterpreted as background.
+        RC-3 Suppression scope: suppressBackgroundClickClear is applied for CardView’s highPriority tap, but not for the DragGesture short‑click selection path. When selection is assigned by the drag’s .onEnded handler, the canvas tap may still run and clear it in the same event turn.
+        CA-13 Normalize gesture locations and serialize selection handling:
+            - CA-13.1 Explicitly convert all gesture points (DragGesture start/location and SpatialTapGesture location) into the named canvasCoordSpace using GeometryProxy.convert(…, from: .global, to: .named(canvasCoordSpace)) before hit testing.
+            - CA-13.2 Attach both gestures at the same view that defines coordinateSpace(name: canvasCoordSpace) after the border padding/clip so their locations are measured in the exact same space as the rects.
+            - CA-13.3 Extend suppressBackgroundClickClear to the drag short‑click selection path: set it when assigning selection in .onEnded for distance < tapThreshold and clear it on the next runloop tick. This prevents the canvas tap from immediately clearing a just‑assigned selection.
+            - CA-13.4 Prefer a single path to assign/clear selection for taps (the SpatialTapGesture), and keep the drag short‑click as a fallback only. Guard the fallback with the same suppression flag to avoid double‑processing.
+            - CA-13.5 Add concise logs showing converted points and which handler ultimately set/cleared selection to verify that only one path wins per click.    - G2: ✓ Nodes can be dragged with standard click-drag; the node follows the pointer preserving the initial grab offset in world coordinates.
+        RC-4 Conflicting dual tap paths: both the canvas SpatialTapGesture and a highPriority TapGesture on each CardView independently assign selection. Ordering varies, so the child tap can override a correct canvas decision or re-select after a canvas clear, matching the observed logs.
+        CA-13 Normalize gesture locations and serialize selection handling (C13.1–C13.5).
+        CA-14 Single-source tap selection from the canvas: remove CardView’s highPriority tap; keep drag short‑click fallback guarded by suppression. Also remove the broad contentShape on the transformed nodes container to reduce parent over‑hittability. This eliminates the race so only one authoritative selection decision runs per click.
     - G3: ✓ Panning occurs via click-drag on the canvas background.
+        RC-0: Fixed — gesture state machine moved the initially hit node even when the lock decided on background pan. The .pending branch updated node.posX/posY unconditionally after lock decision, causing “click anywhere and one node drags.”
+        CA-1: In .pending, move the node only if we lock to .node; if we lock to .pan, do not modify any node. Seed grab offset only when locking to node; seed panGestureStart when locking to pan.
+        CA-2: Instrumented the unified drag state machine with per-drag diagnostics: record startHit node ID (or nil), the first lock decision (.node or .pan) and lock distance, and which node ID actually moves (if any). This exposes cases where a node moves after a pan lock or where hit testing is overly permissive (e.g., .node chosen unexpectedly). Expect concise logs per drag such as “[MB] Drag start … / Lock=pan at dist=6.0” or “Lock=node(id=…) at dist=5.2,” plus a final summary line.
+        CA-3: Added a short‑lived visual debug overlay at drag start that outlines each node’s computed view‑space rect and marks the startLocation with a dot. This immediately reveals oversized/incorrect rects (e.g., wrong coordinate space) and visually validates the world→view projection; the start point should only fall inside a rect when pressing over a card.
+        CA-4: Revised hit-rectangle computation to use a helper nodeSizeInViewPoints(for:) that returns measured size × zoomScale (with clamping). All view-space rects now use this helper in computeAllNodeRectsInView(), hitTestNode(at:), and isPoint(_:insideNodeWithID:). Added a tiny CGSize.scaled(by:) helper to support this.
+        CA-5: Hit rectangles now use CardView-reported visual card-shape size (excluding outer padding for tabs/shadows). MurderBoardView consumes CardViewVisualSizeKey and scales by current zoom; falls back to legacy layout size until available. This removes apparent padding around hit rects and improves drag lock precision at all zooms.
     - G4: Selection is cleared if the selected node is removed or becomes non-visible in the board.
-  - Zoom Controls
-    - H1: Toolbar includes Zoom Out button, slider (1%–200%), Zoom In button, and percent text field.
-    - H2: Percent entry clamps to [1, 200], ignores non-numeric input, and rounds to the nearest integer; zooming keeps the world point under the window center fixed by adjusting T analytically.
-  - Shuffle
+ - Zoom Controls
+    - H1: ✓ Toolbar includes Zoom Out button, slider (1%–200%), Zoom In button, and percent text field.
+    - H2: ✓ Percent entry clamps to [1, 200], ignores non-numeric input, and rounds to the nearest integer; zooming keeps the world point under the window center fixed by adjusting T analytically.
+ - Shuffle
     - I1: “Shuffle” arranges all nodes except the Primary (if present) around the Primary (or first) in world space using a ring layout with random jitter.
+      RC-5: Fixed-radius rings ignored actual CardView sizes expressed in world units, so circumference-per-node was too small at typical zooms. Because node sizes scale inversely with zoom in world space, a constant radius causes overlaps regardless of zoom percentage.
+      CA-15: Make ring radii and per-ring capacity adaptive in world space:
+        - Compute each node’s world-space size using the same CardView visual bounds used for hit testing (nodeSizeInWorldPoints).
+        - Choose a base radius from the anchor’s world size plus margin.
+        - For each ring, compute desired arc spacing = avg node width × spacingMultiplier (e.g., 1.25).
+        - Capacity = floor(2πr / desiredSpacing). If remaining nodes exceed capacity, increase r until capacity ≥ remaining for that ring.
+        - Use a zoom‑independent ring separation based on max node span in world units to avoid cross‑ring overlaps.
+        - Place nodes evenly with small jitter; persist immediately.
     - I2: Repeated shuffles produce different arrangements; the Primary’s position does not change.
-    - I3: New positions persist immediately; edges update automatically from node centers.
+    - I3: New positions persist immediately; edges update automatically.
   - Primary Enforcement and Reset
     - J1: When enforcement is active and a Primary is set, the Primary must be present as a node; if missing, it is auto-created.
     - J2: During and immediately after a reset (all nodes removed), enforcement is suspended; the Primary may be removed and primaryCard may be cleared.
@@ -231,6 +264,7 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   - Phase 5: Edges Rendering
     - Collapse CardEdge relations to one per pair using deterministic rule.
     - Render edges between node centers with correct z-order (grid < edges < nodes < overlays) and thickness ≥ 3 pt.
+    - New (0222/0224): Stroke each displayed segment with a three-stop linear gradient aligned from source→target with stops [target border color, grid contrast color (light/dark aware), source border color]. Derive node border colors from the same source used by CardView (Kinds.accentColor(for:)); fall back to AccentColor if unavailable. Cache per-node colors during a pass to avoid redundant lookups.
  
   - Phase 6: Gestures and Interaction
     - Add a unified drag gesture: if the gesture starts over a node (prefer selected on overlap) then node-drag; else pan.
