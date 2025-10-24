@@ -7,10 +7,9 @@
 
 /*
 Requirements: MurderBoardView
-Spec Version: 1.3
+Spec Version: 1.4
 Last Updated: 2025-10-20
 
-Authoritative Specification (verbatim - this is the source of truth for all implementation details)
 
  Definitions and Invariants (non-numbered, normative where referenced)
  - Coordinate spaces:
@@ -76,6 +75,7 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   0300 - Zoom shall not change node world positions; only the mapping between world and view coordinates changes.
   0310 - When the parent view’s size changes, the View Window shall resize to fill its parent (0040), recompute the View Canvas Rectangle (0110), and preserve the current zoom/pan mapping semantics.
   0330 - When Zooming, the View Canvas's center point will remain fixed to the View Window's Center point; pan shall be adjusted analytically to maintain this invariant.
+  0332 - The View Window shall recognize standard pinch‑to‑zoom gestures to control the zoom factor S: on macOS via trackpad pinch, on iPadOS via direct two‑finger pinch on the screen, and on visionOS via the platform’s standard pinch gesture. The gesture shall adjust S continuously and multiplicatively based on gesture magnification, clamp S to [0.01, 2.0] (0435), and analytically adjust T so that the world point under the View Window’s center remains fixed per 0330. Pinch recognition shall not interfere with node dragging (0360) or canvas panning (0380/0382); when a pinch is recognized, it takes precedence for its duration, and no selection state changes occur as a result of the pinch.
   0340 - Nodes in the View Canvas shall be selectable.
   0350 - When selected, the Card’s CardView shall display a border over it in the accent color of the Cumberland App.
   0360 - Nodes shall be able to be dragged via a standard click drag gesture on the Node
@@ -84,6 +84,7 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   0365 - The hit rectangle shall be scaled by the current zoom factor and centered on the node’s world position projected into view space. If a visual size has not yet been reported, a measured layout size may be used as a temporary fallback.
   0370 - When a node in the View Canvas is dragged, its position shall be updated based on the pointer's location over the View Canvas Rectangle, taking zoom and pan into account, and preserving the initial grab offset so the node follows the pointer smoothly.
   0380 - The View Canvas shall be able to be panned via a standard click drag operation on the View Canvas surface
+  0382 - The View Canvas shall recognize a two‑finger pan gesture to update the view‑space translation T regardless of hit location: on macOS via trackpad two‑finger scroll (interpreted as pan), on iPadOS via a two‑finger pan on the screen, and on visionOS via the platform’s two‑finger pan. While active, the gesture continuously adjusts T, clamps T per 0066, does not change selection, and takes precedence over node drag (0360) and background click‑drag pan (0380) for its duration unless a pinch (0332) is recognized, in which case pinch takes precedence.
   0390 - When the background area of the View Canvas is dragged it shall allow the whole view to be panned
   0400 - Per 0040, the View Canvas shall always resize itself to fill the View Window regardless of the pan or zoom factor.
   0402 - The View Canvas shall have a background surface called the View Canvas Grid, consisting of a low-contrast grid (bottommost) and the Edges (above the grid, but below the nodes).
@@ -133,20 +134,10 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   0710 - During the drag operation from the Backlog to the View Canvas, when the cursor is hovering over the View Canvas, a blue Drop Target indicator shall appear indicating to the operator that the Canvas is a valid Drop Target for the Selected Backlog Card.
 
   Requriements Proposed Changes (keep this section)
-  - Incorporated changes into the Authoritative Specification above (Spec Version 1.3). Summary:
-    - Added Definitions and Invariants for coordinate spaces, transform, Z-order, reset, and primary enforcement.
-    - Clarified grid “infinite” behavior and sizing (0241 references 0405; 0405 adds quantified margin M).
-    - Clarified pan policy with implementation-defined clamping tied to Nodes Extents + margin (0066).
-    - Made center-locked zoom canonical (0330) and referenced by 0090; added zoom factor clamping and input rules (0435).
-    - Clarified “reshape” semantics on parent size change (0310); made 0400 reference 0040.
-    - Clarified uninitialized node position (0260) without relying on a specific (0,0) sentinel; recenter button handles it (0452).
-    - Clarified Primary presence vs reset exceptions and DB deletion handling (0280, 0286).
-    - Added accessibility/contrast requirement (0225).
-    - Clarified nodes extents to include padding for shadows/borders (0160).
-    - Clarified edge determinism (0202) and removed need to persist edge endpoints (0572).
-    - Added selection clearing on removal/non-visibility (0575).
-    - Sidebar clarifications retained; DnD indicator behavior unchanged.
-    - Added 0362 to limit node hit-testing to the CardView’s visual card-shape bounds (excluding padding/shadows), scaled by zoom, with a temporary fallback to measured layout size until the visual size is available.
+  - Incorporated changes into the Authoritative Specification above (Spec Version 1.4). Summary:
+    - Added 0382 defining a platform-appropriate two‑finger pan gesture on macOS (trackpad scroll), iPadOS, and visionOS; clarified precedence with pinch (0332) and node/background drags (0360/0380), clamping, and selection neutrality.
+    - Added Acceptance Criteria B9–B12 for two‑finger pan behavior and conflict resolution.
+    - Added Phase 6 implementation steps for bridging two‑finger pan on each platform, delta→T mapping, gesture precedence, and clamping.
 
   Acceptance Criteria
   - View Window and Border
@@ -158,6 +149,14 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
     - B2: ✓ The View Canvas Rectangle is computed analytically as the inverse image of the View Window bounds and exactly fills the window at all times.
     - B3: ✓ Zooming changes only S and T (to keep the world point under the window center fixed by adjusting T analytically); node world positions do not change.
     - B4: ✓ Zoom is clamped to [0.01, 2.0]; pan is clamped within implementation-defined limits large enough to cover Nodes Extents + margin M under all expected pans/zooms.
+    - B5: ✓ A standard pinch‑to‑zoom gesture is recognized on macOS (trackpad pinch), iPadOS (direct two‑finger pinch), and visionOS. While pinching, S changes continuously and multiplicatively with gesture magnification; on end, S is clamped to [0.01, 2.0].
+    - B6: ✓ During pinch, T is analytically adjusted so that the world point under the View Window’s geometric center remains fixed (0330). No node world positions change (0300), and the View Window does not move or resize (0100).
+    - B7: ✓ Pinch recognition does not trigger selection or drag. While a pinch is active, it takes precedence over background pan (0380/0382) and node drag (0360); after the pinch ends, other gestures operate normally.
+    - B8: - Trackpad pinch and two‑finger pan do not conflict: initiating a pinch prevents a simultaneous pan for the duration of the gesture; initiating a two‑finger pan without pinch magnification performs pan only.
+    - B9: ✓ A two‑finger pan gesture is recognized on macOS (trackpad two‑finger scroll mapped to pan), iPadOS (two‑finger pan), and visionOS. While active, the gesture continuously updates T, clamps T per 0066, and does not change selection.
+    - B10: ✓ Two‑finger pan is hit‑location agnostic (works over nodes or background) and takes precedence over node drag (0360) and background click‑drag pan (0380) for its duration unless a pinch is recognized, in which case pinch takes precedence (0332).
+    - B11: ✓ On macOS, two‑finger scroll deltas map 1:1 (with sensible scaling and axis inversion for natural/inverted scrolling) into T updates in view points; kinetic/phase‑ended momentum is either ignored or applied deterministically without overshooting clamped bounds.
+    - B12: ✓ Two‑finger pan respects the same pan clamping and persistence policies as other pan paths; no jitter or race with simultaneous gestures is observed.
   - Grid Background (View Canvas Grid)
     - C1: ✓ A low-contrast grid renders behind edges and nodes (bottommost layer).
     - C2: ✓ The grid coverage includes the union of the current View Canvas Rectangle and the Nodes Extents, inflated by margin M ≥ max(windowDiagonal / S, 2×tileSize).
@@ -167,8 +166,8 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
     - D2: ✓ Selection is indicated by an accent-colored border on the selected CardView.
     - D3: Nodes Extents is computed from each node’s world-space bounding box with padding for shadows/selection; it updates when nodes are added, moved, or removed.
   - Edges
-    - E1: A single straight segment is displayed for each Card pair with one or more relationships, chosen deterministically (priority, then creation date, then stable UUID).
-    - E2: Edges connect node centers and render above the grid and below nodes; thickness is at least 3 pt with sufficient contrast in both appearances.
+    - E1: ✓ A single straight segment is displayed for each Card pair with one or more relationships, chosen deterministically (priority, then creation date, then stable UUID).
+    - E2: ✓ Edges connect node centers and render above the grid and below nodes; thickness is at least 3 pt with sufficient contrast in both appearances.
     - E3: ✓ Each edge is stroked with a three‑color linear gradient aligned from source to target; the color stops (in order along the segment) are: target node border color, grid contrast color (light/dark aware), and source node border color (0222, 0224).
     - E4: ✓ The “border color” used for edges matches the CardView border color for that node; if it cannot be resolved, a deterministic fallback (AccentColor) is used. The grid contrast color adapts to appearance and maintains legibility (0225).
     - E5: ✓ Gradient edges preserve z‑order (grid < edges < nodes < overlays), maintain ≥ 3 pt thickness, and render without performance regressions for dozens to low hundreds of edges.
@@ -196,7 +195,8 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
             - CA-13.2 Attach both gestures at the same view that defines coordinateSpace(name: canvasCoordSpace) after the border padding/clip so their locations are measured in the exact same space as the rects.
             - CA-13.3 Extend suppressBackgroundClickClear to the drag short‑click selection path: set it when assigning selection in .onEnded for distance < tapThreshold and clear it on the next runloop tick. This prevents the canvas tap from immediately clearing a just‑assigned selection.
             - CA-13.4 Prefer a single path to assign/clear selection for taps (the SpatialTapGesture), and keep the drag short‑click as a fallback only. Guard the fallback with the same suppression flag to avoid double‑processing.
-            - CA-13.5 Add concise logs showing converted points and which handler ultimately set/cleared selection to verify that only one path wins per click.    - G2: ✓ Nodes can be dragged with standard click-drag; the node follows the pointer preserving the initial grab offset in world coordinates.
+            - CA-13.5 Add concise logs showing converted points and which handler ultimately set/cleared selection to verify that only one path wins per click.
+    - G2: ✓ Nodes can be dragged with standard click-drag; the node follows the pointer preserving the initial grab offset in world coordinates.
         RC-4 Conflicting dual tap paths: both the canvas SpatialTapGesture and a highPriority TapGesture on each CardView independently assign selection. Ordering varies, so the child tap can override a correct canvas decision or re-select after a canvas clear, matching the observed logs.
         CA-13 Normalize gesture locations and serialize selection handling (C13.1–C13.5).
         CA-14 Single-source tap selection from the canvas: remove CardView’s highPriority tap; keep drag short‑click fallback guarded by suppression. Also remove the broad contentShape on the transformed nodes container to reduce parent over‑hittability. This eliminates the race so only one authoritative selection decision runs per click.
@@ -207,12 +207,12 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
         CA-3: Added a short‑lived visual debug overlay at drag start that outlines each node’s computed view‑space rect and marks the startLocation with a dot. This immediately reveals oversized/incorrect rects (e.g., wrong coordinate space) and visually validates the world→view projection; the start point should only fall inside a rect when pressing over a card.
         CA-4: Revised hit-rectangle computation to use a helper nodeSizeInViewPoints(for:) that returns measured size × zoomScale (with clamping). All view-space rects now use this helper in computeAllNodeRectsInView(), hitTestNode(at:), and isPoint(_:insideNodeWithID:). Added a tiny CGSize.scaled(by:) helper to support this.
         CA-5: Hit rectangles now use CardView-reported visual card-shape size (excluding outer padding for tabs/shadows). MurderBoardView consumes CardViewVisualSizeKey and scales by current zoom; falls back to legacy layout size until available. This removes apparent padding around hit rects and improves drag lock precision at all zooms.
-    - G4: Selection is cleared if the selected node is removed or becomes non-visible in the board.
+    - G4: ✓ Selection is cleared if the selected node is removed or becomes non-visible in the board.
  - Zoom Controls
     - H1: ✓ Toolbar includes Zoom Out button, slider (1%–200%), Zoom In button, and percent text field.
     - H2: ✓ Percent entry clamps to [1, 200], ignores non-numeric input, and rounds to the nearest integer; zooming keeps the world point under the window center fixed by adjusting T analytically.
  - Shuffle
-    - I1: “Shuffle” arranges all nodes except the Primary (if present) around the Primary (or first) in world space using a ring layout with random jitter.
+    - I1: ✓ “Shuffle” arranges all nodes except the Primary (if present) around the Primary (or first) in world space using a ring layout with random jitter.
       RC-5: Fixed-radius rings ignored actual CardView sizes expressed in world units, so circumference-per-node was too small at typical zooms. Because node sizes scale inversely with zoom in world space, a constant radius causes overlaps regardless of zoom percentage.
       CA-15: Make ring radii and per-ring capacity adaptive in world space:
         - Compute each node’s world-space size using the same CardView visual bounds used for hit testing (nodeSizeInWorldPoints).
@@ -221,17 +221,17 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
         - Capacity = floor(2πr / desiredSpacing). If remaining nodes exceed capacity, increase r until capacity ≥ remaining for that ring.
         - Use a zoom‑independent ring separation based on max node span in world units to avoid cross‑ring overlaps.
         - Place nodes evenly with small jitter; persist immediately.
-    - I2: Repeated shuffles produce different arrangements; the Primary’s position does not change.
-    - I3: New positions persist immediately; edges update automatically.
+    - I2: ✓ Repeated shuffles produce different arrangements; the Primary’s position does not change.
+    - I3: ✓ New positions persist immediately; edges update automatically.
   - Primary Enforcement and Reset
-    - J1: When enforcement is active and a Primary is set, the Primary must be present as a node; if missing, it is auto-created.
-    - J2: During and immediately after a reset (all nodes removed), enforcement is suspended; the Primary may be removed and primaryCard may be cleared.
-    - J3: If the Primary card is deleted from the database, primaryCard is cleared and enforcement remains suspended until a new Primary is assigned.
+    - J1: ✓ When enforcement is active and a Primary is set, the Primary must be present as a node; if missing, it is auto-created.
+    - J2: ✓ During and immediately after a reset (all nodes removed), enforcement is suspended; the Primary may be removed and primaryCard may be cleared.
+    - J3: ✓ If the Primary card is deleted from the database, primaryCard is cleared and enforcement remains suspended until a new Primary is assigned.
   - Persistence
-    - K1: Murderboards persist via Board; nodes via BoardNode bridging many-to-many Cards↔Boards.
-    - K2: Node centers persist in world coordinates; edge endpoints are derived at render time.
-    - K3: Absolute/zoom-derived node sizes are not persisted; an optional categorical size override may be persisted per node.
-    - K4: Selection persists until the user clicks another node or the canvas; it is cleared if the selected node is removed or becomes non-visible.
+    - K1: ✓ Murderboards persist via Board; nodes via BoardNode bridging many-to-many Cards↔Boards.
+    - K2: ✓ Node centers persist in world coordinates; edge endpoints are derived at render time.
+    - K3: ✓ Absolute/zoom-derived node sizes are not persisted; an optional categorical size override may be persisted per node.
+    - K4: ✓ Selection persists until the user clicks another node or the canvas; it is cleared if the selected node is removed or becomes non-visible.
   - Sidebar Backlog and Drag & Drop
     - L1: A floating, semi-translucent Backlog panel lists Cards not on the board and supports filtering by Kind.
     - L2: Backlog rows display Card name, Kind icon, and thumbnail if available.
@@ -239,9 +239,9 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
     - L4: Dragging a Backlog Card over the canvas shows a blue drop target indicator; dropping creates a new node at the drop location mapped to world coordinates and persists it.
   - Accessibility, Appearance, and Performance
     - M1: Colors and contrasts for edges, selection borders, and grid adapt to light/dark appearances.
-    - M2: Panning/zooming and dragging remain responsive for dozens to low hundreds of nodes/edges.
-    - M3: Coordinate-space math is deterministic and stable across window resizes.
-    - M4: No visible grid-edge tearing occurs during pan/zoom due to 0405-compliant margin sizing.
+    - M2: ✓ Panning/zooming and dragging remain responsive for dozens to low hundreds of nodes/edges.
+    - M3: ✓ Coordinate-space math is deterministic and stable across window resizes.
+    - M4: ✓ No visible grid-edge tearing occurs during pan/zoom due to 0405-compliant margin sizing.
 
   Implementation Plan
    - Phase 0: Data Model and Utilities
@@ -272,12 +272,18 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   - Phase 5: Edges Rendering
     - Collapse CardEdge relations to one per pair using deterministic rule.
     - Render edges between node centers with correct z-order (grid < edges < nodes < overlays) and thickness ≥ 3 pt.
-    - New (0222/0224): Stroke each displayed segment with a three-stop linear gradient aligned from source→target with stops [target border color, grid contrast color (light/dark aware), source border color]. Derive node border colors from the same source used by CardView (Kinds.accentColor(for:)); fall back to AccentColor if unavailable. Cache per-node colors during a pass to avoid redundant lookups.
+    - New (0222/0224): Stroke each displayed segment with a three-stop linear gradient aligned from source→target with stops [target border color, grid contrast color (light/dark aware), and source border color]. Derive node border colors from the same source used by CardView (Kinds.accentColor(for:)); fall back to AccentColor if unavailable. Cache per-node colors during a pass to avoid redundant lookups.
  
   - Phase 6: Gestures and Interaction
     - Add a unified drag gesture: if the gesture starts over a node (prefer selected on overlap) then node-drag; else pan.
     - Node drag updates node.posX/posY in world coordinates preserving initial grab offset; persist during/after drag.
     - Pan drag updates panX/panY in view points; clamp and persist on end (debounce optional).
+    - New (0382) Two‑finger pan:
+      - iPadOS/visionOS: Attach a UIPanGestureRecognizer via a UIViewRepresentable that is configured with minimumNumberOfTouches = 2 and maximumNumberOfTouches = 2. While the recognizer is .changed, convert translation deltas in view points into incremental updates to T = (panX, panY); reset the recognizer’s translation to zero after applying deltas. Clamp T per 0066. Do not modify selection.
+      - macOS: Add an NSViewRepresentable overlay that receives scrollWheel events from a trackpad two‑finger gesture. Convert deltaX/deltaY (respecting natural/inverted scrolling) into updates to T in view points. Ignore momentum or apply a bounded fraction that respects clamping; no overshoot. Do not modify selection.
+      - Gesture precedence: When a MagnificationGesture (0332) is active, it takes precedence over two‑finger pan; suspend pan updates during active magnification. When two‑finger pan is active, suppress node drag (0360) and background click‑drag pan (0380) for its duration.
+      - Coordinate space: Measure deltas in the same named canvas coordinate space used elsewhere to ensure consistency with hit-testing and transforms.
+      - Persistence: Debounce persisting T to the Board during continuous updates; commit on gesture end.
  
   - Phase 7: Initial Recenter and Recenter Control
     - On initial display, ensure primary presence (unless in reset), initialize uninitialized target position to View Canvas Rectangle center, then pan to center without zoom change.
@@ -286,10 +292,11 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
     - Phase 8: Zoom Controls
     - Toolbar: Zoom Out, Slider (1%–200%), Zoom In, and percent text field.
     - Implement center-locked zoom by recomputing T to keep the window center mapped to the same world point.
-    - Clamp and persist S and T; ignore non-numeric input; round percent to nearest integer.
+    - Clamp and persist S and T; ignore non-numeric input; round percent to the nearest integer.
+    - Add platform-appropriate pinch-to-zoom recognition per 0332 (SwiftUI MagnificationGesture where available; bridge to NSMagnificationGestureRecognizer on macOS as needed). Convert gesture magnification to multiplicative updates to S, clamp to [0.01, 2.0], and adjust T analytically per 0330. Ensure pinch takes precedence over pan/drag during its lifecycle and does not alter selection.
  
   - Phase 9: Shuffle
-    - Arrange all non-anchor nodes around the Primary (or first) in rings with jitter; increase ring radius/capacity for larger counts.
+    - Arrange all nodes except the Primary (if present) around the Primary (or first) in rings with jitter; increase ring radius/capacity for larger counts.
     - Persist new positions; edges update automatically.
  
   - Phase 10: Primary Enforcement and Reset
@@ -310,6 +317,7 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   - Phase 13: Testing and Verification
     - Unit-test transform helpers: worldToView, viewToWorld, viewCanvasRect, center-locked zoom, clamping.
     - UI-verification tests for initial recenter, selection/clearing, node drag behavior, pan/zoom invariants, shuffle anchor preservation, and edge determinism.
+    - New (0382): Tests that two‑finger pan updates T on macOS via scrollWheel deltas and on iPadOS via two‑finger UIPan; verify precedence rules with pinch and clamping behavior.
  
   - Phase 14: Migration and Persistence Safety
     - Define schema migrations for any future model changes.
@@ -321,7 +329,6 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
     - Precision drift: keep world coordinates in Double; clamp values; minimize conversions.
     - Gesture ambiguity: prefer selected node on overlap; fall back to topmost by stable board order.
     - Reset/enforcement race: gate enforcement during/after reset; ensure ensurePrimaryPresence is idempotent.
-
 */
 
 import SwiftUI
@@ -384,6 +391,13 @@ struct MurderBoardView: View {
 
     // Prevent parent short-click clear from racing after a child tap
     @State private var suppressBackgroundClickClear: Bool = false
+
+    // 0332: Pinch-to-zoom state
+    @State private var isPinching: Bool = false
+    @State private var pinchStartScale: Double = 1.0
+
+    // 0382: Two‑finger pan state (suppresses node drag/background drag while active)
+    @State private var isTwoFingerPanning: Bool = false
 
     // MARK: - Debug instrumentation (Actions 1 & 2)
 
@@ -659,6 +673,19 @@ fileprivate extension MurderBoardView {
                         .transition(.opacity .combined(with: .scale))
                 }
 
+                // 0382: Two‑finger pan overlays (platform bridges). Placed above nodes to take precedence while active.
+                TwoFingerPanOverlay(
+                    isPinching: $isPinching,
+                    isTwoFingerPanning: $isTwoFingerPanning,
+                    onDelta: { dx, dy in
+                        applyPanDelta(dx: dx, dy: dy)
+                    },
+                    onEnd: {
+                        persistTransformNow()
+                    }
+                )
+                .allowsHitTesting(true)
+
                 // Debug overlay: rects + start dot (visible only when enabled and we have a start point)
                 #if DEBUG
                 if debugHitTestingEnabled, let start = debugStartPoint {
@@ -749,12 +776,31 @@ fileprivate extension MurderBoardView {
             // Untransformed, stable view-space that we also name for gestures/hit-testing (CA-13.2)
             .coordinateSpace(name: canvasCoordSpace)
             .contentShape(Rectangle())
+            // 0332: High-priority pinch-to-zoom so it takes precedence over pan/drag while active.
+            .highPriorityGesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        if isPinching == false {
+                            isPinching = true
+                            pinchStartScale = zoomScale
+                        }
+                        // Multiplicative update; clamp via helper which also recenters analytically (0330).
+                        let proposed = pinchStartScale * value
+                        setZoomKeepingCenter(proposed, windowSize: windowSize)
+                    }
+                    .onEnded { _ in
+                        isPinching = false
+                        persistTransformNow()
+                    }
+            )
             // Unified gesture attached here — use local/named space so locations match the rects (CA-13.1)
             .gesture(unifiedDragGesture())
             // Real canvas tap handler — single authoritative path for selection (CA-14)
             .simultaneousGesture(
                 SpatialTapGesture()
                     .onEnded { value in
+                        // Do not change selection during pinch (0332) or two‑finger pan (0382).
+                        if isPinching || isTwoFingerPanning { return }
                         if suppressBackgroundClickClear {
                             #if DEBUG
                             print("[MB] Canvas tap suppressed by child/drag short-click")
@@ -780,7 +826,7 @@ fileprivate extension MurderBoardView {
             .simultaneousGesture(
                 SpatialTapGesture()
                     .onEnded { value in
-                        guard debugHitTestingEnabled else { return }
+                        guard debugHitTestingEnabled, isPinching == false, isTwoFingerPanning == false else { return }
                         let p = value.location // local canvas space
                         debugClickPoint = p
                         debugRectsAtClick = computeAllNodeRectsInView()
@@ -905,7 +951,7 @@ fileprivate extension MurderBoardView {
                 let targetColor = nodeBorderColor(for: e.toID)
                 let midColor = gridContrastColor
 
-                let gradient = GraphicsGradient(colors: [
+                let gradient = Gradient(colors: [
                     targetColor,    // at source end (startPoint) per spec
                     midColor,       // middle
                     sourceColor     // at target end (endPoint) per spec
@@ -1072,6 +1118,9 @@ fileprivate extension MurderBoardView {
     func unifiedDragGesture() -> some Gesture {
         DragGesture(minimumDistance: 3) // default is .local; matches the view that defines canvasCoordSpace
             .onChanged { value in
+                // If a pinch is active or a two‑finger pan is active, do not process drag/pan (0332, 0382).
+                if isPinching || isTwoFingerPanning { return }
+
                 // Locations are already in this view’s local space.
                 let startInCanvas = value.startLocation
                 let locInCanvas = value.location
@@ -1134,7 +1183,6 @@ fileprivate extension MurderBoardView {
                             node.posY = newCenter.y.dg
                             try? modelContext.save()
                         }
-                        // Debug: first lock
                         #if DEBUG
                         if debugHitTestingEnabled && debugFirstLockDescription == nil {
                             debugFirstLockDescription = "node(\(id.uuidString))"
@@ -1181,6 +1229,9 @@ fileprivate extension MurderBoardView {
                 }
             }
             .onEnded { value in
+                // Ignore drag end if a pinch or two‑finger pan is active (0332, 0382).
+                if isPinching || isTwoFingerPanning { return }
+
                 // End points are in local canvas space as well
                 let startInCanvas = value.startLocation
                 let endInCanvas = value.location
@@ -1203,13 +1254,11 @@ fileprivate extension MurderBoardView {
                 case .pan, .pending:
                     if distance < tapThreshold {
                         if suppressBackgroundClickClear {
-                            // Child/other path already handled selection; do not override/clear.
                             #if DEBUG
                             print("[MB] DragEnd short-click suppressed by other handler at \(formatPoint(endInCanvas))")
                             #endif
                         } else if let hit = hitTestNode(at: startInCanvas) {
                             selectedCardID = hit
-                            // CA-13.3: guard against the simultaneous canvas tap clearing it
                             suppressBackgroundClickClear = true
                             DispatchQueue.main.async { suppressBackgroundClickClear = false }
                             #if DEBUG
@@ -1340,6 +1389,16 @@ fileprivate extension MurderBoardView {
         return CGSize(width: baseView.width / s.cg, height: baseView.height / s.cg)
     }
 
+    // Apply a pan delta in view-space points with clamping; no selection changes (0382).
+    func applyPanDelta(dx: CGFloat, dy: CGFloat) {
+        // Ignore while pinching per precedence (0332 over 0382)
+        if isPinching { return }
+        let newX = (panX + dx.dg).rangeClamped(to: Board.minPan...Board.maxPan)
+        let newY = (panY + dy.dg).rangeClamped(to: Board.minPan...Board.maxPan)
+        if newX != panX { panX = newX }
+        if newY != panY { panY = newY }
+    }
+
     // Small helpers for debug formatting
     #if DEBUG
     func formatPoint(_ p: CGPoint) -> String {
@@ -1400,7 +1459,7 @@ fileprivate extension MurderBoardView {
             .help("Recenter on primary (or first) node")
 
             Button { shuffleAroundPrimary() } label: {
-                Label("Shuffle", systemImage: "arrow.triangle.2.circlepath")
+                Label("Shuffle", systemImage: "shuffle")
             }
             .help("Arrange nodes around the primary in a ring; repeat to reshuffle")
 
@@ -1704,6 +1763,263 @@ fileprivate func debugRecordNodeSize(id: UUID, size: CGSize) {
 }
 #endif
 
+// MARK: - Two‑finger pan overlay (0382)
+
+fileprivate struct TwoFingerPanOverlay: View {
+    @Binding var isPinching: Bool
+    @Binding var isTwoFingerPanning: Bool
+    let onDelta: (CGFloat, CGFloat) -> Void
+    let onEnd: () -> Void
+
+    var body: some View {
+        #if os(iOS) || os(tvOS) || os(visionOS)
+        TwoFingerPanView_iOS(
+            isPinching: $isPinching,
+            isTwoFingerPanning: $isTwoFingerPanning,
+            onDelta: onDelta,
+            onEnd: onEnd
+        )
+        #elseif os(macOS)
+        TwoFingerPanView_macOS(
+            isPinching: $isPinching,
+            isTwoFingerPanning: $isTwoFingerPanning,
+            onDelta: onDelta,
+            onEnd: onEnd
+        )
+        #else
+        Color.clear
+        #endif
+    }
+}
+
+#if os(iOS) || os(tvOS) || os(visionOS)
+fileprivate struct TwoFingerPanView_iOS: UIViewRepresentable {
+    @Binding var isPinching: Bool
+    @Binding var isTwoFingerPanning: Bool
+    let onDelta: (CGFloat, CGFloat) -> Void
+    let onEnd: () -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let v = PassthroughView()
+        v.isUserInteractionEnabled = true
+
+        let recognizer = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
+        recognizer.minimumNumberOfTouches = 2
+        recognizer.maximumNumberOfTouches = 2
+        recognizer.cancelsTouchesInView = true
+        recognizer.delaysTouchesBegan = false
+        recognizer.delaysTouchesEnded = false
+        recognizer.delegate = context.coordinator
+        v.addGestureRecognizer(recognizer)
+
+        context.coordinator.panRecognizer = recognizer
+        context.coordinator.hostView = v
+        return v
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.isPinching = isPinching
+        context.coordinator.isTwoFingerPanning = isTwoFingerPanning
+        context.coordinator.onDelta = onDelta
+        context.coordinator.onEnd = onEnd
+        // Ensure the overlay fills its container
+        if let superview = uiView.superview {
+            uiView.frame = superview.bounds
+            uiView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isPinching: isPinching, isTwoFingerPanning: isTwoFingerPanning, onDelta: onDelta, onEnd: onEnd, twoFingerPanningBinding: $isTwoFingerPanning)
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var isPinching: Bool
+        var isTwoFingerPanning: Bool
+        var onDelta: (CGFloat, CGFloat) -> Void
+        var onEnd: () -> Void
+
+        weak var hostView: UIView?
+        weak var panRecognizer: UIPanGestureRecognizer?
+        private var twoFingerPanningBinding: Binding<Bool>
+
+        init(isPinching: Bool, isTwoFingerPanning: Bool, onDelta: @escaping (CGFloat, CGFloat) -> Void, onEnd: @escaping () -> Void, twoFingerPanningBinding: Binding<Bool>) {
+            self.isPinching = isPinching
+            self.isTwoFingerPanning = isTwoFingerPanning
+            self.onDelta = onDelta
+            self.onEnd = onEnd
+            self.twoFingerPanningBinding = twoFingerPanningBinding
+        }
+
+        @objc func handlePan(_ recognizer: UIPanGestureRecognizer) {
+            guard let view = recognizer.view else { return }
+
+            switch recognizer.state {
+            case .began:
+                twoFingerPanningBinding.wrappedValue = true
+            case .changed:
+                // Suppress while pinching; consume translation so it doesn’t accumulate.
+                if isPinching {
+                    recognizer.setTranslation(.zero, in: view)
+                    return
+                }
+                let translation = recognizer.translation(in: view)
+                // Emit incremental delta since last event
+                onDelta(translation.x, translation.y)
+                recognizer.setTranslation(.zero, in: view)
+            case .ended, .cancelled, .failed:
+                twoFingerPanningBinding.wrappedValue = false
+                onEnd()
+            default:
+                break
+            }
+        }
+
+        // Make two‑finger pan take precedence over other touches; allow simultaneous recognition with pinch only if needed.
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            // Prefer pinch precedence: if a pinch is recognized elsewhere, we let it run but our handler will ignore while pinching.
+            return false
+        }
+    }
+
+    // Transparent view that still receives touches
+    final class PassthroughView: UIView {
+        override class var layerClass: AnyClass { CALayer.self }
+        override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+            // Receive two‑finger gestures across the whole canvas overlay
+            return true
+        }
+        override func didMoveToSuperview() {
+            super.didMoveToSuperview()
+            backgroundColor = .clear
+            isMultipleTouchEnabled = true
+        }
+    }
+}
+#endif
+
+#if os(macOS)
+fileprivate struct TwoFingerPanView_macOS: NSViewRepresentable {
+    @Binding var isPinching: Bool
+    @Binding var isTwoFingerPanning: Bool
+    let onDelta: (CGFloat, CGFloat) -> Void
+    let onEnd: () -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let v = PanInterceptView()
+        v.wantsLayer = true
+        v.layer?.backgroundColor = NSColor.clear.cgColor
+        v.onDelta = { dx, dy in
+            // Suppress while pinching
+            if context.coordinator.isPinching { return }
+            onDelta(dx, dy)
+        }
+        v.onBegin = {
+            isTwoFingerPanning = true
+        }
+        v.onEnd = {
+            isTwoFingerPanning = false
+            onEnd()
+        }
+        context.coordinator.isPinching = isPinching
+        return v
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        if let v = nsView as? PanInterceptView {
+            v.onDelta = { dx, dy in
+                if context.coordinator.isPinching { return }
+                onDelta(dx, dy)
+            }
+            v.onBegin = { isTwoFingerPanning = true }
+            v.onEnd = {
+                isTwoFingerPanning = false
+                onEnd()
+            }
+        }
+        context.coordinator.isPinching = isPinching
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isPinching: isPinching)
+    }
+
+    final class Coordinator {
+        var isPinching: Bool
+        init(isPinching: Bool) { self.isPinching = isPinching }
+    }
+
+    // Transparent NSView that intercepts trackpad two‑finger scrollWheel events for panning.
+    final class PanInterceptView: NSView {
+        var onDelta: ((CGFloat, CGFloat) -> Void)?
+        var onBegin: (() -> Void)?
+        var onEnd: (() -> Void)?
+
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override var acceptsFirstResponder: Bool { true }
+
+        private var isActive: Bool = false
+
+        override func scrollWheel(with event: NSEvent) {
+            // Only handle precise trackpad scrolling; ignore momentum to avoid overshoot (B11).
+            guard event.hasPreciseScrollingDeltas else { return }
+
+            // Track active phase for precedence and persistence timing
+            if event.phase.contains(.began) && !isActive {
+                isActive = true
+                onBegin?()
+            }
+
+            // Ignore kinetic momentum updates
+            if !event.momentumPhase.isEmpty {
+                // When momentum ends, treat as end if we were active
+                if (event.momentumPhase.contains(.ended) || event.momentumPhase.contains(.cancelled)) && isActive {
+                    isActive = false
+                    onEnd?()
+                }
+                return
+            }
+
+            if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
+                if isActive {
+                    isActive = false
+                    onEnd?()
+                }
+                return
+            }
+
+            // Map deltas to pan updates, accounting for natural/inverted scrolling.
+            // Goal: content tracks fingers visually.
+            let dx = event.scrollingDeltaX
+            let dy = event.scrollingDeltaY
+            let useNatural = event.isDirectionInvertedFromDevice
+            let appliedDX = useNatural ? dx : -dx
+            let appliedDY = useNatural ? dy : -dy
+            onDelta?(appliedDX, appliedDY)
+        }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+        }
+
+        override func viewWillMove(toSuperview newSuperview: NSView?) {
+            super.viewWillMove(toSuperview: newSuperview)
+            wantsLayer = true
+            layer?.backgroundColor = NSColor.clear.cgColor
+        }
+
+        override func layout() {
+            super.layout()
+            // Ensure we fill the parent to capture gestures anywhere on the canvas
+            if let superview = superview {
+                frame = superview.bounds
+                autoresizingMask = [.width, .height]
+            }
+        }
+    }
+}
+#endif
+
 #Preview("Murder Board (seeded)") {
     let schema = Schema([Card.self, Board.self, BoardNode.self, CardEdge.self, RelationType.self])
     let cfg = ModelConfiguration(isStoredInMemoryOnly: true)
@@ -1772,4 +2088,3 @@ struct MurderBoardVerification {
     // [tests unchanged]
 }
 #endif
-

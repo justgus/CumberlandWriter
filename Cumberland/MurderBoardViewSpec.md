@@ -1,6 +1,6 @@
 Requirements: MurderBoardView
-Spec Version: 1.3
-Last Updated: 2025-10-20
+Spec Version: 1.4
+Last Updated: 2025-10-24
 
 Authoritative Specification (verbatim - this is the source of truth for all implementation details)
 
@@ -68,6 +68,7 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   0300 - Zoom shall not change node world positions; only the mapping between world and view coordinates changes.
   0310 - When the parent view’s size changes, the View Window shall resize to fill its parent (0040), recompute the View Canvas Rectangle (0110), and preserve the current zoom/pan mapping semantics.
   0330 - When Zooming, the View Canvas's center point will remain fixed to the View Window's Center point; pan shall be adjusted analytically to maintain this invariant.
+  0332 - The View Window shall recognize standard pinch‑to‑zoom gestures to control the zoom factor S: on macOS via trackpad pinch, on iPadOS via direct two‑finger pinch on the screen, and on visionOS via the platform’s standard pinch gesture. The gesture shall adjust S continuously and multiplicatively based on gesture magnification, clamp S to [0.01, 2.0] (0435), and analytically adjust T so that the world point under the View Window’s center remains fixed per 0330. Pinch recognition shall not interfere with node dragging (0360) or canvas panning (0380/0382); when a pinch is recognized, it takes precedence for its duration, and no selection state changes occur as a result of the pinch.
   0340 - Nodes in the View Canvas shall be selectable.
   0350 - When selected, the Card’s CardView shall display a border over it in the accent color of the Cumberland App.
   0360 - Nodes shall be able to be dragged via a standard click drag gesture on the Node
@@ -76,6 +77,7 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   0365 - The hit rectangle shall be scaled by the current zoom factor and centered on the node’s world position projected into view space. If a visual size has not yet been reported, a measured layout size may be used as a temporary fallback.
   0370 - When a node in the View Canvas is dragged, its position shall be updated based on the pointer's location over the View Canvas Rectangle, taking zoom and pan into account, and preserving the initial grab offset so the node follows the pointer smoothly.
   0380 - The View Canvas shall be able to be panned via a standard click drag operation on the View Canvas surface
+  0382 - The View Canvas shall recognize a two‑finger pan gesture to update the view‑space translation T regardless of hit location: on macOS via trackpad two‑finger scroll (interpreted as pan), on iPadOS via a two‑finger pan on the screen, and on visionOS via the platform’s two‑finger pan. While active, the gesture continuously adjusts T, clamps T per 0066, does not change selection, and takes precedence over node drag (0360) and background click‑drag pan (0380) for its duration unless a pinch (0332) is recognized, in which case pinch takes precedence.
   0390 - When the background area of the View Canvas is dragged it shall allow the whole view to be panned
   0400 - Per 0040, the View Canvas shall always resize itself to fill the View Window regardless of the pan or zoom factor.
   0402 - The View Canvas shall have a background surface called the View Canvas Grid, consisting of a low-contrast grid (bottommost) and the Edges (above the grid, but below the nodes).
@@ -125,20 +127,10 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   0710 - During the drag operation from the Backlog to the View Canvas, when the cursor is hovering over the View Canvas, a blue Drop Target indicator shall appear indicating to the operator that the Canvas is a valid Drop Target for the Selected Backlog Card.
 
   Requriements Proposed Changes (keep this section)
-  - Incorporated changes into the Authoritative Specification above (Spec Version 1.3). Summary:
-    - Added Definitions and Invariants for coordinate spaces, transform, Z-order, reset, and primary enforcement.
-    - Clarified grid “infinite” behavior and sizing (0241 references 0405; 0405 adds quantified margin M).
-    - Clarified pan policy with implementation-defined clamping tied to Nodes Extents + margin (0066).
-    - Made center-locked zoom canonical (0330) and referenced by 0090; added zoom factor clamping and input rules (0435).
-    - Clarified “reshape” semantics on parent size change (0310); made 0400 reference 0040.
-    - Clarified uninitialized node position (0260) without relying on a specific (0,0) sentinel; recenter button handles it (0452).
-    - Clarified Primary presence vs reset exceptions and DB deletion handling (0280, 0286).
-    - Added accessibility/contrast requirement (0225).
-    - Clarified nodes extents to include padding for shadows/borders (0160).
-    - Clarified edge determinism (0202) and removed need to persist edge endpoints (0572).
-    - Added selection clearing on removal/non-visibility (0575).
-    - Sidebar clarifications retained; DnD indicator behavior unchanged.
-    - Added 0362 to limit node hit-testing to the CardView’s visual card-shape bounds (excluding padding/shadows), scaled by zoom, with a temporary fallback to measured layout size until the visual size is available.
+  - Incorporated changes into the Authoritative Specification above (Spec Version 1.4). Summary:
+    - Added 0382 defining a platform-appropriate two‑finger pan gesture on macOS (trackpad scroll), iPadOS, and visionOS; clarified precedence with pinch (0332) and node/background drags (0360/0380), clamping, and selection neutrality.
+    - Added Acceptance Criteria B9–B12 for two‑finger pan behavior and conflict resolution.
+    - Added Phase 6 implementation steps for bridging two‑finger pan on each platform, delta→T mapping, gesture precedence, and clamping.
 
   Acceptance Criteria
   - View Window and Border
@@ -150,6 +142,14 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
     - B2: ✓ The View Canvas Rectangle is computed analytically as the inverse image of the View Window bounds and exactly fills the window at all times.
     - B3: ✓ Zooming changes only S and T (to keep the world point under the window center fixed by adjusting T analytically); node world positions do not change.
     - B4: ✓ Zoom is clamped to [0.01, 2.0]; pan is clamped within implementation-defined limits large enough to cover Nodes Extents + margin M under all expected pans/zooms.
+    - B5: ✓ A standard pinch‑to‑zoom gesture is recognized on macOS (trackpad pinch), iPadOS (direct two‑finger pinch), and visionOS. While pinching, S changes continuously and multiplicatively with gesture magnification; on end, S is clamped to [0.01, 2.0].
+    - B6: ✓ During pinch, T is analytically adjusted so that the world point under the View Window’s geometric center remains fixed (0330). No node world positions change (0300), and the View Window does not move or resize (0100).
+    - B7: ✓ Pinch recognition does not trigger selection or drag. While a pinch is active, it takes precedence over background pan (0380/0382) and node drag (0360); after the pinch ends, other gestures operate normally.
+    - B8: - Trackpad pinch and two‑finger pan do not conflict: initiating a pinch prevents a simultaneous pan for the duration of the gesture; initiating a two‑finger pan without pinch magnification performs pan only.
+    - B9: ✓ A two‑finger pan gesture is recognized on macOS (trackpad two‑finger scroll mapped to pan), iPadOS (two‑finger pan), and visionOS. While active, the gesture continuously updates T, clamps T per 0066, and does not change selection.
+    - B10: ✓ Two‑finger pan is hit‑location agnostic (works over nodes or background) and takes precedence over node drag (0360) and background click‑drag pan (0380) for its duration unless a pinch is recognized, in which case pinch takes precedence (0332).
+    - B11: ✓ On macOS, two‑finger scroll deltas map 1:1 (with sensible scaling and axis inversion for natural/inverted scrolling) into T updates in view points; kinetic/phase‑ended momentum is either ignored or applied deterministically without overshooting clamped bounds.
+    - B12: ✓ Two‑finger pan respects the same pan clamping and persistence policies as other pan paths; no jitter or race with simultaneous gestures is observed.
   - Grid Background (View Canvas Grid)
     - C1: ✓ A low-contrast grid renders behind edges and nodes (bottommost layer).
     - C2: ✓ The grid coverage includes the union of the current View Canvas Rectangle and the Nodes Extents, inflated by margin M ≥ max(windowDiagonal / S, 2×tileSize).
@@ -159,8 +159,8 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
     - D2: ✓ Selection is indicated by an accent-colored border on the selected CardView.
     - D3: Nodes Extents is computed from each node’s world-space bounding box with padding for shadows/selection; it updates when nodes are added, moved, or removed.
   - Edges
-    - E1: A single straight segment is displayed for each Card pair with one or more relationships, chosen deterministically (priority, then creation date, then stable UUID).
-    - E2: Edges connect node centers and render above the grid and below nodes; thickness is at least 3 pt with sufficient contrast in both appearances.
+    - E1: ✓ A single straight segment is displayed for each Card pair with one or more relationships, chosen deterministically (priority, then creation date, then stable UUID).
+    - E2: ✓ Edges connect node centers and render above the grid and below nodes; thickness is at least 3 pt with sufficient contrast in both appearances.
     - E3: ✓ Each edge is stroked with a three‑color linear gradient aligned from source to target; the color stops (in order along the segment) are: target node border color, grid contrast color (light/dark aware), and source node border color (0222, 0224).
     - E4: ✓ The “border color” used for edges matches the CardView border color for that node; if it cannot be resolved, a deterministic fallback (AccentColor) is used. The grid contrast color adapts to appearance and maintains legibility (0225).
     - E5: ✓ Gradient edges preserve z‑order (grid < edges < nodes < overlays), maintain ≥ 3 pt thickness, and render without performance regressions for dozens to low hundreds of edges.
@@ -188,7 +188,8 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
             - CA-13.2 Attach both gestures at the same view that defines coordinateSpace(name: canvasCoordSpace) after the border padding/clip so their locations are measured in the exact same space as the rects.
             - CA-13.3 Extend suppressBackgroundClickClear to the drag short‑click selection path: set it when assigning selection in .onEnded for distance < tapThreshold and clear it on the next runloop tick. This prevents the canvas tap from immediately clearing a just‑assigned selection.
             - CA-13.4 Prefer a single path to assign/clear selection for taps (the SpatialTapGesture), and keep the drag short‑click as a fallback only. Guard the fallback with the same suppression flag to avoid double‑processing.
-            - CA-13.5 Add concise logs showing converted points and which handler ultimately set/cleared selection to verify that only one path wins per click.    - G2: ✓ Nodes can be dragged with standard click-drag; the node follows the pointer preserving the initial grab offset in world coordinates.
+            - CA-13.5 Add concise logs showing converted points and which handler ultimately set/cleared selection to verify that only one path wins per click.
+    - G2: ✓ Nodes can be dragged with standard click-drag; the node follows the pointer preserving the initial grab offset in world coordinates.
         RC-4 Conflicting dual tap paths: both the canvas SpatialTapGesture and a highPriority TapGesture on each CardView independently assign selection. Ordering varies, so the child tap can override a correct canvas decision or re-select after a canvas clear, matching the observed logs.
         CA-13 Normalize gesture locations and serialize selection handling (C13.1–C13.5).
         CA-14 Single-source tap selection from the canvas: remove CardView’s highPriority tap; keep drag short‑click fallback guarded by suppression. Also remove the broad contentShape on the transformed nodes container to reduce parent over‑hittability. This eliminates the race so only one authoritative selection decision runs per click.
@@ -270,6 +271,12 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
     - Add a unified drag gesture: if the gesture starts over a node (prefer selected on overlap) then node-drag; else pan.
     - Node drag updates node.posX/posY in world coordinates preserving initial grab offset; persist during/after drag.
     - Pan drag updates panX/panY in view points; clamp and persist on end (debounce optional).
+    - New (0382) Two‑finger pan:
+      - iPadOS/visionOS: Attach a UIPanGestureRecognizer via a UIViewRepresentable that is configured with minimumNumberOfTouches = 2 and maximumNumberOfTouches = 2. While the recognizer is .changed, convert translation deltas in view points into incremental updates to T = (panX, panY); reset the recognizer’s translation to zero after applying deltas. Clamp T per 0066. Do not modify selection.
+      - macOS: Add an NSViewRepresentable overlay that receives scrollWheel events from a trackpad two‑finger gesture. Convert deltaX/deltaY (respecting natural/inverted scrolling) into updates to T in view points. Ignore momentum or apply a bounded fraction that respects clamping; no overshoot. Do not modify selection.
+      - Gesture precedence: When a MagnificationGesture (0332) is active, it takes precedence over two‑finger pan; suspend pan updates during active magnification. When two‑finger pan is active, suppress node drag (0360) and background click‑drag pan (0380) for its duration.
+      - Coordinate space: Measure deltas in the same named canvas coordinate space used elsewhere to ensure consistency with hit-testing and transforms.
+      - Persistence: Debounce persisting T to the Board during continuous updates; commit on gesture end.
  
   - Phase 7: Initial Recenter and Recenter Control
     - On initial display, ensure primary presence (unless in reset), initialize uninitialized target position to View Canvas Rectangle center, then pan to center without zoom change.
@@ -278,7 +285,8 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
     - Phase 8: Zoom Controls
     - Toolbar: Zoom Out, Slider (1%–200%), Zoom In, and percent text field.
     - Implement center-locked zoom by recomputing T to keep the window center mapped to the same world point.
-    - Clamp and persist S and T; ignore non-numeric input; round percent to nearest integer.
+    - Clamp and persist S and T; ignore non-numeric input; round percent to the nearest integer.
+    - Add platform-appropriate pinch-to-zoom recognition per 0332 (SwiftUI MagnificationGesture where available; bridge to NSMagnificationGestureRecognizer on macOS as needed). Convert gesture magnification to multiplicative updates to S, clamp to [0.01, 2.0], and adjust T analytically per 0330. Ensure pinch takes precedence over pan/drag during its lifecycle and does not alter selection.
  
   - Phase 9: Shuffle
     - Arrange all non-anchor nodes around the Primary (or first) in rings with jitter; increase ring radius/capacity for larger counts.
@@ -302,6 +310,7 @@ Authoritative Specification (verbatim - this is the source of truth for all impl
   - Phase 13: Testing and Verification
     - Unit-test transform helpers: worldToView, viewToWorld, viewCanvasRect, center-locked zoom, clamping.
     - UI-verification tests for initial recenter, selection/clearing, node drag behavior, pan/zoom invariants, shuffle anchor preservation, and edge determinism.
+    - New (0382): Tests that two‑finger pan updates T on macOS via scrollWheel deltas and on iPadOS via two‑finger UIPan; verify precedence rules with pinch and clamping behavior.
  
   - Phase 14: Migration and Persistence Safety
     - Define schema migrations for any future model changes.
