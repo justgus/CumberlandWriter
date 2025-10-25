@@ -419,6 +419,7 @@ struct MainAppView: View {
                                 .navigationTitle("Structure Board: \(card.name)")
                         } else if card.kind == .worlds || card.kind == .characters {
                             MurderBoardView(primary: card)
+                                .id(card.id) // Force recreation when selecting a different card so the board refreshes
                                 .navigationTitle("\(card.name.isEmpty ? card.kind.singularTitle : card.name) Board")
                         } else {
                             CardSheetView(card: card)

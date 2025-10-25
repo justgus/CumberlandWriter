@@ -125,6 +125,12 @@ final class Card: Identifiable {
         get { SizeCategory(rawValue: sizeCategoryRaw) ?? .standard }
         set { sizeCategoryRaw = newValue.rawValue }
     }
+
+    var thumbnailURL: URL? {
+        // If we have thumbnail data, create a data URL
+        guard let data = thumbnailData else { return nil }
+        return URL(string: "data:image/png;base64,\(data.base64EncodedString())")
+    }
 }
 
 // MARK: - SwiftUI Images

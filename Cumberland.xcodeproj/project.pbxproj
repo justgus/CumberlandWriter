@@ -65,6 +65,7 @@
 				AppModel.swift,
 				Assets.xcassets,
 				BackgroundDownloadHandler.swift,
+				BacklogSidebarPanel.swift,
 				BackupDTOs.swift,
 				CardDetailTab.swift,
 				CardEditorView.swift,
