@@ -1,6 +1,7 @@
 // ManuscriptAssembler.swift
 import Foundation
 import SwiftData
+import Combine
 
 struct ManuscriptAssembler {
     // Build footnotes and bibliography (Chicago-like) for a project

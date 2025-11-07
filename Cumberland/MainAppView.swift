@@ -7,6 +7,8 @@
 
 import SwiftUI
 import SwiftData
+import Combine
+
 #if os(iOS)
 import UIKit
 #endif
@@ -22,6 +24,13 @@ struct MainAppView: View {
         case structure
         case all
         case kind(Kinds)
+    }
+    
+    // Column visibility context for persistence
+    private enum ColumnVisibilityContext {
+        case kind(Kinds)
+        case all
+        case structure
     }
 
     @Query private var cards: [Card]
@@ -46,6 +55,23 @@ struct MainAppView: View {
 
     // Three-pane split visibility (keep all visible on macOS by default)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+
+    // Column visibility preferences per card kind
+    @AppStorage("ColumnVisibility.projects") private var projectsColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.characters") private var charactersColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.scenes") private var scenesColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.worlds") private var worldsColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.timelines") private var timelinesColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.chapters") private var chaptersColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.all") private var allColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.structure") private var structureColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.maps") private var mapsColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.locations") private var locationsColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.buildings") private var buildingsColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.vehicles") private var vehiclesColumnVisibility: String = "all"
+    @AppStorage("COlumnVisibility.artifacts") private var artifactsColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.rules") private var rulesColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.sources") private var sourcesColumnVisibility: String = "all"
 
     // Default to Details (and remember per Kind thereafter)
     @State private var selectedDetailTab: CardDetailTab = .details
@@ -91,8 +117,10 @@ struct MainAppView: View {
     }
 
     var body: some View {
-        // Use split view with our own selection state controlling the detail pane.
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        // Use NavigationSplitView with column visibility persistence per card kind
+        NavigationSplitView(
+            columnVisibility: $columnVisibility
+        ) {
             sidebar
         } content: {
             contentColumn
@@ -177,7 +205,6 @@ struct MainAppView: View {
         }
         #endif
         .toolbar {
-            // Keep the leading nav-space free on iOS so the system sidebar toggle remains native.
             #if !os(iOS)
             ToolbarItem(placement: .navigation) {
                 Button {
@@ -250,6 +277,9 @@ struct MainAppView: View {
                 }
             }
 
+            // Load split position for current context
+            loadColumnVisibility(for: currentColumnVisibilityContext())
+
             // Initialize the detail tab based on current context
             if let card = selectedCard {
                 selectedDetailTab = loadRememberedTab(for: card.kind)
@@ -270,9 +300,17 @@ struct MainAppView: View {
         }
         // Persist selection when it changes
         .onChange(of: sidebarSelection) { _, newValue in
+            // Save current column visibility before changing context
+            let oldContext = currentColumnVisibilityContext()
+            saveColumnVisibility(columnVisibility, for: oldContext)
+            
             sidebarSelectionRaw = serializeSidebarSelection(newValue)
             // Reset card selection when changing context
             selectedCardID = nil
+            
+            // Load column visibility for new context
+            loadColumnVisibility(for: currentColumnVisibilityContext())
+            
             // Load remembered tab for the newly selected kind (or default)
             switch newValue {
             case .kind(let k):
@@ -337,6 +375,10 @@ struct MainAppView: View {
         }
         .onChange(of: focusModeCardIDRaw) { _, _ in
             updateSplitVisibilityForSelection()
+        }
+        // Save column visibility when user adjusts it
+        .onChange(of: columnVisibility) { _, newVisibility in
+            saveColumnVisibility(newVisibility, for: currentColumnVisibilityContext())
         }
     }
 
@@ -412,12 +454,16 @@ struct MainAppView: View {
                     case .relationships:
                         CardRelationshipView(primary: card)
                             .navigationTitle("Relationships: \(card.name)")
+                    case .aggregateText:
+                        // Visible primarily for Chapters
+                        AggregateTextView(card: card)
+                            .navigationTitle(card.name.isEmpty ? "Aggregate Text" : "Aggregate: \(card.name)")
                     case .board:
                         // Route by kind:
                         if card.kind == .projects {
                             StructureBoardView(project: card)
                                 .navigationTitle("Structure Board: \(card.name)")
-                        } else if card.kind == .worlds || card.kind == .characters {
+                        } else if card.kind == .worlds || card.kind == .characters || card.kind == .scenes {
                             MurderBoardView(primary: card)
                                 .id(card.id) // Force recreation when selecting a different card so the board refreshes
                                 .navigationTitle("\(card.name.isEmpty ? card.kind.singularTitle : card.name) Board")
@@ -714,6 +760,124 @@ struct MainAppView: View {
         return nil
     }
 
+    // MARK: - Column visibility management
+    
+    private func loadColumnVisibility(for context: ColumnVisibilityContext) {
+        let visibilityString: String
+        switch context {
+        case .kind(.projects):
+            visibilityString = projectsColumnVisibility
+        case .kind(.characters):
+            visibilityString = charactersColumnVisibility
+        case .kind(.scenes):
+            visibilityString = scenesColumnVisibility
+        case .kind(.worlds):
+            visibilityString = worldsColumnVisibility
+        case .kind(.timelines):
+            visibilityString = timelinesColumnVisibility
+        case .kind(.chapters):
+            visibilityString = chaptersColumnVisibility
+        case .all:
+            visibilityString = allColumnVisibility
+        case .structure:
+            visibilityString = structureColumnVisibility
+        case .kind(.maps):
+            visibilityString = mapsColumnVisibility
+        case .kind(.locations):
+            visibilityString = locationsColumnVisibility
+        case .kind(.buildings):
+            visibilityString = buildingsColumnVisibility
+        case .kind(.vehicles):
+            visibilityString = vehiclesColumnVisibility
+        case .kind(.artifacts):
+            visibilityString = artifactsColumnVisibility
+        case .kind(.rules):
+            visibilityString = rulesColumnVisibility
+        case .kind(.sources):
+            visibilityString = sourcesColumnVisibility
+        case .kind(.structure):
+            visibilityString = structureColumnVisibility
+        }
+        columnVisibility = parseColumnVisibility(from: visibilityString)
+    }
+    
+    private func saveColumnVisibility(_ visibility: NavigationSplitViewVisibility, for context: ColumnVisibilityContext) {
+        let visibilityString = serializeColumnVisibility(visibility)
+        switch context {
+        case .kind(.projects):
+            projectsColumnVisibility = visibilityString
+        case .kind(.characters):
+            charactersColumnVisibility = visibilityString
+        case .kind(.scenes):
+            scenesColumnVisibility = visibilityString
+        case .kind(.worlds):
+            worldsColumnVisibility = visibilityString
+        case .kind(.timelines):
+            timelinesColumnVisibility = visibilityString
+        case .kind(.chapters):
+            chaptersColumnVisibility = visibilityString
+        case .all:
+            allColumnVisibility = visibilityString
+        case .structure:
+            structureColumnVisibility = visibilityString
+        case .kind(.maps):
+            mapsColumnVisibility = visibilityString
+        case .kind(.locations):
+            locationsColumnVisibility = visibilityString
+        case .kind(.buildings):
+            buildingsColumnVisibility = visibilityString
+        case .kind(.vehicles):
+            vehiclesColumnVisibility = visibilityString
+        case .kind(.artifacts):
+            artifactsColumnVisibility = visibilityString
+        case .kind(.rules):
+            rulesColumnVisibility = visibilityString
+        case .kind(.sources):
+            sourcesColumnVisibility = visibilityString
+        case .kind(.structure):
+            structureColumnVisibility = visibilityString
+        }
+    }
+    
+    private func currentColumnVisibilityContext() -> ColumnVisibilityContext {
+        switch sidebarSelection {
+        case .kind(let k):
+            return .kind(k)
+        case .all:
+            return .all
+        case .structure:
+            return .structure
+        case .none:
+            return .all // Default fallback
+        }
+    }
+    
+    private func serializeColumnVisibility(_ visibility: NavigationSplitViewVisibility) -> String {
+        switch visibility {
+        case .all:
+            return "all"
+        case .doubleColumn:
+            return "doubleColumn"
+        case .detailOnly:
+            return "detailOnly"
+        default:
+            return "all"
+        }
+    }
+    
+    private func parseColumnVisibility(from string: String) -> NavigationSplitViewVisibility {
+        switch string {
+        case "all":
+            return .all
+        case "doubleColumn":
+            return .doubleColumn
+        case "detailOnly":
+            return .detailOnly
+        default:
+            return .all
+        }
+    }
+
     // MARK: - iPadOS split visibility behavior
 
     private func updateSplitVisibilityForSelection() {
@@ -815,6 +979,7 @@ private struct CardListRow: View {
 let config = ModelConfiguration(isStoredInMemoryOnly: true)
 let container = try! ModelContainer(for: Card.self, configurations: config)
 
-return MainAppView()
+MainAppView()
     .modelContainer(container)
 }
+

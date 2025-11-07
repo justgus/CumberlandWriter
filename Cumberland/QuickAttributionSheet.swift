@@ -1,6 +1,7 @@
 // QuickAttributionSheet.swift
 import SwiftUI
 import SwiftData
+import Combine
 
 struct QuickAttributionSheet: View {
     let card: Card

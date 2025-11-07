@@ -4,7 +4,8 @@ import SwiftUI
 enum CardDetailTab: String, CaseIterable, Identifiable {
     case details = "Details"
     case relationships = "Relationships"
-    case board = "Board" // Structural Spine (Projects) or Murder Board (Worlds/Characters)
+    case aggregateText = "Aggregate" // New: AggregateTextView for Chapters
+    case board = "Board" // Structural Spine (Projects) or Murder Board (Worlds/Characters/Scenes)
     case timeline = "Timeline" // Timeline chart (Timelines only)
 
     var id: String { rawValue }
@@ -13,9 +14,10 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .details: return "rectangle.and.text.magnifyingglass"
-        case .relationships: return "point.3.connected.trianglepath.dotted"
+        case .relationships: return "link"
+        case .aggregateText: return "text.justify"
         case .board: return "square.grid.3x1.folder.fill.badge.plus"
-        case .timeline: return "chart.bar.xaxis"
+        case .timeline: return "chart.bar.yaxis"
         }
     }
 
@@ -23,6 +25,7 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
         switch self {
         case .details: return "Show Details"
         case .relationships: return "Manage Relationships"
+        case .aggregateText: return "Aggregate Text"
         case .board: return "Board"
         case .timeline: return "Timeline Chart"
         }
@@ -33,12 +36,16 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
     // Tabs available for a given Kind
     static func allowedTabs(for kind: Kinds) -> [CardDetailTab] {
         var tabs: [CardDetailTab] = [.details, .relationships]
+        // Chapters: Aggregate Text as the third option
+        if kind == .chapters {
+            tabs.append(.aggregateText)
+        }
         // Projects: Structure Board (existing)
         if kind == .projects {
             tabs.append(.board)
         }
-        // Worlds and Characters: Murder Board
-        if kind == .worlds || kind == .characters {
+        // Worlds, Characters, and Scenes: Murder Board
+        if kind == .worlds || kind == .characters || kind == .scenes {
             tabs.append(.board)
         }
         if kind == .timelines {

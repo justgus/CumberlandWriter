@@ -11,6 +11,7 @@ import SwiftUI
 import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
+import CoreTransferable
 
 // Persistence model notes:
 // - id is unique to support stable identity across sync and devices.
@@ -510,6 +511,64 @@ private extension Card {
     }
 }
 
+// MARK: - Transferable Support for Drag & Drop
+
+extension Card {
+    // Create a sendable transfer representation for the card
+    func createTransferRepresentation() -> CardTransferData {
+        CardTransferData(
+            id: self.id,
+            name: self.name,
+            kindRaw: self.kindRaw
+        )
+    }
+}
+
+// Make CardTransferData itself Transferable instead of Card
+extension CardTransferData: Transferable {
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(contentType: .cardReference) { cardData in
+            try JSONEncoder().encode(cardData)
+        } importing: { data in
+            try JSONDecoder().decode(CardTransferData.self, from: data)
+        }
+    }
+}
+
+// Transfer data structure for drag operations
+struct CardTransferData: Sendable {
+    let id: UUID
+    let name: String
+    let kindRaw: String
+}
+
+// Explicitly nonisolated Codable conformance to avoid main actor isolation issues
+extension CardTransferData: Codable {
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.kindRaw = try container.decode(String.self, forKey: .kindRaw)
+    }
+    
+    nonisolated func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(kindRaw, forKey: .kindRaw)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, name, kindRaw
+    }
+}
+
+// Custom UTType for card references
+extension UTType {
+    // Avoid Info.plist registration; use a failable initializer with a safe fallback.
+    static let cardReference: UTType = UTType("com.cumberland.card-reference") ?? .json
+}
+
 // MARK: - Search normalization
 
 private extension Card {
@@ -537,4 +596,3 @@ enum SizeCategory: Int, Codable, CaseIterable, Hashable, Sendable {
         }
     }
 }
-

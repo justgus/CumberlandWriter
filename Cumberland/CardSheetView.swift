@@ -1465,7 +1465,7 @@ struct CardSheetView: View {
             if provider.canLoadObject(ofClass: NSImage.self) {
                 provider.loadObject(ofClass: NSImage.self) { obj, _ in
                     if let img = obj as? NSImage {
-                        let data = img.pngData() ?? img.jpegData(compression: 0.9)
+                        let data = nsImageToPngData(img) ?? nsImageToJpegData(img, compression: 0.9)
                         if let data {
                             Task { @MainActor in
                                 let ok = self.handleDroppedImageData(data)
@@ -2068,17 +2068,29 @@ private extension View {
 }
 
 #if canImport(AppKit)
-private extension NSImage {
-    func pngData() -> Data? {
-        guard let tiff = self.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff) else { return nil }
-        return rep.representation(using: .png, properties: [:])
+// NSImage data conversion helpers
+private func nsImageToPngData(_ image: NSImage) -> Data? {
+    // First try native method if available (macOS 12.0+)
+    if image.responds(to: Selector(("pngData"))) {
+        return image.perform(Selector(("pngData")))?.takeUnretainedValue() as? Data
     }
-    func jpegData(compression: CGFloat) -> Data? {
-        guard let tiff = self.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff) else { return nil }
-        return rep.representation(using: .jpeg, properties: [.compressionFactor: compression])
+    
+    // Fallback for older macOS versions
+    guard let tiff = image.tiffRepresentation,
+          let rep = NSBitmapImageRep(data: tiff) else { return nil }
+    return rep.representation(using: .png, properties: [:])
+}
+
+private func nsImageToJpegData(_ image: NSImage, compression: CGFloat) -> Data? {
+    // First try native method if available (macOS 12.0+)
+    if image.responds(to: Selector(("jpegDataWithCompressionQuality:"))) {
+        return image.perform(Selector(("jpegDataWithCompressionQuality:")), with: compression)?.takeUnretainedValue() as? Data
     }
+    
+    // Fallback for older macOS versions
+    guard let tiff = image.tiffRepresentation,
+          let rep = NSBitmapImageRep(data: tiff) else { return nil }
+    return rep.representation(using: .jpeg, properties: [.compressionFactor: compression])
 }
 #endif
 

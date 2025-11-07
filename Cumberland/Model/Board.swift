@@ -91,9 +91,9 @@ extension Board {
     static let maxPan: Double = +1_000_000
 
     func clampState() {
-        zoomScale = zoomScale.rangeClamped(to: Self.minZoom...Self.maxZoom)
-        panX = panX.rangeClamped(to: Self.minPan...Self.maxPan)
-        panY = panY.rangeClamped(to: Self.minPan...Self.maxPan)
+        zoomScale = zoomScale.clamped(to: Self.minZoom...Self.maxZoom)
+        panX = panX.clamped(to: Self.minPan...Self.maxPan)
+        panY = panY.clamped(to: Self.minPan...Self.maxPan)
     }
 
     // Ensure a node exists for a given card; find via context fetch to avoid cross-context traversal,
@@ -162,11 +162,5 @@ extension Board {
     // All cards currently on this board (via nodes)
     var memberCards: [Card] {
         (nodes ?? []).compactMap { $0.card }
-    }
-}
-
-extension Comparable {
-    func rangeClamped(to range: ClosedRange<Self>) -> Self {
-        min(max(self, range.lowerBound), range.upperBound)
     }
 }

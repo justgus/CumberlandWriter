@@ -14,15 +14,49 @@ struct TimelineChartView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
 
+    // Lane mode: which secondary lanes to show alongside "All"
+    private enum LaneMode: String, CaseIterable, Identifiable {
+        case characters
+        case chapters
+
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .characters: return "Characters"
+            case .chapters:   return "Chapters"
+            }
+        }
+        var kind: Kinds {
+            switch self {
+            case .characters: return .characters
+            case .chapters:   return .chapters
+            }
+        }
+        var systemImage: String {
+            switch self {
+            case .characters: return Kinds.characters.systemImage
+            case .chapters:   return Kinds.chapters.systemImage
+            }
+        }
+    }
+
     // Data snapshot
     @State private var scenes: [SceneRow] = []
+
+    // Characters dataset
     @State private var characters: [Card] = [] // Participants present in these scenes
-
-    // Preloaded thumbnails for characters (tiny)
     @State private var characterThumbnails: [UUID: Image] = [:]
-
-    // Filtering: empty == All Characters
     @State private var selectedCharacterIDs: Set<UUID> = []
+    @State private var participationCharacters: [UUID: [UUID]] = [:] // character.id -> [scene.id]
+
+    // Chapters dataset
+    @State private var chapters: [Card] = []
+    @State private var chapterThumbnails: [UUID: Image] = [:]
+    @State private var selectedChapterIDs: Set<UUID> = []
+    @State private var participationChapters: [UUID: [UUID]] = [:] // chapter.id -> [scene.id]
+
+    // Which secondary lanes to render
+    @State private var laneMode: LaneMode = .characters
 
     // X-axis zoom (ordinal domain)
     @State private var visibleStart: Int = 1
@@ -43,6 +77,7 @@ struct TimelineChartView: View {
     // Codes
     private let sceneTimelineCode = "describes/described-by"
     private let characterSceneCode = "appears-in/is-appeared-by"
+    private let chapterSceneCode = "part-of/has-scene" // Scene -> Chapter (forward "part-of")
 
     // Reorder UI
     @State private var isPresentingReorder: Bool = false
@@ -107,39 +142,45 @@ struct TimelineChartView: View {
 
                 Spacer(minLength: 8)
 
-                // Character filter (multi-select)
+                // Lane mode picker (Characters / Chapters)
+                Picker("Lanes", selection: $laneMode) {
+                    Label(LaneMode.characters.title, systemImage: LaneMode.characters.systemImage)
+                        .tag(LaneMode.characters)
+                    Label(LaneMode.chapters.title, systemImage: LaneMode.chapters.systemImage)
+                        .tag(LaneMode.chapters)
+                }
+                .pickerStyle(.menu)
+                .help("Choose which lanes to show")
+
+                // Filter menu (adapts to lane mode)
                 Menu {
                     Button {
-                        selectedCharacterIDs.removeAll()
+                        clearSelectionForCurrentMode()
                     } label: {
-                        Label("All Characters", systemImage: selectedCharacterIDs.isEmpty ? "checkmark" : "person.3")
+                        Label("All \(laneMode.title)", systemImage: currentSelectionIsEmpty ? "checkmark" : laneMode.systemImage)
                     }
 
                     Divider()
 
-                    ForEach(characters, id: \.id) { ch in
-                        let isOn = selectedCharacterIDs.contains(ch.id)
+                    ForEach(currentLaneCards, id: \.id) { card in
+                        let isOn = currentSelectedIDs.contains(card.id)
                         Toggle(isOn: Binding(
                             get: { isOn },
                             set: { newValue in
-                                if newValue {
-                                    selectedCharacterIDs.insert(ch.id)
-                                } else {
-                                    selectedCharacterIDs.remove(ch.id)
-                                }
+                                updateSelection(for: card.id, isSelected: newValue)
                             }
                         )) {
-                            Text(ch.name.isEmpty ? "Untitled" : ch.name)
+                            Text(card.name.isEmpty ? "Untitled" : card.name)
                         }
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "person.2")
-                        Text(charactersMenuTitle())
+                        Image(systemName: laneMode.systemImage)
+                        Text(filterMenuTitle())
                             .lineLimit(1)
                     }
                 }
-                .help("Filter lanes by one or more characters")
+                .help("Filter lanes by one or more \(laneMode.title.lowercased())")
 
                 // Label toggle
                 Toggle("Labels", isOn: $labelVisibility)
@@ -185,15 +226,57 @@ struct TimelineChartView: View {
         }
         .frame(height: headerHeight)
         .controlSize(.small) // slightly more compact controls to reduce header height
+        .onChange(of: laneMode) { _, _ in
+            // Clear selection when switching modes to avoid confusion
+            clearSelectionForCurrentMode(resetAll: true)
+        }
     }
 
-    private func charactersMenuTitle() -> String {
-        if selectedCharacterIDs.isEmpty {
-            return "All Characters"
-        } else if selectedCharacterIDs.count == 1, let id = selectedCharacterIDs.first, let name = characters.first(where: { $0.id == id })?.name {
+    // Filter menu helpers
+    private var currentLaneCards: [Card] {
+        switch laneMode {
+        case .characters: return characters
+        case .chapters:   return chapters
+        }
+    }
+    private var currentSelectedIDs: Set<UUID> {
+        get {
+            switch laneMode {
+            case .characters: return selectedCharacterIDs
+            case .chapters:   return selectedChapterIDs
+            }
+        }
+        nonmutating set {
+            switch laneMode {
+            case .characters: selectedCharacterIDs = newValue
+            case .chapters:   selectedChapterIDs = newValue
+            }
+        }
+    }
+    private var currentSelectionIsEmpty: Bool { currentSelectedIDs.isEmpty }
+
+    private func updateSelection(for id: UUID, isSelected: Bool) {
+        var s = currentSelectedIDs
+        if isSelected { s.insert(id) } else { s.remove(id) }
+        currentSelectedIDs = s
+    }
+
+    private func clearSelectionForCurrentMode(resetAll: Bool = false) {
+        currentSelectedIDs = []
+        if resetAll {
+            // no-op besides clearing current mode selection
+        }
+    }
+
+    private func filterMenuTitle() -> String {
+        let selected = currentSelectedIDs
+        let cards = currentLaneCards
+        if selected.isEmpty {
+            return "All \(laneMode.title)"
+        } else if selected.count == 1, let id = selected.first, let name = cards.first(where: { $0.id == id })?.name {
             return name.isEmpty ? "1 Selected" : name
         } else {
-            return "\(selectedCharacterIDs.count) Selected"
+            return "\(selected.count) Selected"
         }
     }
 
@@ -222,13 +305,13 @@ struct TimelineChartView: View {
 
         // Lane keys: stable identifiers for Y domain
         let allKey = laneKeyAll()
-        let characterKeys: [String] = lanes.characters.map { laneKey(for: $0) }
+        let itemKeys: [String] = lanes.items.map { laneKey(for: $0) }
 
-        // Y categorical domain: keep "All" at top when shown, then character lanes
+        // Y categorical domain: keep "All" at top when shown, then item lanes
         let yDomainKeys: [String] = {
             var domain: [String] = []
             if lanes.all { domain.append(allKey) }
-            domain.append(contentsOf: characterKeys)
+            domain.append(contentsOf: itemKeys)
             return domain
         }()
 
@@ -236,7 +319,7 @@ struct TimelineChartView: View {
         let yDisplayLabels: [String] = {
             var labels: [String] = []
             if lanes.all { labels.append("All") }
-            labels.append(contentsOf: lanes.characters.map { $0.name.isEmpty ? "Untitled" : $0.name })
+            labels.append(contentsOf: lanes.items.map { $0.name.isEmpty ? "Untitled" : $0.name })
             return labels
         }()
 
@@ -250,17 +333,20 @@ struct TimelineChartView: View {
             AllLaneItem(id: row.id, start: row.order, end: row.order + 1, sceneName: row.scene.name)
         }
 
-        // Precompute items for character lanes as merged contiguous runs
-        let characterLaneItems: [CharacterLaneItem] = {
-            var items: [CharacterLaneItem] = []
-            items.reserveCapacity(scenes.count * max(1, lanes.characters.count))
+        // Precompute items for secondary lanes as merged contiguous runs
+        let laneRunItems: [LaneRunItem] = {
+            var items: [LaneRunItem] = []
+            items.reserveCapacity(scenes.count * max(1, lanes.items.count))
 
-            for ch in lanes.characters {
-                let chName = ch.name.isEmpty ? "Untitled" : ch.name
-                let key = laneKey(for: ch)
+            // Choose the appropriate participation map based on lane kind
+            let participationMap: [UUID: [UUID]] = (lanes.kind == .characters) ? participationCharacters : participationChapters
+
+            for card in lanes.items {
+                let displayName = card.name.isEmpty ? "Untitled" : card.name
+                let key = laneKey(for: card)
 
                 // Map participation scene IDs to orders and sort
-                let orders: [Int] = (participation[ch.id] ?? [])
+                let orders: [Int] = (participationMap[card.id] ?? [])
                     .compactMap { sceneOrderByID[$0] }
                     .sorted()
 
@@ -271,13 +357,13 @@ struct TimelineChartView: View {
                 var prev = orders[0]
 
                 func appendRun(start: Int, endInclusive: Int) {
-                    let id = CharacterLaneItem.makeID(characterID: ch.id, start: start, endInclusive: endInclusive)
-                    items.append(CharacterLaneItem(
+                    let id = LaneRunItem.makeID(entityID: card.id, start: start, endInclusive: endInclusive)
+                    items.append(LaneRunItem(
                         id: id,
                         start: start,
                         end: endInclusive + 1, // ranged bars use end-exclusive
                         laneKey: key,
-                        laneLabel: chName,
+                        laneLabel: displayName,
                         runLabel: "\(start)–\(endInclusive)"
                     ))
                 }
@@ -303,7 +389,8 @@ struct TimelineChartView: View {
 
         // Adjusted colors per scheme for better contrast
         let sceneColor = adjustedAccent(Kinds.scenes.accentColor(for: scheme))
-        let characterColor = adjustedAccent(Kinds.characters.accentColor(for: scheme))
+        let entityKind: Kinds = lanes.kind
+        let entityColor = adjustedAccent(entityKind.accentColor(for: scheme))
         let _ = scheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.14)
         let _ = scheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.10)
 
@@ -353,12 +440,12 @@ struct TimelineChartView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
-                        } else if let ch = characterForLaneKey(laneKey) {
-                            Image(systemName: Kinds.characters.systemImage)
+                        } else if let card = entityForLaneKey(laneKey) {
+                            Image(systemName: entityKind.systemImage)
                                 .font(.system(size: 10))
                                 .foregroundStyle(.secondary)
 
-                            if let thumb = characterThumbnails[ch.id] {
+                            if let thumb = thumbnailForEntity(card.id, kind: entityKind) {
                                 thumb
                                     .resizable()
                                     .scaledToFill()
@@ -370,7 +457,7 @@ struct TimelineChartView: View {
                                     )
                             }
 
-                            Text(ch.name.isEmpty ? "Untitled" : ch.name)
+                            Text(card.name.isEmpty ? "Untitled" : card.name)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
@@ -389,10 +476,10 @@ struct TimelineChartView: View {
             // Actual bars
             makeChartMarks(
                 allLaneItems: allLaneItems,
-                characterLaneItems: characterLaneItems,
+                laneRunItems: laneRunItems,
                 allLaneKey: allKey,
                 sceneColor: sceneColor,
-                characterColor: characterColor,
+                entityColor: entityColor,
                 showLabels: labelVisibility
             )
         }
@@ -463,10 +550,10 @@ struct TimelineChartView: View {
     @ChartContentBuilder
     private func makeChartMarks(
         allLaneItems: [AllLaneItem],
-        characterLaneItems: [CharacterLaneItem],
+        laneRunItems: [LaneRunItem],
         allLaneKey: String,
         sceneColor: Color,
-        characterColor: Color,
+        entityColor: Color,
         showLabels: Bool
     ) -> some ChartContent {
         let _ = scheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.14)
@@ -491,19 +578,19 @@ struct TimelineChartView: View {
             .accessibilityValue("All lane, position \(item.start)")
         }
 
-        // Character lanes (merged contiguous runs as ranged bars)
-        ForEach(characterLaneItems) { item in
+        // Secondary lanes (merged contiguous runs as ranged bars)
+        ForEach(laneRunItems) { item in
             BarMark(
                 xStart: .value("Start", item.start),
                 xEnd: .value("End", item.end),
                 y: .value("Lane", item.laneKey)
             )
-            .foregroundStyle(characterColor) // avoid extra opacity to keep color strong
+            .foregroundStyle(entityColor) // avoid extra opacity to keep color strong
             .cornerRadius(2)
             .shadow(color: shadowColor, radius: 1, x: 0, y: 1)
-            // No annotation on character rows (per request)
+            // No annotation on secondary rows (per request)
             .accessibilityLabel("\(item.laneLabel) — scenes \(item.start) to \(item.end - 1)")
-            .accessibilityValue("Character lane, positions \(item.start) to \(item.end - 1)")
+            .accessibilityValue("Lane, positions \(item.start) to \(item.end - 1)")
         }
     }
 
@@ -523,7 +610,7 @@ struct TimelineChartView: View {
         let sceneName: String
     }
 
-    private struct CharacterLaneItem: Identifiable {
+    private struct LaneRunItem: Identifiable {
         let id: String
         let start: Int
         let end: Int // end-exclusive
@@ -531,26 +618,31 @@ struct TimelineChartView: View {
         let laneLabel: String
         let runLabel: String
 
-        static func makeID(characterID: UUID, start: Int, endInclusive: Int) -> String {
-            characterID.uuidString + "-\(start)-\(endInclusive)"
+        static func makeID(entityID: UUID, start: Int, endInclusive: Int) -> String {
+            entityID.uuidString + "-\(start)-\(endInclusive)"
         }
     }
 
-    // Computed participation: character.id -> [scene.id]
-    @State private var participation: [UUID: [UUID]] = [:]
-
-    private func effectiveLanes() -> (all: Bool, characters: [Card]) {
-        // Always include the "All" lane so scene names remain visible even when filtering by characters.
-        if !selectedCharacterIDs.isEmpty {
-            let selected = characters.filter { selectedCharacterIDs.contains($0.id) }
-            return (true, selected)
+    private func effectiveLanes() -> (all: Bool, items: [Card], kind: Kinds) {
+        switch laneMode {
+        case .characters:
+            if !selectedCharacterIDs.isEmpty {
+                let selected = characters.filter { selectedCharacterIDs.contains($0.id) }
+                return (true, selected, .characters)
+            }
+            return (true, characters, .characters)
+        case .chapters:
+            if !selectedChapterIDs.isEmpty {
+                let selected = chapters.filter { selectedChapterIDs.contains($0.id) }
+                return (true, selected, .chapters)
+            }
+            return (true, chapters, .chapters)
         }
-        return (true, characters)
     }
 
     private func effectiveLaneCount() -> Int {
         let lanes = effectiveLanes()
-        return (lanes.all ? 1 : 0) + lanes.characters.count
+        return (lanes.all ? 1 : 0) + lanes.items.count
     }
 
     // Returns the inclusive start/end scene orders and the number of scenes in the visible domain.
@@ -565,7 +657,7 @@ struct TimelineChartView: View {
     }
 
     private func shortLabel(for name: String) -> String {
-        // Abbreviate longer scene names for character lanes
+        // Abbreviate longer scene names for secondary lanes
         if name.count <= 18 { return name }
         let trimmed = name.prefix(16)
         return "\(trimmed)…"
@@ -573,14 +665,39 @@ struct TimelineChartView: View {
 
     // Lane key helpers
     private func laneKeyAll() -> String { "all" }
-    private func laneKey(for character: Card) -> String { "char-\(character.id.uuidString)" }
-    private func characterForLaneKey(_ key: String) -> Card? {
-        guard key.hasPrefix("char-") else { return nil }
-        let idStr = String(key.dropFirst("char-".count))
-        if let id = UUID(uuidString: idStr) {
-            return characters.first(where: { $0.id == id })
+    private func laneKey(for entity: Card) -> String {
+        switch entity.kind {
+        case .characters: return "char-\(entity.id.uuidString)"
+        case .chapters:   return "chap-\(entity.id.uuidString)"
+        default:          return "ent-\(entity.id.uuidString)"
+        }
+    }
+    private func entityForLaneKey(_ key: String) -> Card? {
+        if key.hasPrefix("char-") {
+            let idStr = String(key.dropFirst("char-".count))
+            if let id = UUID(uuidString: idStr) {
+                return characters.first(where: { $0.id == id })
+            }
+        } else if key.hasPrefix("chap-") {
+            let idStr = String(key.dropFirst("chap-".count))
+            if let id = UUID(uuidString: idStr) {
+                return chapters.first(where: { $0.id == id })
+            }
+        } else if key.hasPrefix("ent-") {
+            let idStr = String(key.dropFirst("ent-".count))
+            if let id = UUID(uuidString: idStr) {
+                return (characters + chapters).first(where: { $0.id == id })
+            }
         }
         return nil
+    }
+
+    private func thumbnailForEntity(_ id: UUID, kind: Kinds) -> Image? {
+        switch kind {
+        case .characters: return characterThumbnails[id]
+        case .chapters:   return chapterThumbnails[id]
+        default:          return nil
+        }
     }
 
     // MARK: - Zoom
@@ -639,30 +756,35 @@ struct TimelineChartView: View {
         }
         scenes = rows
 
-        // 3) Fetch Character → Scene participation edges; filter to our scenes
+        // 3) Fetch Characters → Scene participation edges; filter to our scenes
         guard !rows.isEmpty else {
             characters = []
-            participation = [:]
+            chapters = []
+            participationCharacters = [:]
+            participationChapters = [:]
             characterThumbnails = [:]
+            chapterThumbnails = [:]
             // Reset scroll/zoom defaults
             visibleLength = 20
             scrollX = nil
             didEnsureInitialNamesVisible = false
             return
         }
-        let partCodeOpt: String? = characterSceneCode
+
+        // Characters
+        let charCodeOpt: String? = characterSceneCode
         let charSceneFetch = FetchDescriptor<CardEdge>(
             predicate: #Predicate {
-                $0.type?.code == partCodeOpt
+                $0.type?.code == charCodeOpt
             }
         )
-        let allPartEdges = (try? modelContext.fetch(charSceneFetch)) ?? []
+        let allCharEdges = (try? modelContext.fetch(charSceneFetch)) ?? []
 
         let sceneIDs = Set(rows.map(\.id))
         var charToScenes: [UUID: [UUID]] = [:]
         var charCards: [UUID: Card] = [:]
 
-        for e in allPartEdges {
+        for e in allCharEdges {
             guard let ch = e.from, ch.kind == .characters,
                   let sc = e.to, sc.kind == .scenes,
                   sceneIDs.contains(sc.id) else { continue }
@@ -672,20 +794,53 @@ struct TimelineChartView: View {
             }
         }
 
-        // Consistent character ordering by name
         let chars = charCards.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         characters = chars
-        participation = charToScenes
+        participationCharacters = charToScenes
 
-        // Preload small thumbnails for characters (async, best-effort)
+        // Chapters (Scene -> Chapter using "part-of/has-scene")
+        let chapCodeOpt: String? = chapterSceneCode
+        let chapSceneFetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate {
+                $0.type?.code == chapCodeOpt
+            }
+        )
+        let allChapEdges = (try? modelContext.fetch(chapSceneFetch)) ?? []
+
+        var chapToScenes: [UUID: [UUID]] = [:] // chapter.id -> [scene.id]
+        var chapCards: [UUID: Card] = [:]
+
+        for e in allChapEdges {
+            guard let sc = e.from, sc.kind == .scenes,
+                  let ch = e.to, ch.kind == .chapters,
+                  sceneIDs.contains(sc.id) else { continue }
+            chapToScenes[ch.id, default: []].append(sc.id)
+            if chapCards[ch.id] == nil {
+                chapCards[ch.id] = ch
+            }
+        }
+
+        let chaps = chapCards.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        chapters = chaps
+        participationChapters = chapToScenes
+
+        // Preload small thumbnails (best-effort) for currently available entities
         Task { @MainActor in
+            // Characters
             for ch in chars {
-                if self.characterThumbnails[ch.id] != nil {
-                    continue
-                }
+                if self.characterThumbnails[ch.id] != nil { continue }
                 if let img = await ch.makeThumbnailImage() {
                     withAnimation(.easeInOut(duration: 0.12)) {
                         self.characterThumbnails[ch.id] = img
+                    }
+                }
+            }
+            // Chapters
+            for chap in chaps {
+                if self.chapterThumbnails[chap.id] != nil { continue }
+                if let img = await chap.makeThumbnailImage() {
+                    withAnimation(.easeInOut(duration: 0.12)) {
+                        self.chapterThumbnails[chap.id] = img
                     }
                 }
             }
@@ -910,7 +1065,8 @@ private struct ReorderScenesSheet: View {
     // Seed types
     let sceneTimeline = RelationType(code: "describes/described-by", forwardLabel: "describes", inverseLabel: "described by", sourceKind: .scenes, targetKind: .timelines)
     let appearsIn = RelationType(code: "appears-in/is-appeared-by", forwardLabel: "appears in", inverseLabel: "is appeared by", sourceKind: .characters, targetKind: .scenes)
-    ctx.insert(sceneTimeline); ctx.insert(appearsIn)
+    let partOf = RelationType(code: "part-of/has-scene", forwardLabel: "part of", inverseLabel: "has scene", sourceKind: .scenes, targetKind: .chapters)
+    ctx.insert(sceneTimeline); ctx.insert(appearsIn); ctx.insert(partOf)
 
     // Timeline + scenes
     let tl = Card(kind: .timelines, name: "Arc A", subtitle: "", detailedText: "")
@@ -934,16 +1090,19 @@ private struct ReorderScenesSheet: View {
     ctx.insert(CardEdge(from: c2, to: s2, type: appearsIn))
     ctx.insert(CardEdge(from: c2, to: s3, type: appearsIn))
 
+    // Chapters + participation (Scene -> Chapter via "part-of/has-scene")
+    let ch1 = Card(kind: .chapters, name: "Chapter 1", subtitle: "", detailedText: "")
+    let ch2 = Card(kind: .chapters, name: "Chapter 2", subtitle: "", detailedText: "")
+    ctx.insert(ch1); ctx.insert(ch2)
+
+    // s1 part of ch1, s2 part of ch1, s3 part of ch2
+    ctx.insert(CardEdge(from: s1, to: ch1, type: partOf))
+    ctx.insert(CardEdge(from: s2, to: ch1, type: partOf))
+    ctx.insert(CardEdge(from: s3, to: ch2, type: partOf))
+
     try? ctx.save()
 
     return TimelineChartView(timeline: tl)
         .modelContainer(container)
         .frame(minWidth: 820, minHeight: 520)
-}
-
-// Local clamp helper for this file
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
-        min(max(self, range.lowerBound), range.upperBound)
-    }
 }

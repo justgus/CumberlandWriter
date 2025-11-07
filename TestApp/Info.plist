@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleIconName</key>
-	<string>AppIcon-macOS</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
@@ -20,23 +18,7 @@
 			<key>UTTypeTagSpecification</key>
 			<dict/>
 		</dict>
-	</array>
-	<key>UTImportedTypeDeclarations</key>
-	<array>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.data</string>
-			</array>
-			<key>UTTypeDescription</key>
-			<string>Cumberland Card Reference</string>
-			<key>UTTypeIcons</key>
-			<dict/>
-			<key>UTTypeIdentifier</key>
-			<string>com.cumberland.card-reference</string>
-			<key>UTTypeTagSpecification</key>
-			<dict/>
-		</dict>
+		<dict/>
 	</array>
 </dict>
 </plist>

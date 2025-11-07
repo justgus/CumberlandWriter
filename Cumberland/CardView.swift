@@ -43,7 +43,7 @@ struct CardView: View {
         let tabTopAllowance = max(0, -tabOffsetTop)
         // Allowance so the bottom-trailing decoration tab that’s offset downward is included in the view’s height
         let tabBottomAllowance = decorationText == nil ? 0 : max(0, bottomTabOffsetY)
-
+        
         HStack(alignment: .top, spacing: 12) {
             thumbnailView
                 .frame(width: thumbnailSide, height: thumbnailSide)
@@ -53,19 +53,19 @@ struct CardView: View {
                         .stroke(.quaternary, lineWidth: 1)
                 }
                 .padding(.top, thumbnailTopPadding) // space from the tab
-
+            
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(card.name)
                         .font(.headline)
                         .lineLimit(1)
                         .truncationMode(.tail)
-
+                    
                     Spacer(minLength: 8)
-
+                    
                     sizePicker
                 }
-
+                
                 if let subtitleLine = subtitleAuthorLine, !subtitleLine.isEmpty {
                     Text(subtitleLine)
                         .font(.subheadline)
@@ -74,7 +74,7 @@ struct CardView: View {
                         .truncationMode(.tail)
                         .accessibilityLabel(accessibleSubtitleAuthorLabel)
                 }
-
+                
                 if !card.detailedText.isEmpty {
                     Text(card.detailedText)
                         .font(.footnote)
@@ -83,7 +83,7 @@ struct CardView: View {
                         .truncationMode(.tail)
                 }
             }
-
+            
             Spacer(minLength: 0)
         }
         // Provide extra top/bottom padding so the offset tabs are included in layout height
@@ -96,16 +96,43 @@ struct CardView: View {
                 .fill(.background)
                 .shadow(color: shadowColor, radius: 6, x: 0, y: 3)
         )
-        // Inner (inset) thicker colored stroke around the card using the card.kind accent color
+        // Cap the overall width so long text doesn’t try to render on one line
+        .frame(maxWidth: maxCardWidth, alignment: .topLeading)
+        
         .overlay(
-            cardShape
-                .strokeBorder(card.kind.accentColor(for: scheme), lineWidth: 12)
+            GeometryReader { geo in
+                cardShape
+                    .strokeBorder(card.kind.accentColor(for: scheme), lineWidth: 12)
+                    .preference(
+                        key: CardViewActualSizeKey.self,
+                        value: {
+                            // Whole view size does not include the outer padding of the container hosting this overlay.
+                            let full = geo.size
+                            return [card.id: full]
+                        }()
+                    )
+            }
         )
         // Manila-style tab that blends into the card (now colored by kind)
         .overlay(alignment: .topLeading) {
-            kindTab()
-                .offset(x: tabOffsetLeft, y: tabOffsetTop)
-                .accessibilityHidden(true)
+            GeometryReader { geo in
+                kindTab()
+                    .offset(x: tabOffsetLeft, y: tabOffsetTop)
+                    .accessibilityHidden(true)
+                    .preference(
+                        key: CardViewVisualSizeKey.self,
+                        value: {
+                            // The GeometryReader here sees the rendered size
+                            // including the paddings we added above.  The size
+                            // needs to include the borders and extras we added here.
+                            //
+                            let full = geo.size
+                            let visualWidth = max(1, full.width)
+                            let visualHeight = max(1, full.height)
+                            return [card.id: CGSize(width: visualWidth, height: visualHeight)]
+                        }()
+                    )
+            }
         }
         // Optional bottom-trailing decoration tab
         .overlay(alignment: .bottomTrailing) {
@@ -115,26 +142,7 @@ struct CardView: View {
                     .accessibilityHidden(true)
             }
         }
-        // Cap the overall width so long text doesn’t try to render on one line
-        .frame(maxWidth: maxCardWidth, alignment: .topLeading)
-        // Report the visual “card shape” size (excluding outer padding used only to accommodate tabs)
-        .background(
-            GeometryReader { geo in
-                Color.clear
-                    .preference(
-                        key: CardViewVisualSizeKey.self,
-                        value: {
-                            // Whole view size includes outer padding we added explicitly:
-                            // Horizontal: 20 (left) + 20 (right) = 40
-                            // Vertical:   (20 + tabTopAllowance) + (20 + tabBottomAllowance)
-                            let full = geo.size
-                            let visualWidth = max(1, full.width - 40)
-                            let visualHeight = max(1, full.height - ((20 + tabTopAllowance) + (20 + tabBottomAllowance)))
-                            return [card.id: CGSize(width: visualWidth, height: visualHeight)]
-                        }()
-                    )
-            }
-        )
+        // Inner (inset) thicker colored stroke around the card using the card.kind accent color
         .task(id: card.thumbnailData) {
             // Reload when the embedded thumbnail changes
             await loadThumbnail()
@@ -148,7 +156,7 @@ struct CardView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(card.name))
         .accessibilityHint(Text(subtitleAuthorHint))
-    }
+    } //end var body
 
     // MARK: - Subviews
 
@@ -291,6 +299,14 @@ struct CardViewVisualSizeKey: PreferenceKey {
     }
 }
 
+struct CardViewActualSizeKey: PreferenceKey {
+    static var defaultValue: [UUID: CGSize] = [:]
+    static func reduce(value: inout [UUID: CGSize], nextValue: () -> [UUID: CGSize]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+
 #Preview("CardView - Size That Fits", traits: .sizeThatFitsLayout) {
     let sample = Card(
         name: "Exploration Project",
@@ -327,4 +343,3 @@ struct CardViewVisualSizeKey: PreferenceKey {
     .frame(width: 420)
     .modelContainer(for: Card.self, inMemory: true)
 }
-

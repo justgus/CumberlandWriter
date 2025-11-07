@@ -913,9 +913,3 @@ private struct BatchAttributionSheet: View {
         .frame(minWidth: 680, minHeight: 480)
         .modelContainer(container)
 }
-
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
-        min(max(self, range.lowerBound), range.upperBound)
-    }
-}
