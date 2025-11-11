@@ -9,6 +9,11 @@ import SwiftUI
 import SwiftData
 import OSLog
 
+// Cross-platform notification for developer-triggered erase
+extension Notification.Name {
+    static let eraseAndReseed = Notification.Name("Dev.EraseAndReseed")
+}
+
 @available(iOS 26.0, macOS 26.0, visionOS 26.0, *)
 @main
 struct CumberlandApp: App {
@@ -134,6 +139,31 @@ struct CumberlandApp: App {
                 }
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
+        
+        // PHASE 2: Floating card editor windows
+        // Allows card creation/editing in independent floating windows
+        // Users can position editors alongside main content for side-by-side workflows
+        WindowGroup(for: AppModel.CardEditorRequest.self) { $request in
+            if let request {
+                CardEditorWindowView(editorRequest: request)
+                    .environment(appModel)
+                    .modelContainer(modelContainer)
+                    .preferredColorScheme(appPreferredColorScheme)
+            }
+        }
+        .defaultSize(width: 840, height: 780)
+        #endif
+        
+        #if os(visionOS) && DEBUG
+        // Developer Tools window for visionOS
+        Window("Developer Tools", id: "dev.tools") {
+            DeveloperToolsView()
+                .modelContainer(modelContainer)
+                .preferredColorScheme(appPreferredColorScheme)
+                .frame(minWidth: 520, minHeight: 480)
+        }
+        .windowStyle(.plain)
+        .defaultSize(width: 600, height: 600)
         #endif
 
         #if os(macOS)
@@ -264,7 +294,7 @@ private struct UndoBridge: View {
     }
 }
 
-private extension CumberlandApp {
+extension CumberlandApp {
     struct SeedDescriptor: Hashable {
         let code: String
         let forward: String
@@ -548,7 +578,7 @@ private extension CumberlandApp {
 
     // Destructive reset: delete all data and reseed baseline templates.
     @MainActor
-    static func eraseAndReseed(container: ModelContainer) async {
+    public static func eraseAndReseed(container: ModelContainer) async {
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Reset")
         let ctx = container.mainContext
         ctx.autosaveEnabled = false
@@ -711,7 +741,9 @@ private struct DeveloperCommands: Commands {
         }
     }
 }
-#endif
+#endif // DEBUG
+
+#endif // os(macOS)
 
 // MARK: - Diagnostic Window Content (DEBUG-only wrappers for sample-backed tools)
 
@@ -783,7 +815,7 @@ struct DevImageAttributionWindow: View {
 // (DEBUG windows unchanged…)
 #endif // DEBUG
 
-// MARK: - Fix Incomplete Relationships Tool (DEBUG, macOS)
+// MARK: - Fix Incomplete Relationships Tool (DEBUG, all platforms)
 
 #if DEBUG
 struct FixIncompleteRelationshipsView: View {
@@ -830,8 +862,12 @@ struct FixIncompleteRelationshipsView: View {
 
                 if !report.isEmpty {
                     Button {
+                        #if os(macOS)
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(report, forType: .string)
+                        #else
+                        UIPasteboard.general.string = report
+                        #endif
                     } label: {
                         Label("Copy Report", systemImage: "doc.on.doc")
                     }
@@ -1047,12 +1083,9 @@ struct FixIncompleteRelationshipsView: View {
 }
 #endif // DEBUG
 
+#if os(macOS)
+// Additional macOS-only debug functionality can go here if needed
 #endif // os(macOS)
-
-// Cross-platform notification for developer-triggered erase
-extension Notification.Name {
-    static let eraseAndReseed = Notification.Name("Dev.EraseAndReseed")
-}
 
 #if os(macOS)
 import AppKit

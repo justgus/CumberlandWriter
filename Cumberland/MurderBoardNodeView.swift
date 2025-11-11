@@ -46,7 +46,7 @@ struct MurderBoardNodeView: View {
                     .stroke(Color.accentColor, lineWidth: isSelected ? 4 : 0)
                     .allowsHitTesting(false)
                     .animation(.easeInOut(duration: 0.12), value: isSelected)
-            ) //end .overlay
+            )
             // Measure the actual CardView size (pre-transform, in view points)
             .background(
                 GeometryReader { geo in
@@ -54,13 +54,14 @@ struct MurderBoardNodeView: View {
                         .preference(
                             key: NodeSizesKey.self,
                             value: [card.id: geo.size]
-                        ) //end .preference
-                } //end GeometryReader
-            ) //end .background
+                        )
+                }
+            )
             // Position in world coordinates; parent layer applies v = w*S + T
             .position(nodeCenterWorld)
             .contentShape(hitShape)
             .zIndex(zIndex)
-    } //end var body
-
+            // Keep the node fully interactive; hover handling and glow are layered by the parent
+    }
 }
+

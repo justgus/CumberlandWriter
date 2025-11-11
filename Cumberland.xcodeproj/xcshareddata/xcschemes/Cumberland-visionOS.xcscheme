@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "2600"
+   LastUpgradeVersion = "2610"
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -57,12 +57,21 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
+            BlueprintIdentifier = "86544A8A2EBE946F0083F9CC"
+            BuildableName = "Cumberland_visionOS.app"
+            BlueprintName = "Cumberland_visionOS"
+            ReferencedContainer = "container:Cumberland.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
             BlueprintIdentifier = "8646BDFE2E99A1CE0056F575"
             BuildableName = "Cumberland.app"
             BlueprintName = "Cumberland-visionOS"
             ReferencedContainer = "container:Cumberland.xcodeproj">
          </BuildableReference>
-      </BuildableProductRunnable>
+      </MacroExpansion>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -80,6 +89,15 @@
             ReferencedContainer = "container:Cumberland.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "8646BDFE2E99A1CE0056F575"
+            BuildableName = "Cumberland.app"
+            BlueprintName = "Cumberland-visionOS"
+            ReferencedContainer = "container:Cumberland.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

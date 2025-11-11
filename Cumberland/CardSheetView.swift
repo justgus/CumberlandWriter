@@ -1962,28 +1962,16 @@ private extension View {
     }
 }
 
-// Conditionally apply onPaste where available (iOS/tvOS/visionOS).
-#if os(tvOS) || os(visionOS)
+// Platform-specific paste handling
 private extension View {
     @ViewBuilder
     func onPasteIfAvailable(of types: [UTType], perform action: @escaping ([NSItemProvider]) -> Bool) -> some View {
-        if #available(iOS 15.0, tvOS 15.0, visionOS 1.0, *) {
-            self.onPaste(of: types, perform: action)
-        } else {
-            // Fallback for older OSes
-            self
-        }
-    }
-}
-#else
-private extension View {
-    @ViewBuilder
-    func onPasteIfAvailable(of types: [UTType], perform action: @escaping ([NSItemProvider]) -> Bool) -> some View {
-        // macOS (and others): no-op fallback; use .onPasteCommand where you already do.
+        // On iOS, paste gestures are more complex and typically handled through UIKit integration
+        // For now, we'll skip this on non-macOS platforms since the main paste command is already
+        // handled via .onPasteCommand on macOS
         self
     }
 }
-#endif
 
 // MARK: - Fallbacks for missing custom components
 

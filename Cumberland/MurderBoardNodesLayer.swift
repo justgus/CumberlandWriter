@@ -41,6 +41,9 @@ struct MurderBoardNodesLayer: View {
     @State private var debugContextMenuEnabled: Bool = false
     #endif
     
+    // visionOS: track which card is currently hovered by gaze
+    @State private var hoveredCardID: UUID? = nil
+    
     var body: some View {
         let nodes = (board?.nodes ?? []).compactMap { node -> (BoardNode, Card)? in
             guard let c = node.card else { return nil }
@@ -54,6 +57,7 @@ struct MurderBoardNodesLayer: View {
                 let card = pair.1
                 let isSelected = (selectedCardID == card.id)
                 let isPrimary = (primaryCardID == card.id)
+                let isHovered = (hoveredCardID == card.id)
                 
                 MurderBoardNodeView(
                     card: card,
@@ -65,7 +69,19 @@ struct MurderBoardNodesLayer: View {
                     scheme: scheme,
                     onRemove: { onRemove(card.id) },
                     onSelect: { onSelect(card.id) }
-                ) //end MurderBoardNodeView
+                )
+                // visionOS gaze hover: set/clear hovered card ID
+                #if os(visionOS)
+                .onHover { hovering in
+                    if hovering {
+                        hoveredCardID = card.id
+                    } else if hoveredCardID == card.id {
+                        hoveredCardID = nil
+                    }
+                }
+                #endif
+                // Subtle glow highlight when hovered (independent of selection)
+                .modifier(NodeHoverGlow(isHovered: isHovered, kindAccent: card.kind.accentColor(for: scheme)))
             } //end ForEach
         } //end ZStack
         // Collect full-layout sizes for all nodes (fallback measurement)
@@ -157,3 +173,31 @@ func debugRecordNodeSize(id: UUID, size: CGSize) {
     _ = size
 }
 #endif
+
+// MARK: - Hover Glow
+
+private struct NodeHoverGlow: ViewModifier {
+    let isHovered: Bool
+    let kindAccent: Color
+    
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                // A soft colored glow just outside the card shape
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(kindAccent.opacity(isHovered ? 0.55 : 0.0), lineWidth: isHovered ? 6 : 0)
+                    .blur(radius: isHovered ? 3 : 0)
+                    .allowsHitTesting(false)
+                    .animation(.easeInOut(duration: 0.12), value: isHovered)
+            )
+            .overlay(
+                // Subtle outer bloom
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(kindAccent.opacity(isHovered ? 0.20 : 0.0), lineWidth: isHovered ? 10 : 0)
+                    .blur(radius: isHovered ? 6 : 0)
+                    .allowsHitTesting(false)
+                    .animation(.easeInOut(duration: 0.12), value: isHovered)
+            )
+    }
+}
+

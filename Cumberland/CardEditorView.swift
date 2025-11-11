@@ -129,9 +129,15 @@ struct CardEditorView: View {
     }
 
     // MARK: - Tunable constants (match CardView where sensible)
+    #if os(visionOS)
+    private let thumbnailSide: CGFloat = 96
+    private let thumbnailTopPadding: CGFloat = 8
+    private let maxCardWidth: CGFloat = 640
+    #else
     private let thumbnailSide: CGFloat = 72
     private let thumbnailTopPadding: CGFloat = 8
     private let maxCardWidth: CGFloat = 430
+    #endif
 
     private let tabCornerRadius: CGFloat = 8
     private let tabHeight: CGFloat = 22
@@ -196,6 +202,10 @@ struct CardEditorView: View {
                 }
             }
             .frame(maxWidth: maxCardWidth)
+            #if os(visionOS)
+            // On visionOS, ornament handles the size picker externally,
+            // so we apply it at the NavigationStack/window level in CardEditorWindowView
+            #endif
 
             // Image actions
             HStack(spacing: 12) {
@@ -254,6 +264,11 @@ struct CardEditorView: View {
         .padding()
         .frame(minWidth: 520)
         .navigationTitle(isEditing ? "Edit \(kind.title.dropLastIfPluralized())" : "New \(kind.title.dropLastIfPluralized())")
+        #if os(visionOS)
+        .ornament(attachmentAnchor: .scene(.trailing)) {
+            sizeCategoryOrnament
+        }
+        #endif
         .task(id: imageData) {
             await loadThumbnailPreview()
         }
@@ -371,6 +386,13 @@ struct CardEditorView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
+                #if os(visionOS)
+                // On visionOS, name field takes full width; size picker is in trailing ornament
+                TextField("Name", text: $name)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: .infinity)
+                    .focused($focusedField, equals: .name)
+                #else
                 HStack(alignment: .firstTextBaseline) {
                     TextField("Name", text: $name)
                         .textFieldStyle(.roundedBorder)
@@ -379,6 +401,7 @@ struct CardEditorView: View {
 
                     sizePicker
                 }
+                #endif
 
                 TextField("Subtitle (optional)", text: $subtitle)
                     .textFieldStyle(.roundedBorder)
@@ -456,7 +479,7 @@ struct CardEditorView: View {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
                 isFlipped.toggle()
             }
-            #if canImport(UIKit)
+            #if canImport(UIKit) && !os(visionOS)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             #endif
         } label: {
@@ -769,7 +792,30 @@ struct CardEditorView: View {
         .pickerStyle(.menu)
         .accessibilityLabel("Card size")
     }
-
+    
+    #if os(visionOS)
+    /// visionOS ornament view for the size category picker
+    @ViewBuilder
+    private var sizeCategoryOrnament: some View {
+        VStack(spacing: 8) {
+            Label("Size", systemImage: "ruler")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            
+            Picker("Size Category", selection: $sizeCategory) {
+                ForEach(SizeCategory.allCases, id: \.self) { sc in
+                    Text(sc.displayName).tag(sc)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .frame(minWidth: 120)
+        }
+        .padding(12)
+        .glassBackgroundEffect()
+    }
+    #endif
+    
     private func kindTab(kind: Kinds) -> some View {
         HStack(spacing: 6) {
             Image(systemName: kind.systemImage)
@@ -1237,9 +1283,15 @@ private struct FlipCardContainer<Front: View, Back: View>: View {
 // Adds a bit of perspective for the 3D flip.
 private struct Perspective: ViewModifier {
     func body(content: Content) -> some View {
+        #if os(visionOS)
+        content
+            .compositingGroup()
+            .rotation3DEffect(.degrees(0), axis: (x: 0, y: 0, z: 0))
+        #else
         content
             .compositingGroup()
             .rotation3DEffect(.degrees(0), axis: (x: 0, y: 0, z: 0), perspective: 0.8)
+        #endif
     }
 }
 

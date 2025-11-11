@@ -75,7 +75,11 @@ extension SidebarPanel {
         }
         .padding(.leading, 20)
         .padding(.vertical, 40)
+        #if os(visionOS)
+        .background(.regularMaterial, in: .rect(cornerRadius: 16))
+        #else
         .glassEffect(Glass.regular.interactive(), in: .rect(cornerRadius: 16))
+        #endif
         .animation(.easeInOut(duration: 0.25), value: isSidebarVisible)
     }
     
@@ -233,7 +237,11 @@ extension SidebarPanel {
                 .font(.title2)
                 .foregroundStyle(.primary)
                 .frame(width: 44, height: 44)
+                #if os(visionOS)
+                .background(.regularMaterial, in: .circle)
+                #else
                 .glassEffect(Glass.regular.interactive(), in: .circle)
+                #endif
                 .shadow(color: .black.opacity(scheme == .dark ? 0.3 : 0.1), radius: 4, y: 2)
         }
         .buttonStyle(.plain)
@@ -325,7 +333,11 @@ struct SidebarCardRow: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
+            #if os(visionOS)
+            .background(.regularMaterial, in: .rect(cornerRadius: 8))
+            #else
             .glassEffect(Glass.regular, in: .rect(cornerRadius: 8))
+            #endif
             .shadow(radius: 4)
         }
         .onHover { hovering in

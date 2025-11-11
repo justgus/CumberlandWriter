@@ -15,6 +15,10 @@ import UIKit
 
 struct MainAppView: View {
     @Environment(\.modelContext) private var modelContext
+    #if os(visionOS)
+    @Environment(\.openWindow) private var openWindow
+    @Environment(AppModel.self) private var appModel
+    #endif
 
     // Provide a shared navigation coordinator for routing decisions
     @State private var navigationCoordinator = NavigationCoordinator()
@@ -51,6 +55,7 @@ struct MainAppView: View {
     @State private var showingSettings = false
     #if DEBUG
     @State private var showingDeveloperBoards = false
+    @State private var showingDeveloperTools = false
     #endif
 
     // Three-pane split visibility (keep all visible on macOS by default)
@@ -179,6 +184,12 @@ struct MainAppView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+            #elseif os(visionOS)
+            NavigationStack {
+                SettingsView()
+            }
+            .frame(minWidth: 720, minHeight: 640)
+            .glassBackgroundEffect()
             #else
             NavigationView {
                 SettingsView()
@@ -195,6 +206,12 @@ struct MainAppView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+            #elseif os(visionOS)
+            NavigationStack {
+                DeveloperBoardsView()
+            }
+            .frame(minWidth: 920, minHeight: 560)
+            .glassBackgroundEffect()
             #else
             NavigationView {
                 DeveloperBoardsView()
@@ -203,7 +220,39 @@ struct MainAppView: View {
             .presentationSizing(.fitted)
             #endif
         }
+        .sheet(isPresented: $showingDeveloperTools) {
+            #if os(visionOS)
+            NavigationStack {
+                DeveloperToolsView()
+            }
+            .frame(minWidth: 520, minHeight: 480)
+            .glassBackgroundEffect()
+            #elseif os(iOS)
+            NavigationStack {
+                DeveloperToolsView()
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #else
+            NavigationView {
+                DeveloperToolsView()
+            }
+            .frame(minWidth: 520, minHeight: 480)
+            .presentationSizing(.fitted)
+            #endif
+        }
         #endif
+        #if os(visionOS)
+        // visionOS: Use ornaments for spatial UI
+        .ornament(attachmentAnchor: .scene(.bottom)) {
+            primaryActionsOrnament
+        }
+        .ornament(attachmentAnchor: .scene(.leading)) {
+            settingsOrnament
+        }
+        #endif
+        #if !os(visionOS)
+        // macOS and iOS: Use traditional toolbar
         .toolbar {
             #if !os(iOS)
             ToolbarItem(placement: .navigation) {
@@ -260,6 +309,7 @@ struct MainAppView: View {
             }
             #endif
         }
+        #endif
         .onAppear {
             // One-time data repair to purge any foreign BoardNodes from other contexts (e.g., previews)
             DataRepair.repairForeignBoardNodes(in: modelContext)
@@ -479,6 +529,14 @@ struct MainAppView: View {
                             CardSheetView(card: card)
                                 .navigationTitle(card.name)
                         }
+                    case .mapWizard:
+                        if card.kind == .maps {
+                            MapWizardView(card: card)
+                                .navigationTitle("Map Wizard: \(card.name)")
+                        } else {
+                            CardSheetView(card: card)
+                                .navigationTitle(card.name)
+                        }
                     }
                 }
             } else {
@@ -490,6 +548,15 @@ struct MainAppView: View {
                 .padding()
             }
         }
+        #if os(visionOS)
+        // visionOS: Detail tab picker ornament
+        .ornament(attachmentAnchor: .scene(.top)) {
+            detailTabPickerOrnament
+        }
+        #endif
+
+        #if !os(visionOS)
+
         // Attach the segmented picker to the DETAIL column’s toolbar on iPadOS so it appears in the right nav bar.
         .toolbar {
             #if os(iOS)
@@ -511,6 +578,7 @@ struct MainAppView: View {
             }
             #endif
         }
+        #endif
     }
 
     // MARK: - Card list
@@ -650,7 +718,11 @@ struct MainAppView: View {
         .overlay(alignment: .bottom) {
             if searchText.isEmpty {
                 Button {
+                    #if os(visionOS)
+                    openNewCardWindow()
+                    #else
                     showingCardEditor = true
+                    #endif
                 } label: {
                     Label(createButtonTitle, systemImage: "plus")
                 }
@@ -661,6 +733,58 @@ struct MainAppView: View {
     }
 
     // MARK: - Helpers
+
+    #if os(visionOS)
+    // MARK: - visionOS Ornaments
+    
+    private var primaryActionsOrnament: some View {
+        
+#if DEBUG
+        PrimaryActionsOrnament(
+            onNewCard: { openNewCardWindow() },
+            onEditCard: { openEditCardWindow() },
+            canEdit: selectedCard != nil,
+            isStructureSelected: isStructureSelected,
+            onDeveloperBoards: { showingDeveloperBoards = true }
+        )
+#else
+        PrimaryActionsOrnament(
+            onNewCard: { openNewCardWindow() },
+            onEditCard: { openEditCardWindow() },
+            canEdit: selectedCard != nil,
+            isStructureSelected: isStructureSelected
+        )
+#endif
+    }
+    
+    private var settingsOrnament: some View {
+        VStack(spacing: 12) {
+            SettingsOrnament(
+                onSettings: { showingSettings = true }, onDismiss: { showingSettings = false }
+            )
+            
+            #if DEBUG
+            DeveloperToolsOrnament(
+                onDeveloperTools: { showingDeveloperTools = true }
+            )
+            #endif
+        }
+    }
+    
+    private var detailTabPickerOrnament: some View {
+        Group {
+            if let card = selectedCard, !navigationCoordinator.forceCardSheetView {
+                let tabs = availableTabs(for: card)
+                if !tabs.isEmpty {
+                    DetailTabPickerOrnament(
+                        tabs: tabs,
+                        selectedTab: $selectedDetailTab
+                    )
+                }
+            }
+        }
+    }
+    #endif
 
     private var isStructureSelected: Bool {
         if case .structure = sidebarSelection { return true }
@@ -878,6 +1002,27 @@ struct MainAppView: View {
         }
     }
 
+    // MARK: - Card Editor Window Management (visionOS Phase 2)
+    
+    #if os(visionOS)
+    /// Opens a new card editor in a floating window (visionOS only)
+    private func openCardEditorWindow(mode: AppModel.CardEditorRequest.Mode) {
+        let request = AppModel.CardEditorRequest(mode: mode)
+        openWindow(value: request)
+    }
+    
+    /// Opens a card creation window for the current kind
+    private func openNewCardWindow() {
+        openCardEditorWindow(mode: .create(kind: currentCreationKind))
+    }
+    
+    /// Opens a card edit window for the selected card
+    private func openEditCardWindow() {
+        guard let card = selectedCard else { return }
+        openCardEditorWindow(mode: .edit(cardID: card.id))
+    }
+    #endif
+
     // MARK: - iPadOS split visibility behavior
 
     private func updateSplitVisibilityForSelection() {
@@ -905,9 +1050,14 @@ private struct CardListRow: View {
     let card: Card
     @State private var thumbnailImage: Image?
 
+    #if os(visionOS)
+    private let thumbSize: CGFloat = 48
+    private let thumbWidth: CGFloat = 72
+    #else
     private let thumbSize: CGFloat = 40
     // Slightly wider container to preserve aspect ratio while keeping rows aligned
     private let thumbWidth: CGFloat = 60
+    #endif
 
     // Equatable token for .task(id:) to avoid tuple-Equatable issues on older toolchains
     private struct ThumbnailChangeToken: Equatable {
@@ -959,7 +1109,12 @@ private struct CardListRow: View {
                 }
             }
         }
+        #if os(visionOS)
+        .padding(.vertical, 8)
+        .hoverEffect(.lift)
+        #else
         .padding(.vertical, 4)
+        #endif
         // Initial load and subsequent refreshes when the image changes.
         // Use a stable change token so the task re-runs when thumbnailData changes.
         .task(id: ThumbnailChangeToken(id: card.id, count: card.thumbnailData?.count ?? 0)) {

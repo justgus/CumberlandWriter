@@ -54,7 +54,7 @@ struct VisionOSContentView: View {
                     .buttonStyle(.borderedProminent)
                 }
                 
-                ToggleImmersiveSpaceButton()
+//                ToggleImmersiveSpaceButton()
             }
             .padding()
             .glassEffect(.regular, in: .rect(cornerRadius: 24))

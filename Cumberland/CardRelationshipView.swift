@@ -379,9 +379,11 @@ struct CardRelationshipView: View {
 
     private var topControls: some View {
         HStack(spacing: 8) {
+            #if !os(visionOS)
             Text("Related Kind:")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+            #endif
             Picker(selection: $selectedKind) {
                 ForEach(Kinds.orderedCases) { kind in
                     Label(kind.title, systemImage: kind.systemImage)
@@ -399,21 +401,36 @@ struct CardRelationshipView: View {
             Button {
                 isPresentingAddCard = true
             } label: {
+                #if os(macOS)
                 Label(addTitle, systemImage: "plus")
+                #else
+                Label(addTitle, systemImage: "plus")
+                    .labelStyle(.iconOnly)
+                #endif
             }
             .help("Create a new \(selectedKind.title.dropLastIfPluralized()) and relate it to “\(primary.name)”")
 
             Button {
                 presentExistingPicker()
             } label: {
+                #if os(macOS)
                 Label("Add Existing \(selectedKind.title.dropLastIfPluralized())…", systemImage: "link.badge.plus")
+                #else
+                Label("Add Existing \(selectedKind.title.dropLastIfPluralized())…", systemImage: "link.badge.plus")
+                    .labelStyle(.iconOnly)
+                #endif
             }
             .disabled(availableExistingCandidates(for: selectedKind).isEmpty)
 
             Button {
                 isPresentingEditCard = true
             } label: {
+                #if os(macOS)
                 Label("Edit Selected", systemImage: "pencil")
+                #else
+                Label("Edit Selected", systemImage: "pencil")
+                    .labelStyle(.iconOnly)
+                #endif
             }
             .disabled(selectedRelatedCard == nil)
             .help("Edit the selected related card")
@@ -421,7 +438,12 @@ struct CardRelationshipView: View {
             Button {
                 presentRetypePickerForSelection()
             } label: {
+                #if os(macOS)
                 Label("Change Relationship Type…", systemImage: "arrow.triangle.2.circlepath")
+                #else
+                Label("Change Relationship Type…", systemImage: "arrow.triangle.2.circlepath")
+                    .labelStyle(.iconOnly)
+                #endif
             }
             .disabled(selectedRelatedCard == nil || applicableRetypeChoices().isEmpty)
             .help("Change the relationship type between the selected card and “\(primary.name)”")
@@ -431,8 +453,14 @@ struct CardRelationshipView: View {
                     removeRelationship(between: card, and: primary)
                 }
             } label: {
+                #if os(macOS)
                 Label("Remove Relationship", systemImage: "link")
                     .symbolVariant(.slash)
+                #else
+                Label("Remove Relationship", systemImage: "link")
+                    .symbolVariant(.slash)
+                    .labelStyle(.iconOnly)
+                #endif
             }
             .disabled(selectedRelatedCard == nil)
             .help("Remove the relationship between the selected card and “\(primary.name)”")
@@ -443,7 +471,12 @@ struct CardRelationshipView: View {
             Button {
                 isPresentingManageRelationTypes = true
             } label: {
+                #if os(macOS)
                 Label("Manage Relation Types…", systemImage: "link")
+                #else
+                Label("Manage Relation Types…", systemImage: "link")
+                    .labelStyle(.iconOnly)
+                #endif
             }
             .help("Create, edit, reassign, or delete relation types")
 
