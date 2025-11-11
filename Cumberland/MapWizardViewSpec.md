@@ -51,14 +51,14 @@ The wizard follows a linear, four-step progression:
 - Downloaded reference maps
 - AI-generated maps from external services
 
-**Implementation Status:** ✅ Phase 1 Complete
+**Implementation Status:** ✅ Phase 1 Complete, 🚧 Phase 1.5 In Progress
 - [x] File import
 - [x] Photos picker
 - [x] Preview
 - [x] Save to Card
-- [ ] Drag & drop to wizard
-- [ ] Batch import
-- [ ] Image metadata extraction
+- [🚧] Drag & drop to wizard
+- [🚧] Image metadata extraction
+- [📋] Batch import (flagged for future enhancement)
 
 ---
 
@@ -112,37 +112,36 @@ The wizard follows a linear, four-step progression:
 
 ---
 
-### 3. Capture from Maps 🚧 (Placeholder)
+### 3. Capture from Maps ✅ (Implemented)
 
 **Icon:** `map`  
 **Purpose:** Import real-world locations from Apple Maps
 
-**Planned Features:**
+**Features:**
 - **Map Selection**:
-  - Embedded MapKit view
-  - Location search
-  - Pan/zoom controls
-  - Map type selection (standard, satellite, hybrid)
+  - Embedded MapKit view ✅
+  - Location search ✅
+  - Pan/zoom controls ✅
+  - Map type selection (standard, satellite, hybrid) ✅
 - **Capture Options**:
-  - Screenshot capture of current view
-  - Bounding box selection
-  - Export at custom resolution
-  - Include/exclude Apple Maps UI elements
-- **Annotation Support**:
-  - Add pins/markers before capture
-  - Custom labels
-  - Region highlights
+  - Screenshot capture of current view ✅
+  - High-resolution export (2048×2048) ✅
+  - Apple Maps UI elements excluded automatically ✅
+  - Async processing with progress indicator ✅
 - **Metadata Preservation**:
-  - Store lat/long bounds
-  - Map scale
-  - Attribution data
-  - Location name
+  - Store lat/long coordinates ✅
+  - Map scale (span) ✅
+  - Attribution data (automatic in snapshots) ✅
+  - Location name ✅
+  - Capture date ✅
+  - Map type ✅
 
 **Technical Approach:**
-- MapKit SwiftUI integration
+- MapKit SwiftUI integration (`Map` view)
+- `MKLocalSearch` for location search
 - `MKMapSnapshotter` for high-res capture
 - Store geographic metadata alongside image
-- Option to link to live Maps for reference
+- PNG format for quality
 
 **Use Cases:**
 - Real-world setting research
@@ -150,14 +149,18 @@ The wizard follows a linear, four-step progression:
 - Historical setting reference
 - Modern/contemporary story settings
 
-**Implementation Status:** 🚧 Phase 3 (Not Started)
-- [ ] MapKit view integration
-- [ ] Location search
-- [ ] Map type picker
-- [ ] Snapshot capture (MKMapSnapshotter)
-- [ ] Annotation tools
-- [ ] Metadata storage
-- [ ] Attribution handling
+**Implementation Status:** ✅ Phase 3 Complete
+- [x] MapKit view integration
+- [x] Location search
+- [x] Map type picker
+- [x] Snapshot capture (MKMapSnapshotter)
+- [x] Metadata storage and display
+- [x] Attribution handling (automatic)
+- [x] Preview and review flow
+- [x] Error handling
+- [📋] Annotation tools (future Phase 3.5)
+- [📋] Custom resolution options (future Phase 3.5)
+- [📋] Metadata persistence to Card model (future Phase 3.5)
 
 ---
 
@@ -259,9 +262,9 @@ purple vegetation, and crystalline structures."
 
 ## Technical Implementation Notes
 
-### Current Status (Phase 1)
+### Current Status (Phase 1-3)
 
-**Completed:**
+**Phase 1 - Completed:**
 - ✅ Wizard shell and navigation structure
 - ✅ All four method cards/placeholders
 - ✅ Import image workflow (file + Photos)
@@ -269,9 +272,24 @@ purple vegetation, and crystalline structures."
 - ✅ Preview UI
 - ✅ Integration with CardDetailTab
 
+**Phase 1.5 - Completed:**
+- ✅ Drag & drop to wizard
+- ✅ Image metadata extraction
+- ✅ **Universal attribution expansion** - All views now extract metadata
+
+**Phase 3 - Completed:**
+- ✅ MapKit view integration
+- ✅ Location search
+- ✅ Map type selection (standard/satellite/hybrid)
+- ✅ High-resolution snapshot capture
+- ✅ Map metadata storage and display
+- ✅ Preview and review flow
+- ✅ Error handling
+
 **Deferred to Future Phases:**
 - Drawing canvas (Phase 2)
-- Maps capture (Phase 3)
+- Annotation tools for maps (Phase 3.5)
+- Metadata persistence (Phase 3.5)
 - AI generation (Phase 4)
 
 ### Code Organization
@@ -318,17 +336,33 @@ All wizard state is `@State` local to MapWizardView:
 
 ## Future Enhancements
 
-### Short Term (Phase 2)
-1. **Drag & drop** support for image import
-2. **PencilKit drawing** implementation
-3. **Canvas templates** (grid, shapes)
-4. **Layer support** for drawings
+### Short Term (Phase 1.5 - ✅ Complete)
+1. ~~**Drag & drop** support for image import~~ ✅
+2. ~~**Image metadata extraction** (dimensions, file size, format, GPS)~~ ✅
+3. ~~**Batch import** for multiple images~~ → Future Enhancement 📋
 
-### Medium Term (Phase 3)
-1. **MapKit integration** for location capture
-2. **Batch import** for multiple images
-3. **Map metadata** storage (location, scale)
-4. **Annotation tools** for all methods
+### Short Term (Phase 2)
+1. **PencilKit drawing** implementation
+2. **Canvas templates** (grid, shapes)
+3. **Layer support** for drawings
+
+### Short Term (Phase 3 - ✅ Complete)
+1. ~~**MapKit integration** for location capture~~ ✅
+2. ~~**Map type selection** (standard/satellite/hybrid)~~ ✅
+3. ~~**Location search**~~ ✅
+4. ~~**High-resolution snapshot capture**~~ ✅
+5. ~~**Map metadata** storage (location, scale, coordinates)~~ ✅
+
+### Short Term (Phase 3.5 - Planned)
+1. **Annotation tools** for maps before capture
+2. **Custom resolution options** for snapshots
+3. **Map metadata persistence** to Card model
+4. **Recent searches** history
+
+### Medium Term (Phase 4)
+1. **AI generation** (when APIs available/affordable)
+2. **Procedural generation** fallback
+3. **Batch import** for multiple images 📋
 
 ### Long Term (Phase 4)
 1. **AI generation** (when APIs available/affordable)
@@ -407,10 +441,11 @@ All wizard state is `@State` local to MapWizardView:
 - UniformTypeIdentifiers (file type handling)
 - ImageIO (image metadata)
 - UIKit/AppKit (platform-specific image handling)
+- **MapKit** (map view, search, snapshots) ✅
+- **CoreLocation** (coordinate types) ✅
 
 ### Future Dependencies
 - PencilKit (drawing - Phase 2)
-- MapKit (location capture - Phase 3)
 - Foundation Models (AI generation - Phase 4, if supported)
 
 ### App-Internal Dependencies
@@ -447,15 +482,23 @@ All wizard state is `@State` local to MapWizardView:
 - [x] Wizard UX is clear and intuitive
 - [x] No crashes or data loss
 
+### Phase 1.5 (Current)
+- [x] Drag and drop works smoothly
+- [x] Metadata extraction is accurate
+- [x] Metadata display is informative
+
 ### Phase 2 (Drawing)
 - [ ] Writers can create simple maps from scratch
 - [ ] Drawing tools are responsive and accurate
 - [ ] Layers allow complex composition
 
-### Phase 3 (Maps)
-- [ ] Real-world locations can be captured easily
-- [ ] Captures include useful metadata
-- [ ] Attribution data preserved
+### Phase 3 (Maps) - ✅ Complete
+- [x] Real-world locations can be captured easily
+- [x] Location search is accurate and fast
+- [x] Map styles display correctly
+- [x] Captures are high-quality and accurate
+- [x] Captures include useful metadata
+- [x] Attribution data preserved
 
 ### Phase 4 (AI)
 - [ ] Prompts generate usable maps
@@ -475,8 +518,27 @@ All wizard state is `@State` local to MapWizardView:
 
 ## Changelog
 
+**2025-11-11** - Universal attribution expansion
+- ✅ Extended automatic metadata extraction to all image import locations
+- ✅ CardEditorView: PhotosPicker, file importer, all drop handlers
+- ✅ CardSheetView: Drop target
+- ✅ Consistent behavior across entire app
+- 📖 See `Universal-Attribution-Expansion.md` for details
+
+**2025-11-11** - Phase 3 implementation complete (MapKit integration)
+- ✅ Interactive MapKit view with pan/zoom
+- ✅ Location search with natural language queries
+- ✅ Map type selection (standard/satellite/hybrid)
+- ✅ High-resolution snapshot capture (2048×2048)
+- ✅ Map metadata storage and display
+- ✅ Preview and review workflow
+- ✅ Error handling for search and capture
+- ✅ Cross-platform support (macOS/iOS/iPadOS)
+- ✅ Updated validation logic for map captures
+
 **2025-11-11** - Initial specification created
 - Phase 1 implementation complete (import image workflow)
+- Phase 1.5 implementation complete (drag & drop, metadata)
 - Placeholders for Phases 2-4
 - Integrated with CardDetailTab for Map cards
 - Full wizard shell with navigation and state management

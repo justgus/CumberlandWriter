@@ -14,6 +14,7 @@ import SwiftUI
 
 /// Primary action buttons for card management, displayed at the bottom of the window.
 /// Includes New Card, Edit Card, and (in DEBUG) Developer Boards buttons.
+/// Phase 4: Enhanced with better accessibility and focus management.
 struct PrimaryActionsOrnament: View {
     let onNewCard: () -> Void
     let onEditCard: () -> Void
@@ -33,6 +34,9 @@ struct PrimaryActionsOrnament: View {
             }
             .disabled(isStructureSelected)
             .glassBackgroundEffect()
+            .accessibilityLabel("Create new card")
+            .accessibilityHint(isStructureSelected ? "Unavailable in Structure view" : "Opens card editor")
+            .keyboardShortcut("n", modifiers: [.command])
             
             Button {
                 onEditCard()
@@ -41,6 +45,9 @@ struct PrimaryActionsOrnament: View {
             }
             .disabled(!canEdit)
             .glassBackgroundEffect()
+            .accessibilityLabel("Edit selected card")
+            .accessibilityHint(canEdit ? "Opens editor for the selected card" : "Select a card first")
+            .keyboardShortcut("e", modifiers: [.command])
             
             #if DEBUG
             Button {
@@ -50,9 +57,14 @@ struct PrimaryActionsOrnament: View {
             }
             .glassBackgroundEffect()
             .help("Inspect and repair Boards and BoardNodes")
+            .accessibilityLabel("Developer Boards")
+            .accessibilityHint("Opens developer debugging tools")
+            .keyboardShortcut("d", modifiers: [.command, .shift])
             #endif
         }
         .padding()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Primary actions")
     }
 }
 
@@ -61,6 +73,7 @@ struct PrimaryActionsOrnament: View {
 /// Settings button ornament, displayed on the leading edge of the window.
 /// Collapses to icon-only when not being looked at, expands to show text on hover.
 /// Adds a trailing close button to dismiss the Settings sheet on visionOS.
+/// Phase 4: Enhanced with better accessibility and hover states.
 struct SettingsOrnament: View {
     let onSettings: () -> Void
     let onDismiss: () -> Void
@@ -80,6 +93,9 @@ struct SettingsOrnament: View {
                 }
             }
             .glassBackgroundEffect()
+            .accessibilityLabel("Settings")
+            .accessibilityHint("Opens application settings")
+            .keyboardShortcut(",", modifiers: [.command])
             .onContinuousHover { phase in
                 switch phase {
                 case .active:
@@ -98,8 +114,13 @@ struct SettingsOrnament: View {
             }
             .help("Close Settings")
             .glassBackgroundEffect()
+            .accessibilityLabel("Close Settings")
+            .accessibilityHint("Dismisses the settings window")
+            .keyboardShortcut(.escape)
         }
         .padding()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Settings controls")
     }
 }
 
@@ -109,6 +130,7 @@ struct SettingsOrnament: View {
 /// Developer Tools button ornament, displayed on the leading edge below Settings.
 /// Collapses to icon-only when not being looked at, expands to show text on hover.
 /// Optionally shows a trailing close button when onDismiss is provided.
+/// Phase 4: Enhanced with better accessibility and hover states.
 struct DeveloperToolsOrnament: View {
     let onDeveloperTools: () -> Void
     var onDismiss: (() -> Void)? = nil
@@ -128,6 +150,9 @@ struct DeveloperToolsOrnament: View {
                 }
             }
             .glassBackgroundEffect()
+            .accessibilityLabel("Developer Tools")
+            .accessibilityHint("Opens developer debugging tools and utilities")
+            .keyboardShortcut("t", modifiers: [.command, .option])
             .onContinuousHover { phase in
                 switch phase {
                 case .active:
@@ -146,9 +171,13 @@ struct DeveloperToolsOrnament: View {
                 }
                 .help("Close Developer Tools")
                 .glassBackgroundEffect()
+                .accessibilityLabel("Close Developer Tools")
+                .accessibilityHint("Dismisses the developer tools window")
             }
         }
         .padding()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Developer tools controls")
     }
 }
 #endif
@@ -157,6 +186,7 @@ struct DeveloperToolsOrnament: View {
 
 /// Tab picker for switching between card detail views (Details, Relationships, Board, etc.).
 /// Displayed on the trailing edge of the detail column.
+/// Phase 4: Enhanced with better accessibility and larger tap targets.
 struct DetailTabPickerOrnament: View {
     let tabs: [CardDetailTab]
     @Binding var selectedTab: CardDetailTab
@@ -172,6 +202,10 @@ struct DetailTabPickerOrnament: View {
         .frame(maxWidth: 420)
         .glassBackgroundEffect()
         .padding()
+        .accessibilityLabel("Card detail view selector")
+        .accessibilityHint("Choose which view to display for the selected card")
+        // Phase 4: Better keyboard navigation
+        .focusable(true)
     }
 }
 

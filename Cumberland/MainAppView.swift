@@ -440,21 +440,37 @@ struct MainAppView: View {
             NavigationLink(value: SidebarItem.structure) {
                 Label("Structure", systemImage: Kinds.structure.systemImage)
             }
+            #if os(visionOS)
+            .accessibilityLabel("Structure view")
+            .accessibilityHint("View story structure and organization")
+            #endif
 
             NavigationLink(value: SidebarItem.all) {
                 Label("All Cards", systemImage: "rectangle.stack")
             }
+            #if os(visionOS)
+            .accessibilityLabel("All Cards")
+            .accessibilityHint("View all cards across all types")
+            #endif
 
             Section("Card Types") {
                 ForEach(Kinds.orderedCases.filter { $0 != .structure }, id: \.self) { kind in
                     NavigationLink(value: SidebarItem.kind(kind)) {
                         Label(kind.title, systemImage: kind.systemImage)
                     }
+                    #if os(visionOS)
+                    .accessibilityLabel(kind.title)
+                    .accessibilityHint("View all \(kind.title.lowercased())")
+                    #endif
                 }
             }
         }
         .navigationTitle("Cumberland")
         .listStyle(.sidebar)
+        #if os(visionOS)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Navigation sidebar")
+        #endif
     }
 
     // MARK: - Content Column
@@ -597,9 +613,49 @@ struct MainAppView: View {
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
+                    #if os(visionOS)
+                    .accessibilityLabel("Delete \(card.name.isEmpty ? "card" : card.name)")
+                    #endif
                 }
                 // macOS and iOS context menu fallback (all kinds)
                 .contextMenu {
+                    #if os(visionOS)
+                    // Phase 4: Enhanced context menu with better hierarchy for spatial interaction
+                    Section {
+                        Button {
+                            selectedCardID = card.id
+                            #if os(visionOS)
+                            openEditCardWindow()
+                            #else
+                            showingEditCardEditor = true
+                            #endif
+                        } label: {
+                            Label("Edit Card", systemImage: "pencil")
+                        }
+                        
+                        Button {
+                            selectedCardID = card.id
+                        } label: {
+                            Label("View Details", systemImage: "doc.text.magnifyingglass")
+                        }
+                    }
+                    
+                    Section {
+                        // Future: Add more contextual actions here
+                        // - Duplicate
+                        // - Share
+                        // - Export
+                    }
+                    
+                    Section {
+                        Button(role: .destructive) {
+                            deleteCard(card)
+                        } label: {
+                            Label("Delete Card", systemImage: "trash")
+                        }
+                    }
+                    #else
+                    // macOS/iOS: Simpler context menu
                     Button {
                         // Start edit for this specific row regardless of selection
                         selectedCardID = card.id
@@ -612,12 +668,19 @@ struct MainAppView: View {
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
+                    #endif
                 }
             }
             // Enable list’s built-in delete for all kinds shown
             .onDelete(perform: deleteCards(at:))
         }
         .listStyle(.inset)
+        #if os(visionOS)
+        // Phase 4: Better list accessibility
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Card list")
+        .accessibilityHint("Select a card to view its details")
+        #endif
         #if os(macOS)
         // Support Delete key on macOS to delete the selected item
         .onDeleteCommand {
@@ -1051,12 +1114,17 @@ private struct CardListRow: View {
     @State private var thumbnailImage: Image?
 
     #if os(visionOS)
-    private let thumbSize: CGFloat = 48
-    private let thumbWidth: CGFloat = 72
+    // Phase 4: Larger tap targets for spatial input (gaze/pinch)
+    private let thumbSize: CGFloat = 52
+    private let thumbWidth: CGFloat = 78
+    private let verticalPadding: CGFloat = 10
+    private let cornerRadius: CGFloat = 8
     #else
     private let thumbSize: CGFloat = 40
     // Slightly wider container to preserve aspect ratio while keeping rows aligned
     private let thumbWidth: CGFloat = 60
+    private let verticalPadding: CGFloat = 4
+    private let cornerRadius: CGFloat = 6
     #endif
 
     // Equatable token for .task(id:) to avoid tuple-Equatable issues on older toolchains
@@ -1068,38 +1136,54 @@ private struct CardListRow: View {
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
-                // Background placeholder/border area
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(.quaternary.opacity(0.15))
+                // Background placeholder/border area (use Color-based approximation for cross-toolchain compatibility)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.secondary.opacity(0.12))
 
                 if let thumbnailImage {
                     thumbnailImage
                         .resizable()
                         .scaledToFit() // preserve original aspect ratio
                         .frame(maxWidth: thumbWidth - 4, maxHeight: thumbSize - 4)
-                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius - 1, style: .continuous))
                 } else {
                     // Subtle placeholder
                     Image(systemName: "photo")
+                        #if os(visionOS)
+                        .font(.body)
+                        #else
                         .font(.caption2)
+                        #endif
                         .foregroundStyle(.secondary)
                 }
             }
             .frame(width: thumbWidth, height: thumbSize)
             .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(.quaternary, lineWidth: 1)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
             )
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(card.name.isEmpty ? "Untitled" : card.name)
+                        #if os(visionOS)
+                        .font(.title3) // Larger, more comfortable for spatial reading
+                        #else
                         .font(.headline)
+                        #endif
                         .lineLimit(1)
                     Spacer()
                     Text(card.kind.singularTitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        #if os(visionOS)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(Color.secondary.opacity(0.15))
+                        )
+                        #endif
                 }
                 if !card.subtitle.isEmpty {
                     Text(card.subtitle)
@@ -1109,11 +1193,14 @@ private struct CardListRow: View {
                 }
             }
         }
+        .padding(.vertical, verticalPadding)
         #if os(visionOS)
-        .padding(.vertical, 8)
-        .hoverEffect(.lift)
-        #else
-        .padding(.vertical, 4)
+        // Phase 4: Enhanced hover effect for spatial comfort
+        .hoverEffect(.highlight)
+        .contentShape(Rectangle()) // Ensure entire row area is tappable
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(card.name.isEmpty ? "Untitled" : card.name), \(card.kind.singularTitle)")
+        .accessibilityHint("Double tap to view details")
         #endif
         // Initial load and subsequent refreshes when the image changes.
         // Use a stable change token so the task re-runs when thumbnailData changes.
@@ -1137,4 +1224,3 @@ let container = try! ModelContainer(for: Card.self, configurations: config)
 MainAppView()
     .modelContainer(container)
 }
-

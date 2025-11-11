@@ -1644,6 +1644,8 @@ struct CardSheetView: View {
     private func handleDroppedImageData(_ data: Data) -> Bool {
         do {
             let oldURL = card.imageFileURL
+            // Note: Image metadata can be extracted using ImageMetadataExtractor.extract(from: data)
+            // Attribution is managed separately through the Citation system (see ImageAttributionViewer)
             try card.setOriginalImageData(data, preferredFileExtension: nil)
             registerUndo(actionName: "Replace Image") {
                 if let prev = oldURL, let prevData = try? Data(contentsOf: prev) {

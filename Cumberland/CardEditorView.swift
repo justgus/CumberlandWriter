@@ -76,6 +76,7 @@ struct CardEditorView: View {
     @State private var imageData: Data?
     @State private var thumbnail: Image?
     @State private var isWorking: Bool = false
+    @State private var imageMetadata: ImageMetadataExtractor.ImageMetadata?
 
     // File importer
     @State private var isImportingImage: Bool = false
@@ -233,6 +234,8 @@ struct CardEditorView: View {
                 if case let .success(url) = result,
                    let data = try? Data(contentsOf: url) {
                     imageData = data
+                    // Extract metadata for automatic attribution
+                    imageMetadata = ImageMetadataExtractor.extract(from: data)
                     // Treat file-import as local; no URL attribution prompt needed.
                 }
             }
@@ -843,6 +846,38 @@ struct CardEditorView: View {
         author = val
     }
 
+    // MARK: - Attribution text generation
+
+    private func generateAttributionText(from metadata: ImageMetadataExtractor.ImageMetadata?) -> String? {
+        guard let metadata = metadata else { return nil }
+        
+        var parts: [String] = []
+        
+        // Camera info
+        if let make = metadata.cameraMake, let model = metadata.cameraModel {
+            parts.append("\(make) \(model)")
+        } else if let model = metadata.cameraModel {
+            parts.append(model)
+        } else if let make = metadata.cameraMake {
+            parts.append(make)
+        }
+        
+        // Date taken
+        if let date = metadata.dateTimeTaken {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .none
+            parts.append(formatter.string(from: date))
+        }
+        
+        // Location
+        if metadata.hasGPSData {
+            parts.append("📍 Location embedded")
+        }
+        
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     // MARK: - Save
 
     @MainActor
@@ -1004,6 +1039,8 @@ struct CardEditorView: View {
         if let data = try? await item.loadTransferable(type: Data.self),
            Self.isSupportedImageData(data) {
             imageData = data
+            // Extract metadata for automatic attribution
+            imageMetadata = ImageMetadataExtractor.extract(from: data)
         }
     }
 
@@ -1072,6 +1109,8 @@ struct CardEditorView: View {
                         if let data {
                             Task { @MainActor in
                                 self.imageData = data
+                                // Extract metadata for automatic attribution
+                                self.imageMetadata = ImageMetadataExtractor.extract(from: data)
                                 // No URL context; for edit mode, prompt for local image attribution if desired
                                 if self.isEditing {
                                     self.pendingAttribution = PendingAttribution(kind: .image,
@@ -1100,6 +1139,8 @@ struct CardEditorView: View {
                         if let data = outData {
                             Task { @MainActor in
                                 self.imageData = data
+                                // Extract metadata for automatic attribution
+                                self.imageMetadata = ImageMetadataExtractor.extract(from: data)
                                 if self.isEditing {
                                     self.pendingAttribution = PendingAttribution(kind: .image,
                                                                                  suggestedURL: nil,
@@ -1130,6 +1171,8 @@ struct CardEditorView: View {
                     if let data, !data.isEmpty {
                         Task { @MainActor in
                             self.imageData = data
+                            // Extract metadata for automatic attribution
+                            self.imageMetadata = ImageMetadataExtractor.extract(from: data)
                             if self.isEditing {
                                 self.pendingAttribution = PendingAttribution(kind: .image,
                                                                              suggestedURL: nil,
@@ -1168,6 +1211,8 @@ struct CardEditorView: View {
                 if let data = item as? Data, !data.isEmpty {
                     Task { @MainActor in
                         self.imageData = data
+                        // Extract metadata for automatic attribution
+                        self.imageMetadata = ImageMetadataExtractor.extract(from: data)
                         if self.isEditing {
                             self.pendingAttribution = PendingAttribution(kind: .image,
                                                                          suggestedURL: nil,
@@ -1184,6 +1229,8 @@ struct CardEditorView: View {
             if let url = item as? URL, url.isFileURL, let data = try? Data(contentsOf: url) {
                 Task { @MainActor in
                     self.imageData = data
+                    // Extract metadata for automatic attribution
+                    self.imageMetadata = ImageMetadataExtractor.extract(from: data)
                     // Local file: for edit mode, you may still want to prompt (no URL)
                     if self.isEditing {
                         self.pendingAttribution = PendingAttribution(kind: .image,
@@ -1204,6 +1251,8 @@ struct CardEditorView: View {
                         if !data.isEmpty {
                             await MainActor.run {
                                 self.imageData = data
+                                // Extract metadata for automatic attribution
+                                self.imageMetadata = ImageMetadataExtractor.extract(from: data)
                                 // Web: prefill URL in attribution (edit mode only)
                                 if self.isEditing {
                                     self.pendingAttribution = PendingAttribution(kind: .image,
