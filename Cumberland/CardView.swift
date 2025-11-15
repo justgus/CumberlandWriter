@@ -166,6 +166,7 @@ struct CardView: View {
             thumbnail
                 .resizable()
                 .scaledToFit() // Preserve aspect ratio; no cropping
+                .fullSizeImageGesture(for: card)
         } else {
             ZStack {
                 Rectangle().fill(.ultraThinMaterial)

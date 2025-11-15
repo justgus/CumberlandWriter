@@ -30,11 +30,88 @@ struct CumberlandApp: App {
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "SwiftData")
 
         // Build a concrete Schema from the latest versioned schema's models.
-        // Latest is V3 (V4 was collapsed because it was structurally identical to V3).
-        let schema = Schema(AppSchemaV3.models)
+        // Latest is V5 (skipping V4 which was structurally identical to V3 and caused CloudKit sync issues).
+        let schema = Schema(AppSchemaV5.models)
+
+        // TEMPORARY: Nuclear option for development - delete ALL SwiftData stores
+        #if DEBUG
+        let deleteCorruptedStores = true // Set to false once migration issues are resolved
+        
+        if deleteCorruptedStores {
+            let fm = FileManager.default
+            
+            guard let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+                logger.error("Could not find Application Support directory")
+                fatalError("Could not find Application Support directory")
+            }
+            
+            logger.warning("🔍 Searching for SwiftData stores in: \(appSupport.path)")
+            
+            // Delete ALL .store files and related files in Application Support
+            var deletedCount = 0
+            
+            if let enumerator = fm.enumerator(at: appSupport, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
+                for case let fileURL as URL in enumerator {
+                    let filename = fileURL.lastPathComponent
+                    
+                    // Delete any .store, .store-wal, .store-shm files, or directories that might contain stores
+                    if filename.hasSuffix(".store") || 
+                       filename.hasSuffix(".store-wal") || 
+                       filename.hasSuffix(".store-shm") ||
+                       filename.contains("iCloud.CumberlandCloud") {
+                        
+                        do {
+                            // Check if it's a directory
+                            var isDirectory: ObjCBool = false
+                            if fm.fileExists(atPath: fileURL.path, isDirectory: &isDirectory) {
+                                if isDirectory.boolValue {
+                                    // Delete entire directory
+                                    try fm.removeItem(at: fileURL)
+                                    logger.warning("🗑️ Deleted directory: \(filename)")
+                                    deletedCount += 1
+                                } else {
+                                    // Delete file
+                                    try fm.removeItem(at: fileURL)
+                                    logger.warning("🗑️ Deleted file: \(filename)")
+                                    deletedCount += 1
+                                }
+                            }
+                        } catch {
+                            logger.error("Failed to delete \(fileURL.path): \(error)")
+                        }
+                    }
+                }
+            }
+            
+            // Also try to delete the app-specific bundle ID directory entirely
+            if let bundleID = Bundle.main.bundleIdentifier {
+                let appDir = appSupport.appendingPathComponent(bundleID)
+                if fm.fileExists(atPath: appDir.path) {
+                    do {
+                        try fm.removeItem(at: appDir)
+                        logger.warning("🗑️ Deleted entire app directory: \(bundleID)")
+                        deletedCount += 1
+                    } catch {
+                        logger.error("Failed to delete app directory: \(error)")
+                    }
+                }
+            }
+            
+            if deletedCount > 0 {
+                logger.warning("⚠️ DELETED \(deletedCount) SwiftData store file(s)/directory(ies). Starting completely fresh.")
+            } else {
+                logger.debug("No existing store files found to delete.")
+            }
+        }
+        #endif
 
         // Use the latest versioned schema and the migration plan.
-        // 1) Try CloudKit-backed configuration first.
+        // TEMPORARY: Disable CloudKit until Development Environment is reset
+        #if DEBUG
+        // CloudKit disabled for development. Enable after resetting CloudKit Development Environment.
+        logger.warning("CloudKit disabled for development. Enable after resetting CloudKit Development Environment.")
+        #else
+        // 1) Try CloudKit-backed configuration first (production builds only).
         do {
             let cloudConfig = ModelConfiguration("iCloud.CumberlandCloud")
             let container = try ModelContainer(
@@ -47,6 +124,7 @@ struct CumberlandApp: App {
         } catch {
             logger.error("CloudKit ModelContainer initialization failed: \(String(describing: error))")
         }
+        #endif
 
         // 2) Fall back to a local on-disk store (no CloudKit).
         do {
@@ -304,68 +382,42 @@ extension CumberlandApp {
     }
 
     // Canonical, idempotent seed set. Codes are stable and human labels are user-facing.
+    // IMPORTANT: These relation types are hardcoded in various views throughout the app.
+    // Key views that reference specific codes:
+    //   - TimelineChartView: describes/described-by, appears-in/is-appeared-by, part-of/has-scene
+    //   - StructureBoardView: stories/is-storied-by
+    //   - (Add others here as they're identified)
     static var relationTypeSeeds: [SeedDescriptor] {
         [
-            // Global (Any → Any)
-            .init(code: "references", forward: "references", inverse: "referenced by", source: nil, target: nil),
-            .init(code: "related-to/related-to", forward: "related to", inverse: "related to", source: nil, target: nil),
-            .init(code: "same-as/same-as", forward: "same as", inverse: "same-as", source: nil, target: nil), // keep as-is per existing
-            .init(code: "includes/part-of", forward: "includes", inverse: "part of", source: nil, target: nil),
-            .init(code: "depends-on/required-by", forward: "depends on", inverse: "required by", source: nil, target: nil),
-            .init(code: "precedes/follows", forward: "precedes", inverse: "follows", source: nil, target: nil),
-            .init(code: "uses/used-by", forward: "uses", inverse: "used by", source: nil, target: nil),
-            .init(code: "inspired-by/inspires", forward: "inspired by", inverse: "inspires", source: nil, target: nil),
-            .init(code: "derived-from/basis-for", forward: "derived from", inverse: "basis for", source: nil, target: nil),
+            // MARK: - Global (Any → Any)
+//            .init(code: "references", forward: "references", inverse: "referenced by", source: nil, target: nil),
+//            .init(code: "related-to/related-to", forward: "related to", inverse: "related to", source: nil, target: nil),
+//            .init(code: "same-as/same-as", forward: "same as", inverse: "same-as", source: nil, target: nil), // keep as-is per existing
+//            .init(code: "includes/part-of", forward: "includes", inverse: "part of", source: nil, target: nil),
+//            .init(code: "depends-on/required-by", forward: "depends on", inverse: "required by", source: nil, target: nil),
+//            .init(code: "precedes/follows", forward: "precedes", inverse: "follows", source: nil, target: nil),
+//            .init(code: "uses/used-by", forward: "uses", inverse: "used by", source: nil, target: nil),
+//            .init(code: "inspired-by/inspires", forward: "inspired by", inverse: "inspires", source: nil, target: nil),
+//            .init(code: "derived-from/basis-for", forward: "derived from", inverse: "basis for", source: nil, target: nil),
 
-            // Scoped (specific Kinds)
+            // MARK: - Scoped (specific Kinds)
 
             // Bibliographic: Sources → Any
             .init(code: "cites", forward: "cites", inverse: "cited by", source: .sources, target: nil),
 
-            // Characters ↔ Scenes
+            // MARK: - Characters Relations
+            
+            // Characters ↔ Scenes (REQUIRED by TimelineChartView)
             .init(code: "appears-in/is-appeared-by", forward: "appears in", inverse: "is appeared by", source: .characters, target: .scenes),
 
             // Characters ↔ Projects (cast listing)
             .init(code: "appears-in/dramatis personae", forward: "appears in", inverse: "dramatis personae", source: .characters, target: .projects),
-
-            // Scenes ↔ Worlds
-            .init(code: "set-in/contains-scene", forward: "set in", inverse: "contains scene", source: .scenes, target: .worlds),
-
-            // Scenes ↔ Chapters (compose)
-            .init(code: "part-of/has-scene", forward: "part of", inverse: "has scene", source: .scenes, target: .chapters),
-
-            // Scenes ↔ Timelines
-            .init(code: "describes/described-by", forward: "describes", inverse: "described by", source: .scenes, target: .timelines),
-
-            // Projects ↔ Worlds (setting)
-            .init(code: "set-in/setting-for", forward: "set in", inverse: "setting for", source: .projects, target: .worlds),
-
-            // Worlds ↔ Rules (application)
-            .init(code: "applies/applied-to", forward: "applies", inverse: "applied to", source: .worlds, target: .rules),
-
-            // Locations ↔ Maps
-            .init(code: "appears-on/shows", forward: "appears on", inverse: "shows", source: .locations, target: .maps),
-
-            // Locations ↔ Worlds
-            .init(code: "located-in/contains", forward: "located in", inverse: "contains", source: .locations, target: .worlds),
-
-            // Buildings ↔ Locations
-            .init(code: "housed-in/contains-building", forward: "housed in", inverse: "contains building", source: .buildings, target: .locations),
 
             // Characters ↔ Vehicles
             .init(code: "pilots/piloted-by", forward: "pilots", inverse: "piloted by", source: .characters, target: .vehicles),
 
             // Characters ↔ Artifacts
             .init(code: "owns/owned-by", forward: "owns", inverse: "owned by", source: .characters, target: .artifacts),
-
-            // Projects hierarchy
-            .init(code: "parent-of/child-of", forward: "parent of", inverse: "child of", source: .projects, target: .projects),
-
-            // Chapters ↔ Projects (compose)
-            .init(code: "part-of/has-member", forward: "part of", inverse: "has member", source: .chapters, target: .projects),
-
-            // Maps ↔ Worlds
-            .init(code: "maps/mapped-by", forward: "maps", inverse: "mapped by", source: .maps, target: .worlds),
 
             // Characters ↔ Characters (relationships inside cast)
             .init(code: "allies-with/allies-with", forward: "allies with", inverse: "allies with", source: .characters, target: .characters),
@@ -378,8 +430,51 @@ extension CumberlandApp {
             .init(code: "rivals-with/rivals-with", forward: "rivals with", inverse: "rivals with", source: .characters, target: .characters),
             .init(code: "works-with/works-with", forward: "works with", inverse: "works with", source: .characters, target: .characters),
 
-            // New: Scenes ↔ Projects (direct story linkage)
-            .init(code: "stories/is-storied-by", forward: "stories", inverse: "is storied by", source: .scenes, target: .projects)
+            // MARK: - Scene Relations
+
+            // Scenes ↔ Worlds
+            .init(code: "set-in/contains-scene", forward: "set in", inverse: "contains scene", source: .scenes, target: .worlds),
+
+            // Scenes ↔ Chapters (compose) (REQUIRED by TimelineChartView)
+            .init(code: "part-of/has-scene", forward: "part of", inverse: "has scene", source: .scenes, target: .chapters),
+
+            // Scenes ↔ Timelines (REQUIRED by TimelineChartView)
+            .init(code: "describes/described-by", forward: "describes", inverse: "described by", source: .scenes, target: .timelines),
+
+            // Scenes ↔ Projects (direct story linkage) (REQUIRED by StructureBoardView)
+            .init(code: "stories/is-storied-by", forward: "stories", inverse: "is storied by", source: .scenes, target: .projects),
+
+            // MARK: - Project Relations
+
+            // Projects ↔ Worlds (setting)
+            .init(code: "set-in/setting-for", forward: "set in", inverse: "setting for", source: .projects, target: .worlds),
+
+            // Projects hierarchy
+            .init(code: "parent-of/child-of", forward: "parent of", inverse: "child of", source: .projects, target: .projects),
+
+            // MARK: - Chapter Relations
+
+            // Chapters ↔ Projects (compose)
+            .init(code: "part-of/has-member", forward: "part of", inverse: "has member", source: .chapters, target: .projects),
+
+            // MARK: - World Relations
+
+            // Worlds ↔ Rules (application)
+            .init(code: "applies/applied-to", forward: "applies", inverse: "applied to", source: .worlds, target: .rules),
+
+            // Maps ↔ Worlds
+            .init(code: "maps/mapped-by", forward: "maps", inverse: "mapped by", source: .maps, target: .worlds),
+
+            // MARK: - Location Relations
+
+            // Locations ↔ Maps
+            .init(code: "appears-on/shows", forward: "appears on", inverse: "shows", source: .locations, target: .maps),
+
+            // Locations ↔ Worlds
+            .init(code: "located-in/contains", forward: "located in", inverse: "contains", source: .locations, target: .worlds),
+
+            // Buildings ↔ Locations
+            .init(code: "housed-in/contains-building", forward: "housed in", inverse: "contains building", source: .buildings, target: .locations)
         ]
     }
 

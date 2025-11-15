@@ -66,12 +66,36 @@ enum AppSchemaV3: VersionedSchema {
     }
 }
 
+// V4: REMOVED - was structurally identical to V3, causing CloudKit sync issues
+// Jumping directly to V5 to avoid "current and next model reference cannot be equal" error
+
+// V5: Current schema (same models as V3, but with distinct version to avoid CloudKit confusion)
+enum AppSchemaV5: VersionedSchema {
+    static var versionIdentifier = Schema.Version(5, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            AppSettings.self,
+            Card.self,
+            RelationType.self,
+            CardEdge.self,
+            Source.self,
+            Citation.self,
+            StoryStructure.self,
+            StructureElement.self,
+            Board.self,
+            BoardNode.self
+        ]
+    }
+}
+
 // MARK: - Migration Plan
 
 enum AppMigrations: SchemaMigrationPlan {
     // Stages:
     // - V1 -> V2: backfill Card.originalImageData from local files.
     // - V2 -> V3: add Board/BoardNode (no-op data migration).
+    // - V3 -> V5: lightweight migration (skipping V4 which was identical to V3).
     static var stages: [MigrationStage] = [
         MigrationStage.custom(
             fromVersion: AppSchemaV1.self,
@@ -121,12 +145,17 @@ enum AppMigrations: SchemaMigrationPlan {
         MigrationStage.lightweight(
             fromVersion: AppSchemaV2.self,
             toVersion: AppSchemaV3.self
+        ),
+        MigrationStage.lightweight(
+            fromVersion: AppSchemaV3.self,
+            toVersion: AppSchemaV5.self
         )
     ]
 
     static var schemas: [any VersionedSchema.Type] = [
         AppSchemaV1.self,
         AppSchemaV2.self,
-        AppSchemaV3.self
+        AppSchemaV3.self,
+        AppSchemaV5.self // Skip V4 entirely
     ]
 }

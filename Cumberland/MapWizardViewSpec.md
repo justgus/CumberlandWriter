@@ -62,53 +62,69 @@ The wizard follows a linear, four-step progression:
 
 ---
 
-### 2. Draw Map 🚧 (Placeholder)
+### 2. Draw Map ✅ (Implemented)
 
 **Icon:** `pencil.and.scribble`  
 **Purpose:** Create custom maps using drawing tools
 
-**Planned Features:**
-- **Canvas Engine**: PencilKit integration for Apple Pencil support
+**Features:**
+- **Canvas Engine**: Full PencilKit integration with Apple Pencil support
 - **Drawing Tools**:
-  - Freehand pen/brush
-  - Shapes (rectangles, circles, polygons)
-  - Lines and connectors
-  - Text annotations
-- **Layer System**:
-  - Background layer (terrain)
-  - Feature layers (roads, rivers, cities)
-  - Label layer (place names)
-  - Overlay layer (annotations, highlights)
+  - ✅ Pen (fine precision lines)
+  - ✅ Pencil (textured, sketch-style)
+  - ✅ Marker (thick, semi-transparent)
+  - ✅ Eraser (vector-based, removes individual strokes)
+  - ✅ Lasso (selection tool)
 - **Color & Style**:
-  - Color picker with swatches
-  - Line width controls
-  - Fill patterns
-  - Custom brushes (future)
-- **Templates**:
-  - Blank canvas
-  - Grid overlays (square, hex)
-  - Common map shapes (island, continent, region)
+  - ✅ Full color picker with opacity support
+  - ✅ 8 quick color swatches (black, gray, red, orange, yellow, green, blue, purple)
+  - ✅ Line width slider (1-20pt range)
+  - ✅ Real-time tool updates
+- **Canvas Options**:
+  - ✅ Configurable canvas size (1024×1024, 2048×2048, 4096×4096)
+  - ✅ Background color selection (white, black, parchment, gray)
+  - ✅ Grid overlay (square grid, configurable spacing)
+  - ✅ Ruler tool for straight lines
+- **Undo/Redo**:
+  - ✅ Full undo manager integration
+  - ✅ Visual feedback for undo/redo availability
+  - ✅ Clear canvas with confirmation dialog
+- **Export**:
+  - ✅ Export as PNG image (high resolution)
+  - ✅ Export raw PKDrawing data for re-editing
+  - ✅ Platform-specific rendering (UIKit/AppKit)
 
-**Technical Approach:**
-- macOS: NSView-based PencilKit wrapper
-- iOS: Native PencilKit canvas
-- Export as PNG/SVG
-- Store drawing data separately for future editing
+**Technical Implementation:**
+- ✅ macOS: NSViewRepresentable wrapper for PKCanvasView
+- ✅ iOS/iPadOS: UIViewRepresentable wrapper for PKCanvasView
+- ✅ @Observable model (DrawingCanvasModel) for state management
+- ✅ Cross-platform color conversion
+- ✅ High-quality image export at device scale
+- ✅ Delegate pattern for drawing change notifications
 
 **Use Cases:**
 - Fantasy world maps
 - City/town layouts
 - Building floor plans
 - Custom location diagrams
+- Concept sketches
+- Annotated maps
 
-**Implementation Status:** 🚧 Phase 2 (Not Started)
-- [ ] PencilKit canvas integration
-- [ ] Drawing tool palette
-- [ ] Layer management
-- [ ] Shape tools
-- [ ] Text annotation
-- [ ] Export as image
-- [ ] Save drawing data for re-editing
+**Implementation Status:** ✅ Phase 2 Complete (November 13, 2025)
+- [x] PencilKit canvas integration (both macOS and iOS/iPadOS)
+- [x] Drawing tool palette (5 tools)
+- [x] Color picker with quick swatches
+- [x] Line width controls
+- [x] Grid overlay system
+- [x] Ruler tool integration
+- [x] Undo/Redo management
+- [x] Export as PNG image
+- [x] Export/import raw drawing data for re-editing
+- [x] Cross-platform support
+- [📋] Layer management (deferred to Phase 2.5)
+- [📋] Shape tools (rectangles, circles) (deferred to Phase 2.5)
+- [📋] Text annotation (deferred to Phase 2.5)
+- [📋] Hex grid support (deferred to Phase 2.5)
 
 ---
 
@@ -277,6 +293,21 @@ purple vegetation, and crystalline structures."
 - ✅ Image metadata extraction
 - ✅ **Universal attribution expansion** - All views now extract metadata
 
+**Phase 2 - Completed (November 13, 2025):**
+- ✅ Full PencilKit integration (macOS, iOS, iPadOS)
+- ✅ Drawing canvas with @Observable model
+- ✅ 5 drawing tools (pen, pencil, marker, eraser, lasso)
+- ✅ Color picker with 8 quick swatches
+- ✅ Line width controls (1-20pt slider)
+- ✅ Canvas size options (1024, 2048, 4096)
+- ✅ Background color customization
+- ✅ Grid overlay system
+- ✅ Ruler tool for straight lines
+- ✅ Undo/Redo with UndoManager
+- ✅ Export as PNG image
+- ✅ Export/import raw PKDrawing data
+- ✅ Cross-platform rendering
+
 **Phase 3 - Completed:**
 - ✅ MapKit view integration
 - ✅ Location search
@@ -287,7 +318,9 @@ purple vegetation, and crystalline structures."
 - ✅ Error handling
 
 **Deferred to Future Phases:**
-- Drawing canvas (Phase 2)
+- Layer system for drawings (Phase 2.5)
+- Shape tools (Phase 2.5)
+- Text annotation (Phase 2.5)
 - Annotation tools for maps (Phase 3.5)
 - Metadata persistence (Phase 3.5)
 - AI generation (Phase 4)
@@ -341,10 +374,19 @@ All wizard state is `@State` local to MapWizardView:
 2. ~~**Image metadata extraction** (dimensions, file size, format, GPS)~~ ✅
 3. ~~**Batch import** for multiple images~~ → Future Enhancement 📋
 
-### Short Term (Phase 2)
-1. **PencilKit drawing** implementation
-2. **Canvas templates** (grid, shapes)
-3. **Layer support** for drawings
+### Short Term (Phase 2 - ✅ Complete)
+1. ~~**PencilKit drawing** implementation~~ ✅
+2. ~~**Canvas templates** (grid, shapes)~~ ✅ (Grid overlay implemented)
+3. ~~**Layer support** for drawings~~ → Deferred to Phase 2.5 📋
+4. ~~**Undo/Redo** system~~ ✅
+
+### Medium Term (Phase 2.5 - Planned)
+1. **Layer system** for complex drawings
+2. **Shape tools** (rectangles, circles, polygons, lines)
+3. **Text annotation** on canvas
+4. **Hex grid** overlay option
+5. **Custom brush library** for terrain types
+6. **Drawing templates** (island, continent, city layouts)
 
 ### Short Term (Phase 3 - ✅ Complete)
 1. ~~**MapKit integration** for location capture~~ ✅
@@ -487,10 +529,15 @@ All wizard state is `@State` local to MapWizardView:
 - [x] Metadata extraction is accurate
 - [x] Metadata display is informative
 
-### Phase 2 (Drawing)
-- [ ] Writers can create simple maps from scratch
-- [ ] Drawing tools are responsive and accurate
-- [ ] Layers allow complex composition
+### Phase 2 (Drawing) - ✅ Complete
+- [x] Writers can create simple maps from scratch
+- [x] Drawing tools are responsive and accurate
+- [x] Grid overlay allows structured composition
+- [x] Undo/Redo works reliably
+- [x] Color and line width controls are intuitive
+- [x] Canvas exports to high-quality PNG images
+- [x] Cross-platform support (macOS, iOS, iPadOS)
+- [x] Apple Pencil support (on iPad)
 
 ### Phase 3 (Maps) - ✅ Complete
 - [x] Real-world locations can be captured easily
@@ -517,6 +564,24 @@ All wizard state is `@State` local to MapWizardView:
 ---
 
 ## Changelog
+
+**2025-11-13** - Phase 2 implementation complete (Drawing Canvas)
+- ✅ Consolidated duplicate DrawingCanvasView implementations
+- ✅ Full PencilKit integration with @Observable model
+- ✅ 5 drawing tools: pen, pencil, marker, eraser, lasso
+- ✅ Color picker with 8 quick color swatches
+- ✅ Line width slider (1-20pt)
+- ✅ Canvas size options (1024, 2048, 4096)
+- ✅ Background color customization
+- ✅ Grid overlay system with configurable spacing
+- ✅ Ruler tool for straight line drawing
+- ✅ Full undo/redo with UndoManager
+- ✅ Export as PNG image (platform-specific rendering)
+- ✅ Export/import raw PKDrawing data for re-editing
+- ✅ Cross-platform support (macOS NSViewRepresentable, iOS/iPadOS UIViewRepresentable)
+- ✅ Integration with MapWizardView
+- ✅ Proper validation logic
+- 📖 Updated specification with Phase 2 completion status
 
 **2025-11-11** - Universal attribution expansion
 - ✅ Extended automatic metadata extraction to all image import locations

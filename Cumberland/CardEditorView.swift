@@ -86,6 +86,9 @@ struct CardEditorView: View {
 
     // Flip state for wizard-like back side
     @State private var isFlipped: Bool = false
+    
+    // Full-size image viewer
+    @State private var showFullSizeImage: Bool = false
 
     // MARK: - Quick Attribution Prompt State (for dropped text/images)
     private struct PendingAttribution: Identifiable, Equatable {
@@ -339,6 +342,20 @@ struct CardEditorView: View {
                 EmptyView()
             }
         }
+        // Present full-size image viewer when triggered
+        #if os(macOS)
+        .sheet(isPresented: $showFullSizeImage) {
+            if case .edit(let card, _) = mode {
+                FullSizeImageViewer(card: card)
+            }
+        }
+        #else
+        .fullScreenCover(isPresented: $showFullSizeImage) {
+            if case .edit(let card, _) = mode {
+                FullSizeImageViewer(card: card)
+            }
+        }
+        #endif
     }
 
     // MARK: - Derived
@@ -734,10 +751,47 @@ struct CardEditorView: View {
     private var thumbnailDropView: some View {
         ZStack {
             if let thumbnail {
+                let hasFullSizeImage: Bool = {
+                    if case .edit(let card, _) = mode {
+                        return card.imageFileURL != nil || card.originalImageData != nil
+                    }
+                    return false
+                }()
+                
                 thumbnail
                     .resizable()
                     .scaledToFit() // Preserve aspect ratio; no cropping
                     .accessibilityLabel("Cover Image")
+                    .accessibilityHint(hasFullSizeImage ? "Double-click to view full size" : "")
+                    #if os(macOS)
+                    .onTapGesture(count: 2) {
+                        if case .edit(let card, _) = mode,
+                           (card.imageFileURL != nil || card.originalImageData != nil) {
+                            showFullSizeImage = true
+                        }
+                    }
+                    .onHover { hovering in
+                        if hovering, case .edit(let card, _) = mode,
+                           (card.imageFileURL != nil || card.originalImageData != nil) {
+                            NSCursor.pointingHand.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
+                    #else
+                    .onTapGesture(count: 2) {
+                        if case .edit(let card, _) = mode,
+                           (card.imageFileURL != nil || card.originalImageData != nil) {
+                            showFullSizeImage = true
+                        }
+                    }
+                    .onLongPressGesture(minimumDuration: 0.5) {
+                        if case .edit(let card, _) = mode,
+                           (card.imageFileURL != nil || card.originalImageData != nil) {
+                            showFullSizeImage = true
+                        }
+                    }
+                    #endif
             } else {
                 ZStack {
                     Rectangle().fill(.ultraThinMaterial)
@@ -781,6 +835,28 @@ struct CardEditorView: View {
             if #available(iOS 16.0, macOS 13.0, *) {
                 PhotosPicker(selection: $selectedPhotoItem, matching: .images, photoLibrary: .shared()) {
                     Label("Import from Photos…", systemImage: "photo")
+                }
+            }
+            
+            // Add full-size view option to context menu if in edit mode
+            if case .edit(let card, _) = mode, card.imageFileURL != nil || card.originalImageData != nil {
+                Divider()
+                Button {
+                    showFullSizeImage = true
+                } label: {
+                    Label("View Full Size", systemImage: "arrow.up.left.and.arrow.down.right")
+                }
+                #if os(macOS)
+                .keyboardShortcut(.space)
+                #endif
+            }
+            
+            // Add remove option
+            if hasAnyImage {
+                Button(role: .destructive) {
+                    removeImage()
+                } label: {
+                    Label("Remove Image", systemImage: "trash")
                 }
             }
         }

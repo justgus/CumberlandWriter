@@ -73,6 +73,9 @@ struct CardSheetView: View {
     // Image attribution visibility (hidden by default; toggled by tapping the image/placeholder)
     @State private var isAttributionVisible: Bool = false
 
+    // Full-size image viewer
+    @State private var showFullSizeImage: Bool = false
+
     // MARK: - Quick Attribution Prompt State
 
     // Context for presenting the quick attribution dialog after a successful drop/import.
@@ -382,6 +385,16 @@ struct CardSheetView: View {
                                       })
                 .frame(minWidth: 420, minHeight: 360)
             }
+            // Full-size image viewer
+            #if os(macOS)
+            .sheet(isPresented: $showFullSizeImage) {
+                FullSizeImageViewer(card: card)
+            }
+            #else
+            .fullScreenCover(isPresented: $showFullSizeImage) {
+                FullSizeImageViewer(card: card)
+            }
+            #endif
     }
 
     @ViewBuilder
@@ -781,6 +794,7 @@ struct CardSheetView: View {
                         .resizable()
                         .scaledToFit()
                         .accessibilityLabel("Full Image")
+                        .accessibilityHint(hasFullSizeImage ? "Double-tap to view full size" : "")
                         .frame(maxHeight: 240)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -793,18 +807,56 @@ struct CardSheetView: View {
                                 .stroke(.quaternary, lineWidth: 0.8)
                                 .allowsHitTesting(false)
                         )
+                        .contentShape(Rectangle())
+                        // IMPORTANT: Double-tap must come BEFORE single-tap
+                        .onTapGesture(count: 2) {
+                            if hasFullSizeImage {
+                                showFullSizeImage = true
+                            }
+                        }
+                        // Single tap to toggle attribution (only fires if double-tap doesn't)
+                        .onTapGesture(count: 1) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isAttributionVisible.toggle()
+                            }
+                        }
+                        #if os(macOS)
+                        .onHover { hovering in
+                            if hovering && hasFullSizeImage {
+                                NSCursor.pointingHand.push()
+                            } else {
+                                NSCursor.pop()
+                            }
+                        }
+                        #else
+                        // Long press for iOS/iPadOS
+                        .onLongPressGesture(minimumDuration: 0.5) {
+                            if hasFullSizeImage {
+                                showFullSizeImage = true
+                            }
+                        }
+                        #endif
                         .contextMenu {
                             #if os(iOS)
                             Button("Replace from Photos…") { isPresentingPhotosPicker = true }
                             #endif
                             Button("Replace Image…") { presentImagePicker() }
-                            Button("Remove Image", role: .destructive) { removeImage() }
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isAttributionVisible.toggle()
+                            
+                            // Add full-size view option if image is available
+                            if hasFullSizeImage {
+                                Divider()
+                                Button {
+                                    showFullSizeImage = true
+                                } label: {
+                                    Label("View Full Size", systemImage: "arrow.up.left.and.arrow.down.right")
+                                }
+                                #if os(macOS)
+                                .keyboardShortcut(.space)
+                                #endif
                             }
+                            
+                            Divider()
+                            Button("Remove Image", role: .destructive) { removeImage() }
                         }
                 } else {
                     VStack(spacing: 8) {
@@ -828,16 +880,16 @@ struct CardSheetView: View {
                             .allowsHitTesting(false)
                     )
                     .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isAttributionVisible.toggle()
+                        }
+                    }
                     .contextMenu {
                         #if os(iOS)
                         Button("Choose from Photos…") { isPresentingPhotosPicker = true }
                         #endif
                         Button("Choose Image…") { presentImagePicker() }
-                    }
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            isAttributionVisible.toggle()
-                        }
                     }
                 }
             }
@@ -862,6 +914,10 @@ struct CardSheetView: View {
         .contentShape(Rectangle())
         // Give it a concrete hit-test surface
         .background(Color.black.opacity(0.001))
+    }
+
+    private var hasFullSizeImage: Bool {
+        card.imageFileURL != nil || card.originalImageData != nil
     }
 
     private func presentImagePicker() {

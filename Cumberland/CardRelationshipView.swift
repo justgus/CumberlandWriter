@@ -106,6 +106,9 @@ struct CardRelationshipView: View {
     // NEW: Manage Relation Types sheet
     @State private var isPresentingManageRelationTypes: Bool = false
 
+    // Full-size image viewer
+    @State private var showFullSizeImage: Bool = false
+
     private let areaCornerRadius: CGFloat = 16
 
     var relationTypeFilter: RelationType? = nil
@@ -299,6 +302,16 @@ struct CardRelationshipView: View {
             RelationTypesManagerView()
                 .frame(minWidth: 680, minHeight: 420)
         }
+        // Full-size image viewer
+        #if os(macOS)
+        .sheet(isPresented: $showFullSizeImage) {
+            FullSizeImageViewer(card: primary)
+        }
+        #else
+        .fullScreenCover(isPresented: $showFullSizeImage) {
+            FullSizeImageViewer(card: primary)
+        }
+        #endif
         .onChange(of: isPresentingCreateRelationType) { _, isPresented in
             if !isPresented, shouldCleanupPendingOnCancel, let card = pendingNewCard {
                 cleanupAndDelete(card)
@@ -323,6 +336,10 @@ struct CardRelationshipView: View {
             selectedRelatedCard = nil
         }
     } //end var body
+
+    private var hasFullSizeImage: Bool {
+        primary.imageFileURL != nil || primary.originalImageData != nil
+    }
 
     private var primaryHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -372,6 +389,44 @@ struct CardRelationshipView: View {
                         )
                         .shadow(color: .black.opacity(0.08), radius: 3, x: 0, y: 1)
                         .accessibilityLabel("Card Image")
+                        .contentShape(Rectangle())
+                        // Double-tap must come before single-tap
+                        .onTapGesture(count: 2) {
+                            if hasFullSizeImage {
+                                showFullSizeImage = true
+                            }
+                        }
+                        .onTapGesture(count: 1) {
+                            // Single tap could do something else, or just nothing
+                        }
+                        #if os(macOS)
+                        .onHover { hovering in
+                            if hovering && hasFullSizeImage {
+                                NSCursor.pointingHand.push()
+                            } else {
+                                NSCursor.pop()
+                            }
+                        }
+                        #endif
+                        #if os(iOS)
+                        .onLongPressGesture(minimumDuration: 0.5) {
+                            if hasFullSizeImage {
+                                showFullSizeImage = true
+                            }
+                        }
+                        #endif
+                        .contextMenu {
+                            if hasFullSizeImage {
+                                Button {
+                                    showFullSizeImage = true
+                                } label: {
+                                    Label("View Full Size", systemImage: "arrow.up.left.and.arrow.down.right")
+                                }
+                                #if os(macOS)
+                                .keyboardShortcut(.space)
+                                #endif
+                            }
+                        }
                 }
             }
         }

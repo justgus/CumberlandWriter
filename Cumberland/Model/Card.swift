@@ -62,6 +62,20 @@ final class Card: Identifiable {
     // File URL to original image stored on disk (local cache only, not synced)
     @Transient
     var imageFileURL: URL?
+    
+    // Work-in-progress map/drawing data (synced, but separate from finalized originalImageData)
+    // This allows users to continue editing across devices without losing work
+    @Attribute(.externalStorage)
+    var draftMapWorkData: Data?
+    
+    // Timestamp of last draft save (helps determine if draft is current)
+    var draftMapWorkTimestamp: Date?
+    
+    // Map creation method used for the draft (stored as raw string for CloudKit compatibility)
+    var draftMapMethodRaw: String?
+    
+    // Wizard step where the user left off (stored as raw string for CloudKit compatibility)
+    var draftMapWizardStepRaw: String?
 
     // Precomputed aggregate for simple/backup searches
     // Provide a default so migration can backfill existing rows.
@@ -317,6 +331,39 @@ extension Card {
     static func purgeAllImageCaches() {
         cgImageCache.removeAllObjects()
     }
+    
+    // MARK: - Draft Map Work Management
+    
+    /// Save work-in-progress map/drawing data
+    /// - Parameters:
+    ///   - data: The serialized drawing/map data
+    ///   - method: The map creation method being used
+    ///   - wizardStep: The wizard step where the user left off
+    func saveDraftMapWork(_ data: Data, method: String, wizardStep: String? = nil) {
+        self.draftMapWorkData = data
+        self.draftMapWorkTimestamp = Date()
+        self.draftMapMethodRaw = method
+        self.draftMapWizardStepRaw = wizardStep
+    }
+    
+    /// Check if there is unsaved draft work
+    var hasDraftMapWork: Bool {
+        return draftMapWorkData != nil && !draftMapWorkData!.isEmpty
+    }
+    
+    /// Clear the draft map work (typically called after finalizing)
+    func clearDraftMapWork() {
+        self.draftMapWorkData = nil
+        self.draftMapWorkTimestamp = nil
+        self.draftMapMethodRaw = nil
+        self.draftMapWizardStepRaw = nil
+    }
+    
+    /// Get the age of the draft work (nil if no draft exists)
+    var draftMapWorkAge: TimeInterval? {
+        guard let timestamp = draftMapWorkTimestamp else { return nil }
+        return Date().timeIntervalSince(timestamp)
+    }
 }
 
 // MARK: - Image decoding/encoding helpers (internal access for cross-file use)
@@ -325,6 +372,13 @@ extension Card {
     // Decode a CGImage from raw image data (PNG, JPEG, etc.)
     static func makeCGImage(from data: Data) -> CGImage? {
         guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(src, 0, nil)
+    }
+
+    // Read CGImage directly from the file URL (internal for cross-file use)
+    func cgImageFromFileURL() -> CGImage? {
+        guard let url = imageFileURL else { return nil }
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         return CGImageSourceCreateImageAtIndex(src, 0, nil)
     }
 
@@ -463,12 +517,6 @@ private extension Card {
                 continuation.resume(returning: cg)
             }
         }
-    }
-
-    func cgImageFromFileURL() -> CGImage? {
-        guard let url = imageFileURL else { return nil }
-        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-        return CGImageSourceCreateImageAtIndex(src, 0, nil)
     }
 
     func cgImageFromThumbnailData() -> CGImage? {

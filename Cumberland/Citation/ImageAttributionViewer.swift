@@ -80,8 +80,8 @@ struct ImageAttributionViewer: View {
             .frame(minWidth: 420, minHeight: 360)
         }
     }
-
-    @MainActor
+    
+    // MARK: - Data Management
     private func reloadImageCitations() {
         // Match optional relationship key path with an optional RHS value for the predicate DSL.
         let cardIDOpt: UUID? = card.id

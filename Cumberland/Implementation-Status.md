@@ -12,11 +12,11 @@ A comprehensive multi-phase wizard for creating and managing maps in Cumberland.
 |-------|------|--------|------|----------|
 | 1.0 | Basic Import | ✅ Complete | 2025-11-11 | File picker, Photos picker, Preview, Save |
 | 1.5 | Import Enhancement | ✅ Complete | 2025-11-11 | Drag & drop, Metadata extraction |
-| 2 | (Skipped) | ⏭️ Skipped | - | - |
-| 3 | (Skipped) | ⏭️ Skipped | - | - |
-| 4 | Drawing Canvas | ✅ Complete | 2025-11-11 | PencilKit integration, Drawing tools |
-| 5 | Maps Integration | 📋 Planned | TBD | MapKit, Location capture |
-| 6 | AI Generation | 💭 Conceptual | TBD | AI-assisted map creation |
+| 2.0 | Drawing Canvas | ✅ Complete | 2025-11-13 | PencilKit integration, Drawing tools, Grid overlay, Ruler |
+| 2.5 | Advanced Drawing | 📋 Planned | TBD | Layers, Shape tools, Text annotation |
+| 3.0 | Maps Integration | ✅ Complete | 2025-11-11 | MapKit, Location search, Snapshot capture |
+| 3.5 | Maps Enhancement | 📋 Planned | TBD | Annotations, Custom resolution, Metadata persistence |
+| 4.0 | AI Generation | 💭 Conceptual | TBD | AI-assisted map creation |
 
 ---
 
@@ -35,16 +35,23 @@ A comprehensive multi-phase wizard for creating and managing maps in Cumberland.
 - [x] Visual feedback (drag states)
 - [x] Cross-platform support
 
-#### Drawing System (Phase 4)
-- [x] PencilKit canvas integration
-- [x] Multiple drawing tools (pen, marker, pencil, eraser)
-- [x] Color customization
-- [x] Quick color presets
-- [x] Undo/redo support
+#### Drawing System (Phase 2.0)
+- [x] PencilKit canvas integration (macOS, iOS, iPadOS)
+- [x] @Observable model for state management
+- [x] Drawing tools (pen, pencil, marker, eraser, lasso)
+- [x] Color picker with full customization
+- [x] 8 quick color swatches
+- [x] Line width slider (1-20pt)
+- [x] Canvas size options (1024, 2048, 4096)
+- [x] Background color customization
+- [x] Grid overlay with configurable spacing
+- [x] Ruler tool for straight lines
+- [x] Full undo/redo with UndoManager
 - [x] Clear canvas with confirmation
-- [x] Drawing to image conversion
-- [x] High-quality 2x rendering
-- [x] White background rendering
+- [x] Drawing to PNG export
+- [x] Raw PKDrawing data export/import
+- [x] High-quality rendering at device scale
+- [x] Cross-platform representables (UIKit/AppKit)
 
 #### Wizard Infrastructure
 - [x] Four-step navigation
@@ -57,28 +64,40 @@ A comprehensive multi-phase wizard for creating and managing maps in Cumberland.
 
 ### 📋 Planned Features
 
-#### Maps Integration (Phase 5)
-- [ ] MapKit view integration
-- [ ] Location search
-- [ ] Map type selection (standard, satellite, hybrid)
-- [ ] Snapshot capture (MKMapSnapshotter)
-- [ ] Annotation tools
-- [ ] Geographic metadata storage
-- [ ] Attribution handling
+#### Advanced Drawing (Phase 2.5)
+- [ ] Layer system for complex compositions
+- [ ] Shape tools (rectangles, circles, polygons, lines)
+- [ ] Text annotation on canvas
+- [ ] Hex grid overlay option
+- [ ] Custom brush library for terrain types
+- [ ] Drawing templates (island, continent, city layouts)
+- [ ] Import image as background layer
+- [ ] Blend modes between layers
 
-#### Batch Import (Phase 3+)
+#### Maps Enhancement (Phase 3.5)
+- [ ] Annotation tools for captured maps
+- [ ] Custom resolution options for snapshots
+- [ ] Map metadata persistence to Card model
+- [ ] Recent searches history
+- [ ] Offline map tile caching
+- [ ] 3D map views
+- [ ] Terrain visualization
+- [ ] Route planning overlays
+
+#### Batch Import (Future)
 - [ ] Multi-file drag & drop
 - [ ] Preview grid
 - [ ] Bulk card creation
 - [ ] Progress indication
 - [ ] Error handling per file
 
-#### AI Generation (Phase 6)
+#### AI Generation (Phase 4.0)
 - [ ] Natural language prompt interface
-- [ ] Style selection
+- [ ] Style selection (fantasy, realistic, stylized)
 - [ ] Iterative refinement
 - [ ] On-device or cloud generation
 - [ ] Prompt templates
+- [ ] Seed control for reproducibility
 
 ### 💭 Future Enhancements
 
@@ -90,16 +109,21 @@ A comprehensive multi-phase wizard for creating and managing maps in Cumberland.
 - [ ] Image editing (crop, rotate, adjust)
 - [ ] Metadata editing
 
-#### Drawing Enhancements
-- [ ] Layer system
-- [ ] Shape tools (rectangles, circles, lines)
-- [ ] Text annotation
-- [ ] Canvas templates (grid, terrain)
-- [ ] Custom brushes
-- [ ] Export drawing data for re-editing
-- [ ] Import image + draw over it
+#### Drawing Enhancements (Phase 2.5)
+- [ ] Layer system with visibility toggles
+- [ ] Shape tools (rectangles, circles, lines, polygons)
+- [ ] Text annotation with font selection
+- [ ] Canvas templates (grid patterns, terrain shapes)
+- [ ] Custom brushes for terrain types
+- [ ] Hex grid support
+- [ ] Import image as background layer
+- [ ] Export individual layers
 
-#### Maps Enhancements
+#### Maps Enhancements (Phase 3.5)
+- [ ] Annotation tools before capture
+- [ ] Custom resolution options
+- [ ] Metadata persistence to Card
+- [ ] Recent searches history
 - [ ] 3D map views
 - [ ] Terrain visualization
 - [ ] Route planning
@@ -123,19 +147,19 @@ A comprehensive multi-phase wizard for creating and managing maps in Cumberland.
 ### Core Implementation
 ```
 MapWizardView.swift              ✅ Main wizard view
-DrawingCanvasView.swift          ✅ PencilKit drawing canvas
+DrawingCanvasView.swift          ✅ PencilKit drawing canvas (Phase 2)
 ImageMetadataExtractor.swift     ✅ Metadata extraction utility
 ```
 
 ### Documentation
 ```
-MapWizardViewSpec.md             ✅ Master specification
+MapWizardViewSpec.md                       ✅ Master specification
 Phase1.5-DragDrop-Metadata-Summary.md     ✅ Phase 1.5 details
-Phase1.5-Visual-Reference.md     ✅ UI/UX reference
-Phase1.5-QuickStart.md           ✅ User guide
-Phase4-DrawingCanvas-Summary.md  ✅ Phase 4 details
-Phase4-Architecture-Diagram.md   ✅ Technical diagrams
-Implementation-Status.md         ✅ This file
+Phase1.5-Visual-Reference.md               ✅ UI/UX reference
+Phase1.5-QuickStart.md                     ✅ User guide
+PHASE2-COMPLETE.md                         ✅ Phase 2 completion summary
+Phase3-MapKit-Integration-Summary.md       ✅ Phase 3 details
+Implementation-Status.md                   ✅ This file
 ```
 
 ---
@@ -155,11 +179,11 @@ Implementation-Status.md         ✅ This file
 @State private var isDragTargeted: Bool
 
 // Drawing
-@State private var drawingCanvasData: Data?
-@State private var hasDrawing: Bool
+@State private var drawingCanvasModel: DrawingCanvasModel
 
-// Maps (future)
-@State private var mapsScreenshotData: Data?
+// Maps
+@State private var capturedMapData: Data?
+@State private var mapMetadata: MapCaptureMetadata?
 
 // AI (future)
 @State private var generationPrompt: String
@@ -174,9 +198,9 @@ Method Selection (Import/Draw/Maps/AI)
     ↓
 Configuration
     ├─ Import: Load image + extract metadata
-    ├─ Draw: PencilKit canvas → PKDrawing
-    ├─ Maps: MapKit → Snapshot
-    └─ AI: Prompt → Generated image
+    ├─ Draw: DrawingCanvasView → DrawingCanvasModel → PKDrawing
+    ├─ Maps: MapKit search → Map view → MKMapSnapshotter → PNG
+    └─ AI: Prompt → Generated image (future)
     ↓
 Finalize: Preview + Review
     ↓
@@ -191,9 +215,11 @@ Persist: SwiftData save
 MapWizardView
     ├─ Card Model (image storage)
     ├─ SwiftData (persistence)
-    ├─ DrawingCanvasView (Phase 4)
+    ├─ DrawingCanvasView (Phase 2)
+    ├─ DrawingCanvasModel (Phase 2)
     ├─ ImageMetadataExtractor (Phase 1.5)
-    └─ (Future: MapKit, AI services)
+    ├─ MapKit + MKMapSnapshotter (Phase 3)
+    └─ (Future: AI services)
 ```
 
 ---
@@ -202,9 +228,9 @@ MapWizardView
 
 | Platform | Import | Draw | Maps | AI |
 |----------|--------|------|------|-----|
-| macOS 10.15+ | ✅ | ✅ | 📋 | 💭 |
-| iOS 13.0+ | ✅ | ✅ | 📋 | 💭 |
-| iPadOS 13.0+ | ✅ | ✅ | 📋 | 💭 |
+| macOS 10.15+ | ✅ | ✅ | ✅ | 💭 |
+| iOS 13.0+ | ✅ | ✅ | ✅ | 💭 |
+| iPadOS 13.0+ | ✅ | ✅ | ✅ | 💭 |
 | visionOS | 📋 | 📋 | 📋 | 💭 |
 
 **Legend:**
@@ -224,12 +250,13 @@ MapWizardView
 - ✅ UniformTypeIdentifiers - File type handling
 - ✅ ImageIO - Image metadata extraction
 - ✅ CoreLocation - GPS coordinate parsing
-- ✅ PencilKit - Drawing canvas
+- ✅ PencilKit - Drawing canvas (Phase 2)
 - ✅ UIKit/AppKit - Platform-specific UI
+- ✅ MapKit - Maps integration (Phase 3)
+- ✅ Contacts - Address formatting (Phase 3)
 
 ### Apple Frameworks (Planned)
-- 📋 MapKit - Maps integration (Phase 5)
-- 💭 Foundation Models - AI generation (Phase 6)
+- 💭 Foundation Models - AI generation (Phase 4)
 
 ### Third-Party (None Currently)
 - No external dependencies
@@ -251,8 +278,8 @@ MapWizardView
 - ✅ Phase 1: Import workflow tested
 - ✅ Phase 1.5: Drag & drop tested
 - ✅ Phase 1.5: Metadata extraction tested
-- ✅ Phase 4: Drawing canvas tested
-- 📋 Phase 5: Maps (pending implementation)
+- ✅ Phase 2: Drawing canvas tested (all tools, colors, undo/redo)
+- ✅ Phase 3: Maps integration tested (search, capture, metadata)
 
 ---
 
@@ -285,11 +312,18 @@ MapWizardView
 - ⚠️ No clipboard paste support
 - ⚠️ No image editing tools
 
-### Phase 4 (Drawing)
-- ⚠️ No layer system
-- ⚠️ No shape tools
-- ⚠️ No text annotation
-- ⚠️ Drawing data not saved (only final image)
+### Phase 2.0 (Drawing)
+- ⚠️ Drawing data not persisted for re-editing (only final PNG saved)
+- 📋 No layer system (deferred to Phase 2.5)
+- 📋 No shape tools (deferred to Phase 2.5)
+- 📋 No text annotation (deferred to Phase 2.5)
+- 📋 Hex grid not implemented (deferred to Phase 2.5)
+
+### Phase 3.0 (Maps)
+- ⚠️ Map metadata not persisted to Card model (display only)
+- 📋 No annotation tools before capture (deferred to Phase 3.5)
+- 📋 No custom resolution options (deferred to Phase 3.5)
+- 📋 No recent searches history (deferred to Phase 3.5)
 
 ### General
 - ⚠️ No undo across wizard steps
@@ -313,15 +347,22 @@ MapWizardView
 - ✅ Visual feedback is immediate
 - ✅ Three import methods work seamlessly
 
-### Phase 4
+### Phase 2.0 (Drawing Canvas)
 - ✅ Writers can create maps from scratch
-- ✅ Drawing tools are responsive
+- ✅ Drawing tools are responsive and accurate
+- ✅ Grid overlay enables structured composition
 - ✅ PencilKit integration is smooth
 - ✅ Drawings export as high-quality images
+- ✅ Undo/Redo works reliably
+- ✅ Cross-platform support (macOS, iOS, iPadOS)
+- ✅ Apple Pencil support on iPad
 
-### Future Phases
-- 📋 Phase 5: Real-world locations can be captured
-- 💭 Phase 6: AI generates usable maps
+### Phase 3.0 (Maps Integration)
+- ✅ Real-world locations can be captured
+- ✅ Location search is accurate and fast
+- ✅ Map styles display correctly
+- ✅ Captures include useful metadata
+- ✅ High-resolution snapshots (2048×2048)
 
 ---
 
@@ -329,26 +370,27 @@ MapWizardView
 
 ### Immediate Next Steps
 1. ✅ Phase 1.5 complete
-2. ✅ Phase 4 complete
-3. 📋 Begin Phase 5 (Maps Integration)
+2. ✅ Phase 2 complete (Drawing Canvas)
+3. ✅ Phase 3 complete (Maps Integration)
+4. 📋 Begin Phase 2.5 (Advanced Drawing) or Phase 4 (AI Generation)
 
 ### Short Term (Next Sprint)
-- Implement MapKit view
-- Add location search
-- Create snapshot capture system
-- Store geographic metadata
+- Add layer system to drawing canvas
+- Implement shape tools
+- Add text annotation
+- Implement hex grid option
 
 ### Medium Term (Next Quarter)
-- Complete Phase 5
+- Complete Phase 2.5
+- Enhance Maps with annotations
 - Add batch import support
 - Implement image editing tools
-- Add keyboard shortcuts
 
 ### Long Term (Future)
-- Evaluate AI generation options
-- Add layer system to drawing
+- Evaluate AI generation options (Phase 4)
 - Implement collaborative editing
 - Add map versioning
+- visionOS support
 
 ---
 
@@ -359,14 +401,20 @@ MapWizardView
 - ✅ Existing cards unaffected
 - ✅ New features additive only
 
-### From Phase 1.5 to 4
+### From Phase 1.5 to 2.0
 - ✅ No breaking changes
 - ✅ Drawing is independent method
 - ✅ Import still works identically
 
+### From Phase 2.0 to 3.0
+- ✅ No breaking changes
+- ✅ Maps is independent method
+- ✅ All previous methods unaffected
+
 ### Future Phase Migrations
-- 📋 Phase 5: May add geographic metadata to Card model
-- 💭 Phase 6: May add AI prompt metadata storage
+- 📋 Phase 2.5: May add drawing data persistence
+- 📋 Phase 3.5: May add geographic metadata to Card model
+- 💭 Phase 4.0: May add AI prompt metadata storage
 
 ---
 
@@ -429,14 +477,23 @@ MapWizardView
 - Metadata display panel
 - Enhanced import UX
 
-### v4.0 - November 11, 2025
-- PencilKit drawing canvas
-- Multiple drawing tools
-- Color customization
-- Drawing to image conversion
+### v2.0 - November 13, 2025
+- Full PencilKit drawing canvas
+- 5 drawing tools with customization
+- Grid overlay and ruler tool
+- Undo/Redo with UndoManager
+- PNG export with high-quality rendering
+- Cross-platform support
 
-### v5.0 - TBD
-- Maps integration (planned)
+### v3.0 - November 11, 2025
+- MapKit integration
+- Location search
+- Map style selection
+- High-resolution snapshot capture
+- Geographic metadata display
+
+### v4.0 - TBD
+- AI-assisted generation (planned)
 
 ---
 
@@ -444,9 +501,10 @@ MapWizardView
 
 ### Documentation
 - **Specification**: `MapWizardViewSpec.md`
+- **Phase 2 Summary**: `PHASE2-COMPLETE.md`
+- **Phase 3 Summary**: `Phase3-MapKit-Integration-Summary.md`
 - **Quick Start**: `Phase1.5-QuickStart.md`
 - **Visual Guide**: `Phase1.5-Visual-Reference.md`
-- **Implementation**: Phase-specific summary files
 
 ### Code Files
 - **Main View**: `MapWizardView.swift`
@@ -459,7 +517,7 @@ MapWizardView
 
 ---
 
-**Last Updated:** November 11, 2025  
-**Current Version:** 1.5 + 4.0  
-**Next Milestone:** Phase 5 (Maps Integration)  
-**Status:** ✅ Production Ready (Phases 1.5 & 4)
+**Last Updated:** November 13, 2025  
+**Current Version:** 1.5 + 2.0 + 3.0  
+**Next Milestone:** Phase 2.5 (Advanced Drawing) or Phase 4.0 (AI Generation)  
+**Status:** ✅ Production Ready (Phases 1.5, 2.0, 3.0)

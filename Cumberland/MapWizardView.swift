@@ -31,6 +31,11 @@ struct MapWizardView: View {
     /// Current step in the map creation/editing flow
     @State private var currentStep: WizardStep = .welcome
     
+    // MARK: - Focus Mode State
+    
+    /// Persist focus mode state for this wizard session
+    @State private var isFocusModeEnabled: Bool = false
+    
     /// Selected creation method
     @State private var selectedMethod: MapCreationMethod?
     
@@ -42,11 +47,19 @@ struct MapWizardView: View {
     @State private var isDragTargeted = false
     
     // MARK: - Drawing State
-    @State private var drawingCanvas: DrawingCanvasState = .init()
+    @State private var drawingCanvasModel: DrawingCanvasModel = DrawingCanvasModel()
+    
+    // Interior-specific UI state (UI-only; drawing still uses DrawingCanvasModel)
+    @State private var interiorUnits: InteriorUnits = .feet
+    @State private var interiorSnapToGrid: Bool = true
     
     // MARK: - Maps Integration State
     @State private var mapCameraPosition: MapCameraPosition = .automatic
-    @State private var mapStyle: MapStyle = .standard
+    @State private var currentMapRegion: MKCoordinateRegion = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
+        span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+    )
+    @State private var selectedMapStyleType: MapStyleType = .standard
     @State private var searchText: String = ""
     @State private var searchResults: [MKMapItem] = []
     @State private var selectedMapItem: MKMapItem?
@@ -61,26 +74,175 @@ struct MapWizardView: View {
     @State private var isGenerating = false
     @State private var generationError: String?
     
+    // MARK: - Draft Restoration State
+    @State private var showDraftRestorationPrompt = false
+    @State private var hasPendingDraftToRestore = false
+    
+    // MARK: - Navigation Warning State
+    @State private var showBackWarning = false
+    @State private var pendingNavigationStep: WizardStep?
+    
+    // MARK: - Auto-save Timer
+    @State private var autoSaveTimer: Timer?
+    
     var body: some View {
+        normalWizardView
+            #if os(macOS)
+            .sheet(isPresented: $isFocusModeEnabled) {
+                focusedWorkSurface
+                    .frame(minWidth: 1200, idealWidth: 1400, minHeight: 900, idealHeight: 1000)
+            }
+            #else
+            .fullScreenCover(isPresented: $isFocusModeEnabled) {
+                focusedWorkSurface
+            }
+            #endif
+            .onAppear {
+                checkForDraftWork()
+            }
+            .onChange(of: isFocusModeEnabled) { _, newValue in
+                // Save draft when entering or exiting focus mode
+                if newValue {
+                    saveDraftWork()
+                }
+            }
+            #if !os(macOS)
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                // Save draft when app goes to background on iOS
+                saveDraftWork()
+            }
+            #endif
+            .alert("Restore Draft Work?", isPresented: $showDraftRestorationPrompt) {
+                Button("Restore") {
+                    hasPendingDraftToRestore = false
+                    restoreDraftWork()
+                }
+                Button("Start Fresh", role: .destructive) {
+                    hasPendingDraftToRestore = false
+                    card.clearDraftMapWork()
+                    try? modelContext.save()
+                }
+                Button("Cancel", role: .cancel) {
+                    hasPendingDraftToRestore = false
+                }
+            } message: {
+                if let age = card.draftMapWorkAge {
+                    Text("You have unsaved map work from \(relativeTimeString(for: age)). Would you like to continue where you left off?")
+                } else {
+                    Text("You have unsaved map work. Would you like to continue where you left off?")
+                }
+            }
+            .alert("Discard Unsaved Work?", isPresented: $showBackWarning) {
+                Button("Keep Editing", role: .cancel) { }
+                Button("Discard", role: .destructive) {
+                    performBackNavigation()
+                }
+            } message: {
+                Text("Going back will discard your unsaved map work. This cannot be undone.")
+            }
+    }
+    
+    // MARK: - Normal Wizard View
+    
+    @ViewBuilder
+    private var normalWizardView: some View {
         VStack(spacing: 0) {
-            // Header
+            // Header (fixed at top)
             headerView
             
             Divider()
             
             // Main content area based on current step
-            ScrollView {
-                stepContentView
-                    .padding()
+            // Use ScrollView for most steps, but let drawing canvas and map capture fill available space
+            // The key is to use flexible space but not let it push the footer off screen
+            Group {
+                if currentStep == .configure && (selectedMethod == .draw || selectedMethod == .interior || selectedMethod == .captureFromMaps) {
+                    stepContentView
+                        .padding()
+                } else {
+                    ScrollView {
+                        stepContentView
+                            .padding()
+                    }
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity) // This allows the content to expand
             
             Divider()
             
-            // Navigation footer
+            // Navigation footer (fixed at bottom)
             footerView
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(platformBackgroundColor.opacity(0.5))
+    }
+    
+    // MARK: - Focused Work Surface
+    
+    @ViewBuilder
+    private var focusedWorkSurface: some View {
+        ZStack(alignment: .topTrailing) {
+            // Full-screen work area
+            VStack(spacing: 0) {
+                // Minimal header with title and exit button
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Map Wizard")
+                            .font(.title2)
+                            .bold()
+                        Text(currentStep.title)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        withAnimation {
+                            isFocusModeEnabled = false
+                        }
+                    } label: {
+                        Label("Exit Focus", systemImage: "arrow.down.right.and.arrow.up.left")
+                    }
+                    .buttonStyle(.bordered)
+                    .keyboardShortcut(.escape, modifiers: [])
+                }
+                .padding()
+                
+                Divider()
+                
+                // Full work surface based on current method
+                if let method = selectedMethod {
+                    switch method {
+                    case .draw:
+                        drawConfigView
+                    case .captureFromMaps:
+                        mapsConfigView
+                    case .importImage:
+                        ScrollView {
+                            importImageConfigView
+                        }
+                    case .aiGenerate:
+                        ScrollView {
+                            aiGenerateConfigView
+                        }
+                    case .interior:
+                        interiorConfigView
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(platformBackgroundColor)
+        }
+        #if os(macOS)
+        .frame(minWidth: 900, idealWidth: 1200, minHeight: 700, idealHeight: 900)
+        #endif
+    }
+    
+    // MARK: - Focus Mode Helpers
+    
+    /// Only show focus mode when in the configure step with a valid method selected
+    private var canShowFocusMode: Bool {
+        currentStep == .configure && selectedMethod != nil
     }
     
     // Cross-platform background color
@@ -109,6 +271,20 @@ struct MapWizardView: View {
             }
             
             Spacer()
+            
+            // Focus mode toggle (only show when in configure step)
+            if canShowFocusMode {
+                Button {
+                    withAnimation {
+                        isFocusModeEnabled.toggle()
+                    }
+                } label: {
+                    Image(systemName: isFocusModeEnabled ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                }
+                .buttonStyle(.borderless)
+                .help(isFocusModeEnabled ? "Exit Focus Mode" : "Enter Focus Mode")
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+            }
             
             // Progress indicator
             HStack(spacing: 4) {
@@ -162,6 +338,7 @@ struct MapWizardView: View {
                 
                 FeatureRow(icon: "photo.on.rectangle", title: "Import an Image", description: "Use an existing map image from your library or files")
                 FeatureRow(icon: "pencil.and.scribble", title: "Draw a Map", description: "Create a custom map using drawing tools")
+                FeatureRow(icon: "square.grid.3x3", title: "Interior/Architectural", description: "Floorplans, dungeons, caverns with grid presets")
                 FeatureRow(icon: "map", title: "Capture from Maps", description: "Import a location from Apple Maps")
                 FeatureRow(icon: "wand.and.stars", title: "AI-Assisted Generation", description: "Describe your map and let AI help create it")
             }
@@ -196,6 +373,12 @@ struct MapWizardView: View {
                 )
                 
                 MethodCard(
+                    method: .interior,
+                    isSelected: selectedMethod == .interior,
+                    action: { selectedMethod = .interior }
+                )
+
+                MethodCard(
                     method: .captureFromMaps,
                     isSelected: selectedMethod == .captureFromMaps,
                     action: { selectedMethod = .captureFromMaps }
@@ -206,10 +389,10 @@ struct MapWizardView: View {
                     isSelected: selectedMethod == .aiGenerate,
                     action: { selectedMethod = .aiGenerate }
                 )
-            }
-        }
+            } //end lazyvgrid
+        } //end VStack
         .frame(maxWidth: 800)
-    }
+    } //end methodSelectionView
     
     // MARK: - Configure Step
     
@@ -225,6 +408,8 @@ struct MapWizardView: View {
                 mapsConfigView
             case .aiGenerate:
                 aiGenerateConfigView
+            case .interior:
+                interiorConfigView
             }
         } else {
             Text("Please select a method")
@@ -421,7 +606,6 @@ struct MapWizardView: View {
                     HStack {
                         Image(systemName: "location.fill")
                             .foregroundStyle(.blue)
-                            .frame(width: 20)
                         Text("GPS location data available")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -464,31 +648,9 @@ struct MapWizardView: View {
     // MARK: - MapKit Search Helpers
     
     private func formatAddress(for item: MKMapItem) -> String? {
-        var addressComponents: [String] = []
-        
-        // Use the modern addressRepresentations API
-        if #available(macOS 26.0, iOS 20.0, *) {
-            // Use the new address property which provides a CNPostalAddress
-            if let address = item.address {
-                if !address.fullAddress.isEmpty {
-                    addressComponents.append(address.fullAddress)
-                }
-            }
-        } else {
-            // Fall back to the deprecated placemark API for older OS versions
-            let placemark = item.placemark
-            if let thoroughfare = placemark.thoroughfare {
-                addressComponents.append(thoroughfare)
-            }
-            if let locality = placemark.locality {
-                addressComponents.append(locality)
-            }
-            if let administrativeArea = placemark.administrativeArea {
-                addressComponents.append(administrativeArea)
-            }
-        }
-        
-        return addressComponents.isEmpty ? nil : addressComponents.joined(separator: ", ")
+        // Simply return the name for now since placemark is deprecated
+        // MKMapItem.name contains the place name/address information
+        return item.name
     }
     
     private func performSearch() {
@@ -524,6 +686,9 @@ struct MapWizardView: View {
         let span = MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         let region = MKCoordinateRegion(center: coordinate, span: span)
         
+        // Update our tracked region
+        currentMapRegion = region
+        
         withAnimation {
             mapCameraPosition = .region(region)
         }
@@ -533,18 +698,23 @@ struct MapWizardView: View {
         isCapturingSnapshot = true
         captureError = nil
         
-        // Use a simple default region - the Map view will handle the camera position
-        // For snapshot, we'll use a reasonable default
-        let region = MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
-            span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
-        )
+        // Use the tracked current map region
+        let region = currentMapRegion
         
         // Create snapshot options
         let options = MKMapSnapshotter.Options()
         options.region = region
         options.size = CGSize(width: 2048, height: 2048) // High resolution
-        options.mapType = .standard // Default to standard map
+        
+        // Match the current map style
+        switch selectedMapStyleType {
+        case .standard:
+            options.mapType = .standard
+        case .imagery:
+            options.mapType = .satellite
+        case .hybrid:
+            options.mapType = .hybrid
+        }
         
         let snapshotter = MKMapSnapshotter(options: options)
         
@@ -557,18 +727,22 @@ struct MapWizardView: View {
                     return
                 }
                 
+                // Determine the map type string for metadata
+                let mapTypeString: String = self.selectedMapStyleType.rawValue
+                
                 // Convert snapshot to image data
                 #if os(macOS)
                 if let imageData = snapshot.image.tiffRepresentation,
                    let bitmap = NSBitmapImageRep(data: imageData),
                    let pngData = bitmap.representation(using: .png, properties: [:]) {
                     self.capturedMapData = pngData
+                    self.importedImageData = pngData // Also set this for the wizard flow
                     
                     // Store metadata
                     self.mapMetadata = MapCaptureMetadata(
                         centerCoordinate: region.center,
                         span: region.span,
-                        mapType: "standard",
+                        mapType: mapTypeString,
                         captureDate: Date(),
                         locationName: self.selectedMapItem?.name
                     )
@@ -576,12 +750,13 @@ struct MapWizardView: View {
                 #else
                 if let pngData = snapshot.image.pngData() {
                     self.capturedMapData = pngData
+                    self.importedImageData = pngData // Also set this for the wizard flow
                     
                     // Store metadata
                     self.mapMetadata = MapCaptureMetadata(
                         centerCoordinate: region.center,
                         span: region.span,
-                        mapType: "standard",
+                        mapType: mapTypeString,
                         captureDate: Date(),
                         locationName: self.selectedMapItem?.name
                     )
@@ -629,254 +804,208 @@ struct MapWizardView: View {
     }
     
     private var drawConfigView: some View {
-        VStack(spacing: 20) {
-            Text("Draw Your Map")
-                .font(.title2)
-                .bold()
-            
-            Text("Drawing tools coming soon")
-                .foregroundStyle(.secondary)
-            
-            // Placeholder for future drawing canvas
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
-                .frame(height: 400)
-                .overlay {
-                    VStack(spacing: 12) {
-                        Image(systemName: "pencil.and.scribble")
-                            .font(.system(size: 48))
-                            .foregroundStyle(.secondary)
-                        Text("Canvas Drawing Interface")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                        Text("Future: PencilKit integration with layers, shapes, and custom brushes")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .multilineTextAlignment(.center)
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Draw Your Map")
+                    .font(.title2)
+                    .bold()
+                
+                Spacer()
+                
+                // Canvas options menu
+                Menu {
+                    Menu("Canvas Size") {
+                        Button("Small (1024×1024)") {
+                            drawingCanvasModel.canvasSize = CGSize(width: 1024, height: 1024)
+                        }
+                        Button("Medium (2048×2048)") {
+                            drawingCanvasModel.canvasSize = CGSize(width: 2048, height: 2048)
+                        }
+                        Button("Large (4096×4096)") {
+                            drawingCanvasModel.canvasSize = CGSize(width: 4096, height: 4096)
+                        }
                     }
-                    .padding()
+                    
+                    Menu("Background Color") {
+                        Button("White") { drawingCanvasModel.backgroundColor = .white }
+                        Button("Black") { drawingCanvasModel.backgroundColor = .black }
+                        Button("Parchment") { drawingCanvasModel.backgroundColor = Color(red: 0.96, green: 0.93, blue: 0.85) }
+                        Button("Gray") { drawingCanvasModel.backgroundColor = .gray.opacity(0.2) }
+                    }
+                    
+                    Divider()
+                    
+                    Toggle("Show Grid", isOn: $drawingCanvasModel.showGrid)
+                    
+                    if drawingCanvasModel.showGrid {
+                        Menu("Grid Spacing") {
+                            Button("Small (25pt)") { drawingCanvasModel.gridSpacing = 25 }
+                            Button("Medium (50pt)") { drawingCanvasModel.gridSpacing = 50 }
+                            Button("Large (100pt)") { drawingCanvasModel.gridSpacing = 100 }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .foregroundStyle(.blue)
                 }
+                .menuStyle(.borderlessButton)
+                .help("Canvas Options")
+            }
+            .padding()
+            
+            Divider()
+            
+            // Drawing canvas - flexible height within available space
+            DrawingCanvasView(canvasState: $drawingCanvasModel)
+                .frame(minWidth: 400, minHeight: 300)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .shadow(radius: 3)
+                .padding()
         }
-        .frame(maxWidth: 800)
+        .onChange(of: drawingCanvasModel.drawing) { _, _ in
+            // Trigger auto-save when drawing changes
+            startAutoSaveIfNeeded()
+        }
     }
     
-    private var mapsConfigView: some View {
-        VStack(spacing: 16) {
-            // Header
-            Text("Capture from Apple Maps")
-                .font(.title2)
-                .bold()
-            
-            if capturedMapData == nil {
-                // Active map view for selecting region
-                VStack(spacing: 12) {
-                    // Search bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                        
-                        TextField("Search for a location...", text: $searchText)
-                            .textFieldStyle(.plain)
-                            .onSubmit {
-                                performSearch()
-                            }
-                        
-                        if !searchText.isEmpty {
-                            Button {
-                                searchText = ""
-                                searchResults = []
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.ultraThinMaterial)
-                    )
-                    
-                    // Search results dropdown
-                    if !searchResults.isEmpty {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 0) {
-                                ForEach(searchResults, id: \.self) { item in
-                                    Button {
-                                        selectLocation(item)
-                                    } label: {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(item.name ?? "Unknown")
-                                                .font(.subheadline)
-                                                .bold()
-                                            if let formattedAddress = formatAddress(for: item) {
-                                                Text(formattedAddress)
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 12)
-                                    }
-                                    .buttonStyle(.plain)
-                                    
-                                    if item != searchResults.last {
-                                        Divider()
-                                    }
-                                }
-                            }
-                        }
-                        .frame(maxHeight: 150)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(.ultraThinMaterial)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                        )
-                    }
-                    
-                    // Map view
-                    Map(position: $mapCameraPosition) {
-                        if let item = selectedMapItem {
-                            Marker(item.name ?? "Selected Location", coordinate: item.location.coordinate)
-                                .tint(.blue)
-                        }
-                    }
-                    .mapStyle(mapStyle)
-                    .frame(height: 400)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(alignment: .topTrailing) {
-                        // Map style picker
-                        Menu {
-                            Button {
-                                mapStyle = .standard
-                            } label: {
-                                Label("Standard", systemImage: "")
-                            }
-                            
-                            Button {
-                                mapStyle = .imagery
-                            } label: {
-                                Label("Satellite", systemImage: "")
-                            }
-                            
-                            Button {
-                                mapStyle = .hybrid
-                            } label: {
-                                Label("Hybrid", systemImage: "")
-                            }
-                        } label: {
-                            Image(systemName: "map")
-                                .font(.title3)
-                                .foregroundStyle(.white)
-                                .padding(8)
-                                .background(.ultraThinMaterial, in: Circle())
-                        }
-                        .padding(12)
-                    }
-                    
-                    // Instructions
-                    HStack(spacing: 8) {
-                        Image(systemName: "info.circle")
-                            .foregroundStyle(.blue)
-                        Text("Pan and zoom to frame your desired capture area, then tap Capture")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.blue.opacity(0.1))
-                    )
-                    
-                    // Capture button
-                    if isCapturingSnapshot {
-                        ProgressView("Capturing map...")
-                            .padding()
-                    } else {
-                        Button {
-                            captureMapSnapshot()
-                        } label: {
-                            Label("Capture Map Snapshot", systemImage: "camera.fill")
-                                .font(.headline)
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    
-                    if let error = captureError {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                            Text(error)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(.orange.opacity(0.1))
-                        )
-                    }
+    // MARK: - Interior/Architectural Config
+    
+    private var interiorConfigView: some View {
+        VStack(spacing: 0) {
+            // Header and controls
+            VStack(spacing: 12) {
+                HStack {
+                    Text("Interior / Architectural Maps")
+                        .font(.title2).bold()
+                    Spacer()
                 }
-            } else {
-                // Preview of captured map
-                VStack(spacing: 16) {
-                    #if os(macOS)
-                    if let nsImage = NSImage(data: capturedMapData!) {
-                        Image(nsImage: nsImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxHeight: 400)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .shadow(radius: 5)
+                
+                // Presets
+                HStack(spacing: 8) {
+                    Button {
+                        applyInteriorPreset(.floorplan)
+                    } label: {
+                        Label("Floorplan", systemImage: "house")
                     }
-                    #else
-                    if let uiImage = UIImage(data: capturedMapData!) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxHeight: 400)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .shadow(radius: 5)
-                    }
-                    #endif
+                    .buttonStyle(.bordered)
                     
-                    // Map metadata display
-                    if let metadata = mapMetadata {
-                        mapMetadataDisplayView(metadata)
+                    Button {
+                        applyInteriorPreset(.dungeon)
+                    } label: {
+                        Label("Dungeon", systemImage: "square.grid.3x3")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Button {
+                        applyInteriorPreset(.caverns)
+                    } label: {
+                        Label("Caverns", systemImage: "mountain.2")
+                    }
+                    .buttonStyle(.bordered)
+                }
+                
+                // Units, grid, grid type, snap
+                HStack(spacing: 16) {
+                    Picker("Units", selection: $interiorUnits) {
+                        ForEach(InteriorUnits.allCases) { u in
+                            Text(u.displayName).tag(u)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    
+                    Toggle("Show Grid", isOn: $drawingCanvasModel.showGrid)
+                    
+                    Picker("Grid Type", selection: $drawingCanvasModel.gridType) {
+                        ForEach(GridType.allCases) { gt in
+                            Text(gt.rawValue).tag(gt)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    
+                    Toggle("Snap to Grid", isOn: $interiorSnapToGrid)
+                        .help("UI only for now; snapping assistance to be implemented")
+                }
+                
+                // Grid spacing control with quick presets appropriate for interiors
+                HStack(spacing: 12) {
+                    Text("Grid Spacing")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("1 ft") { drawingCanvasModel.gridSpacing = 20 } // UI points; tune as desired
+                    Button("5 ft") { drawingCanvasModel.gridSpacing = 80 }
+                    Button("10 ft") { drawingCanvasModel.gridSpacing = 160 }
+                    
+                    Slider(value: $drawingCanvasModel.gridSpacing, in: 10...200, step: 2)
+                        .frame(maxWidth: 220)
+                    Text("\(Int(drawingCanvasModel.gridSpacing)) pt")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 60, alignment: .trailing)
+                }
+                
+                // Canvas and background presets
+                HStack(spacing: 16) {
+                    Menu("Canvas Size") {
+                        Button("Small (1024×1024)") { drawingCanvasModel.canvasSize = CGSize(width: 1024, height: 1024) }
+                        Button("Medium (2048×2048)") { drawingCanvasModel.canvasSize = CGSize(width: 2048, height: 2048) }
+                        Button("Large (4096×4096)") { drawingCanvasModel.canvasSize = CGSize(width: 4096, height: 4096) }
                     }
                     
-                    HStack(spacing: 12) {
-                        Button {
-                            // Reset to recapture
-                            capturedMapData = nil
-                            mapMetadata = nil
-                            captureError = nil
-                        } label: {
-                            Label("Capture Different Area", systemImage: "arrow.clockwise")
-                        }
-                        .buttonStyle(.bordered)
-                        
-                        Button {
-                            // Move captured data to import flow
-                            importedImageData = capturedMapData
-                            nextStep()
-                        } label: {
-                            Label("Use This Capture", systemImage: "checkmark.circle.fill")
-                        }
-                        .buttonStyle(.borderedProminent)
+                    Menu("Background") {
+                        Button("White") { drawingCanvasModel.backgroundColor = .white }
+                        Button("Dark") { drawingCanvasModel.backgroundColor = .black }
+                        Button("Parchment") { drawingCanvasModel.backgroundColor = Color(red: 0.96, green: 0.93, blue: 0.85) }
+                        Button("Gray") { drawingCanvasModel.backgroundColor = .gray.opacity(0.2) }
                     }
+                    
+                    Spacer()
                 }
             }
+            .padding()
+            
+            Divider()
+            
+            // Canvas area - flexible height within available space
+            DrawingCanvasView(canvasState: $drawingCanvasModel)
+                .frame(minWidth: 400, minHeight: 300)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .shadow(radius: 3)
+                .padding()
         }
-        .frame(maxWidth: 800)
-        .padding()
+        .onChange(of: drawingCanvasModel.drawing) { _, _ in
+            // Trigger auto-save when drawing changes
+            startAutoSaveIfNeeded()
+        }
     }
+    
+    private func applyInteriorPreset(_ preset: InteriorPreset) {
+        switch preset {
+        case .floorplan:
+            interiorUnits = .feet
+            drawingCanvasModel.backgroundColor = .white
+            drawingCanvasModel.showGrid = true
+            drawingCanvasModel.gridType = .square
+            drawingCanvasModel.gridSpacing = 40 // ~2 ft in our arbitrary UI points
+            drawingCanvasModel.gridColor = Color.gray.opacity(0.25)
+        case .dungeon:
+            interiorUnits = .feet
+            drawingCanvasModel.backgroundColor = Color(red: 0.96, green: 0.93, blue: 0.85) // parchment
+            drawingCanvasModel.showGrid = true
+            drawingCanvasModel.gridType = .square
+            drawingCanvasModel.gridSpacing = 80 // ~5 ft
+            drawingCanvasModel.gridColor = Color.black.opacity(0.15)
+        case .caverns:
+            interiorUnits = .feet
+            drawingCanvasModel.backgroundColor = Color(red: 0.94, green: 0.90, blue: 0.80) // parchment-ish
+            drawingCanvasModel.showGrid = true
+            drawingCanvasModel.gridType = .square
+            drawingCanvasModel.gridSpacing = 80 // ~5 ft
+            drawingCanvasModel.gridColor = Color.gray.opacity(0.2)
+        }
+    }
+    
+    // MARK: - AI Generate
     
     private var aiGenerateConfigView: some View {
         VStack(spacing: 20) {
@@ -945,26 +1074,9 @@ struct MapWizardView: View {
             // Preview area
             GroupBox("Preview") {
                 #if os(macOS)
-                if let data = importedImageData, let nsImage = NSImage(data: data) {
-                    Image(nsImage: nsImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 300)
-                } else {
-                    Text("No map data available")
-                        .foregroundStyle(.secondary)
-                        .frame(height: 200)
-                }
+                previewImageView
                 #else
-                if importedImageData != nil {
-                    Text("Preview not implemented for this platform yet")
-                        .foregroundStyle(.secondary)
-                        .frame(height: 200)
-                } else {
-                    Text("No map data available")
-                        .foregroundStyle(.secondary)
-                        .frame(height: 200)
-                }
+                previewImageView
                 #endif
             }
             
@@ -975,9 +1087,79 @@ struct MapWizardView: View {
                     .font(.headline)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(importedImageData == nil) // For now, only enable if we have data
+            .disabled(!canSaveMap)
         }
         .frame(maxWidth: 600)
+    }
+    
+    @ViewBuilder
+    private var previewImageView: some View {
+        if let method = selectedMethod {
+            switch method {
+            case .importImage, .captureFromMaps, .aiGenerate:
+                // Show imported/captured image
+                #if os(macOS)
+                if let data = importedImageData, let nsImage = NSImage(data: data) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 300)
+                } else {
+                    emptyPreviewView
+                }
+                #else
+                if let data = importedImageData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 300)
+                } else {
+                    emptyPreviewView
+                }
+                #endif
+                
+            case .draw, .interior:
+                // Show drawing preview
+                if let imageData = drawingCanvasModel.exportAsImageData() {
+                    #if os(macOS)
+                    if let nsImage = NSImage(data: imageData) {
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 300)
+                    }
+                    #else
+                    if let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 300)
+                    }
+                    #endif
+                } else {
+                    emptyPreviewView
+                }
+            }
+        } else {
+            emptyPreviewView
+        }
+    }
+    
+    private var emptyPreviewView: some View {
+        Text("No map data available")
+            .foregroundStyle(.secondary)
+            .frame(height: 200)
+    }
+    
+    private var canSaveMap: Bool {
+        guard let method = selectedMethod else { return false }
+        
+        switch method {
+        case .importImage, .captureFromMaps, .aiGenerate:
+            return importedImageData != nil
+        case .draw, .interior:
+            return !drawingCanvasModel.isEmpty
+        }
     }
     
     // MARK: - Footer
@@ -986,7 +1168,7 @@ struct MapWizardView: View {
         HStack {
             if currentStep != .welcome {
                 Button {
-                    previousStep()
+                    handleBackButtonTapped()
                 } label: {
                     Label("Back", systemImage: "chevron.left")
                 }
@@ -1024,25 +1206,82 @@ struct MapWizardView: View {
             case .importImage:
                 return importedImageData != nil
             case .draw:
-                return false // TODO: Check if drawing has content
+                return !drawingCanvasModel.isEmpty
             case .captureFromMaps:
                 return capturedMapData != nil
             case .aiGenerate:
                 return !generationPrompt.isEmpty && importedImageData != nil
+            case .interior:
+                return !drawingCanvasModel.isEmpty
             }
         case .finalize:
             return false // Last step
         }
     }
     
+    /// Check if navigating back would lose unsaved work
+    private var wouldLoseWorkByGoingBack: Bool {
+        // Only warn if we're in configure step and have actual work
+        guard currentStep == .configure, let method = selectedMethod else {
+            return false
+        }
+        
+        switch method {
+        case .importImage:
+            return importedImageData != nil
+        case .draw, .interior:
+            return !drawingCanvasModel.isEmpty
+        case .captureFromMaps:
+            return capturedMapData != nil
+        case .aiGenerate:
+            return !generationPrompt.isEmpty || importedImageData != nil
+        }
+    }
+    
+    /// Handle back button tap with optional warning
+    private func handleBackButtonTapped() {
+        if wouldLoseWorkByGoingBack {
+            showBackWarning = true
+        } else {
+            previousStep()
+        }
+    }
+    
+    /// Actually perform the back navigation (after warning if needed)
+    private func performBackNavigation() {
+        // Clear draft work when going back from configure step
+        if currentStep == .configure {
+            card.clearDraftMapWork()
+            try? modelContext.save()
+        }
+        
+        previousStep()
+    }
+    
     private func nextStep() {
+        print("➡️ nextStep called - current: \(currentStep.rawValue)")
+        
         guard let currentIndex = WizardStep.allCases.firstIndex(of: currentStep),
               currentIndex < WizardStep.allCases.count - 1 else {
+            print("⚠️ Cannot advance - already at last step or invalid index")
             return
         }
+        
+        let nextStepValue = WizardStep.allCases[currentIndex + 1]
+        print("➡️ Advancing from \(currentStep.rawValue) to \(nextStepValue.rawValue)")
+        
+        // Save draft work before moving to next step
+        saveDraftWork()
+        
         withAnimation {
-            currentStep = WizardStep.allCases[currentIndex + 1]
+            currentStep = nextStepValue
+            // Exit focus mode when navigating steps
+            if !canShowFocusMode {
+                isFocusModeEnabled = false
+            }
         }
+        
+        print("✅ Step advanced to: \(currentStep.rawValue)")
     }
     
     private func previousStep() {
@@ -1050,24 +1289,54 @@ struct MapWizardView: View {
               currentIndex > 0 else {
             return
         }
+        
         withAnimation {
             currentStep = WizardStep.allCases[currentIndex - 1]
+            // Exit focus mode when navigating steps
+            if !canShowFocusMode {
+                isFocusModeEnabled = false
+            }
         }
     }
     
     // MARK: - Save Logic
     
     private func saveMap() {
-        guard let data = importedImageData else { return }
+        var dataToSave: Data?
+        var fileExtension: String = "png"
+        
+        // Get the appropriate data based on selected method
+        if let method = selectedMethod {
+            switch method {
+            case .importImage, .captureFromMaps, .aiGenerate:
+                dataToSave = importedImageData
+                fileExtension = inferFileExtension(from: dataToSave ?? Data()) ?? "png"
+            case .draw, .interior:
+                // Export drawing as PNG image
+                dataToSave = drawingCanvasModel.exportAsImageData()
+                fileExtension = "png"
+                
+                // Optionally: Save raw drawing data for future re-editing
+                // let drawingData = drawingCanvasModel.exportDrawingData()
+                // Store this somewhere if you want to support re-editing later
+            }
+        }
+        
+        guard let data = dataToSave else { return }
         
         // Save to card (reusing existing image infrastructure)
-        let ext = inferFileExtension(from: data) ?? "jpg"
-        try? card.setOriginalImageData(data, preferredFileExtension: ext)
+        try? card.setOriginalImageData(data, preferredFileExtension: fileExtension)
         
         // Create automatic image attribution citation from metadata
         createAutomaticImageCitation()
         
+        // Clear draft work since we've finalized the map
+        card.clearDraftMapWork()
+        
         try? modelContext.save()
+        
+        // Stop auto-save
+        stopAutoSave()
         
         // Reset wizard
         resetWizard()
@@ -1097,6 +1366,10 @@ struct MapWizardView: View {
             } else {
                 locator = "\(mapMeta.mapType.capitalized) view"
             }
+        
+        // Exit focus mode
+        isFocusModeEnabled = false
+
             
             // Context note includes additional details
             var noteComponents: [String] = []
@@ -1206,7 +1479,7 @@ struct MapWizardView: View {
         
         // Reset map state
         mapCameraPosition = .automatic
-        mapStyle = .standard
+        selectedMapStyleType = .standard
         searchText = ""
         searchResults = []
         selectedMapItem = nil
@@ -1215,6 +1488,190 @@ struct MapWizardView: View {
         mapMetadata = nil
         isCapturingSnapshot = false
         captureError = nil
+        
+        // Exit focus mode
+        isFocusModeEnabled = false
+        
+        // Stop auto-save timer
+        stopAutoSave()
+    }
+    
+    // MARK: - Draft Work Management
+    
+    /// Format a relative time string for the given age in seconds
+    private func relativeTimeString(for age: TimeInterval) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(fromTimeInterval: -age)
+    }
+    
+    /// Check if there's existing draft work and prompt user to restore it
+    private func checkForDraftWork() {
+        if card.hasDraftMapWork {
+            hasPendingDraftToRestore = true
+            showDraftRestorationPrompt = true
+        } else {
+            // No draft work, start auto-save immediately when user starts working
+            startAutoSaveIfNeeded()
+        }
+    }
+    
+    /// Restore draft work from the card
+    private func restoreDraftWork() {
+        guard let draftData = card.draftMapWorkData,
+              let methodRaw = card.draftMapMethodRaw else {
+            print("⚠️ No draft data to restore")
+            return
+        }
+        
+        print("📦 Restoring draft work for method: \(methodRaw)")
+        
+        // Restore the selected method first
+        guard let method = MapCreationMethod(rawValue: methodRaw) else {
+            print("⚠️ Invalid method: \(methodRaw)")
+            return
+        }
+        
+        // Restore method-specific state FIRST before changing wizard state
+        switch method {
+        case .draw, .interior:
+            // Restore drawing canvas state
+            do {
+                try drawingCanvasModel.importCanvasState(draftData)
+                print("✅ Restored drawing canvas state")
+            } catch {
+                print("❌ Failed to restore canvas state: \(error)")
+            }
+            
+        case .importImage:
+            // For imported images, the data is the image itself
+            importedImageData = draftData
+            imageMetadata = ImageMetadataExtractor.extract(from: draftData)
+            print("✅ Restored imported image data")
+            
+        case .captureFromMaps:
+            // For map captures, restore the captured image and metadata
+            // Try to restore metadata if it was encoded
+            if let container = try? JSONDecoder().decode(MapCaptureMetadataContainer.self, from: draftData) {
+                mapMetadata = container.metadata
+                capturedMapData = container.imageData
+                importedImageData = container.imageData // Also set this for the wizard flow
+                print("✅ Restored map capture with metadata")
+            } else {
+                // Fallback if no container structure (legacy data)
+                capturedMapData = draftData
+                importedImageData = draftData
+                print("✅ Restored map capture (legacy format)")
+            }
+            
+        case .aiGenerate:
+            // For AI generation, restore the prompt and any generated data
+            if let container = try? JSONDecoder().decode(AIGenerationDraft.self, from: draftData) {
+                generationPrompt = container.prompt
+                importedImageData = container.generatedImageData
+                print("✅ Restored AI generation draft")
+            }
+        }
+        
+        // Now restore UI state with animation
+        withAnimation {
+            selectedMethod = method
+            
+            // Restore wizard step if saved, otherwise default to configure
+            if let stepRaw = card.draftMapWizardStepRaw,
+               let step = WizardStep(rawValue: stepRaw) {
+                currentStep = step
+                print("📍 Restored to step: \(step.rawValue)")
+            } else {
+                currentStep = .configure
+                print("📍 Defaulting to configure step")
+            }
+            
+            // Also need to ensure we skip the welcome and selectMethod steps
+            // by going directly to configure if we have draft data
+            if currentStep == .welcome || currentStep == .selectMethod {
+                currentStep = .configure
+                print("📍 Corrected to configure step")
+            }
+        }
+        
+        // Start auto-save for continued work
+        startAutoSaveIfNeeded()
+        print("✅ Draft restoration complete - currentStep: \(currentStep.rawValue), method: \(method.rawValue)")
+    }
+    
+    /// Start auto-save timer if in a saveable state
+    private func startAutoSaveIfNeeded() {
+        guard autoSaveTimer == nil else { return }
+        
+        // Auto-save every 30 seconds when actively working
+        autoSaveTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { _ in
+            Task { @MainActor in
+                await autoSaveDraftWork()
+            }
+        }
+    }
+    
+    /// Stop auto-save timer
+    private func stopAutoSave() {
+        autoSaveTimer?.invalidate()
+        autoSaveTimer = nil
+    }
+    
+    /// Auto-save current work as draft
+    @MainActor
+    private func autoSaveDraftWork() async {
+        // Only save if we're in a state where there's actual work to save
+        guard let method = selectedMethod else {
+            return
+        }
+        
+        // Allow saving from configure and finalize steps
+        guard currentStep == .configure || currentStep == .finalize else {
+            return
+        }
+        
+        var draftData: Data?
+        
+        switch method {
+        case .draw, .interior:
+            // Save complete canvas state
+            draftData = drawingCanvasModel.exportCanvasState()
+            
+        case .importImage:
+            // Save the imported image data
+            draftData = importedImageData
+            
+        case .captureFromMaps:
+            // Save map capture with metadata
+            if let imageData = capturedMapData {
+                let container = MapCaptureMetadataContainer(
+                    imageData: imageData,
+                    metadata: mapMetadata
+                )
+                draftData = try? JSONEncoder().encode(container)
+            }
+            
+        case .aiGenerate:
+            // Save prompt and any generated image
+            let draft = AIGenerationDraft(
+                prompt: generationPrompt,
+                generatedImageData: importedImageData
+            )
+            draftData = try? JSONEncoder().encode(draft)
+        }
+        
+        if let data = draftData, !data.isEmpty {
+            card.saveDraftMapWork(data, method: method.rawValue, wizardStep: currentStep.rawValue)
+            try? modelContext.save()
+        }
+    }
+    
+    /// Manually save draft work (called when user navigates away or enters focus mode)
+    private func saveDraftWork() {
+        Task {
+            await autoSaveDraftWork()
+        }
     }
     
     private func inferFileExtension(from data: Data) -> String? {
@@ -1224,11 +1681,213 @@ struct MapWizardView: View {
         }
         return UTType(type as String)?.preferredFilenameExtension
     }
+    
+    // MARK: - Maps Config View (NEW)
+    private var mapsConfigView: some View {
+        VStack(spacing: 16) {
+            // Header and controls
+            HStack(spacing: 12) {
+                Text("Capture from Apple Maps")
+                    .font(.title2).bold()
+                Spacer()
+                // Map style picker
+                Picker("Style", selection: $selectedMapStyleType) {
+                    ForEach(MapStyleType.allCases, id: \.self) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 320)
+            }
+            
+            // Search bar
+            HStack(spacing: 8) {
+                TextField("Search places or addresses", text: $searchText, onCommit: performSearch)
+                    .textFieldStyle(.roundedBorder)
+                Button {
+                    performSearch()
+                } label: {
+                    if isSearching {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "magnifyingglass")
+                    }
+                }
+                .buttonStyle(.bordered)
+            }
+            
+            // Results list
+            if !searchResults.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(searchResults, id: \.self) { item in
+                        Button {
+                            selectLocation(item)
+                        } label: {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "mappin.circle")
+                                    .foregroundStyle(.blue)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.name ?? "Unnamed")
+                                        .font(.subheadline).bold()
+                                    if let address = formatAddress(for: item) {
+                                        Text(address)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(2)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                        Divider().opacity(0.2)
+                    }
+                }
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(.background)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(.quaternary, lineWidth: 1)
+                )
+            }
+            
+            // Map view
+            VStack(spacing: 8) {
+                Map(position: $mapCameraPosition) {
+                    if let selected = selectedMapItem {
+                        Annotation(selected.name ?? "Selected", coordinate: selected.location.coordinate) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+                .mapStyle(selectedMapStyleType.mapStyle)
+                .frame(minHeight: 320, idealHeight: 500, maxHeight: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+                .onMapCameraChange { context in
+                    // Track region for snapshotter
+                    currentMapRegion = context.region
+                }
+                
+                HStack {
+                    Button {
+                        // Center on user’s approximate region if available (no location permission required)
+                        withAnimation {
+                            mapCameraPosition = .region(currentMapRegion)
+                        }
+                    } label: {
+                        Label("Reset View", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Spacer()
+                    
+                    Button {
+                        captureMapSnapshot()
+                    } label: {
+                        if isCapturingSnapshot {
+                            ProgressView()
+                                .padding(.horizontal, 8)
+                        } else {
+                            Label("Capture Snapshot", systemImage: "camera.viewfinder")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            
+            // Error
+            if let captureError {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(captureError)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8).fill(.orange.opacity(0.1))
+                )
+            }
+            
+            // Captured preview + metadata
+            if let data = capturedMapData {
+                #if os(macOS)
+                if let img = NSImage(data: data) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Image(nsImage: img)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 240)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .shadow(radius: 3)
+                        if let meta = mapMetadata {
+                            mapMetadataDisplayView(meta)
+                        }
+                    }
+                }
+                #else
+                if let img = UIImage(data: data) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 240)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .shadow(radius: 3)
+                        if let meta = mapMetadata {
+                            mapMetadataDisplayView(meta)
+                        }
+                    }
+                }
+                #endif
+            }
+        }
+        .padding()
+    }
 }
 
 // MARK: - Supporting Types
 
 extension MapWizardView {
+    enum MapStyleType: String, CaseIterable {
+        case standard
+        case imagery
+        case hybrid
+        
+        var mapStyle: MapStyle {
+            switch self {
+            case .standard:
+                return .standard
+            case .imagery:
+                return .imagery
+            case .hybrid:
+                return .hybrid
+            }
+        }
+        
+        var displayName: String {
+            switch self {
+            case .standard:
+                return "Standard"
+            case .imagery:
+                return "Satellite"
+            case .hybrid:
+                return "Hybrid"
+            }
+        }
+    }
+    
     enum WizardStep: String, CaseIterable {
         case welcome = "Welcome"
         case selectMethod = "Select Method"
@@ -1241,6 +1900,7 @@ extension MapWizardView {
     enum MapCreationMethod: String, CaseIterable, Identifiable {
         case importImage = "Import Image"
         case draw = "Draw Map"
+        case interior = "Interior / Architectural"
         case captureFromMaps = "Capture from Maps"
         case aiGenerate = "AI Generate"
         
@@ -1250,6 +1910,7 @@ extension MapWizardView {
             switch self {
             case .importImage: return "photo.on.rectangle"
             case .draw: return "pencil.and.scribble"
+            case .interior: return "square.grid.3x3"
             case .captureFromMaps: return "map"
             case .aiGenerate: return "wand.and.stars"
             }
@@ -1259,6 +1920,7 @@ extension MapWizardView {
             switch self {
             case .importImage: return "Use an existing image file"
             case .draw: return "Create with drawing tools"
+            case .interior: return "Floorplans, dungeons, caverns with grid presets"
             case .captureFromMaps: return "Import from Apple Maps"
             case .aiGenerate: return "Generate with AI assistance"
             }
@@ -1284,6 +1946,71 @@ extension MapWizardView {
         let mapType: String
         let captureDate: Date
         let locationName: String?
+    }
+    
+    enum InteriorPreset {
+        case floorplan
+        case dungeon
+        case caverns
+    }
+    
+    enum InteriorUnits: String, CaseIterable, Identifiable {
+        case feet = "Feet"
+        case meters = "Meters"
+        var id: String { rawValue }
+        var displayName: String { rawValue }
+    }
+    
+    // MARK: - Draft Persistence Containers
+    
+    /// Container for map capture draft data with metadata
+    struct MapCaptureMetadataContainer: Codable {
+        let imageData: Data
+        let metadata: MapCaptureMetadata?
+    }
+    
+    /// Container for AI generation draft data
+    struct AIGenerationDraft: Codable {
+        let prompt: String
+        let generatedImageData: Data?
+    }
+}
+
+// Make MapCaptureMetadata Codable for persistence
+extension MapWizardView.MapCaptureMetadata: Codable {
+    enum CodingKeys: String, CodingKey {
+        case latitude
+        case longitude
+        case latitudeDelta
+        case longitudeDelta
+        case mapType
+        case captureDate
+        case locationName
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let latitude = try container.decode(Double.self, forKey: .latitude)
+        let longitude = try container.decode(Double.self, forKey: .longitude)
+        let latitudeDelta = try container.decode(Double.self, forKey: .latitudeDelta)
+        let longitudeDelta = try container.decode(Double.self, forKey: .longitudeDelta)
+        
+        self.centerCoordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        self.span = MKCoordinateSpan(latitudeDelta: latitudeDelta, longitudeDelta: longitudeDelta)
+        self.mapType = try container.decode(String.self, forKey: .mapType)
+        self.captureDate = try container.decode(Date.self, forKey: .captureDate)
+        self.locationName = try? container.decode(String.self, forKey: .locationName)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(centerCoordinate.latitude, forKey: .latitude)
+        try container.encode(centerCoordinate.longitude, forKey: .longitude)
+        try container.encode(span.latitudeDelta, forKey: .latitudeDelta)
+        try container.encode(span.longitudeDelta, forKey: .longitudeDelta)
+        try container.encode(mapType, forKey: .mapType)
+        try container.encode(captureDate, forKey: .captureDate)
+        try container.encodeIfPresent(locationName, forKey: .locationName)
     }
 }
 
@@ -1388,3 +2115,4 @@ private struct MetadataRow: View {
 
 import UniformTypeIdentifiers
 import ImageIO
+

@@ -30,6 +30,9 @@ struct MainAppView: View {
         case kind(Kinds)
     }
     
+    // Structure-specific selection state
+    @State private var selectedStructureID: UUID? = nil
+    
     // Column visibility context for persistence
     private enum ColumnVisibilityContext {
         case kind(Kinds)
@@ -38,6 +41,7 @@ struct MainAppView: View {
     }
 
     @Query private var cards: [Card]
+    @Query(sort: \StoryStructure.name, order: .forward) private var structures: [StoryStructure]
 
     // Persist/restore last sidebar selection across launches
     @AppStorage("MainSidebarSelection") private var sidebarSelectionRaw: String = ""
@@ -53,6 +57,8 @@ struct MainAppView: View {
     @State private var showingCardEditor = false
     @State private var showingEditCardEditor = false
     @State private var showingSettings = false
+    @State private var showingNewStructureSheet = false
+    @State private var showingTemplateSheet = false
     #if DEBUG
     @State private var showingDeveloperBoards = false
     @State private var showingDeveloperTools = false
@@ -357,6 +363,13 @@ struct MainAppView: View {
             sidebarSelectionRaw = serializeSidebarSelection(newValue)
             // Reset card selection when changing context
             selectedCardID = nil
+            // Reset structure selection when leaving structure context
+            if case .structure = newValue {
+                // Entering structure mode - keep/restore structure selection
+            } else {
+                // Leaving structure mode - clear structure selection
+                selectedStructureID = nil
+            }
             
             // Load column visibility for new context
             loadColumnVisibility(for: currentColumnVisibilityContext())
@@ -478,8 +491,8 @@ struct MainAppView: View {
     private var contentColumn: some View {
         Group {
             if isStructureSelected {
-                // Show the actual structures UI
-                StoryStructureView()
+                // Show the structure list
+                structureList
             } else {
                 if filteredCards.isEmpty {
                     emptyState
@@ -508,7 +521,10 @@ struct MainAppView: View {
 
     private var detailColumn: some View {
         Group {
-            if let card = selectedCard {
+            if isStructureSelected {
+                // Show structure detail when a structure is selected
+                structureDetail
+            } else if let card = selectedCard {
                 if navigationCoordinator.forceCardSheetView {
                     CardSheetView(card: card)
                         .navigationTitle(card.name)
@@ -557,9 +573,9 @@ struct MainAppView: View {
                 }
             } else {
                 ContentPlaceholderView(
-                    title: "Select a Card",
-                    subtitle: "Choose a card from the middle column to see its details.",
-                    systemImage: "rectangle.and.text.magnifyingglass"
+                    title: isStructureSelected ? "Select a Structure" : "Select a Card",
+                    subtitle: isStructureSelected ? "Choose a structure from the middle column to see its details." : "Choose a card from the middle column to see its details.",
+                    systemImage: isStructureSelected ? "list.number" : "rectangle.and.text.magnifyingglass"
                 )
                 .padding()
             }
@@ -693,6 +709,75 @@ struct MainAppView: View {
         #endif
     }
 
+    // MARK: - Structure list and detail
+
+    private var structureList: some View {
+        List(selection: $selectedStructureID) {
+            ForEach(structures) { structure in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(structure.name)
+                            .font(.callout)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+
+                        Text("\((structure.elements ?? []).count) elements")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .tag(structure.id as UUID?)
+                .contentShape(Rectangle())
+            }
+            .onDelete(perform: deleteStructures)
+        }
+        .listStyle(.inset)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Menu("Add Structure", systemImage: "plus") {
+                    Button("Custom Structure") {
+                        showingNewStructureSheet = true
+                    }
+                    Button("From Template") {
+                        showingTemplateSheet = true
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingNewStructureSheet) {
+            NewStructureSheet()
+        }
+        .sheet(isPresented: $showingTemplateSheet) {
+            StructureTemplateSheet()
+        }
+        .onAppear {
+            // Auto-select the first structure if nothing is selected
+            if selectedStructureID == nil, let first = structures.first {
+                selectedStructureID = first.id
+            }
+        }
+        .onChange(of: selectedStructureID) { _, _ in
+            // Clear card selection when a structure is selected
+            selectedCardID = nil
+        }
+    }
+
+    private var structureDetail: some View {
+        Group {
+            if let structure = structures.first(where: { $0.id == selectedStructureID }) {
+                StructureDetailView(structure: structure)
+            } else {
+                ContentPlaceholderView(
+                    title: "Select a Structure",
+                    subtitle: "Choose a story structure to view and edit its elements.",
+                    systemImage: "list.number"
+                )
+                .padding()
+            }
+        }
+    }
+
     // MARK: - Deletion helpers
 
     private func deleteCards(at offsets: IndexSet) {
@@ -725,6 +810,25 @@ struct MainAppView: View {
         // Delete the card; cascades remove edges/citations as modeled
         modelContext.delete(card)
         try? modelContext.save()
+    }
+
+    private func deleteStructures(offsets: IndexSet) {
+        withAnimation {
+            let toDelete = offsets.map { structures[$0] }
+            // Clear selection if we are deleting the selected structure
+            if let sel = selectedStructureID, toDelete.contains(where: { $0.id == sel }) {
+                selectedStructureID = nil
+            }
+
+            for item in toDelete {
+                modelContext.delete(item)
+            }
+            do {
+                try modelContext.save()
+            } catch {
+                print("Failed to delete structures: \(error)")
+            }
+        }
     }
 
     // MARK: - Subviews
