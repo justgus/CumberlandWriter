@@ -172,9 +172,7 @@ struct CardRelationshipView: View {
                 primaryHeader
             }
 
-            AdaptiveGlassToolbar(tint: selectedKind.accentColor(for: scheme).opacity(0.3), interactive: true) {
-                topControls
-            }
+            topControls
 
             Divider()
 

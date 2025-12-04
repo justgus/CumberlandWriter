@@ -910,6 +910,12 @@ struct MainAppView: View {
         PrimaryActionsOrnament(
             onNewCard: { openNewCardWindow() },
             onEditCard: { openEditCardWindow() },
+            onRefresh: {
+                // Basic refresh: clear search and reselect current sidebar item to trigger view updates
+                if !searchText.isEmpty { searchText = "" }
+                // Optionally, nudge state to force list refresh
+                selectedCardID = selectedCardID
+            },
             canEdit: selectedCard != nil,
             isStructureSelected: isStructureSelected,
             onDeveloperBoards: { showingDeveloperBoards = true }
@@ -918,6 +924,10 @@ struct MainAppView: View {
         PrimaryActionsOrnament(
             onNewCard: { openNewCardWindow() },
             onEditCard: { openEditCardWindow() },
+            onRefresh: {
+                if !searchText.isEmpty { searchText = "" }
+                selectedCardID = selectedCardID
+            },
             canEdit: selectedCard != nil,
             isStructureSelected: isStructureSelected
         )

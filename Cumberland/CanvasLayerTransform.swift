@@ -72,26 +72,26 @@ struct CanvasLayerTransformModifier: ViewModifier {
 // MARK: - Helper Extensions
 
 extension CGFloat {
-    var dg: Double { Double(self) }
+    public var dg: Double { Double(self) }
 }
 
 extension Double {
-    var cg: CGFloat { CGFloat(self) }
+    public var cg: CGFloat { CGFloat(self) }
 }
 
 extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
+    @inlinable
+    public func clamped(to range: ClosedRange<Self>) -> Self {
         min(max(self, range.lowerBound), range.upperBound)
     }
 }
 
 extension CGSize {
-    func clamped(maxWidth: CGFloat, maxHeight: CGFloat) -> CGSize {
+    public func clamped(maxWidth: CGFloat, maxHeight: CGFloat) -> CGSize {
         CGSize(width: min(width, maxWidth), height: min(height, maxHeight))
     }
     
-    func scaled(by scalar: CGFloat) -> CGSize {
+    public func scaled(by scalar: CGFloat) -> CGSize {
         CGSize(width: width * scalar, height: height * scalar)
     }
 }
-

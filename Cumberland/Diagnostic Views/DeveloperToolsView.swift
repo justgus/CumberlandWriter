@@ -24,6 +24,7 @@ struct DeveloperToolsView: View {
     
     enum ToolCategory: String, CaseIterable, Identifiable {
         case overview = "Overview"
+        case storage = "Storage & Sync"
         case dataIntegrity = "Data Integrity"
         case performance = "Performance"
         case cleanup = "Cleanup"
@@ -33,6 +34,7 @@ struct DeveloperToolsView: View {
         var systemImage: String {
             switch self {
             case .overview: return "chart.bar.doc.horizontal"
+            case .storage: return "externaldrive.badge.icloud"
             case .dataIntegrity: return "checkmark.shield"
             case .performance: return "gauge.with.dots.needle.bottom.50percent"
             case .cleanup: return "trash.circle"
@@ -340,6 +342,8 @@ struct DeveloperToolsView: View {
         switch selectedTool {
         case .overview:
             overviewContent
+        case .storage:
+            storageContent
         case .dataIntegrity:
             dataIntegrityContent
         case .performance:
@@ -404,6 +408,152 @@ struct DeveloperToolsView: View {
                 }
             }
         }
+    }
+    
+    // MARK: - Storage & Sync
+    
+    @State private var storageInfo: String = "Loading..."
+    @State private var storeLocations: [String] = []
+    
+    private var storageContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Storage & Sync")
+                .font(.title2.bold())
+            
+            Text("Diagnostic information about where your data is stored and sync status.")
+                .foregroundStyle(.secondary)
+            
+            GroupBox("Data Storage") {
+                VStack(alignment: .leading, spacing: 12) {
+                    statRow("Total Cards", value: "\(cards.count)")
+                    statRow("Configuration", value: isCloudKitEnabled ? "CloudKit" : "Local Only")
+                    
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Application Support Directory:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+                            Text(appSupport.path)
+                                .font(.system(.caption, design: .monospaced))
+                                .textSelection(.enabled)
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                    
+                    if !storeLocations.isEmpty {
+                        Divider()
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Store Files Found:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            ForEach(storeLocations, id: \.self) { location in
+                                Text(location)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .foregroundStyle(.primary)
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            
+            GroupBox("Sync Status") {
+                VStack(alignment: .leading, spacing: 12) {
+                    healthRow(
+                        "CloudKit",
+                        status: isCloudKitEnabled ? .healthy : .warning,
+                        detail: isCloudKitEnabled ? "Enabled" : "Disabled (Debug Build)"
+                    )
+                    
+                    statRow("Bundle ID", value: bundleID)
+                    statRow("CloudKit Container", value: "iCloud.CumberlandCloud")
+                }
+                .padding(.vertical, 4)
+            }
+            
+            HStack(spacing: 12) {
+                Button {
+                    scanStorageLocations()
+                } label: {
+                    Label("Refresh Storage Info", systemImage: "arrow.clockwise")
+                }
+                
+                Button {
+                    openInFinder()
+                } label: {
+                    Label("Show in Finder", systemImage: "folder")
+                }
+            }
+        }
+        .onAppear {
+            scanStorageLocations()
+        }
+    }
+    
+    private var isCloudKitEnabled: Bool {
+        #if DEBUG
+        return false // CloudKit disabled in debug builds
+        #else
+        return true
+        #endif
+    }
+    
+    private var bundleID: String {
+        Bundle.main.bundleIdentifier ?? "Unknown"
+    }
+    
+    private func scanStorageLocations() {
+        storeLocations = []
+        
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            storageInfo = "❌ Could not find Application Support directory"
+            return
+        }
+        
+        let fm = FileManager.default
+        
+        // Look for .store files
+        if let enumerator = fm.enumerator(at: appSupport, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
+            for case let fileURL as URL in enumerator {
+                let filename = fileURL.lastPathComponent
+                
+                if filename.hasSuffix(".store") || 
+                   filename.hasSuffix(".store-wal") || 
+                   filename.hasSuffix(".store-shm") {
+                    
+                    // Get file size
+                    if let attrs = try? fm.attributesOfItem(atPath: fileURL.path),
+                       let size = attrs[.size] as? Int64 {
+                        let formatter = ByteCountFormatter()
+                        formatter.countStyle = .file
+                        let sizeStr = formatter.string(fromByteCount: size)
+                        storeLocations.append("\(filename) (\(sizeStr))")
+                    } else {
+                        storeLocations.append(filename)
+                    }
+                }
+            }
+        }
+        
+        if storeLocations.isEmpty {
+            storageInfo = "⚠️ No .store files found in Application Support"
+        } else {
+            storageInfo = "✓ Found \(storeLocations.count) store file(s)"
+        }
+    }
+    
+    private func openInFinder() {
+        #if os(macOS)
+        if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: appSupport.path)
+        }
+        #endif
     }
     
     // MARK: - Data Integrity

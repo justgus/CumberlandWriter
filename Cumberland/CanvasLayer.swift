@@ -10,6 +10,9 @@ import SwiftData
 
 // MARK: - Canvas Layer
 
+/****
+ * MurderBoard Canvas Layer
+ */
 struct CanvasLayer: View {
     let board: Board?
     let windowSize: CGSize

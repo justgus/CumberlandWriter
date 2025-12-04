@@ -13,11 +13,12 @@ import SwiftUI
 // MARK: - Primary Actions Ornament
 
 /// Primary action buttons for card management, displayed at the bottom of the window.
-/// Includes New Card, Edit Card, and (in DEBUG) Developer Boards buttons.
+/// Includes New Card, Edit Card, Refresh, and (in DEBUG) Developer Boards buttons.
 /// Phase 4: Enhanced with better accessibility and focus management.
 struct PrimaryActionsOrnament: View {
     let onNewCard: () -> Void
     let onEditCard: () -> Void
+    let onRefresh: () -> Void
     let canEdit: Bool
     let isStructureSelected: Bool
     
@@ -48,6 +49,16 @@ struct PrimaryActionsOrnament: View {
             .accessibilityLabel("Edit selected card")
             .accessibilityHint(canEdit ? "Opens editor for the selected card" : "Select a card first")
             .keyboardShortcut("e", modifiers: [.command])
+            
+            Button {
+                onRefresh()
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
+            .glassBackgroundEffect()
+            .accessibilityLabel("Refresh list")
+            .accessibilityHint("Reloads the current view to show latest changes")
+            .keyboardShortcut("r", modifiers: [.command])
             
             #if DEBUG
             Button {
@@ -216,6 +227,7 @@ struct DetailTabPickerOrnament: View {
     PrimaryActionsOrnament(
         onNewCard: { print("New Card") },
         onEditCard: { print("Edit Card") },
+        onRefresh: { print("Refresh") },
         canEdit: true,
         isStructureSelected: false,
         onDeveloperBoards: { print("Developer Boards") }

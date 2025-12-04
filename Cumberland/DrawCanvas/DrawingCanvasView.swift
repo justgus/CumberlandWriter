@@ -58,6 +58,20 @@ struct DrawingCanvasView: View {
                 }
                 .frame(width: canvasState.canvasSize.width, height: canvasState.canvasSize.height)
             }
+            .onAppear {
+                // Initialize the scroll view to the model's saved offset
+                scrollPosition = canvasState.scrollOffset
+            }
+            .onChange(of: scrollPosition) { _, newValue in
+                // Keep model in sync as user pans
+                canvasState.scrollOffset = newValue
+            }
+            .onChange(of: canvasState.scrollOffset) { _, newValue in
+                // If model changes externally (e.g., restored), update local state so ZoomableScrollView applies it
+                if distance(scrollPosition, newValue) > 0.5 {
+                    scrollPosition = newValue
+                }
+            }
             #elseif os(macOS)
             // macOS native drawing canvas
             MacOSScrollableCanvas(canvasState: $canvasState)
@@ -66,6 +80,12 @@ struct DrawingCanvasView: View {
             PlaceholderCanvasView()
             #endif
         }
+    }
+    
+    private func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat {
+        let dx = a.x - b.x
+        let dy = a.y - b.y
+        return sqrt(dx*dx + dy*dy)
     }
     
     @ViewBuilder
@@ -140,6 +160,9 @@ class DrawingCanvasModel {
     
     /// Current zoom scale
     var zoomScale: CGFloat = 1.0
+    
+    /// Current scroll/pan offset (UIScrollView contentOffset on iOS; UI-only on macOS)
+    var scrollOffset: CGPoint = .zero
     
     /// Minimum zoom scale
     let minZoomScale: CGFloat = 0.25
@@ -271,6 +294,78 @@ class DrawingCanvasModel {
         #endif
     }
     
+    /// Export the full canvas (including background) as PNG for draft persistence
+    func exportCanvasAsPNG() -> Data? {
+        #if canImport(PencilKit) && canImport(UIKit)
+        print("[CANVAS] exportCanvasAsPNG called")
+        print("[CANVAS] Canvas size: \(canvasSize)")
+        print("[CANVAS] Drawing bounds: \(drawing.bounds)")
+        print("[CANVAS] Drawing isEmpty: \(drawing.bounds.isEmpty)")
+        print("[CANVAS] Background color: \(backgroundColor)")
+        print("[CANVAS] Show grid: \(showGrid)")
+        
+        // Create a renderer for the full canvas size
+        let renderer = UIGraphicsImageRenderer(size: canvasSize)
+        let image = renderer.image { ctx in
+            // Draw background
+            backgroundColor.cgColor.map { UIColor(cgColor: $0).setFill() } ?? UIColor.white.setFill()
+            ctx.fill(CGRect(origin: .zero, size: canvasSize))
+            
+            // Draw grid if enabled
+            if showGrid {
+                let path = UIBezierPath()
+                
+                // Vertical lines
+                var x: CGFloat = 0
+                while x <= canvasSize.width {
+                    path.move(to: CGPoint(x: x, y: 0))
+                    path.addLine(to: CGPoint(x: x, y: canvasSize.height))
+                    x += gridSpacing
+                }
+                
+                // Horizontal lines
+                var y: CGFloat = 0
+                while y <= canvasSize.height {
+                    path.move(to: CGPoint(x: 0, y: y))
+                    path.addLine(to: CGPoint(x: canvasSize.width, y: y))
+                    y += gridSpacing
+                }
+                
+                UIColor(gridColor).setStroke()
+                path.lineWidth = 1.0
+                path.stroke(with: .normal, alpha: 0.5)
+            }
+            
+            // Draw the PencilKit drawing
+            let drawingImage = drawing.image(from: CGRect(origin: .zero, size: canvasSize), scale: 2.0)
+            print("[CANVAS] Drawing image size: \(drawingImage.size)")
+            drawingImage.draw(at: .zero)
+        }
+        
+        let pngData = image.pngData()
+        print("[CANVAS] PNG data size: \(pngData?.count ?? 0) bytes")
+        return pngData
+        #elseif os(macOS)
+        // For macOS, use the native view's PNG export
+        return macosCanvasView?.exportAsPNGData()
+        #else
+        return exportAsImageData()
+        #endif
+    }
+    
+    /// Import a PNG image as the canvas background/starting point
+    func importCanvasFromPNG(_ data: Data) {
+        #if canImport(PencilKit)
+        // For PencilKit, we can't directly import a PNG as drawing data
+        // Instead, we'll clear the canvas and the user can draw over the imported image
+        // (The MapWizardView will handle displaying the PNG as a background layer)
+        drawing = PKDrawing()
+        #elseif os(macOS)
+        // For macOS native drawing, import as background
+        macosCanvasView?.importPNGAsBackground(from: data)
+        #endif
+    }
+    
     /// Export drawing data (can be re-imported for editing)
     func exportDrawingData() -> Data {
         #if canImport(PencilKit)
@@ -291,7 +386,8 @@ class DrawingCanvasModel {
             gridSpacing: gridSpacing,
             gridColor: gridColor.toHex(),
             gridType: gridType.rawValue,
-            zoomScale: zoomScale
+            zoomScale: zoomScale,
+            scrollOffset: scrollOffset
         )
         return try? JSONEncoder().encode(state)
     }
@@ -321,6 +417,7 @@ class DrawingCanvasModel {
         gridColor = Color(hex: state.gridColor)
         gridType = GridType(rawValue: state.gridType) ?? .square
         zoomScale = state.zoomScale
+        scrollOffset = state.scrollOffset
     }
     
     // MARK: - macOS Native Drawing Support
@@ -690,6 +787,7 @@ private struct ZoomableScrollView<Content: View>: UIViewRepresentable {
         
         scrollView.contentSize = contentSize
         scrollView.zoomScale = zoomScale
+        scrollView.setContentOffset(scrollPosition, animated: false)
         
         return scrollView
     }
@@ -697,7 +795,7 @@ private struct ZoomableScrollView<Content: View>: UIViewRepresentable {
     func updateUIView(_ scrollView: UIScrollView, context: Context) {
         // Update zoom scale if changed externally
         if abs(scrollView.zoomScale - zoomScale) > 0.01 {
-            scrollView.setZoomScale(zoomScale, animated: true)
+            scrollView.setZoomScale(zoomScale, animated: false)
         }
         
         // Update content size if it changed
@@ -712,8 +810,19 @@ private struct ZoomableScrollView<Content: View>: UIViewRepresentable {
             }
         }
         
+        // Apply external scroll position changes (e.g., after restore)
+        if distance(scrollView.contentOffset, scrollPosition) > 0.5 {
+            scrollView.setContentOffset(scrollPosition, animated: false)
+        }
+        
         // Update SwiftUI content
         context.coordinator.hostingController?.rootView = content
+    }
+    
+    private func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat {
+        let dx = a.x - b.x
+        let dy = a.y - b.y
+        return sqrt(dx*dx + dy*dy)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -735,11 +844,19 @@ private struct ZoomableScrollView<Content: View>: UIViewRepresentable {
         }
         
         func scrollViewDidZoom(_ scrollView: UIScrollView) {
-            zoomScale = scrollView.zoomScale
+            // Defer state mutation to avoid "Modifying state during view update"
+            let newScale = scrollView.zoomScale
+            DispatchQueue.main.async {
+                self.zoomScale = newScale
+            }
         }
         
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
-            scrollPosition = scrollView.contentOffset
+            // Defer state mutation to avoid "Modifying state during view update"
+            let newOffset = scrollView.contentOffset
+            DispatchQueue.main.async {
+                self.scrollPosition = newOffset
+            }
         }
     }
 }
@@ -850,6 +967,7 @@ struct CanvasStateData: Codable {
     let gridColor: String
     let gridType: String
     let zoomScale: CGFloat
+    let scrollOffset: CGPoint
 }
 
 // MARK: - Color Hex Extensions

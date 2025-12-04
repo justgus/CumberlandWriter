@@ -599,15 +599,13 @@ struct CardSheetView: View {
     // MARK: - UI Sections
 
     private var modePicker: some View {
-        AdaptiveGlassToolbar(tint: .blue, interactive: true) {
-            Picker("Mode", selection: $editorMode) {
-                ForEach(EditorMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
+        Picker("Mode", selection: $editorMode) {
+            ForEach(EditorMode.allCases) { mode in
+                Text(mode.rawValue).tag(mode)
             }
-            .pickerStyle(.segmented)
-            .accessibilityLabel("Editor Mode")
         }
+        .pickerStyle(.segmented)
+        .accessibilityLabel("Editor Mode")
     }
 
     // Split the large header into smaller pieces to help the type checker.
@@ -1076,12 +1074,10 @@ struct CardSheetView: View {
     }
 
     private var adaptiveFormattingToolbar: some View {
-        AdaptiveGlassToolbar(tint: .orange, interactive: true) {
-            AdaptiveToolbar(items: toolbarItems)
-                .controlSize(.small)
-                .labelStyle(.iconOnly)
-                .accessibilityElement(children: .contain)
-        }
+        AdaptiveToolbar(items: toolbarItems)
+            .controlSize(.small)
+            .labelStyle(.iconOnly)
+            .accessibilityElement(children: .contain)
     }
 
     // MARK: - Inline edit commits

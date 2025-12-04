@@ -37,8 +37,8 @@ struct DrawingCanvasViewMacOS: NSViewRepresentable {
 class MacOSDrawingView: NSView {
     var canvasModel: DrawingCanvasModel?
     
-    // Current stroke being drawn
-    private var currentStroke: DrawingStroke?
+    // Current stroke being drawn (using a temporary structure for active drawing)
+    private var currentStroke: MacOSDrawingStroke?
     
     // All completed strokes
     private var strokes: [DrawingStroke] = []
@@ -78,7 +78,7 @@ class MacOSDrawingView: NSView {
         let color = NSColor(model.selectedColor)
         let lineWidth = model.selectedLineWidth
         
-        currentStroke = DrawingStroke(
+        currentStroke = MacOSDrawingStroke(
             points: [location],
             color: color,
             lineWidth: lineWidth,
@@ -100,7 +100,24 @@ class MacOSDrawingView: NSView {
     override func mouseUp(with event: NSEvent) {
         // Finalize stroke
         if let stroke = currentStroke {
-            strokes.append(stroke)
+            // Convert to codable DrawingStroke
+            var r: CGFloat = 0
+            var g: CGFloat = 0
+            var b: CGFloat = 0
+            var a: CGFloat = 0
+            stroke.color.getRed(&r, green: &g, blue: &b, alpha: &a)
+            
+            let codableStroke = DrawingStroke(
+                points: stroke.points.map { CGPointCodable(x: $0.x, y: $0.y) },
+                colorRed: r,
+                colorGreen: g,
+                colorBlue: b,
+                colorAlpha: a,
+                lineWidth: stroke.lineWidth,
+                toolType: stroke.toolType.rawValue
+            )
+            
+            strokes.append(codableStroke)
             currentStroke = nil
         }
         
@@ -137,11 +154,77 @@ class MacOSDrawingView: NSView {
         
         // Draw current stroke being created
         if let stroke = currentStroke {
-            drawStroke(stroke, in: context)
+            drawCurrentStroke(stroke, in: context)
         }
     }
     
     private func drawStroke(_ stroke: DrawingStroke, in context: CGContext) {
+        let points = stroke.cgPoints
+        guard points.count > 1 else { return }
+        
+        // Handle eraser differently
+        if let toolType = DrawingToolType(rawValue: stroke.toolType), toolType == .eraser {
+            // For eraser, we need to remove intersecting strokes
+            // This is a simplified approach - a more sophisticated implementation
+            // would track eraser paths and clip them from existing strokes
+            context.setBlendMode(.clear)
+            context.setLineWidth(stroke.lineWidth * 2) // Make eraser wider
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
+        } else {
+            // Normal drawing
+            context.setStrokeColor(stroke.color.cgColor)
+            context.setLineWidth(stroke.lineWidth)
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
+            context.setBlendMode(.normal)
+            
+            // Apply different styles based on tool type
+            if let toolType = DrawingToolType(rawValue: stroke.toolType) {
+                switch toolType {
+                case .pencil:
+                    // Pencil: slight transparency for texture
+                    context.setAlpha(0.8)
+                case .marker:
+                    // Marker: more transparent and wider
+                    context.setAlpha(0.4)
+                    context.setLineWidth(stroke.lineWidth * 2)
+                default:
+                    context.setAlpha(1.0)
+                }
+            } else {
+                context.setAlpha(1.0)
+            }
+        }
+        
+        // Draw the path
+        context.beginPath()
+        context.move(to: points[0])
+        
+        // Use quadratic bezier curves for smooth lines
+        for i in 1..<points.count {
+            let current = points[i]
+            
+            if i < points.count - 1 {
+                let next = points[i + 1]
+                let midPoint = CGPoint(
+                    x: (current.x + next.x) / 2,
+                    y: (current.y + next.y) / 2
+                )
+                context.addQuadCurve(to: midPoint, control: current)
+            } else {
+                context.addLine(to: current)
+            }
+        }
+        
+        context.strokePath()
+        
+        // Reset blend mode and alpha
+        context.setBlendMode(.normal)
+        context.setAlpha(1.0)
+    }
+    
+    private func drawCurrentStroke(_ stroke: MacOSDrawingStroke, in context: CGContext) {
         guard stroke.points.count > 1 else { return }
         
         // Handle eraser differently
@@ -285,78 +368,86 @@ class MacOSDrawingView: NSView {
     // MARK: - Export
     
     func exportAsImageData() -> Data? {
+        // Create a bitmap representation of the current canvas
         guard let bitmapRep = bitmapImageRepForCachingDisplay(in: bounds) else { return nil }
         cacheDisplay(in: bounds, to: bitmapRep)
         return bitmapRep.representation(using: .png, properties: [:])
     }
     
+    /// Export canvas as PNG at the actual canvas size (not scaled)
+    func exportAsPNGData() -> Data? {
+        let width = Int(bounds.width)
+        let height = Int(bounds.height)
+        
+        guard width > 0, height > 0 else { return nil }
+        guard let bitmapRep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return nil }
+        
+        guard let context = NSGraphicsContext(bitmapImageRep: bitmapRep) else { return nil }
+        
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        
+        // Draw into the bitmap context
+        draw(bounds)
+        
+        NSGraphicsContext.restoreGraphicsState()
+        
+        return bitmapRep.representation(using: .png, properties: [:])
+    }
+    
     func exportStrokes() -> Data {
         let encoder = JSONEncoder()
-        let encodableStrokes = strokes.map { EncodableStroke(from: $0) }
-        return (try? encoder.encode(encodableStrokes)) ?? Data()
+        return (try? encoder.encode(strokes)) ?? Data()
     }
     
     func importStrokes(from data: Data) {
         let decoder = JSONDecoder()
-        guard let encodableStrokes = try? decoder.decode([EncodableStroke].self, from: data) else { return }
+        guard let importedStrokes = try? decoder.decode([DrawingStroke].self, from: data) else { return }
         
         pushUndoState()
-        strokes = encodableStrokes.map { $0.toDrawingStroke() }
+        strokes = importedStrokes
         needsDisplay = true
         canvasModel?.hasStrokes = !strokes.isEmpty
     }
+    
+    /// Import a PNG image as a background layer for the canvas
+    func importPNGAsBackground(from pngData: Data) {
+        // For now, we'll treat this as clearing the canvas and allowing the user to draw over it
+        // In a more sophisticated implementation, you could create a background image layer
+        // that sits behind all strokes
+        
+        // Clear existing strokes first
+        pushUndoState()
+        strokes.removeAll()
+        
+        // The PNG becomes the background - we'd need to store it separately
+        // and render it in draw(_:) before drawing strokes
+        // For simplicity, we're just clearing to allow fresh drawing
+        
+        needsDisplay = true
+        canvasModel?.hasStrokes = false
+    }
 }
 
-// MARK: - Drawing Stroke Model
+// MARK: - Temporary Drawing Stroke (for active drawing)
 
-struct DrawingStroke {
+/// Temporary structure used while actively drawing before converting to the codable DrawingStroke
+private struct MacOSDrawingStroke {
     var points: [CGPoint]
     var color: NSColor
     var lineWidth: CGFloat
     var toolType: DrawingToolType
-}
-
-// MARK: - Encodable Stroke (for saving/loading)
-
-struct EncodableStroke: Codable {
-    let points: [CGPointCodable]
-    let colorRed: CGFloat
-    let colorGreen: CGFloat
-    let colorBlue: CGFloat
-    let colorAlpha: CGFloat
-    let lineWidth: CGFloat
-    let toolType: String
-    
-    init(from stroke: DrawingStroke) {
-        self.points = stroke.points.map { CGPointCodable(x: $0.x, y: $0.y) }
-        
-        var r: CGFloat = 0
-        var g: CGFloat = 0
-        var b: CGFloat = 0
-        var a: CGFloat = 0
-        stroke.color.getRed(&r, green: &g, blue: &b, alpha: &a)
-        
-        self.colorRed = r
-        self.colorGreen = g
-        self.colorBlue = b
-        self.colorAlpha = a
-        self.lineWidth = stroke.lineWidth
-        self.toolType = stroke.toolType.rawValue
-    }
-    
-    func toDrawingStroke() -> DrawingStroke {
-        DrawingStroke(
-            points: points.map { CGPoint(x: $0.x, y: $0.y) },
-            color: NSColor(red: colorRed, green: colorGreen, blue: colorBlue, alpha: colorAlpha),
-            lineWidth: lineWidth,
-            toolType: DrawingToolType(rawValue: toolType) ?? .pen
-        )
-    }
-}
-
-struct CGPointCodable: Codable {
-    let x: CGFloat
-    let y: CGFloat
 }
 
 #endif
