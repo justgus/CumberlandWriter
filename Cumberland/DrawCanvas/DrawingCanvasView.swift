@@ -55,6 +55,7 @@ struct DrawingCanvasView: View {
                         canvasSize: canvasState.canvasSize,
                         zoomScale: canvasState.zoomScale
                     )
+                    .id(canvasState.toolChangeCounter)  // Force update when tool changes (DR-0001, DR-0002, DR-0003)
                 }
                 .frame(width: canvasState.canvasSize.width, height: canvasState.canvasSize.height)
             }
@@ -138,7 +139,11 @@ class DrawingCanvasModel {
     
     /// Current line width
     var selectedLineWidth: CGFloat = 5
-    
+
+    /// Tool change counter to force SwiftUI updates (DR-0001, DR-0002, DR-0003)
+    /// PKTool is not Equatable, so we use this counter with .id() to detect changes
+    var toolChangeCounter: Int = 0
+
     // MARK: - Canvas Options
     
     /// Background color
@@ -218,17 +223,21 @@ class DrawingCanvasModel {
             pkColor = .marker
         case .eraser:
             selectedTool = PKEraserTool(.vector)
+            toolChangeCounter += 1
             return
         case .lasso:
             selectedTool = PKLassoTool()
+            toolChangeCounter += 1
             return
         }
-        
+
         #if canImport(UIKit)
-        selectedTool = PKInkingTool(pkColor, color: UIColor(selectedColor), width: selectedLineWidth)
+        // Use toPencilKitColor() to prevent black color inversion issue (DR-0001)
+        selectedTool = PKInkingTool(pkColor, color: selectedColor.toPencilKitColor(), width: selectedLineWidth)
         #elseif canImport(AppKit)
         selectedTool = PKInkingTool(pkColor, color: NSColor(selectedColor), width: selectedLineWidth)
         #endif
+        toolChangeCounter += 1
         #endif
     }
     
@@ -694,13 +703,16 @@ private struct PencilKitCanvasView: UIViewRepresentable {
         canvasView.delegate = context.coordinator
         canvasView.drawingPolicy = .anyInput
         canvasView.backgroundColor = .clear
-        
+
+        // Force light mode to prevent color inversion (DR-0001)
+        canvasView.overrideUserInterfaceStyle = .light
+
         // Disable the built-in scroll view since we're using our own
         canvasView.isScrollEnabled = false
-        
+
         // Set content size
         canvasView.contentSize = canvasSize
-        
+
         return canvasView
     }
     
@@ -1019,4 +1031,26 @@ extension Color {
             opacity: Double(a) / 255
         )
     }
+
+    #if canImport(UIKit)
+    /// Convert to UIColor with explicit sRGB color space for PencilKit compatibility
+    /// This ensures proper color representation, especially for black color which can invert
+    /// to white due to semantic color interpretation on iOS/iPadOS.
+    /// See DR-0001 for details on the black color inversion issue.
+    func toPencilKitColor() -> UIColor {
+        let uiColor = UIColor(self)
+
+        // Get RGBA components
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+
+        // Create new color explicitly in sRGB color space
+        // This prevents semantic color interpretation issues (e.g., .black becoming label color)
+        return UIColor(red: red, green: green, blue: blue, alpha: alpha)
+    }
+    #endif
 }

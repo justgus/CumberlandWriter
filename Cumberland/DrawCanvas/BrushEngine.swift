@@ -50,7 +50,8 @@ class BrushEngine {
         }
         
         #if canImport(UIKit)
-        let pkColor = UIColor(brushColor)
+        // Use toPencilKitColor() to prevent black color inversion (DR-0001)
+        let pkColor = brushColor.toPencilKitColor()
         #elseif canImport(AppKit)
         let pkColor = NSColor(brushColor)
         #endif

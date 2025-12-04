@@ -289,6 +289,8 @@
 			membershipExceptions = (
 				Archive.zip,
 				CLOUDKIT_SYNC_FIX.md,
+				"DR-Reports/DR-0001-Development-Plan.md",
+				"DR-Reports/DR-Documentation.md",
 				DragDropIntegrationSolutions.md,
 				"DrawCanvas/Guides/BRUSH-ENGINE-DOCUMENTATION-INDEX.md",
 				"DrawCanvas/Guides/BRUSH-ENGINE-QUICK-REFERENCE.md",

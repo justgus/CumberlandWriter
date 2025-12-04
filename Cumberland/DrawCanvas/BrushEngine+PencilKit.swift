@@ -32,18 +32,19 @@ extension BrushEngine {
     ) -> PKTool {
         let finalWidth = width ?? brush.defaultWidth
         let brushColor = brush.baseColor?.toColor() ?? color
-        let pkColor = UIColor(brushColor)
-        
+        // Use toPencilKitColor() to prevent black color inversion (DR-0001)
+        let pkColor = brushColor.toPencilKitColor()
+
         // Determine the best ink type for the brush pattern
         let inkType = selectInkType(for: brush)
-        
+
         // Apply opacity to color
         let finalColor = brush.opacity < 1.0
             ? pkColor.withAlphaComponent(brush.opacity)
             : pkColor
-        
+
         let tool = PKInkingTool(inkType, color: finalColor, width: finalWidth)
-        
+
         return tool
     }
     
