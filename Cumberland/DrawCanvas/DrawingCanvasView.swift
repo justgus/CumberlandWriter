@@ -25,61 +25,96 @@ import AppKit
 /// Provides a complete drawing interface with tools, colors, undo/redo, and export capabilities.
 struct DrawingCanvasView: View {
     @Binding var canvasState: DrawingCanvasModel
-    
+
     @Environment(\.colorScheme) private var colorScheme
-    @State private var scrollPosition: CGPoint = .zero
-    
+    // DR-0006: Initialize scroll position from model to ensure restoration works
+    @State private var scrollPosition: CGPoint
+    // DR-0011: Track container size for proper palette positioning
+    @State private var containerSize: CGSize = .zero
+
+    // DR-0006: Initialize with scroll position from model for proper restoration
+    init(canvasState: Binding<DrawingCanvasModel>) {
+        self._canvasState = canvasState
+        self._scrollPosition = State(initialValue: canvasState.wrappedValue.scrollOffset)
+    }
+
     var body: some View {
+        GeometryReader { geometry in
+            content
+                .onAppear {
+                    containerSize = geometry.size
+                }
+                .onChange(of: geometry.size) { _, newSize in
+                    containerSize = newSize
+                }
+        }
+    }
+
+    private var content: some View {
         VStack(spacing: 0) {
             // Toolbar
             DrawingToolbar(canvasState: $canvasState, scrollPosition: $scrollPosition)
-            
+
             Divider()
-            
-            // Canvas with zoom and scroll
-            #if canImport(PencilKit) && canImport(UIKit)
-            ZoomableScrollView(
-                contentSize: canvasState.canvasSize,
-                zoomScale: $canvasState.zoomScale,
-                scrollPosition: $scrollPosition
-            ) {
-                ZStack {
-                    // Background
-                    canvasBackgroundView
-                    
-                    // PencilKit Canvas
-                    PencilKitCanvasView(
-                        drawing: $canvasState.drawing,
-                        tool: canvasState.selectedTool,
-                        isRulerActive: canvasState.isRulerActive,
-                        canvasSize: canvasState.canvasSize,
-                        zoomScale: canvasState.zoomScale
+
+            // Canvas with zoom and scroll - with palette overlay
+            ZStack {
+                // Canvas area
+                #if canImport(PencilKit) && canImport(UIKit)
+                ZoomableScrollView(
+                    contentSize: canvasState.canvasSize,
+                    zoomScale: $canvasState.zoomScale,
+                    scrollPosition: $scrollPosition
+                ) {
+                    ZStack {
+                        // Background
+                        canvasBackgroundView
+
+                        // PencilKit Canvas
+                        PencilKitCanvasView(
+                            drawing: $canvasState.drawing,
+                            tool: canvasState.selectedTool,
+                            isRulerActive: canvasState.isRulerActive,
+                            canvasSize: canvasState.canvasSize,
+                            zoomScale: canvasState.zoomScale
+                        )
+                        .id(canvasState.toolChangeCounter)  // Force update when tool changes (DR-0001, DR-0002, DR-0003)
+                    }
+                    .frame(width: canvasState.canvasSize.width, height: canvasState.canvasSize.height)
+                }
+                .onChange(of: scrollPosition) { _, newValue in
+                    // Keep model in sync as user pans
+                    canvasState.scrollOffset = newValue
+                }
+                .onChange(of: canvasState.scrollOffset) { _, newValue in
+                    // If model changes externally (e.g., restored), update local state so ZoomableScrollView applies it
+                    if distance(scrollPosition, newValue) > 0.5 {
+                        scrollPosition = newValue
+                    }
+                }
+                #elseif os(macOS)
+                // macOS native drawing canvas
+                MacOSScrollableCanvas(canvasState: $canvasState)
+                #else
+                // Placeholder for platforms without drawing support
+                PlaceholderCanvasView()
+                #endif
+
+                // DR-0011: Floating tool palette overlay - positioned over canvas area only
+                if canvasState.toolPaletteState.isVisible {
+                    FloatingToolPalette(
+                        canvasState: $canvasState,
+                        containerSize: containerSize
                     )
-                    .id(canvasState.toolChangeCounter)  // Force update when tool changes (DR-0001, DR-0002, DR-0003)
-                }
-                .frame(width: canvasState.canvasSize.width, height: canvasState.canvasSize.height)
-            }
-            .onAppear {
-                // Initialize the scroll view to the model's saved offset
-                scrollPosition = canvasState.scrollOffset
-            }
-            .onChange(of: scrollPosition) { _, newValue in
-                // Keep model in sync as user pans
-                canvasState.scrollOffset = newValue
-            }
-            .onChange(of: canvasState.scrollOffset) { _, newValue in
-                // If model changes externally (e.g., restored), update local state so ZoomableScrollView applies it
-                if distance(scrollPosition, newValue) > 0.5 {
-                    scrollPosition = newValue
+                    .frame(width: canvasState.toolPaletteState.width)
+                    .padding(20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
             }
-            #elseif os(macOS)
-            // macOS native drawing canvas
-            MacOSScrollableCanvas(canvasState: $canvasState)
-            #else
-            // Placeholder for platforms without drawing support
-            PlaceholderCanvasView()
-            #endif
+        }
+        .onAppear {
+            // Auto-initialize LayerManager for new and existing drawings
+            canvasState.ensureLayerManager()
         }
     }
     
@@ -92,10 +127,20 @@ struct DrawingCanvasView: View {
     @ViewBuilder
     private var canvasBackgroundView: some View {
         ZStack {
-            // Base color
+            // 1. Base color
             canvasState.backgroundColor
-            
-            // Optional grid overlay
+
+            // 2. Base layer fill (if exists)
+            if let baseLayer = canvasState.layerManager?.baseLayer,
+               let fill = baseLayer.layerFill {
+                Rectangle()
+                    .fill(fill.effectiveColor)
+                    .opacity(fill.opacity)
+                    .frame(width: canvasState.canvasSize.width,
+                           height: canvasState.canvasSize.height)
+            }
+
+            // 3. Optional grid overlay
             if canvasState.showGrid {
                 GridOverlayView(
                     spacing: canvasState.gridSpacing * canvasState.zoomScale,
@@ -176,15 +221,83 @@ class DrawingCanvasModel {
     let maxZoomScale: CGFloat = 4.0
     
     // MARK: - Undo/Redo Management
-    
+
     /// Undo manager for canvas operations
     var undoManager: UndoManager = UndoManager()
-    
+
+    // MARK: - Tool Palette
+
+    /// State for the floating tool palette
+    var toolPaletteState: ToolPaletteState = ToolPaletteState()
+
+    /// Layer manager for multi-layer drawing (optional for backward compatibility)
+    var layerManager: LayerManager?
+
+    // MARK: - Layer Manager Initialization
+
+    /// Ensures a LayerManager exists, creating one if needed
+    /// Call this when loading existing drawings or creating new ones
+    func ensureLayerManager() {
+        guard layerManager == nil else { return }
+
+        // Create new layer manager with default base layer
+        let manager = LayerManager()
+
+        // Rename the default layer created by LayerManager to be the base layer
+        if let defaultLayer = manager.baseLayer {
+            defaultLayer.name = "Base Layer"
+            defaultLayer.layerType = .terrain
+            // Base layer is for fills only - no drawing content
+        }
+
+        /*
+        var hasExistingContent = false
+
+        // Check if there's existing drawing content to migrate
+        #if canImport(PencilKit)
+        if !drawing.bounds.isEmpty {
+            hasExistingContent = true
+        }
+        #endif
+
+        #if os(macOS)
+        if !macOSStrokes.isEmpty {
+            hasExistingContent = true
+        }
+        #endif
+        */
+
+        // Create content layer (always create this)
+        let contentLayer = manager.createLayerAboveActive(name: "Content", type: .generic)
+
+        // If there's existing content, migrate it to the content layer (NOT base layer)
+        #if canImport(PencilKit)
+        if !drawing.bounds.isEmpty {
+            contentLayer.drawing = drawing
+            contentLayer.name = "Content (Migrated)"
+        }
+        #endif
+
+        #if os(macOS)
+        if !macOSStrokes.isEmpty {
+            contentLayer.macosStrokes = macOSStrokes
+            contentLayer.name = "Content (Migrated)"
+            // Clear the old strokes since they're now in the layer
+            macOSStrokes = []
+        }
+        #endif
+
+        // Set content layer as active so drawing goes there by default
+        manager.activeLayerID = contentLayer.id
+
+        layerManager = manager
+    }
+
     // MARK: - Computed Properties
     
     /// Whether the canvas has any content
     var isEmpty: Bool {
-        #if canImport(PencilKit)
+        #if canImport(PencilKit) && canImport(UIKit)
         return drawing.bounds.isEmpty
         #else
         // For macOS, this will need to be updated by the NSView
@@ -213,7 +326,7 @@ class DrawingCanvasModel {
     func updateTool() {
         #if canImport(PencilKit)
         let pkColor: PKInkingTool.InkType
-        
+
         switch selectedToolType {
         case .pen:
             pkColor = .pen
@@ -224,20 +337,27 @@ class DrawingCanvasModel {
         case .eraser:
             selectedTool = PKEraserTool(.vector)
             toolChangeCounter += 1
+            print("[DR-0012] Updated tool to eraser, counter: \(toolChangeCounter)")
             return
         case .lasso:
             selectedTool = PKLassoTool()
             toolChangeCounter += 1
+            print("[DR-0012] Updated tool to lasso, counter: \(toolChangeCounter)")
             return
         }
 
         #if canImport(UIKit)
         // Use toPencilKitColor() to prevent black color inversion issue (DR-0001)
-        selectedTool = PKInkingTool(pkColor, color: selectedColor.toPencilKitColor(), width: selectedLineWidth)
+        // DR-0012: Apply 3.0x multiplier on iOS to match macOS visual thickness
+        let effectiveWidth = selectedLineWidth * 3.0
+        selectedTool = PKInkingTool(pkColor, color: selectedColor.toPencilKitColor(), width: effectiveWidth)
+        print("[DR-0012] iOS - Created PKInkingTool with slider: \(selectedLineWidth) → effective width: \(effectiveWidth)")
         #elseif canImport(AppKit)
         selectedTool = PKInkingTool(pkColor, color: NSColor(selectedColor), width: selectedLineWidth)
+        print("[DR-0012] macOS - Created PKInkingTool with width: \(selectedLineWidth)")
         #endif
         toolChangeCounter += 1
+        print("[DR-0012] Updated inking tool (\(selectedToolType.rawValue)), counter: \(toolChangeCounter)")
         #endif
     }
     
@@ -267,10 +387,10 @@ class DrawingCanvasModel {
     
     /// Clear the entire canvas
     func clear() {
-        #if canImport(PencilKit)
+        #if canImport(PencilKit) && canImport(UIKit)
         let oldDrawing = drawing
         drawing = PKDrawing()
-        
+
         // Register undo
         undoManager.registerUndo(withTarget: self) { target in
             target.drawing = oldDrawing
@@ -280,25 +400,14 @@ class DrawingCanvasModel {
     
     /// Export drawing as image data
     func exportAsImageData() -> Data? {
-        #if canImport(PencilKit)
+        #if canImport(PencilKit) && canImport(UIKit)
+        // iOS/iPadOS: Use PencilKit
         let bounds = drawing.bounds.isEmpty ? CGRect(origin: .zero, size: canvasSize) : drawing.bounds
-        
-        #if canImport(UIKit)
-        // Use a scale of 2.0 for high-quality export that works across all platforms
-        // This provides retina-quality images without relying on deprecated UIScreen APIs
         let scale: CGFloat = 2.0
         let image = drawing.image(from: bounds, scale: scale)
         return image.pngData()
-        #elseif canImport(AppKit)
-        let image = drawing.image(from: bounds, scale: NSScreen.main?.backingScaleFactor ?? 2.0)
-        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
-        let nsImage = NSImage(cgImage: cgImage, size: bounds.size)
-        guard let tiffData = nsImage.tiffRepresentation,
-              let bitmapImage = NSBitmapImageRep(data: tiffData) else { return nil }
-        return bitmapImage.representation(using: .png, properties: [:])
-        #endif
         #else
-        // For macOS native drawing, this will be handled by the NSView
+        // macOS: Use native drawing view
         return macosCanvasView?.exportAsImageData()
         #endif
     }
@@ -364,7 +473,7 @@ class DrawingCanvasModel {
     
     /// Import a PNG image as the canvas background/starting point
     func importCanvasFromPNG(_ data: Data) {
-        #if canImport(PencilKit)
+        #if canImport(PencilKit) && canImport(UIKit)
         // For PencilKit, we can't directly import a PNG as drawing data
         // Instead, we'll clear the canvas and the user can draw over the imported image
         // (The MapWizardView will handle displaying the PNG as a background layer)
@@ -377,18 +486,94 @@ class DrawingCanvasModel {
     
     /// Export drawing data (can be re-imported for editing)
     func exportDrawingData() -> Data {
-        #if canImport(PencilKit)
-        return drawing.dataRepresentation()
+        #if canImport(PencilKit) && canImport(UIKit)
+        // iOS/iPadOS: Use PencilKit
+        let data = drawing.dataRepresentation()
+        print("[EXPORT] exportDrawingData (PencilKit) - \(data.count) bytes")
+        return data
         #else
-        // For macOS native drawing
-        return macosCanvasView?.exportStrokes() ?? Data()
+        // macOS: Export from model (persists across view recreation)
+        print("[EXPORT] exportDrawingData - exporting \(macOSStrokes.count) strokes from model")
+        let encoder = JSONEncoder()
+        let data = (try? encoder.encode(macOSStrokes)) ?? Data()
+        print("[EXPORT] exportDrawingData returning \(data.count) bytes")
+        return data
         #endif
     }
     
     /// Export complete canvas state including settings (for draft persistence)
     func exportCanvasState() -> Data? {
+        print("[EXPORT] exportCanvasState called")
+
+        // DR-0013: Ensure LayerManager exists and migrate current drawing content before export
+        ensureLayerManager()
+
+        // DR-0013: Migrate any current drawing content to active layer for cross-platform compatibility
+        if let manager = layerManager, let activeLayer = manager.activeLayer {
+            #if canImport(PencilKit) && canImport(UIKit)
+            // iOS: Migrate PKDrawing content to active layer if not already there
+            if !drawing.bounds.isEmpty {
+                print("[EXPORT] Migrating \(drawing.strokes.count) PKDrawing strokes to active layer")
+                activeLayer.drawing = drawing
+
+                // DR-0013: Convert PKDrawing strokes to DrawingStroke format for macOS compatibility
+                var convertedStrokes: [DrawingStroke] = []
+                for pkStroke in drawing.strokes {
+                    var points: [CGPointCodable] = []
+                    for i in 0..<pkStroke.path.count {
+                        let point = pkStroke.path.interpolatedLocation(at: CGFloat(i))
+                        points.append(CGPointCodable(x: point.x, y: point.y))
+                    }
+
+                    let uiColor = UIColor(cgColor: pkStroke.ink.color.cgColor)
+                    var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+                    uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+
+                    // PKStroke doesn't expose width directly (pressure-sensitive)
+                    // Use a reasonable default or the current selected width
+                    let strokeWidth = selectedLineWidth > 0 ? selectedLineWidth : 2.0
+
+                    let drawingStroke = DrawingStroke(
+                        points: points,
+                        colorRed: red,
+                        colorGreen: green,
+                        colorBlue: blue,
+                        colorAlpha: alpha,
+                        lineWidth: strokeWidth,
+                        toolType: "pen"
+                    )
+                    convertedStrokes.append(drawingStroke)
+                }
+
+                activeLayer.macosStrokes = convertedStrokes
+                print("[EXPORT] Converted \(convertedStrokes.count) PKDrawing strokes to DrawingStroke format for cross-platform")
+                activeLayer.markModified()
+            }
+            #else
+            // macOS: Migrate macOS strokes to active layer if not already there
+            if !macOSStrokes.isEmpty {
+                print("[EXPORT] Migrating \(macOSStrokes.count) macOS strokes to active layer")
+                activeLayer.macosStrokes = macOSStrokes
+                activeLayer.markModified()
+            }
+            #endif
+        }
+
+        let drawingData = exportDrawingData()
+        print("[EXPORT] Got \(drawingData.count) bytes of drawing data (legacy/fallback)")
+
+        // DR-0008: Encode LayerManager if it exists
+        var layerManagerData: Data? = nil
+        if let manager = layerManager {
+            print("[EXPORT] Encoding LayerManager with \(manager.layerCount) layers")
+            layerManagerData = try? JSONEncoder().encode(manager)
+            print("[EXPORT] LayerManager encoded to \(layerManagerData?.count ?? 0) bytes")
+        } else {
+            print("[EXPORT] No LayerManager to encode")
+        }
+
         let state = CanvasStateData(
-            drawingData: exportDrawingData(),
+            drawingData: drawingData,
             canvasSize: canvasSize,
             backgroundColor: backgroundColor.toHex(),
             showGrid: showGrid,
@@ -396,28 +581,109 @@ class DrawingCanvasModel {
             gridColor: gridColor.toHex(),
             gridType: gridType.rawValue,
             zoomScale: zoomScale,
-            scrollOffset: scrollOffset
+            scrollOffset: scrollOffset,
+            // DR-0006: Save tool palette state
+            isRulerActive: isRulerActive,
+            selectedToolType: selectedToolType.rawValue,
+            selectedColor: selectedColor.toHex(),
+            selectedLineWidth: selectedLineWidth,
+            // DR-0008: Save layer manager
+            layerManagerData: layerManagerData
         )
-        return try? JSONEncoder().encode(state)
+        let encoded = try? JSONEncoder().encode(state)
+        print("[EXPORT] exportCanvasState returning \(encoded?.count ?? 0) bytes total")
+        return encoded
     }
     
     /// Import drawing data (for re-editing)
     func importDrawingData(_ data: Data) throws {
-        #if canImport(PencilKit)
+        #if canImport(PencilKit) && canImport(UIKit)
+        // iOS/iPadOS: Use PencilKit
         drawing = try PKDrawing(data: data)
         #else
-        // For macOS native drawing
-        macosCanvasView?.importStrokes(from: data)
+        // macOS: Import into model (persists across view recreation)
+        print("[DR-0004.3] importDrawingData called with \(data.count) bytes")
+        let decoder = JSONDecoder()
+        guard let importedStrokes = try? decoder.decode([DrawingStroke].self, from: data) else {
+            print("[DR-0004.3] ❌ Failed to decode strokes from import data")
+            return
+        }
+
+        print("[DR-0004.3] Successfully decoded \(importedStrokes.count) strokes into model")
+        macOSStrokes = importedStrokes
+        hasStrokes = !macOSStrokes.isEmpty
+
+        // If view exists, tell it to reload
+        if let view = macosCanvasView {
+            print("[DR-0004.3] Notifying view to reload from model")
+            view.reloadFromModel()
+        }
         #endif
     }
     
     /// Import complete canvas state from draft data
     func importCanvasState(_ data: Data) throws {
         let state = try JSONDecoder().decode(CanvasStateData.self, from: data)
-        
-        // Restore drawing
-        try importDrawingData(state.drawingData)
-        
+
+        // DR-0008: Restore LayerManager FIRST if it exists
+        if let layerManagerData = state.layerManagerData {
+            print("[IMPORT] Decoding LayerManager from \(layerManagerData.count) bytes")
+            do {
+                let manager = try JSONDecoder().decode(LayerManager.self, from: layerManagerData)
+                layerManager = manager
+                print("[IMPORT] Restored LayerManager with \(manager.layerCount) layers")
+
+                // DR-0013: Extract content from active layer to main drawing properties for display
+                if let activeLayer = manager.activeLayer {
+                    #if canImport(PencilKit) && canImport(UIKit)
+                    // iOS: Copy PKDrawing from active layer to main drawing
+                    if !activeLayer.drawing.bounds.isEmpty {
+                        drawing = activeLayer.drawing
+                        print("[IMPORT] Extracted \(drawing.strokes.count) strokes from active layer to main drawing (iOS)")
+                    }
+                    #else
+                    // macOS: Copy macOS strokes from active layer to main strokes array
+                    if !activeLayer.macosStrokes.isEmpty {
+                        macOSStrokes = activeLayer.macosStrokes
+                        hasStrokes = true
+                        print("[IMPORT] Extracted \(macOSStrokes.count) strokes from active layer to main drawing (macOS)")
+
+                        // Notify view to reload if it exists
+                        if let view = macosCanvasView {
+                            print("[IMPORT] Notifying macOS view to reload")
+                            view.reloadFromModel()
+                        }
+                    }
+                    #endif
+                }
+            } catch {
+                print("[IMPORT] ⚠️ Failed to decode LayerManager: \(error)")
+                // Fall back to creating a new one later via ensureLayerManager
+                layerManager = nil
+            }
+        } else {
+            print("[IMPORT] No LayerManager data in state (legacy draft)")
+            // For backward compatibility: Leave layerManager nil, ensureLayerManager will create it
+            layerManager = nil
+        }
+
+        // Restore drawing (for backward compatibility or as fallback)
+        // Use legacy import if: (1) no LayerManager, OR (2) LayerManager has no content for this platform
+        #if os(macOS)
+        let shouldUseLegacyImport = layerManager == nil || macOSStrokes.isEmpty
+        #else
+        let shouldUseLegacyImport = layerManager == nil || drawing.bounds.isEmpty
+        #endif
+
+        if shouldUseLegacyImport {
+            if layerManager != nil {
+                print("[IMPORT] LayerManager has no content for this platform - falling back to legacy import")
+            }
+            try importDrawingData(state.drawingData)
+        } else {
+            print("[IMPORT] Using LayerManager content - skipping legacy import")
+        }
+
         // Restore canvas settings
         canvasSize = state.canvasSize
         backgroundColor = Color(hex: state.backgroundColor)
@@ -427,6 +693,15 @@ class DrawingCanvasModel {
         gridType = GridType(rawValue: state.gridType) ?? .square
         zoomScale = state.zoomScale
         scrollOffset = state.scrollOffset
+
+        // DR-0006: Restore tool palette state
+        isRulerActive = state.isRulerActive
+        selectedToolType = DrawingToolType(rawValue: state.selectedToolType) ?? .pen
+        selectedColor = Color(hex: state.selectedColor)
+        selectedLineWidth = state.selectedLineWidth
+
+        // Update the actual tool with restored settings
+        updateTool()
     }
     
     // MARK: - macOS Native Drawing Support
@@ -434,8 +709,16 @@ class DrawingCanvasModel {
     /// Reference to the macOS canvas view (set by the view when created)
     #if os(macOS)
     weak var macosCanvasView: MacOSDrawingView?
+
+    /// DR-0004.3: Store strokes in the model to persist across view recreation
+    /// SwiftUI may recreate the NSView, so we store strokes here (not in the view)
+    var macOSStrokes: [DrawingStroke] = []
+
+    /// DR-0004.3: Pending stroke data to import when view is created
+    /// Stores stroke data that needs to be imported before the macOS view exists
+    var pendingStrokeData: Data?
     #endif
-    
+
     /// Called by macOS canvas to notify when strokes change
     func notifyStrokesChanged() {
         #if os(macOS)
@@ -478,7 +761,12 @@ enum GridType: String, CaseIterable, Identifiable {
 private struct DrawingToolbar: View {
     @Binding var canvasState: DrawingCanvasModel
     @Binding var scrollPosition: CGPoint
-    
+
+    // State for editing zoom percentage
+    @State private var isEditingZoom: Bool = false
+    @State private var zoomText: String = ""
+    @FocusState private var zoomFieldFocused: Bool
+
     private var canUndo: Bool {
         #if os(macOS)
         return canvasState.macosCanvasView?.canUndo() ?? false
@@ -486,7 +774,7 @@ private struct DrawingToolbar: View {
         return canvasState.canUndo
         #endif
     }
-    
+
     private var canRedo: Bool {
         #if os(macOS)
         return canvasState.macosCanvasView?.canRedo() ?? false
@@ -496,6 +784,25 @@ private struct DrawingToolbar: View {
     }
     
     var body: some View {
+        // DR-0009: Wrap toolbar in ScrollView on iOS for narrow screens
+        #if os(iOS)
+        ScrollView(.horizontal, showsIndicators: false) {
+            toolbarContent
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+        #else
+        toolbarContent
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
+        #endif
+    }
+
+    // MARK: - Toolbar Content
+
+    private var toolbarContent: some View {
         HStack(spacing: 16) {
             // Tool selection
             ForEach(DrawingToolType.allCases) { toolType in
@@ -560,7 +867,8 @@ private struct DrawingToolbar: View {
                     
                     Slider(value: $canvasState.selectedLineWidth, in: 1...20)
                         .frame(width: 100)
-                        .onChange(of: canvasState.selectedLineWidth) { _, _ in
+                        .onChange(of: canvasState.selectedLineWidth) { oldValue, newValue in
+                            print("[DR-0012] Slider changed from \(oldValue) to \(newValue)")
                             canvasState.updateTool()
                         }
                     
@@ -582,12 +890,35 @@ private struct DrawingToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .help("Zoom Out")
-                
-                Text("\(Int(canvasState.zoomScale * 100))%")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 50)
-                
+
+                // Editable zoom percentage
+                if isEditingZoom {
+                    TextField("", text: $zoomText)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .frame(width: 50)
+                        .textFieldStyle(.plain)
+                        .focused($zoomFieldFocused)
+                        .onSubmit {
+                            applyCustomZoom()
+                        }
+                        #if os(macOS)
+                        .onExitCommand {
+                            cancelZoomEdit()
+                        }
+                        #endif
+                } else {
+                    Text("\(Int(canvasState.zoomScale * 100))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 50)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            startZoomEdit()
+                        }
+                        .help("Click to enter custom zoom percentage")
+                }
+
                 Button(action: {
                     canvasState.zoomIn()
                 }) {
@@ -595,7 +926,7 @@ private struct DrawingToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .help("Zoom In")
-                
+
                 Button(action: {
                     canvasState.resetZoom()
                 }) {
@@ -607,8 +938,9 @@ private struct DrawingToolbar: View {
             
             Divider()
                 .frame(height: 24)
-            
-            // Ruler toggle
+
+            // DR-0007: Ruler toggle (iOS/iPadOS only - PencilKit feature)
+            #if canImport(PencilKit) && canImport(UIKit)
             Button(action: {
                 canvasState.isRulerActive.toggle()
             }) {
@@ -617,7 +949,11 @@ private struct DrawingToolbar: View {
             }
             .buttonStyle(.plain)
             .help("Toggle Ruler")
-            
+
+            Divider()
+                .frame(height: 24)
+            #endif
+
             // Grid toggle
             Button(action: {
                 canvasState.showGrid.toggle()
@@ -627,7 +963,17 @@ private struct DrawingToolbar: View {
             }
             .buttonStyle(.plain)
             .help("Toggle Grid")
-            
+
+            // Tool Palette toggle
+            Button(action: {
+                canvasState.toolPaletteState.toggleVisibility()
+            }) {
+                Image(systemName: "sidebar.right")
+                    .foregroundStyle(canvasState.toolPaletteState.isVisible ? .blue : .secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Toggle Tool Palette")
+
             Divider()
                 .frame(height: 24)
             
@@ -675,11 +1021,36 @@ private struct DrawingToolbar: View {
             .disabled(canvasState.isEmpty)
             .help("Clear Canvas")
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
     }
-    
+
+    // MARK: - Zoom Editing Helpers
+
+    private func startZoomEdit() {
+        zoomText = String(Int(canvasState.zoomScale * 100))
+        isEditingZoom = true
+        zoomFieldFocused = true
+    }
+
+    private func applyCustomZoom() {
+        // Parse the input text
+        let trimmed = zoomText.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "%", with: "")
+
+        if let percentage = Int(trimmed) {
+            // Clamp to valid range (25% to 400%)
+            let clampedPercentage = max(Int(canvasState.minZoomScale * 100), min(percentage, Int(canvasState.maxZoomScale * 100)))
+            canvasState.zoomScale = CGFloat(clampedPercentage) / 100.0
+        }
+
+        // Exit edit mode
+        isEditingZoom = false
+        zoomFieldFocused = false
+    }
+
+    private func cancelZoomEdit() {
+        isEditingZoom = false
+        zoomFieldFocused = false
+    }
+
     private var quickColors: [Color] {
         [.black, .gray, .red, .orange, .yellow, .green, .blue, .purple]
     }
@@ -713,18 +1084,30 @@ private struct PencilKitCanvasView: UIViewRepresentable {
         // Set content size
         canvasView.contentSize = canvasSize
 
+        // DR-0012: Log tool details on canvas creation
+        if let inkingTool = tool as? PKInkingTool {
+            print("[DR-0012] makeUIView - Created canvas with inking tool width: \(inkingTool.width)")
+        } else {
+            print("[DR-0012] makeUIView - Created canvas with non-inking tool: \(type(of: tool))")
+        }
+
         return canvasView
     }
     
     func updateUIView(_ canvasView: PKCanvasView, context: Context) {
         canvasView.tool = tool
         canvasView.isRulerActive = isRulerActive
-        
+
+        // DR-0012: Log tool details on update
+        if let inkingTool = tool as? PKInkingTool {
+            print("[DR-0012] updateUIView - Updated canvas tool width: \(inkingTool.width)")
+        }
+
         // Only update drawing if it's different (avoid infinite loop)
         if canvasView.drawing != drawing {
             canvasView.drawing = drawing
         }
-        
+
         // Update content size if it changed
         if canvasView.contentSize != canvasSize {
             canvasView.contentSize = canvasSize
@@ -878,19 +1261,109 @@ private struct ZoomableScrollView<Content: View>: UIViewRepresentable {
 // MARK: - macOS Scrollable Canvas Wrapper
 
 #if os(macOS)
-private struct MacOSScrollableCanvas: View {
+private struct MacOSScrollableCanvas: NSViewRepresentable {
     @Binding var canvasState: DrawingCanvasModel
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ScrollView([.horizontal, .vertical]) {
-                DrawingCanvasViewMacOS(canvasState: $canvasState)
-                    .frame(
-                        width: canvasState.canvasSize.width * canvasState.zoomScale,
-                        height: canvasState.canvasSize.height * canvasState.zoomScale
-                    )
-                    .scaleEffect(canvasState.zoomScale)
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = true
+        scrollView.autohidesScrollers = false
+        scrollView.borderType = .noBorder
+
+        // Create the canvas view
+        let canvasView = NSHostingView(rootView: DrawingCanvasViewMacOS(canvasState: $canvasState))
+        canvasView.frame = NSRect(
+            x: 0, y: 0,
+            width: canvasState.canvasSize.width * canvasState.zoomScale,
+            height: canvasState.canvasSize.height * canvasState.zoomScale
+        )
+
+        scrollView.documentView = canvasView
+        context.coordinator.canvasView = canvasView
+
+        // Set up notification for scroll changes
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.scrollViewDidScroll(_:)),
+            name: NSView.boundsDidChangeNotification,
+            object: scrollView.contentView
+        )
+
+        // DR-0006: Restore initial scroll position
+        if canvasState.scrollOffset != .zero {
+            scrollView.contentView.scroll(to: NSPoint(
+                x: canvasState.scrollOffset.x,
+                y: canvasState.scrollOffset.y
+            ))
+        }
+
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        // Update canvas size if changed
+        let newSize = NSSize(
+            width: canvasState.canvasSize.width * canvasState.zoomScale,
+            height: canvasState.canvasSize.height * canvasState.zoomScale
+        )
+
+        if let canvasView = context.coordinator.canvasView {
+            if canvasView.frame.size != newSize {
+                canvasView.frame.size = newSize
             }
+            // Update the SwiftUI content
+            canvasView.rootView = DrawingCanvasViewMacOS(canvasState: $canvasState)
+        }
+
+        // DR-0006: Apply external scroll position changes (e.g., after restore)
+        let currentOffset = scrollView.contentView.bounds.origin
+        if distance(currentOffset, canvasState.scrollOffset) > 0.5 {
+            scrollView.contentView.scroll(to: NSPoint(
+                x: canvasState.scrollOffset.x,
+                y: canvasState.scrollOffset.y
+            ))
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(canvasState: $canvasState)
+    }
+
+    private func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat {
+        let dx = a.x - b.x
+        let dy = a.y - b.y
+        return sqrt(dx*dx + dy*dy)
+    }
+
+    class Coordinator: NSObject {
+        @Binding var canvasState: DrawingCanvasModel
+        weak var canvasView: NSHostingView<DrawingCanvasViewMacOS>?
+
+        init(canvasState: Binding<DrawingCanvasModel>) {
+            self._canvasState = canvasState
+        }
+
+        @objc func scrollViewDidScroll(_ notification: Notification) {
+            guard let clipView = notification.object as? NSClipView else { return }
+            let newOffset = clipView.bounds.origin
+
+            // Only update if significantly different to avoid feedback loops
+            if distance(canvasState.scrollOffset, CGPoint(x: newOffset.x, y: newOffset.y)) > 0.5 {
+                DispatchQueue.main.async {
+                    self.canvasState.scrollOffset = CGPoint(x: newOffset.x, y: newOffset.y)
+                }
+            }
+        }
+
+        private func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat {
+            let dx = a.x - b.x
+            let dy = a.y - b.y
+            return sqrt(dx*dx + dy*dy)
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(self)
         }
     }
 }
@@ -980,6 +1453,15 @@ struct CanvasStateData: Codable {
     let gridType: String
     let zoomScale: CGFloat
     let scrollOffset: CGPoint
+
+    // DR-0006: Tool palette state
+    let isRulerActive: Bool
+    let selectedToolType: String // DrawingToolType.rawValue
+    let selectedColor: String // Color hex
+    let selectedLineWidth: CGFloat
+
+    // DR-0008: Layer manager state
+    let layerManagerData: Data? // Encoded LayerManager
 }
 
 // MARK: - Color Hex Extensions

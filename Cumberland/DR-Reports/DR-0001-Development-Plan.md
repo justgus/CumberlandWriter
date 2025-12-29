@@ -260,17 +260,17 @@ selectedTool = PKInkingTool(pkColor, color: selectedColor.toPencilKitColor(), wi
 
 **Testing Checklist:**
 
-- [ ] Test black color drawing on iPadOS device
-- [ ] Verify black draws black (not white)
-- [ ] Test all other color swatches (gray, red, orange, yellow, green, blue, purple)
-- [ ] Test custom colors from color picker
-- [ ] Test in light mode
-- [ ] Test in dark mode
-- [ ] Test with Apple Pencil input
-- [ ] Test with finger input
-- [ ] Verify draft save/restore preserves colors
+- [✅] Test black color drawing on iPadOS device
+- [✅] Verify black draws black (not white)
+- [✅] Test all other color swatches (gray, red, orange, yellow, green, blue, purple)
+- [✅] Test custom colors from color picker
+- [✅] Test in light mode
+- [✅] Test in dark mode
+- [✅] Test with Apple Pencil input
+- [✅] Test with finger input
+- [✅] Verify draft save/restore preserves colors
 - [ ] Verify no regression on macOS
-- [ ] Test in MapWizard "Draw" mode
-- [ ] Test in MapWizard "Interior" mode
+- [✅] Test in MapWizard "Draw" mode
+- [✅] Test in MapWizard "Interior" mode
 
 **Build Status:** ⚠️ Not yet compiled/tested on device

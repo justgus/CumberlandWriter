@@ -84,6 +84,7 @@ struct MapWizardView: View {
     
     // MARK: - Auto-save Timer
     @State private var autoSaveTimer: Timer?
+    @State private var debounceSaveTask: Task<Void, Never>?
     
     var body: some View {
         normalWizardView
@@ -864,8 +865,8 @@ struct MapWizardView: View {
                 .padding()
         }
         .onChange(of: drawingCanvasModel.drawing) { _, _ in
-            // Trigger auto-save when drawing changes
-            startAutoSaveIfNeeded()
+            // DR-0013: Trigger immediate debounced save when drawing changes
+            debouncedSave()
         }
     }
     
@@ -974,8 +975,8 @@ struct MapWizardView: View {
                 .padding()
         }
         .onChange(of: drawingCanvasModel.drawing) { _, _ in
-            // Trigger auto-save when drawing changes
-            startAutoSaveIfNeeded()
+            // DR-0013: Trigger immediate debounced save when drawing changes
+            debouncedSave()
         }
     }
     
@@ -1536,11 +1537,15 @@ struct MapWizardView: View {
         switch method {
         case .draw, .interior:
             // Restore drawing canvas state
+            guard !draftData.isEmpty else {
+                print("⚠️ Canvas state data is empty, skipping restore")
+                break
+            }
             do {
                 try drawingCanvasModel.importCanvasState(draftData)
                 print("✅ Restored drawing canvas state")
             } catch {
-                print("❌ Failed to restore canvas state: \(error)")
+                print("⚠️ Failed to restore canvas state (data may be corrupted): \(error)")
             }
             
         case .importImage:
@@ -1616,6 +1621,34 @@ struct MapWizardView: View {
     private func stopAutoSave() {
         autoSaveTimer?.invalidate()
         autoSaveTimer = nil
+        debounceSaveTask?.cancel()
+        debounceSaveTask = nil
+    }
+
+    /// DR-0013: Debounced save - saves 2 seconds after last drawing change
+    private func debouncedSave() {
+        // Cancel any pending save
+        debounceSaveTask?.cancel()
+
+        // Schedule new save after 2 second delay
+        debounceSaveTask = Task {
+            do {
+                try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                guard !Task.isCancelled else { return }
+
+                await MainActor.run {
+                    print("[DEBOUNCE] Drawing changed - triggering save")
+                    Task {
+                        await autoSaveDraftWork()
+                    }
+                }
+            } catch {
+                // Task was cancelled, ignore
+            }
+        }
+
+        // Also ensure the periodic timer is running
+        startAutoSaveIfNeeded()
     }
     
     /// Auto-save current work as draft
@@ -1636,8 +1669,10 @@ struct MapWizardView: View {
         switch method {
         case .draw, .interior:
             // Save complete canvas state
+            print("[SAVE] autoSaveDraftWork - Exporting canvas state for \(method)")
             draftData = drawingCanvasModel.exportCanvasState()
-            
+            print("[SAVE] Got \(draftData?.count ?? 0) bytes of canvas state")
+
         case .importImage:
             // Save the imported image data
             draftData = importedImageData
@@ -1662,8 +1697,21 @@ struct MapWizardView: View {
         }
         
         if let data = draftData, !data.isEmpty {
+            print("[SAVE] Persisting \(data.count) bytes to card as draft")
             card.saveDraftMapWork(data, method: method.rawValue, wizardStep: currentStep.rawValue)
-            try? modelContext.save()
+
+            // DR-0010: Properly handle save errors to diagnose CloudKit sync issues
+            do {
+                try modelContext.save()
+                print("[SAVE] ✅ Draft saved successfully to local store")
+                print("[SAVE] 📡 CloudKit will sync in background (if enabled)")
+            } catch {
+                print("[SAVE] ❌ Failed to save draft: \(error)")
+                print("[SAVE] ⚠️ Draft data will NOT sync to other devices")
+                // Don't throw - allow app to continue but log the failure
+            }
+        } else {
+            print("[SAVE] ⚠️ No data to save (draftData is nil or empty)")
         }
     }
     

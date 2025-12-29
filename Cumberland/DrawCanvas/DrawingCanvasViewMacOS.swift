@@ -15,19 +15,24 @@ import AppKit
 /// A native macOS drawing canvas using NSView for mouse/trackpad input
 struct DrawingCanvasViewMacOS: NSViewRepresentable {
     @Binding var canvasState: DrawingCanvasModel
-    
+
     func makeNSView(context: Context) -> MacOSDrawingView {
         let view = MacOSDrawingView()
         view.canvasModel = canvasState
-        
+        view.zoomScale = canvasState.zoomScale  // DR-0004: Pass zoom scale for coordinate transformation
+
         // Connect the view to the model
         canvasState.macosCanvasView = view
-        
+
+        // DR-0004.3: Strokes are now in the model, view will render them automatically
+        print("[DR-0004.3] makeNSView called, model has \(canvasState.macOSStrokes.count) strokes")
+
         return view
     }
-    
+
     func updateNSView(_ nsView: MacOSDrawingView, context: Context) {
         nsView.canvasModel = canvasState
+        nsView.zoomScale = canvasState.zoomScale  // DR-0004: Update zoom scale
         nsView.needsDisplay = true
     }
 }
@@ -36,13 +41,18 @@ struct DrawingCanvasViewMacOS: NSViewRepresentable {
 
 class MacOSDrawingView: NSView {
     var canvasModel: DrawingCanvasModel?
-    
+
+    // DR-0004: Zoom scale for coordinate transformation
+    // When the view is scaled with .scaleEffect(), mouse coordinates arrive in scaled space
+    // We divide by zoomScale to convert back to unscaled canvas coordinates
+    var zoomScale: CGFloat = 1.0
+
     // Current stroke being drawn (using a temporary structure for active drawing)
     private var currentStroke: MacOSDrawingStroke?
-    
-    // All completed strokes
-    private var strokes: [DrawingStroke] = []
-    
+
+    // DR-0004.3: Strokes are now stored in the model, not here
+    // This view reads/writes to canvasModel.macOSStrokes
+
     // Undo stack
     private var undoStack: [[DrawingStroke]] = []
     private var redoStack: [[DrawingStroke]] = []
@@ -68,45 +78,49 @@ class MacOSDrawingView: NSView {
     
     override func mouseDown(with event: NSEvent) {
         guard let model = canvasModel else { return }
-        
+
+        // DR-0004.2: With .scaleEffect(anchor: .topLeading), coordinate conversion
+        // already accounts for the transform, so no manual adjustment needed
         let location = convert(event.locationInWindow, from: nil)
-        
+
         // Save state for undo
         pushUndoState()
-        
+
         // Start new stroke
         let color = NSColor(model.selectedColor)
         let lineWidth = model.selectedLineWidth
-        
+
         currentStroke = MacOSDrawingStroke(
             points: [location],
             color: color,
             lineWidth: lineWidth,
             toolType: model.selectedToolType
         )
-        
+
         needsDisplay = true
     }
     
     override func mouseDragged(with event: NSEvent) {
+        // DR-0004.2: With .scaleEffect(anchor: .topLeading), coordinate conversion
+        // already accounts for the transform, so no manual adjustment needed
         let location = convert(event.locationInWindow, from: nil)
-        
+
         // Add point to current stroke
         currentStroke?.points.append(location)
-        
+
         needsDisplay = true
     }
     
     override func mouseUp(with event: NSEvent) {
         // Finalize stroke
-        if let stroke = currentStroke {
+        if let stroke = currentStroke, let model = canvasModel {
             // Convert to codable DrawingStroke
             var r: CGFloat = 0
             var g: CGFloat = 0
             var b: CGFloat = 0
             var a: CGFloat = 0
             stroke.color.getRed(&r, green: &g, blue: &b, alpha: &a)
-            
+
             let codableStroke = DrawingStroke(
                 points: stroke.points.map { CGPointCodable(x: $0.x, y: $0.y) },
                 colorRed: r,
@@ -116,15 +130,14 @@ class MacOSDrawingView: NSView {
                 lineWidth: stroke.lineWidth,
                 toolType: stroke.toolType.rawValue
             )
-            
-            strokes.append(codableStroke)
+
+            // DR-0004.3: Store stroke in model (persists across view recreation)
+            model.macOSStrokes.append(codableStroke)
+            model.hasStrokes = !model.macOSStrokes.isEmpty
             currentStroke = nil
         }
-        
+
         needsDisplay = true
-        
-        // Update model's isEmpty state
-        canvasModel?.hasStrokes = !strokes.isEmpty
     }
     
     // MARK: - Drawing
@@ -134,24 +147,37 @@ class MacOSDrawingView: NSView {
         
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         
-        // Draw background
+        // 1. Draw background
         if let bgColor = canvasModel?.backgroundColor {
             NSColor(bgColor).setFill()
         } else {
             NSColor.white.setFill()
         }
         context.fill(bounds)
-        
-        // Draw grid if enabled
+
+        // 2. Draw base layer fill (if exists)
+        if let baseLayer = canvasModel?.layerManager?.baseLayer,
+           let fill = baseLayer.layerFill {
+            let fillColor = fill.effectiveColor
+            let nsColor = NSColor(fillColor)
+            nsColor.setFill()
+            context.setAlpha(fill.opacity)
+            context.fill(bounds)
+            context.setAlpha(1.0) // Reset alpha
+        }
+
+        // 3. Draw grid if enabled
         if let model = canvasModel, model.showGrid {
             drawGrid(in: context, spacing: model.gridSpacing, color: NSColor(model.gridColor))
         }
-        
-        // Draw all completed strokes
-        for stroke in strokes {
-            drawStroke(stroke, in: context)
+
+        // DR-0004.3: Draw all completed strokes from model
+        if let model = canvasModel {
+            for stroke in model.macOSStrokes {
+                drawStroke(stroke, in: context)
+            }
         }
-        
+
         // Draw current stroke being created
         if let stroke = currentStroke {
             drawCurrentStroke(stroke, in: context)
@@ -314,35 +340,36 @@ class MacOSDrawingView: NSView {
     }
     
     // MARK: - Undo/Redo
-    
+
     private func pushUndoState() {
-        undoStack.append(strokes)
+        guard let model = canvasModel else { return }
+        undoStack.append(model.macOSStrokes)
         redoStack.removeAll() // Clear redo stack when new action is performed
-        
+
         // Limit undo stack size
         if undoStack.count > 50 {
             undoStack.removeFirst()
         }
     }
-    
+
     func undo() {
-        guard !undoStack.isEmpty else { return }
-        
-        redoStack.append(strokes)
-        strokes = undoStack.removeLast()
-        
+        guard !undoStack.isEmpty, let model = canvasModel else { return }
+
+        redoStack.append(model.macOSStrokes)
+        model.macOSStrokes = undoStack.removeLast()
+
         needsDisplay = true
-        canvasModel?.hasStrokes = !strokes.isEmpty
+        model.hasStrokes = !model.macOSStrokes.isEmpty
     }
-    
+
     func redo() {
-        guard !redoStack.isEmpty else { return }
-        
-        undoStack.append(strokes)
-        strokes = redoStack.removeLast()
-        
+        guard !redoStack.isEmpty, let model = canvasModel else { return }
+
+        undoStack.append(model.macOSStrokes)
+        model.macOSStrokes = redoStack.removeLast()
+
         needsDisplay = true
-        canvasModel?.hasStrokes = !strokes.isEmpty
+        model.hasStrokes = !model.macOSStrokes.isEmpty
     }
     
     func canUndo() -> Bool {
@@ -354,15 +381,16 @@ class MacOSDrawingView: NSView {
     }
     
     func clear() {
+        guard let model = canvasModel else { return }
         pushUndoState()
-        strokes.removeAll()
+        model.macOSStrokes.removeAll()
         currentStroke = nil
         needsDisplay = true
-        canvasModel?.hasStrokes = false
+        model.hasStrokes = false
     }
-    
+
     func isEmpty() -> Bool {
-        strokes.isEmpty
+        canvasModel?.macOSStrokes.isEmpty ?? true
     }
     
     // MARK: - Export
@@ -406,37 +434,60 @@ class MacOSDrawingView: NSView {
         return bitmapRep.representation(using: .png, properties: [:])
     }
     
+    // DR-0004.3: Export is now handled by the model
+    // This method is kept for compatibility but delegates to model
     func exportStrokes() -> Data {
+        guard let model = canvasModel else { return Data() }
+        print("[EXPORT] exportStrokes called - reading from model: \(model.macOSStrokes.count) strokes")
         let encoder = JSONEncoder()
-        return (try? encoder.encode(strokes)) ?? Data()
+        let data = (try? encoder.encode(model.macOSStrokes)) ?? Data()
+        print("[EXPORT] Encoded \(model.macOSStrokes.count) strokes into \(data.count) bytes")
+        return data
     }
-    
+
+    // DR-0004.3: Import is now handled by the model
+    // This method is kept for compatibility but delegates to model
     func importStrokes(from data: Data) {
+        guard let model = canvasModel else { return }
+        print("[DR-0004.3] importStrokes called with \(data.count) bytes")
         let decoder = JSONDecoder()
-        guard let importedStrokes = try? decoder.decode([DrawingStroke].self, from: data) else { return }
-        
+        guard let importedStrokes = try? decoder.decode([DrawingStroke].self, from: data) else {
+            print("[DR-0004.3] ❌ Failed to decode strokes from data")
+            return
+        }
+
+        print("[DR-0004.3] Successfully decoded \(importedStrokes.count) strokes into model")
         pushUndoState()
-        strokes = importedStrokes
+        model.macOSStrokes = importedStrokes
+        model.hasStrokes = !model.macOSStrokes.isEmpty
         needsDisplay = true
-        canvasModel?.hasStrokes = !strokes.isEmpty
+        print("[DR-0004.3] ✅ Imported \(importedStrokes.count) strokes, hasStrokes: \(!model.macOSStrokes.isEmpty)")
+    }
+
+    /// DR-0004.3: Reload strokes from model (called when model is updated externally)
+    func reloadFromModel() {
+        print("[DR-0004.3] reloadFromModel called")
+        needsDisplay = true
     }
     
     /// Import a PNG image as a background layer for the canvas
     func importPNGAsBackground(from pngData: Data) {
+        guard let model = canvasModel else { return }
+        
         // For now, we'll treat this as clearing the canvas and allowing the user to draw over it
         // In a more sophisticated implementation, you could create a background image layer
         // that sits behind all strokes
         
         // Clear existing strokes first
         pushUndoState()
-        strokes.removeAll()
+        model.macOSStrokes.removeAll()
         
         // The PNG becomes the background - we'd need to store it separately
         // and render it in draw(_:) before drawing strokes
         // For simplicity, we're just clearing to allow fresh drawing
         
         needsDisplay = true
-        canvasModel?.hasStrokes = false
+        model.hasStrokes = false
     }
 }
 

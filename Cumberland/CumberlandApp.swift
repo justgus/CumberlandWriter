@@ -35,9 +35,8 @@ struct CumberlandApp: App {
 
         // TEMPORARY: Nuclear option for development - delete ALL SwiftData stores
         #if DEBUG
-        let deleteCorruptedStores = true // Set to false once migration issues are resolved
-        
-        if deleteCorruptedStores {
+        // Set to true to force deletion of all SwiftData stores on next launch
+        if false { // Set to true once if migration issues arise
             let fm = FileManager.default
             
             guard let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
@@ -105,18 +104,13 @@ struct CumberlandApp: App {
         }
         #endif
 
-        // Use the latest versioned schema and the migration plan.
-        // TEMPORARY: Disable CloudKit until Development Environment is reset
-        #if DEBUG
-        // CloudKit disabled for development. Enable after resetting CloudKit Development Environment.
-        logger.warning("CloudKit disabled for development. Enable after resetting CloudKit Development Environment.")
-        #else
-        // 1) Try CloudKit-backed configuration first (production builds only).
+        // Use the latest schema. CloudKit handles migrations itself.
+        // CloudKit enabled after Development Environment reset
+        // 1) Try CloudKit-backed configuration first.
         do {
             let cloudConfig = ModelConfiguration("iCloud.CumberlandCloud")
             let container = try ModelContainer(
                 for: schema,
-                migrationPlan: AppMigrations.self,
                 configurations: [cloudConfig]
             )
             logger.info("SwiftData ModelContainer initialized with CloudKit.")
@@ -124,14 +118,12 @@ struct CumberlandApp: App {
         } catch {
             logger.error("CloudKit ModelContainer initialization failed: \(String(describing: error))")
         }
-        #endif
 
         // 2) Fall back to a local on-disk store (no CloudKit).
         do {
             let localConfig = ModelConfiguration() // default on-disk location
             let container = try ModelContainer(
                 for: schema,
-                migrationPlan: AppMigrations.self,
                 configurations: [localConfig]
             )
             logger.warning("Using local on-disk SwiftData store (CloudKit unavailable).")
@@ -145,7 +137,6 @@ struct CumberlandApp: App {
             let memoryConfig = ModelConfiguration(isStoredInMemoryOnly: true)
             let container = try ModelContainer(
                 for: schema,
-                migrationPlan: AppMigrations.self,
                 configurations: [memoryConfig]
             )
             logger.warning("Using in-memory SwiftData store as a fallback.")

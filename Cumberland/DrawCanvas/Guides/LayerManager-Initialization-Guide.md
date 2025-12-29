@@ -22,12 +22,15 @@ The `DrawingCanvasView` automatically calls `ensureLayerManager()` when it appea
 ### What `ensureLayerManager()` Does
 
 1. **Checks if LayerManager exists** - If it already exists, does nothing
-2. **Creates LayerManager** - If missing, creates a new one with a default base layer
+2. **Creates LayerManager with two layers**:
+   - **Base Layer** (order 0) - Reserved for fills only, no drawing content
+   - **Content Layer** (order 1) - For all drawing content (active by default)
 3. **Migrates existing content** - If there's existing drawing data:
-   - **iOS/iPadOS**: Moves `drawing: PKDrawing` to base layer
-   - **macOS**: Moves `macOSStrokes` to base layer
-   - Names it "Base Layer (Migrated)"
+   - **iOS/iPadOS**: Moves `drawing: PKDrawing` to Content layer (NOT base layer)
+   - **macOS**: Moves `macOSStrokes` to Content layer (NOT base layer)
+   - Names it "Content (Migrated)"
    - Clears old stroke data (macOS only)
+   - **Critical**: Content always appears ABOVE the base layer so fills appear behind it
 
 ### Scenarios Handled Automatically
 
@@ -36,8 +39,10 @@ The `DrawingCanvasView` automatically calls `ensureLayerManager()` when it appea
 // User creates a new drawing
 let model = DrawingCanvasModel()
 // DrawingCanvasView appears
-// → ensureLayerManager() creates LayerManager with empty base layer
-// → Ready to use!
+// → ensureLayerManager() creates LayerManager with:
+//    - Base Layer (order 0) - empty, for fills
+//    - Content layer (order 1) - active, for drawing
+// → Ready to draw! Content layer is active by default
 ```
 
 #### Scenario 2: Existing Drawing (Pre-Layer System)
@@ -47,9 +52,11 @@ let model = loadDrawing(id: "old-map")
 // model.drawing has content
 // model.layerManager == nil
 // DrawingCanvasView appears
-// → ensureLayerManager() creates LayerManager
-// → Migrates existing drawing to base layer
-// → User can now apply fills and use layers!
+// → ensureLayerManager() creates LayerManager with:
+//    - Base Layer (order 0) - empty, for fills
+//    - Content layer (order 1) - contains migrated drawing
+// → Existing content preserved and visible!
+// → User can now apply fills (appear behind content) and use layers!
 ```
 
 #### Scenario 3: Drawing with LayerManager Already
@@ -199,6 +206,34 @@ class Card {
 
 ## Migration Details
 
+### Critical Design Decision: Two-Layer Structure
+
+**Why Base Layer is Separate from Content:**
+
+The initialization system creates **two layers** instead of one to ensure proper separation of concerns:
+
+1. **Base Layer (order 0)**:
+   - Purpose: Background fills only (terrain, floor types)
+   - No drawing content ever placed here
+   - User applies fills via the Base Layer button
+   - Renders behind all other layers
+
+2. **Content Layer (order 1)**:
+   - Purpose: All drawing content (pen strokes, existing drawings)
+   - Active by default for new pen input
+   - Existing content migrated here (NOT to base layer)
+   - Renders on top of base layer
+
+**Why this matters:**
+- Fills appear **behind** user drawings (correct visual layering)
+- Existing content is preserved and visible when fills are applied
+- Base layer remains clean for fill-only operations
+- Content layer is ready for immediate drawing
+
+**Previous Incorrect Behavior (Fixed):**
+- ❌ Old version migrated content to base layer → fills couldn't appear behind content
+- ✅ New version migrates content to Content layer → fills correctly appear behind
+
 ### iOS/iPadOS (PencilKit)
 
 **Before Migration:**
@@ -216,11 +251,17 @@ DrawingCanvasModel {
     layerManager: LayerManager {
         layers: [
             DrawingLayer(order: 0) {
-                name: "Base Layer (Migrated)"
-                drawing: PKDrawing (copy of content)
+                name: "Base Layer"
+                drawing: PKDrawing (empty - for fills only)
+                layerFill: nil
+            },
+            DrawingLayer(order: 1) {
+                name: "Content (Migrated)"
+                drawing: PKDrawing (copy of existing content)
                 layerFill: nil
             }
         ]
+        activeLayerID: <Content layer ID>  // Content layer is active
     }
 }
 ```
@@ -238,20 +279,26 @@ DrawingCanvasModel {
 **After Migration:**
 ```swift
 DrawingCanvasModel {
-    macOSStrokes: [] (CLEARED - moved to layer)
+    macOSStrokes: [] (CLEARED - moved to Content layer)
     layerManager: LayerManager {
         layers: [
             DrawingLayer(order: 0) {
-                name: "Base Layer (Migrated)"
-                macosStrokes: [DrawingStroke] (moved here)
+                name: "Base Layer"
+                macosStrokes: [] (empty - for fills only)
+                layerFill: nil
+            },
+            DrawingLayer(order: 1) {
+                name: "Content (Migrated)"
+                macosStrokes: [DrawingStroke] (moved here from old array)
                 layerFill: nil
             }
         ]
+        activeLayerID: <Content layer ID>  // Content layer is active
     }
 }
 ```
 
-**Important:** On macOS, the old `macOSStrokes` array is cleared because the strokes are now managed by the LayerManager. This prevents duplication in rendering.
+**Important:** On macOS, the old `macOSStrokes` array is cleared because the strokes are now managed by the Content layer in the LayerManager. This prevents duplication in rendering. The Base Layer (order 0) is reserved for fills only and contains no strokes.
 
 ---
 
@@ -261,17 +308,23 @@ DrawingCanvasModel {
 1. Create a new drawing (doesn't matter how)
 2. Open it in DrawingCanvasView
 3. Check: `model.layerManager` should exist
-4. Check: Base layer should be empty
-5. Apply a fill → Should work immediately
+4. Check: LayerManager has 2 layers:
+   - Base Layer (order 0) - empty, for fills
+   - Content layer (order 1) - empty, active
+5. Draw something → Should appear on Content layer
+6. Apply a fill → Should appear on Base layer, behind drawing ✓
 
 ### Test Case 2: Old Drawing with Content
 1. Load a drawing created before layer system
 2. It has `drawing.bounds.isEmpty == false` or `macOSStrokes.count > 0`
 3. Open it in DrawingCanvasView
 4. Check: `model.layerManager` should exist
-5. Check: Base layer named "Base Layer (Migrated)"
-6. Check: Content visible on canvas
-7. Apply a fill → Fill appears behind existing content ✓
+5. Check: LayerManager has 2 layers:
+   - Base Layer (order 0) - empty, for fills
+   - Content layer (order 1) - named "Content (Migrated)", contains existing content
+6. Check: Existing content visible on canvas
+7. Apply a fill → Fill appears on Base layer, behind existing content ✓
+8. Draw new content → Appears on active Content layer ✓
 
 ### Test Case 3: Drawing with Layers Already
 1. Load a recent drawing with LayerManager

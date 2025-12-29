@@ -51,7 +51,12 @@ class DrawingLayer: Identifiable, Codable {
     
     /// macOS native strokes
     var macosStrokes: [DrawingStroke]
-    
+
+    // MARK: - Base Layer Fill
+
+    /// Optional fill for base layers (typically order == 0)
+    var layerFill: LayerFill?
+
     // MARK: - Metadata
     
     var createdAt: Date
@@ -104,6 +109,19 @@ class DrawingLayer: Identifiable, Codable {
     func markModified() {
         modifiedAt = Date()
     }
+
+    // MARK: - Base Layer Helpers
+
+    /// Whether this layer is the base layer (order == 0)
+    var isBaseLayer: Bool {
+        order == 0
+    }
+
+    /// Apply a fill to this layer
+    func applyFill(_ fill: LayerFill?) {
+        self.layerFill = fill
+        markModified()
+    }
     
     // MARK: - Codable
     
@@ -118,6 +136,7 @@ class DrawingLayer: Identifiable, Codable {
         case layerType
         case drawingData
         case macosStrokesData
+        case layerFill
         case createdAt
         case modifiedAt
     }
@@ -133,6 +152,7 @@ class DrawingLayer: Identifiable, Codable {
         opacity = try container.decode(CGFloat.self, forKey: .opacity)
         blendMode = try container.decode(LayerBlendMode.self, forKey: .blendMode)
         layerType = try container.decode(LayerType.self, forKey: .layerType)
+        layerFill = try? container.decode(LayerFill.self, forKey: .layerFill)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         modifiedAt = try container.decode(Date.self, forKey: .modifiedAt)
         
@@ -165,6 +185,7 @@ class DrawingLayer: Identifiable, Codable {
         try container.encode(opacity, forKey: .opacity)
         try container.encode(blendMode, forKey: .blendMode)
         try container.encode(layerType, forKey: .layerType)
+        try container.encodeIfPresent(layerFill, forKey: .layerFill)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(modifiedAt, forKey: .modifiedAt)
         

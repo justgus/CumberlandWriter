@@ -58,7 +58,41 @@ class LayerManager: Codable {
     var allLayersEmpty: Bool {
         layers.allSatisfy { $0.isEmpty }
     }
-    
+
+    /// The base layer (layer at order 0)
+    var baseLayer: DrawingLayer? {
+        layers.first { $0.order == 0 }
+    }
+
+    /// Inferred map context based on layer types
+    var inferredMapContext: MapContext {
+        // Check if we have any interior-specific layers
+        let hasInteriorLayers = layers.contains { layer in
+            [.walls, .features, .furniture].contains(layer.layerType)
+        }
+        // Check if we have exterior layers
+        let hasExteriorLayers = layers.contains { layer in
+            [.terrain, .water, .vegetation, .roads].contains(layer.layerType)
+        }
+
+        if hasInteriorLayers { return .dungeon }
+        if hasExteriorLayers { return .world }
+        return .all
+    }
+
+    /// Available fill types based on inferred map context
+    var availableFillTypes: [BaseLayerFillType] {
+        let context = inferredMapContext
+        switch context {
+        case .world:
+            return BaseLayerFillType.allCases.filter { $0.category == .exterior }
+        case .dungeon, .building:
+            return BaseLayerFillType.allCases.filter { $0.category == .interior }
+        case .all, .battle:
+            return BaseLayerFillType.allCases
+        }
+    }
+
     // MARK: - Initialization
     
     init() {
@@ -387,7 +421,28 @@ class LayerManager: Codable {
         layer.name = newName
         layer.markModified()
     }
-    
+
+    // MARK: - Base Layer Fill
+
+    /// Apply a fill to the base layer (creates base layer if needed)
+    func applyFillToBaseLayer(_ fill: LayerFill?) {
+        if let base = baseLayer {
+            base.applyFill(fill)
+        } else {
+            // Create base layer if it doesn't exist
+            let base = DrawingLayer(name: "Base Layer", order: 0, layerType: .terrain)
+            layers.append(base)
+            base.applyFill(fill)
+            // Make it the active layer
+            activeLayerID = base.id
+        }
+    }
+
+    /// Get the current fill on the base layer
+    var baseLayerFill: LayerFill? {
+        baseLayer?.layerFill
+    }
+
     // MARK: - Layer Selection
     
     /// Select/activate a layer
