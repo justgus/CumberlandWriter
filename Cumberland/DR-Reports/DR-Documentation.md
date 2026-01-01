@@ -1,6 +1,12 @@
 # Discrepancy Reports (DR) - Index
 
-This is the main index for all Cumberland Discrepancy Reports. DRs are organized into separate files for easier navigation and maintenance.
+This is the main index for all Cumberland Discrepancy Reports. DRs track bugs and unintended system behavior.
+
+> **Note:** For planned improvements and new features, see [Enhancement Requests (ER)](./ER-Documentation.md)
+>
+> **Overview of both systems:** [README.md](./README.md)
+
+DRs are organized into separate files for easier navigation and maintenance.
 
 ## Organization
 
