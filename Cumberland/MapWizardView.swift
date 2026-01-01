@@ -27,9 +27,10 @@ struct MapWizardView: View {
     @Environment(\.colorScheme) private var colorScheme
     
     // MARK: - Wizard State
-    
+
     /// Current step in the map creation/editing flow
-    @State private var currentStep: WizardStep = .welcome
+    // DR-0017: Start directly at method selection (Welcome step removed as redundant)
+    @State private var currentStep: WizardStep = .selectMethod
     
     // MARK: - Focus Mode State
     
@@ -52,7 +53,11 @@ struct MapWizardView: View {
     // Interior-specific UI state (UI-only; drawing still uses DrawingCanvasModel)
     @State private var interiorUnits: InteriorUnits = .feet
     @State private var interiorSnapToGrid: Bool = true
-    
+
+    // MARK: - Terrain/Base Layer State (DR-0016)
+    @State private var selectedBaseLayerType: BaseLayerFillType?
+    @State private var terrainMapSizeMiles: Double = 100.0 // Default to medium scale
+
     // MARK: - Maps Integration State
     @State private var mapCameraPosition: MapCameraPosition = .automatic
     @State private var currentMapRegion: MKCoordinateRegion = MKCoordinateRegion(
@@ -304,8 +309,7 @@ struct MapWizardView: View {
     @ViewBuilder
     private var stepContentView: some View {
         switch currentStep {
-        case .welcome:
-            welcomeStepView
+        // DR-0017: Welcome step removed (merged with Select Method)
         case .selectMethod:
             methodSelectionView
         case .configure:
@@ -315,83 +319,65 @@ struct MapWizardView: View {
         }
     }
     
-    // MARK: - Welcome Step
-    
-    private var welcomeStepView: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "map.circle.fill")
-                .font(.system(size: 80))
-                .foregroundStyle(.blue.gradient)
-            
-            Text("Welcome to the Map Wizard")
-                .font(.title)
-                .bold()
-            
-            Text("Create or edit a map for **\(card.name)**")
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            
-            VStack(alignment: .leading, spacing: 12) {
-                Text("You can:")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                
-                FeatureRow(icon: "photo.on.rectangle", title: "Import an Image", description: "Use an existing map image from your library or files")
-                FeatureRow(icon: "pencil.and.scribble", title: "Draw a Map", description: "Create a custom map using drawing tools")
-                FeatureRow(icon: "square.grid.3x3", title: "Interior/Architectural", description: "Floorplans, dungeons, caverns with grid presets")
-                FeatureRow(icon: "map", title: "Capture from Maps", description: "Import a location from Apple Maps")
-                FeatureRow(icon: "wand.and.stars", title: "AI-Assisted Generation", description: "Describe your map and let AI help create it")
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.ultraThinMaterial)
-            )
-        }
-        .frame(maxWidth: 600)
-    }
-    
     // MARK: - Method Selection Step
-    
-    private var methodSelectionView: some View {
-        VStack(spacing: 20) {
-            Text("How would you like to create your map?")
-                .font(.title2)
-                .bold()
-            
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200))], spacing: 16) {
-                MethodCard(
-                    method: .importImage,
-                    isSelected: selectedMethod == .importImage,
-                    action: { selectedMethod = .importImage }
-                )
-                
-                MethodCard(
-                    method: .draw,
-                    isSelected: selectedMethod == .draw,
-                    action: { selectedMethod = .draw }
-                )
-                
-                MethodCard(
-                    method: .interior,
-                    isSelected: selectedMethod == .interior,
-                    action: { selectedMethod = .interior }
-                )
 
-                MethodCard(
-                    method: .captureFromMaps,
-                    isSelected: selectedMethod == .captureFromMaps,
-                    action: { selectedMethod = .captureFromMaps }
-                )
-                
-                MethodCard(
-                    method: .aiGenerate,
-                    isSelected: selectedMethod == .aiGenerate,
-                    action: { selectedMethod = .aiGenerate }
-                )
-            } //end lazyvgrid
-        } //end VStack
+    private var methodSelectionView: some View {
+        VStack(spacing: 24) {
+            // DR-0017: Welcome message merged with method selection
+            VStack(spacing: 12) {
+                Text("Welcome to Cumberland Map Creator")
+                    .font(.title)
+                    .bold()
+
+                Text("Create beautiful, professional maps for your tabletop RPG campaigns, worldbuilding projects, or storytelling adventures.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 600)
+
+                Divider()
+                    .padding(.vertical, 8)
+            }
+
+            // Method selection
+            VStack(spacing: 16) {
+                Text("How would you like to create your map?")
+                    .font(.title2)
+                    .bold()
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200))], spacing: 16) {
+                    MethodCard(
+                        method: .importImage,
+                        isSelected: selectedMethod == .importImage,
+                        action: { selectedMethod = .importImage }
+                    )
+
+                    MethodCard(
+                        method: .draw,
+                        isSelected: selectedMethod == .draw,
+                        action: { selectedMethod = .draw }
+                    )
+
+                    MethodCard(
+                        method: .interior,
+                        isSelected: selectedMethod == .interior,
+                        action: { selectedMethod = .interior }
+                    )
+
+                    MethodCard(
+                        method: .captureFromMaps,
+                        isSelected: selectedMethod == .captureFromMaps,
+                        action: { selectedMethod = .captureFromMaps }
+                    )
+
+                    MethodCard(
+                        method: .aiGenerate,
+                        isSelected: selectedMethod == .aiGenerate,
+                        action: { selectedMethod = .aiGenerate }
+                    )
+                } //end lazyvgrid
+            } //end method selection VStack
+        } //end outer VStack
         .frame(maxWidth: 800)
     } //end methodSelectionView
     
@@ -834,9 +820,37 @@ struct MapWizardView: View {
                         Button("Parchment") { drawingCanvasModel.backgroundColor = Color(red: 0.96, green: 0.93, blue: 0.85) }
                         Button("Gray") { drawingCanvasModel.backgroundColor = .gray.opacity(0.2) }
                     }
-                    
+
+                    // DR-0016: Base layer fill selection
+                    Menu("Base Layer") {
+                        Button("None") {
+                            selectedBaseLayerType = nil
+                            applyBaseLayerFill(nil)
+                        }
+
+                        Divider()
+
+                        Menu("Exterior") {
+                            ForEach(BaseLayerFillType.exteriorTypes) { fillType in
+                                Button(fillType.displayName) {
+                                    selectedBaseLayerType = fillType
+                                    applyBaseLayerFill(fillType)
+                                }
+                            }
+                        }
+
+                        Menu("Interior") {
+                            ForEach(BaseLayerFillType.interiorTypes) { fillType in
+                                Button(fillType.displayName) {
+                                    selectedBaseLayerType = fillType
+                                    applyBaseLayerFill(fillType)
+                                }
+                            }
+                        }
+                    }
+
                     Divider()
-                    
+
                     Toggle("Show Grid", isOn: $drawingCanvasModel.showGrid)
                     
                     if drawingCanvasModel.showGrid {
@@ -854,9 +868,61 @@ struct MapWizardView: View {
                 .help("Canvas Options")
             }
             .padding()
-            
-            Divider()
-            
+
+            // DR-0016: Terrain scale selector for exterior base layers
+            if let baseLayerType = selectedBaseLayerType, baseLayerType.category == .exterior {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Label("Map Scale", systemImage: "ruler")
+                            .font(.headline)
+                        Spacer()
+                        Text(currentScaleCategory.displayText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(.ultraThinMaterial))
+                    }
+
+                    HStack(spacing: 12) {
+                        Text("Width:")
+                            .foregroundStyle(.secondary)
+
+                        TextField("Miles", value: $terrainMapSizeMiles, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                            .onChange(of: terrainMapSizeMiles) { _, _ in
+                                applyBaseLayerFill(selectedBaseLayerType)
+                            }
+
+                        Text("mi")
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        // Quick presets
+                        Button("5 mi") { terrainMapSizeMiles = 5 }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        Button("50 mi") { terrainMapSizeMiles = 50 }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        Button("500 mi") { terrainMapSizeMiles = 500 }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
+
+                    Text(currentScaleCategory.description)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding()
+                .background(RoundedRectangle(cornerRadius: 8).fill(.ultraThinMaterial))
+                .padding(.horizontal)
+
+                Divider()
+            }
+
             // Drawing canvas - flexible height within available space
             DrawingCanvasView(canvasState: $drawingCanvasModel)
                 .frame(minWidth: 400, minHeight: 300)
@@ -1167,7 +1233,8 @@ struct MapWizardView: View {
     
     private var footerView: some View {
         HStack {
-            if currentStep != .welcome {
+            // DR-0017: Always show back button (no welcome step to hide it for)
+            if currentStep != .selectMethod {
                 Button {
                     handleBackButtonTapped()
                 } label: {
@@ -1196,8 +1263,7 @@ struct MapWizardView: View {
     
     private var canProceed: Bool {
         switch currentStep {
-        case .welcome:
-            return true
+        // DR-0017: Welcome step removed
         case .selectMethod:
             return selectedMethod != nil
         case .configure:
@@ -1472,7 +1538,8 @@ struct MapWizardView: View {
     }
     
     private func resetWizard() {
-        currentStep = .welcome
+        // DR-0017: Reset to method selection (no welcome step)
+        currentStep = .selectMethod
         selectedMethod = nil
         importedImageData = nil
         imageMetadata = nil
@@ -1592,9 +1659,8 @@ struct MapWizardView: View {
                 print("📍 Defaulting to configure step")
             }
             
-            // Also need to ensure we skip the welcome and selectMethod steps
-            // by going directly to configure if we have draft data
-            if currentStep == .welcome || currentStep == .selectMethod {
+            // DR-0017: Ensure we skip the selectMethod step by going directly to configure if we have draft data
+            if currentStep == .selectMethod {
                 currentStep = .configure
                 print("📍 Corrected to configure step")
             }
@@ -1937,11 +2003,11 @@ extension MapWizardView {
     }
     
     enum WizardStep: String, CaseIterable {
-        case welcome = "Welcome"
+        // DR-0017: Welcome step removed (merged with Select Method)
         case selectMethod = "Select Method"
         case configure = "Configure"
         case finalize = "Finalize"
-        
+
         var title: String { rawValue }
     }
     
@@ -2062,31 +2128,129 @@ extension MapWizardView.MapCaptureMetadata: Codable {
     }
 }
 
-// MARK: - Helper Views
+// MARK: - Base Layer Helpers (DR-0016)
 
-private struct FeatureRow: View {
-    let icon: String
-    let title: String
-    let description: String
-    
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(.blue)
-                .frame(width: 28)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.subheadline)
-                    .bold()
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+extension MapWizardView {
+    /// Current scale category based on terrain map size
+    private var currentScaleCategory: MapScaleCategory {
+        if terrainMapSizeMiles < 10 {
+            return .small
+        } else if terrainMapSizeMiles < 100 {
+            return .medium
+        } else {
+            return .large
+        }
+    }
+
+    /// Apply base layer fill to the drawing canvas
+    /// - Parameter fillType: The fill type to apply, or nil to remove
+    private func applyBaseLayerFill(_ fillType: BaseLayerFillType?) {
+        // Get or create layer manager
+        if drawingCanvasModel.layerManager == nil {
+            print("[MapWizard] Creating new LayerManager")
+            drawingCanvasModel.layerManager = LayerManager()
+        }
+
+        guard let layerManager = drawingCanvasModel.layerManager else {
+            print("[MapWizard] ERROR: LayerManager is nil after creation")
+            return
+        }
+
+        // Apply fill or remove it
+        if let fillType = fillType {
+            print("[MapWizard] Applying base layer: \(fillType.displayName), category: \(fillType.category.rawValue)")
+
+            // DR-0018.1: Preserve existing map scale if available
+            print("[MapWizard] DEBUG - baseLayer exists: \(layerManager.baseLayer != nil)")
+            print("[MapWizard] DEBUG - layerFill exists: \(layerManager.baseLayer?.layerFill != nil)")
+            print("[MapWizard] DEBUG - terrainMetadata exists: \(layerManager.baseLayer?.layerFill?.terrainMetadata != nil)")
+
+            let existingScale = layerManager.baseLayer?.layerFill?.terrainMetadata?.physicalSizeMiles
+            print("[MapWizard] DEBUG - existingScale: \(existingScale?.description ?? "nil")")
+            print("[MapWizard] DEBUG - terrainMapSizeMiles fallback: \(terrainMapSizeMiles)")
+
+            let mapScale = existingScale ?? terrainMapSizeMiles
+
+            // DR-0018.2: Preserve existing water percentage override if available
+            let existingWaterOverride = layerManager.baseLayer?.layerFill?.terrainMetadata?.waterPercentageOverride
+
+            // Create terrain metadata for exterior types
+            var terrainMetadata: TerrainMapMetadata? = nil
+            if fillType.category == .exterior {
+                terrainMetadata = TerrainMapMetadata(
+                    physicalSizeMiles: mapScale,  // Use preserved scale
+                    terrainSeed: Int.random(in: 1...999999)
+                )
+
+                // Restore water percentage override
+                terrainMetadata?.waterPercentageOverride = existingWaterOverride
+
+                print("[MapWizard] Created terrain metadata: \(terrainMetadata!.description)")
+                if existingScale != nil {
+                    print("[MapWizard] Preserved map scale: \(mapScale) mi")
+                }
+                if existingWaterOverride != nil {
+                    print("[MapWizard] Preserved water override: \(Int(existingWaterOverride! * 100))%")
+                }
             }
+
+            // Create and apply the fill
+            let fill = LayerFill(
+                fillType: fillType,
+                customColor: nil,
+                opacity: 1.0,
+                patternSeed: Int.random(in: 1...999999),
+                terrainMetadata: terrainMetadata
+            )
+
+            print("[MapWizard] LayerFill created - usesProceduralTerrain: \(fill.usesProceduralTerrain), usesProceduralPattern: \(fill.usesProceduralPattern)")
+
+            layerManager.applyFillToBaseLayer(fill)
+
+            // Verify the fill was applied
+            if let appliedFill = layerManager.baseLayer?.layerFill {
+                print("[MapWizard] Fill successfully applied to base layer. Metadata: \(appliedFill.terrainMetadata?.description ?? "none")")
+            } else {
+                print("[MapWizard] ERROR: Fill was not applied to base layer")
+            }
+
+            print("[MapWizard] Applied \(fillType.displayName) base layer" +
+                  (terrainMetadata != nil ? " with terrain scale: \(terrainMapSizeMiles) mi (\(currentScaleCategory.rawValue))" : ""))
+        } else {
+            // Remove fill
+            layerManager.applyFillToBaseLayer(nil)
+            print("[MapWizard] Removed base layer fill")
+        }
+
+        // @Observable automatically tracks changes - no need for objectWillChange.send()
+    }
+}
+
+extension MapScaleCategory {
+    /// Human-readable display text with icon
+    var displayText: String {
+        switch self {
+        case .small: return "🏘️ Small Scale"
+        case .medium: return "🏙️ Medium Scale"
+        case .large: return "🌍 Large Scale"
+        }
+    }
+
+    /// Description of what this scale category represents
+    var description: String {
+        switch self {
+        case .small:
+            return "Village/battlefield scale (<10 mi). Highly uniform \(Int(dominantPercentage * 100))% dominant terrain."
+        case .medium:
+            return "City/region scale (10-100 mi). Moderately varied \(Int(dominantPercentage * 100))% dominant terrain."
+        case .large:
+            return "Continent/world scale (>100 mi). Naturally diverse \(Int(dominantPercentage * 100))% dominant terrain."
         }
     }
 }
+
+// MARK: - Helper Views
+// DR-0017: FeatureRow removed (was only used by Welcome step)
 
 private struct MethodCard: View {
     let method: MapWizardView.MapCreationMethod

@@ -56,6 +56,9 @@ class MacOSDrawingView: NSView {
     // Undo stack
     private var undoStack: [[DrawingStroke]] = []
     private var redoStack: [[DrawingStroke]] = []
+
+    // DR-0016.5: Cache rendered terrain to avoid regeneration on every draw
+    private var terrainCache: [String: CGImage] = [:]
     
     // MARK: - Initialization
     
@@ -79,9 +82,13 @@ class MacOSDrawingView: NSView {
     override func mouseDown(with event: NSEvent) {
         guard let model = canvasModel else { return }
 
-        // DR-0004.2: With .scaleEffect(anchor: .topLeading), coordinate conversion
-        // already accounts for the transform, so no manual adjustment needed
-        let location = convert(event.locationInWindow, from: nil)
+        // DR-0014: Convert to unscaled canvas coordinates
+        // The view frame is scaled, but we draw in unscaled space with a transform
+        let viewLocation = convert(event.locationInWindow, from: nil)
+        let location = CGPoint(
+            x: viewLocation.x / zoomScale,
+            y: viewLocation.y / zoomScale
+        )
 
         // Save state for undo
         pushUndoState()
@@ -101,9 +108,13 @@ class MacOSDrawingView: NSView {
     }
     
     override func mouseDragged(with event: NSEvent) {
-        // DR-0004.2: With .scaleEffect(anchor: .topLeading), coordinate conversion
-        // already accounts for the transform, so no manual adjustment needed
-        let location = convert(event.locationInWindow, from: nil)
+        // DR-0014: Convert to unscaled canvas coordinates
+        // The view frame is scaled, but we draw in unscaled space with a transform
+        let viewLocation = convert(event.locationInWindow, from: nil)
+        let location = CGPoint(
+            x: viewLocation.x / zoomScale,
+            y: viewLocation.y / zoomScale
+        )
 
         // Add point to current stroke
         currentStroke?.points.append(location)
@@ -144,25 +155,93 @@ class MacOSDrawingView: NSView {
     
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
-        
+
         guard let context = NSGraphicsContext.current?.cgContext else { return }
-        
+
+        // DR-0014: Apply zoom scale transform to graphics context
+        // This ensures strokes are drawn at the correct position regardless of zoom level
+        context.saveGState()
+        context.scaleBy(x: zoomScale, y: zoomScale)
+
         // 1. Draw background
         if let bgColor = canvasModel?.backgroundColor {
             NSColor(bgColor).setFill()
         } else {
             NSColor.white.setFill()
         }
-        context.fill(bounds)
+        // Adjust bounds for zoom scale when filling background
+        context.fill(CGRect(x: 0, y: 0,
+                           width: bounds.width / zoomScale,
+                           height: bounds.height / zoomScale))
 
         // 2. Draw base layer fill (if exists)
         if let baseLayer = canvasModel?.layerManager?.baseLayer,
            let fill = baseLayer.layerFill {
-            let fillColor = fill.effectiveColor
-            let nsColor = NSColor(fillColor)
-            nsColor.setFill()
             context.setAlpha(fill.opacity)
-            context.fill(bounds)
+
+            let fillRect = CGRect(x: 0, y: 0,
+                                 width: bounds.width / zoomScale,
+                                 height: bounds.height / zoomScale)
+
+            print("[DrawingCanvasViewMacOS] Drawing base layer: \(fill.fillType.displayName)")
+            print("[DrawingCanvasViewMacOS] usesProceduralTerrain: \(fill.usesProceduralTerrain), metadata: \(fill.terrainMetadata?.description ?? "none")")
+
+            // DR-0016: Use procedural terrain for exterior fill types with metadata
+            if fill.usesProceduralTerrain, let metadata = fill.terrainMetadata {
+                // DR-0016.5: Cache terrain rendering for performance
+                let cacheKey = "\(fill.fillType.rawValue)_\(fill.patternSeed)_\(metadata.terrainSeed)_\(Int(fillRect.width))x\(Int(fillRect.height))"
+
+                if let cachedImage = terrainCache[cacheKey] {
+                    // Use cached terrain image
+                    context.draw(cachedImage, in: fillRect)
+                } else {
+                    // Generate and cache terrain
+                    print("[DrawingCanvasViewMacOS] Generating terrain (cache miss) - key: \(cacheKey)")
+
+                    // Create a bitmap context to render terrain
+                    let width = Int(fillRect.width)
+                    let height = Int(fillRect.height)
+                    let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+
+                    guard let bitmapContext = CGContext(
+                        data: nil,
+                        width: width,
+                        height: height,
+                        bitsPerComponent: 8,
+                        bytesPerRow: width * 4,
+                        space: CGColorSpaceCreateDeviceRGB(),
+                        bitmapInfo: bitmapInfo.rawValue
+                    ) else {
+                        print("[DrawingCanvasViewMacOS] Failed to create bitmap context")
+                        return
+                    }
+
+                    // Render terrain to bitmap context
+                    let pattern = TerrainPattern(metadata: metadata, dominantFillType: fill.fillType)
+                    pattern.draw(in: bitmapContext, rect: CGRect(origin: .zero, size: fillRect.size), seed: fill.patternSeed, baseColor: fill.effectiveColor)
+
+                    // Create and cache image
+                    if let terrainImage = bitmapContext.makeImage() {
+                        terrainCache[cacheKey] = terrainImage
+                        context.draw(terrainImage, in: fillRect)
+                        print("[DrawingCanvasViewMacOS] Terrain cached - size: \(width)x\(height)")
+                    }
+                }
+            }
+            // DR-0015: Use procedural patterns for interior fill types
+            else if fill.usesProceduralPattern,
+               let pattern = ProceduralPatternFactory.pattern(for: fill.fillType) {
+                print("[DrawingCanvasViewMacOS] Rendering procedural pattern")
+                pattern.draw(in: context, rect: fillRect, seed: fill.patternSeed, baseColor: fill.effectiveColor)
+            } else {
+                // Simple solid color fill for exterior types without terrain metadata
+                print("[DrawingCanvasViewMacOS] Rendering solid color fill")
+                let fillColor = fill.effectiveColor
+                let nsColor = NSColor(fillColor)
+                nsColor.setFill()
+                context.fill(fillRect)
+            }
+
             context.setAlpha(1.0) // Reset alpha
         }
 
@@ -182,6 +261,9 @@ class MacOSDrawingView: NSView {
         if let stroke = currentStroke {
             drawCurrentStroke(stroke, in: context)
         }
+
+        // DR-0014: Restore graphics state after drawing with zoom transform
+        context.restoreGState()
     }
     
     private func drawStroke(_ stroke: DrawingStroke, in context: CGContext) {
@@ -313,12 +395,15 @@ class MacOSDrawingView: NSView {
     
     private func drawGrid(in context: CGContext, spacing: CGFloat, color: NSColor) {
         context.setStrokeColor(color.cgColor)
-        context.setLineWidth(1.0)
+        // DR-0014: Scale line width inversely to maintain consistent visual thickness
+        context.setLineWidth(1.0 / zoomScale)
         context.setAlpha(0.5)
-        
-        let width = bounds.width
-        let height = bounds.height
-        
+
+        // DR-0014: Use unscaled canvas size since context is already scaled
+        guard let canvasSize = canvasModel?.canvasSize else { return }
+        let width = canvasSize.width
+        let height = canvasSize.height
+
         // Vertical lines
         var x: CGFloat = 0
         while x <= width {
@@ -326,7 +411,7 @@ class MacOSDrawingView: NSView {
             context.addLine(to: CGPoint(x: x, y: height))
             x += spacing
         }
-        
+
         // Horizontal lines
         var y: CGFloat = 0
         while y <= height {
@@ -334,7 +419,7 @@ class MacOSDrawingView: NSView {
             context.addLine(to: CGPoint(x: width, y: y))
             y += spacing
         }
-        
+
         context.strokePath()
         context.setAlpha(1.0)
     }

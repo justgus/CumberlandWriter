@@ -37,6 +37,8 @@ enum BaseLayerFillType: String, CaseIterable, Codable, Identifiable {
     case rocky = "Rocky"
     case snow = "Snow"
     case ice = "Ice"
+    case forested = "Forested"
+    case mountain = "Mountain"
 
     // Interior floor types
     case tile = "Tile"
@@ -52,10 +54,27 @@ enum BaseLayerFillType: String, CaseIterable, Codable, Identifiable {
     /// Category this fill type belongs to
     var category: BaseLayerCategory {
         switch self {
-        case .land, .water, .sandy, .rocky, .snow, .ice:
+        case .land, .water, .sandy, .rocky, .snow, .ice, .forested, .mountain:
             return .exterior
         case .tile, .stone, .wood, .slate, .cobbles, .concrete, .metal:
             return .interior
+        }
+    }
+
+    /// Target water percentage for this terrain type
+    /// Determines how much of the elevation map will be below sea level (negative values)
+    var waterPercentage: Double {
+        switch self {
+        case .sandy: return 0.02      // 2% water - desert/beach
+        case .rocky: return 0.05      // 5% water - rocky badlands
+        case .mountain: return 0.07   // 7% water - mountain ranges
+        case .snow: return 0.15       // 15% water - tundra/glacial
+        case .land: return 0.40       // 40% water - grasslands/plains
+        case .forested: return 0.60   // 60% water - forest/jungle
+        case .ice: return 0.66        // 66% water - arctic/ice sheets
+        case .water: return 0.90      // 90% water - ocean/archipelago
+        // Interior types don't use water percentage
+        default: return 0.0
         }
     }
 
@@ -75,6 +94,10 @@ enum BaseLayerFillType: String, CaseIterable, Codable, Identifiable {
             return Color(red: 0.95, green: 0.95, blue: 0.98) // Off-white
         case .ice:
             return Color(red: 0.53, green: 0.81, blue: 0.92) // Electric blue
+        case .forested:
+            return Color(red: 0.2, green: 0.5, blue: 0.2) // Dark forest green
+        case .mountain:
+            return Color(red: 0.45, green: 0.35, blue: 0.3) // Rocky brown-gray
 
         // Interior colors
         case .tile:
@@ -113,6 +136,10 @@ enum BaseLayerFillType: String, CaseIterable, Codable, Identifiable {
             return "snowflake"
         case .ice:
             return "snowflake.circle.fill"
+        case .forested:
+            return "tree.fill"
+        case .mountain:
+            return "mountain.2.fill"
 
         // Interior icons
         case .tile:
@@ -161,23 +188,43 @@ struct LayerFill: Codable, Equatable {
     /// Fill opacity (0.0 to 1.0)
     var opacity: CGFloat = 1.0
 
+    /// Seed for procedural pattern generation (ensures consistent patterns)
+    var patternSeed: Int = 12345
+
+    /// Optional terrain metadata for procedural exterior generation
+    var terrainMetadata: TerrainMapMetadata?
+
     /// The effective color to use for rendering
     var effectiveColor: Color {
         customColor?.toColor() ?? fillType.defaultColor
     }
 
+    /// Whether this fill type uses procedural patterns (interior types only)
+    var usesProceduralPattern: Bool {
+        fillType.category == .interior
+    }
+
+    /// Whether this fill type uses procedural terrain generation (exterior types with metadata)
+    var usesProceduralTerrain: Bool {
+        fillType.category == .exterior && terrainMetadata != nil
+    }
+
     /// Initialize with a fill type
-    init(fillType: BaseLayerFillType, customColor: LayerFillColor? = nil, opacity: CGFloat = 1.0) {
+    init(fillType: BaseLayerFillType, customColor: LayerFillColor? = nil, opacity: CGFloat = 1.0, patternSeed: Int? = nil, terrainMetadata: TerrainMapMetadata? = nil) {
         self.fillType = fillType
         self.customColor = customColor
         self.opacity = opacity
+        self.patternSeed = patternSeed ?? Int.random(in: 1...999999)
+        self.terrainMetadata = terrainMetadata
     }
 
     /// Initialize with a fill type and SwiftUI Color
-    init(fillType: BaseLayerFillType, color: Color? = nil, opacity: CGFloat = 1.0) {
+    init(fillType: BaseLayerFillType, color: Color? = nil, opacity: CGFloat = 1.0, patternSeed: Int? = nil, terrainMetadata: TerrainMapMetadata? = nil) {
         self.fillType = fillType
         self.customColor = color.map { LayerFillColor(from: $0) }
         self.opacity = opacity
+        self.patternSeed = patternSeed ?? Int.random(in: 1...999999)
+        self.terrainMetadata = terrainMetadata
     }
 
     // Custom Codable to encode CGFloat opacity as Double for robustness
@@ -185,6 +232,8 @@ struct LayerFill: Codable, Equatable {
         case fillType
         case customColor
         case opacity
+        case patternSeed
+        case terrainMetadata
     }
 
     init(from decoder: Decoder) throws {
@@ -194,6 +243,8 @@ struct LayerFill: Codable, Equatable {
         // Decode opacity as Double, then cast to CGFloat
         let opacityDouble = try container.decodeIfPresent(Double.self, forKey: .opacity) ?? 1.0
         self.opacity = CGFloat(opacityDouble)
+        self.patternSeed = try container.decodeIfPresent(Int.self, forKey: .patternSeed) ?? 12345
+        self.terrainMetadata = try container.decodeIfPresent(TerrainMapMetadata.self, forKey: .terrainMetadata)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -202,6 +253,8 @@ struct LayerFill: Codable, Equatable {
         try container.encodeIfPresent(customColor, forKey: .customColor)
         // Encode opacity as Double to avoid CGFloat Codable issues across platforms
         try container.encode(Double(opacity), forKey: .opacity)
+        try container.encode(patternSeed, forKey: .patternSeed)
+        try container.encodeIfPresent(terrainMetadata, forKey: .terrainMetadata)
     }
 }
 

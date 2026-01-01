@@ -267,8 +267,44 @@ struct BaseLayerButton: View {
     // MARK: - Actions
 
     private func applyFill(_ fillType: BaseLayerFillType) {
-        let fill = LayerFill(fillType: fillType, customColor: nil, opacity: 1.0)
+        // DR-0016.1: Create terrain metadata for exterior types
+        var terrainMetadata: TerrainMapMetadata? = nil
+        if fillType.category == .exterior {
+            // DR-0018.1: Preserve existing map scale if available
+            let existingScale = canvasState.layerManager?.baseLayer?.layerFill?.terrainMetadata?.physicalSizeMiles
+            let mapScale = existingScale ?? 100.0  // Default to 100 miles only if no existing scale
+
+            // DR-0018.2: Preserve existing water percentage override if available
+            let existingWaterOverride = canvasState.layerManager?.baseLayer?.layerFill?.terrainMetadata?.waterPercentageOverride
+
+            // Create terrain metadata with preserved or default scale
+            terrainMetadata = TerrainMapMetadata(
+                physicalSizeMiles: mapScale,
+                terrainSeed: Int.random(in: 1...999999)
+            )
+
+            // Restore water percentage override if it exists
+            terrainMetadata?.waterPercentageOverride = existingWaterOverride
+
+            print("[BaseLayerButton] Creating terrain metadata for \(fillType.displayName): \(terrainMetadata!.description)")
+            if let existingScale = existingScale {
+                print("[BaseLayerButton] Preserved map scale: \(existingScale) mi")
+            }
+            if let existingWaterOverride = existingWaterOverride {
+                print("[BaseLayerButton] Preserved water override: \(Int(existingWaterOverride * 100))%")
+            }
+        }
+
+        let fill = LayerFill(
+            fillType: fillType,
+            customColor: nil,
+            opacity: 1.0,
+            patternSeed: Int.random(in: 1...999999),
+            terrainMetadata: terrainMetadata
+        )
         canvasState.layerManager?.applyFillToBaseLayer(fill)
+
+        print("[BaseLayerButton] Applied \(fillType.displayName) base layer - usesProceduralTerrain: \(fill.usesProceduralTerrain)")
 
         // Add haptic feedback on iOS (not available on visionOS)
         #if os(iOS)

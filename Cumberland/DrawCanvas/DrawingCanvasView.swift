@@ -133,11 +133,36 @@ struct DrawingCanvasView: View {
             // 2. Base layer fill (if exists)
             if let baseLayer = canvasState.layerManager?.baseLayer,
                let fill = baseLayer.layerFill {
+                #if canImport(UIKit)
+                // DR-0016: Use procedural terrain for exterior fill types with metadata
+                if fill.usesProceduralTerrain, let metadata = fill.terrainMetadata {
+                    ProceduralTerrainView(
+                        fill: fill,
+                        metadata: metadata,
+                        canvasSize: canvasState.canvasSize
+                    )
+                    .opacity(fill.opacity)
+                }
+                // DR-0015: Use procedural patterns for interior fill types
+                else if fill.usesProceduralPattern {
+                    ProceduralPatternView(fill: fill, canvasSize: canvasState.canvasSize)
+                        .opacity(fill.opacity)
+                } else {
+                    // Simple solid color fill for exterior types without terrain metadata
+                    Rectangle()
+                        .fill(fill.effectiveColor)
+                        .opacity(fill.opacity)
+                        .frame(width: canvasState.canvasSize.width,
+                               height: canvasState.canvasSize.height)
+                }
+                #else
+                // macOS uses direct Core Graphics rendering in the native view
                 Rectangle()
                     .fill(fill.effectiveColor)
                     .opacity(fill.opacity)
                     .frame(width: canvasState.canvasSize.width,
                            height: canvasState.canvasSize.height)
+                #endif
             }
 
             // 3. Optional grid overlay
@@ -632,6 +657,32 @@ class DrawingCanvasModel {
                 let manager = try JSONDecoder().decode(LayerManager.self, from: layerManagerData)
                 layerManager = manager
                 print("[IMPORT] Restored LayerManager with \(manager.layerCount) layers")
+
+                // DR-0016.1: Migrate old exterior base layers to include terrain metadata
+                if let baseLayer = manager.baseLayer,
+                   let fill = baseLayer.layerFill,
+                   fill.fillType.category == .exterior,
+                   fill.terrainMetadata == nil {
+                    print("[IMPORT] Migrating exterior base layer '\(fill.fillType.displayName)' to include terrain metadata")
+
+                    // Create default terrain metadata for migrated maps
+                    let metadata = TerrainMapMetadata(
+                        physicalSizeMiles: 100.0, // Default to medium scale
+                        terrainSeed: Int.random(in: 1...999999)
+                    )
+
+                    // Create new fill with metadata
+                    let migratedFill = LayerFill(
+                        fillType: fill.fillType,
+                        customColor: fill.customColor,
+                        opacity: fill.opacity,
+                        patternSeed: fill.patternSeed,
+                        terrainMetadata: metadata
+                    )
+
+                    baseLayer.layerFill = migratedFill
+                    print("[IMPORT] Migration complete - terrain metadata added: \(metadata.description)")
+                }
 
                 // DR-0013: Extract content from active layer to main drawing properties for display
                 if let activeLayer = manager.activeLayer {
@@ -1403,13 +1454,13 @@ private struct PlaceholderCanvasView: View {
 private struct GridOverlayView: View {
     let spacing: CGFloat
     let color: Color
-    
+
     var body: some View {
         GeometryReader { geometry in
             Path { path in
                 let width = geometry.size.width
                 let height = geometry.size.height
-                
+
                 // Vertical lines
                 var x: CGFloat = 0
                 while x <= width {
@@ -1417,7 +1468,7 @@ private struct GridOverlayView: View {
                     path.addLine(to: CGPoint(x: x, y: height))
                     x += spacing
                 }
-                
+
                 // Horizontal lines
                 var y: CGFloat = 0
                 while y <= height {
@@ -1430,6 +1481,129 @@ private struct GridOverlayView: View {
         }
     }
 }
+
+// MARK: - Procedural Terrain View (iOS/iPadOS)
+
+#if canImport(UIKit)
+/// SwiftUI wrapper for procedural terrain rendering
+private struct ProceduralTerrainView: UIViewRepresentable {
+    let fill: LayerFill
+    let metadata: TerrainMapMetadata
+    let canvasSize: CGSize
+
+    func makeUIView(context: Context) -> ProceduralTerrainUIView {
+        let view = ProceduralTerrainUIView()
+        view.fill = fill
+        view.metadata = metadata
+        view.canvasSize = canvasSize
+        return view
+    }
+
+    func updateUIView(_ uiView: ProceduralTerrainUIView, context: Context) {
+        uiView.fill = fill
+        uiView.metadata = metadata
+        uiView.canvasSize = canvasSize
+        uiView.setNeedsDisplay()
+    }
+}
+
+/// UIView that renders procedural terrain
+private class ProceduralTerrainUIView: UIView {
+    var fill: LayerFill?
+    var metadata: TerrainMapMetadata?
+    var canvasSize: CGSize = .zero
+
+    // DR-0016.5: Cache rendered terrain to avoid regeneration on every draw
+    private var cachedTerrainImage: UIImage?
+    private var cachedCacheKey: String?
+
+    override func draw(_ rect: CGRect) {
+        print("[ProceduralTerrainUIView] draw() called - rect: \(rect), canvasSize: \(canvasSize)")
+
+        guard let context = UIGraphicsGetCurrentContext() else {
+            print("[ProceduralTerrainUIView] ERROR: No graphics context")
+            return
+        }
+
+        guard let fill = fill else {
+            print("[ProceduralTerrainUIView] ERROR: No fill")
+            return
+        }
+
+        guard let metadata = metadata else {
+            print("[ProceduralTerrainUIView] ERROR: No metadata")
+            return
+        }
+
+        // DR-0016.5: Check cache before regenerating terrain
+        let cacheKey = "\(fill.fillType.rawValue)_\(fill.patternSeed)_\(metadata.terrainSeed)_\(Int(canvasSize.width))x\(Int(canvasSize.height))"
+
+        if let cachedImage = cachedTerrainImage, cachedCacheKey == cacheKey {
+            // Use cached terrain
+            cachedImage.draw(at: .zero)
+        } else {
+            // Generate and cache terrain
+            print("[ProceduralTerrainUIView] Generating terrain (cache miss) - key: \(cacheKey)")
+
+            let renderer = UIGraphicsImageRenderer(size: canvasSize)
+            let terrainImage = renderer.image { rendererContext in
+                let pattern = TerrainPattern(metadata: metadata, dominantFillType: fill.fillType)
+                pattern.draw(in: rendererContext.cgContext, rect: CGRect(origin: .zero, size: canvasSize), seed: fill.patternSeed, baseColor: fill.effectiveColor)
+            }
+
+            cachedTerrainImage = terrainImage
+            cachedCacheKey = cacheKey
+            terrainImage.draw(at: .zero)
+            print("[ProceduralTerrainUIView] Terrain cached - size: \(Int(canvasSize.width))x\(Int(canvasSize.height))")
+        }
+    }
+
+    override var intrinsicContentSize: CGSize {
+        canvasSize
+    }
+}
+
+// MARK: - Procedural Pattern View (iOS/iPadOS)
+
+/// SwiftUI wrapper for procedural pattern rendering
+private struct ProceduralPatternView: UIViewRepresentable {
+    let fill: LayerFill
+    let canvasSize: CGSize
+
+    func makeUIView(context: Context) -> ProceduralPatternUIView {
+        let view = ProceduralPatternUIView()
+        view.fill = fill
+        view.canvasSize = canvasSize
+        return view
+    }
+
+    func updateUIView(_ uiView: ProceduralPatternUIView, context: Context) {
+        uiView.fill = fill
+        uiView.canvasSize = canvasSize
+        uiView.setNeedsDisplay()
+    }
+}
+
+/// UIView that renders procedural patterns
+private class ProceduralPatternUIView: UIView {
+    var fill: LayerFill?
+    var canvasSize: CGSize = .zero
+
+    override func draw(_ rect: CGRect) {
+        guard let context = UIGraphicsGetCurrentContext(),
+              let fill = fill,
+              let pattern = ProceduralPatternFactory.pattern(for: fill.fillType) else {
+            return
+        }
+
+        pattern.draw(in: context, rect: CGRect(origin: .zero, size: canvasSize), seed: fill.patternSeed, baseColor: fill.effectiveColor)
+    }
+
+    override var intrinsicContentSize: CGSize {
+        canvasSize
+    }
+}
+#endif
 
 // MARK: - Preview
 
