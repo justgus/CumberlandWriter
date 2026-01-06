@@ -147,21 +147,39 @@ struct BaseLayerButton: View {
         canvasState.layerManager?.baseLayerFill
     }
 
+    // ER-0001: Available fill types based on map category
+    private var availableFillTypes: [BaseLayerFillType] {
+        guard let category = canvasState.mapCategory else {
+            // Backward compatibility: show all types if no category set
+            return BaseLayerFillType.allCases
+        }
+
+        // Filter based on map category
+        return BaseLayerFillType.types(for: category)
+    }
+
     // MARK: - Fill Menu (macOS context menu)
 
     @ViewBuilder
     private var fillMenuContent: some View {
-        // Exterior Fills
-        Section("Exterior") {
-            ForEach(BaseLayerFillType.exteriorTypes) { fillType in
+        // ER-0001: Show fill types based on map category
+        if canvasState.mapCategory != nil {
+            // Category-specific menu (filtered)
+            ForEach(availableFillTypes) { fillType in
                 fillButton(for: fillType)
             }
-        }
+        } else {
+            // Backward compatibility: show all types in sections
+            Section("Exterior") {
+                ForEach(BaseLayerFillType.exteriorTypes) { fillType in
+                    fillButton(for: fillType)
+                }
+            }
 
-        // Interior Fills
-        Section("Interior") {
-            ForEach(BaseLayerFillType.interiorTypes) { fillType in
-                fillButton(for: fillType)
+            Section("Interior") {
+                ForEach(BaseLayerFillType.interiorTypes) { fillType in
+                    fillButton(for: fillType)
+                }
             }
         }
 
@@ -187,17 +205,26 @@ struct BaseLayerButton: View {
 
     private var fillMenuList: some View {
         List {
-            // Exterior Fills
-            Section("Exterior") {
-                ForEach(BaseLayerFillType.exteriorTypes) { fillType in
-                    fillRow(for: fillType)
+            // ER-0001: Show fill types based on map category
+            if canvasState.mapCategory != nil {
+                // Category-specific menu (filtered)
+                Section {
+                    ForEach(availableFillTypes) { fillType in
+                        fillRow(for: fillType)
+                    }
                 }
-            }
+            } else {
+                // Backward compatibility: show all types in sections
+                Section("Exterior") {
+                    ForEach(BaseLayerFillType.exteriorTypes) { fillType in
+                        fillRow(for: fillType)
+                    }
+                }
 
-            // Interior Fills
-            Section("Interior") {
-                ForEach(BaseLayerFillType.interiorTypes) { fillType in
-                    fillRow(for: fillType)
+                Section("Interior") {
+                    ForEach(BaseLayerFillType.interiorTypes) { fillType in
+                        fillRow(for: fillType)
+                    }
                 }
             }
 
@@ -267,11 +294,14 @@ struct BaseLayerButton: View {
     // MARK: - Actions
 
     private func applyFill(_ fillType: BaseLayerFillType) {
-        // DR-0016.1: Create terrain metadata for exterior types
+        // DR-0016.1 + DR-0020: Create terrain metadata for both exterior and interior types
         var terrainMetadata: TerrainMapMetadata? = nil
+
+        // Preserve existing scale regardless of type (for both exterior and interior)
+        let existingScale = canvasState.layerManager?.baseLayer?.layerFill?.terrainMetadata?.physicalSizeMiles
+
         if fillType.category == .exterior {
             // DR-0018.1: Preserve existing map scale if available
-            let existingScale = canvasState.layerManager?.baseLayer?.layerFill?.terrainMetadata?.physicalSizeMiles
             let mapScale = existingScale ?? 100.0  // Default to 100 miles only if no existing scale
 
             // DR-0018.2: Preserve existing water percentage override if available
@@ -292,6 +322,20 @@ struct BaseLayerButton: View {
             }
             if let existingWaterOverride = existingWaterOverride {
                 print("[BaseLayerButton] Preserved water override: \(Int(existingWaterOverride * 100))%")
+            }
+        } else if fillType.category == .interior {
+            // DR-0020: Preserve scale for interior maps (stored in feet)
+            let mapScale = existingScale ?? 100.0  // Default to 100 feet only if no existing scale
+
+            // Create terrain metadata for interior (repurposing physicalSizeMiles to store feet)
+            terrainMetadata = TerrainMapMetadata(
+                physicalSizeMiles: mapScale,  // Storing feet for interior maps
+                terrainSeed: Int.random(in: 1...999999)
+            )
+
+            print("[BaseLayerButton] Creating interior metadata for \(fillType.displayName): \(mapScale) ft")
+            if let existingScale = existingScale {
+                print("[BaseLayerButton] Preserved interior scale: \(existingScale) ft")
             }
         }
 

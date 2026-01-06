@@ -27,7 +27,8 @@ struct TerrainPattern: ProceduralPattern {
     let metadata: TerrainMapMetadata
     let dominantFillType: BaseLayerFillType
 
-    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color) {
+    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color, mapScale: Double?) {
+        // DR-0019: mapScale parameter added for protocol compliance (terrain uses metadata.physicalSizeMiles)
         let width = Int(rect.width)
         let height = Int(rect.height)
 

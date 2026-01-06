@@ -38,11 +38,16 @@ struct ToolsTabView: View {
 
             BaseLayerButton(canvasState: $canvasState)
 
-            // DR-0016.2: Show terrain scale controls for exterior base layers
-            if let fill = canvasState.layerManager?.baseLayerFill,
-               fill.fillType.category == .exterior,
-               fill.terrainMetadata != nil {
-                terrainScaleControls(for: fill)
+            // DR-0016.2 + ER-0001: Show scale controls for base layers
+            // Exterior maps: show when terrain metadata exists
+            // Interior maps: show scale controls with feet units (no terrain metadata needed)
+            if let fill = canvasState.layerManager?.baseLayerFill {
+                if fill.fillType.category == .exterior && fill.terrainMetadata != nil {
+                    terrainScaleControls(for: fill)
+                } else if fill.fillType.category == .interior {
+                    // ER-0001: Show interior-specific scale controls
+                    interiorScaleControls(for: fill)
+                }
             }
         }
     }
@@ -100,14 +105,81 @@ struct ToolsTabView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            // Water percentage slider
-            waterPercentageSlider(for: fill)
+            // Water percentage slider (only for exterior maps)
+            if fill.fillType.category == .exterior {
+                waterPercentageSlider(for: fill)
+            }
         }
     }
 
     private func scalePresetButton(fill: LayerFill, miles: Double, label: String) -> some View {
         Button(label) {
             updateTerrainScale(fill: fill, miles: miles)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.mini)
+    }
+
+    // MARK: - Interior Scale Controls (ER-0001)
+
+    private func interiorScaleControls(for fill: LayerFill) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+
+            HStack {
+                Text("Map Scale")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                Spacer()
+
+                Text("Interior")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(.quaternary))
+            }
+
+            // Scale input and presets (feet for interior)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    TextField("Feet", value: Binding(
+                        get: { fill.terrainMetadata?.physicalSizeMiles ?? 100.0 },
+                        set: { newValue in
+                            updateInteriorScale(fill: fill, feet: newValue)
+                        }
+                    ), format: .number)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 70)
+
+                    Text("ft")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Quick presets (feet for interior)
+                HStack(spacing: 6) {
+                    interiorScalePresetButton(fill: fill, feet: 10, label: "10")
+                    interiorScalePresetButton(fill: fill, feet: 50, label: "50")
+                    interiorScalePresetButton(fill: fill, feet: 100, label: "100")
+                }
+
+                Text("Interior floor scale in feet")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // ER-0001: No water percentage slider for interior maps
+        }
+    }
+
+    private func interiorScalePresetButton(fill: LayerFill, feet: Double, label: String) -> some View {
+        Button(label) {
+            updateInteriorScale(fill: fill, feet: feet)
         }
         .buttonStyle(.bordered)
         .controlSize(.mini)
@@ -303,6 +375,35 @@ extension ToolsTabView {
         canvasState.layerManager?.applyFillToBaseLayer(newFill)
 
         print("[ToolsTabView] Scale updated - new category: \(newMetadata.scaleCategory.rawValue), dominant: \(Int(newMetadata.dominantTerrainPercentage * 100))%, new seed: \(newSeed)")
+    }
+
+    // ER-0001: Update interior scale (stored in terrain metadata for now, but will be used for fixed-scale patterns)
+    private func updateInteriorScale(fill: LayerFill, feet: Double) {
+        print("[ToolsTabView] Updating interior scale to \(feet) feet")
+
+        // For interior maps, we store the scale in feet using the same metadata structure
+        // ER-0001 Phase 4 will use this for fixed-scale floor pattern rendering
+        let newSeed = Int.random(in: 1...999999)
+
+        // Create metadata with scale (stored as feet in physicalSizeMiles for now)
+        let newMetadata = TerrainMapMetadata(
+            physicalSizeMiles: feet,  // Repurposing this field to store feet for interior maps
+            terrainSeed: newSeed
+        )
+
+        // Create new fill with updated metadata
+        let newFill = LayerFill(
+            fillType: fill.fillType,
+            customColor: fill.customColor,
+            opacity: fill.opacity,
+            patternSeed: fill.patternSeed,
+            terrainMetadata: newMetadata
+        )
+
+        // Apply to base layer
+        canvasState.layerManager?.applyFillToBaseLayer(newFill)
+
+        print("[ToolsTabView] Interior scale updated: \(feet) ft, new seed: \(newSeed)")
     }
 
     // MARK: - Brushes Section

@@ -57,9 +57,9 @@ class MacOSDrawingView: NSView {
     private var undoStack: [[DrawingStroke]] = []
     private var redoStack: [[DrawingStroke]] = []
 
-    // DR-0016.5: Cache rendered terrain to avoid regeneration on every draw
-    private var terrainCache: [String: CGImage] = [:]
-    
+    // DR-0029: Terrain and pattern caching now handled by shared BaseLayerImageCache
+    // (removed local cache dictionaries - using BaseLayerImageCache.shared instead)
+
     // MARK: - Initialization
     
     override init(frame frameRect: NSRect) {
@@ -142,9 +142,18 @@ class MacOSDrawingView: NSView {
                 toolType: stroke.toolType.rawValue
             )
 
-            // DR-0004.3: Store stroke in model (persists across view recreation)
-            model.macOSStrokes.append(codableStroke)
-            model.hasStrokes = !model.macOSStrokes.isEmpty
+            // DR-0023 / ER-0002: Store stroke in appropriate layer
+            // Base layer (order == 0) should never receive strokes
+            if let layerManager = model.layerManager {
+                let targetLayer = layerManager.getTargetLayerForStrokes()
+                targetLayer.macosStrokes.append(codableStroke)
+                targetLayer.markModified()
+                model.hasStrokes = true
+            } else {
+                // Fallback to model if no layer manager (backward compatibility)
+                model.macOSStrokes.append(codableStroke)
+                model.hasStrokes = !model.macOSStrokes.isEmpty
+            }
             currentStroke = nil
         }
 
@@ -174,8 +183,10 @@ class MacOSDrawingView: NSView {
                            width: bounds.width / zoomScale,
                            height: bounds.height / zoomScale))
 
-        // 2. Draw base layer fill (if exists)
+        // 2. Draw base layer fill (if exists and visible)
+        // DR-0021: Check layer visibility before rendering
         if let baseLayer = canvasModel?.layerManager?.baseLayer,
+           baseLayer.isVisible,
            let fill = baseLayer.layerFill {
             context.setAlpha(fill.opacity)
 
@@ -188,12 +199,19 @@ class MacOSDrawingView: NSView {
 
             // DR-0016: Use procedural terrain for exterior fill types with metadata
             if fill.usesProceduralTerrain, let metadata = fill.terrainMetadata {
-                // DR-0016.5: Cache terrain rendering for performance
-                let cacheKey = "\(fill.fillType.rawValue)_\(fill.patternSeed)_\(metadata.terrainSeed)_\(Int(fillRect.width))x\(Int(fillRect.height))"
+                // DR-0029: Use shared cache that persists across visibility toggles
+                let cacheKey = BaseLayerImageCache.cacheKey(
+                    fillType: fill.fillType.rawValue,
+                    patternSeed: fill.patternSeed,
+                    terrainSeed: metadata.terrainSeed,
+                    width: Int(fillRect.width),
+                    height: Int(fillRect.height)
+                )
 
-                if let cachedImage = terrainCache[cacheKey] {
+                if let cachedNSImage = BaseLayerImageCache.shared.get(cacheKey),
+                   let cgImage = cachedNSImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
                     // Use cached terrain image
-                    context.draw(cachedImage, in: fillRect)
+                    context.draw(cgImage, in: fillRect)
                 } else {
                     // Generate and cache terrain
                     print("[DrawingCanvasViewMacOS] Generating terrain (cache miss) - key: \(cacheKey)")
@@ -218,21 +236,69 @@ class MacOSDrawingView: NSView {
 
                     // Render terrain to bitmap context
                     let pattern = TerrainPattern(metadata: metadata, dominantFillType: fill.fillType)
-                    pattern.draw(in: bitmapContext, rect: CGRect(origin: .zero, size: fillRect.size), seed: fill.patternSeed, baseColor: fill.effectiveColor)
+                    // DR-0019: Pass map scale to pattern
+                    pattern.draw(in: bitmapContext, rect: CGRect(origin: .zero, size: fillRect.size), seed: fill.patternSeed, baseColor: fill.effectiveColor, mapScale: metadata.physicalSizeMiles)
 
                     // Create and cache image
                     if let terrainImage = bitmapContext.makeImage() {
-                        terrainCache[cacheKey] = terrainImage
+                        let nsImage = NSImage(cgImage: terrainImage, size: fillRect.size)
+                        BaseLayerImageCache.shared.set(cacheKey, image: nsImage)
                         context.draw(terrainImage, in: fillRect)
                         print("[DrawingCanvasViewMacOS] Terrain cached - size: \(width)x\(height)")
                     }
                 }
             }
-            // DR-0015: Use procedural patterns for interior fill types
+            // DR-0015 + DR-0022: Use procedural patterns for interior fill types (with caching)
             else if fill.usesProceduralPattern,
                let pattern = ProceduralPatternFactory.pattern(for: fill.fillType) {
-                print("[DrawingCanvasViewMacOS] Rendering procedural pattern")
-                pattern.draw(in: context, rect: fillRect, seed: fill.patternSeed, baseColor: fill.effectiveColor)
+                // DR-0029: Use shared cache that persists across visibility toggles
+                let mapScale = fill.terrainMetadata?.physicalSizeMiles ?? 0
+                let cacheKey = BaseLayerImageCache.cacheKey(
+                    fillType: fill.fillType.rawValue,
+                    patternSeed: fill.patternSeed,
+                    terrainSeed: nil,  // Patterns don't use terrain seed
+                    width: Int(fillRect.width),
+                    height: Int(fillRect.height)
+                )
+
+                if let cachedNSImage = BaseLayerImageCache.shared.get(cacheKey),
+                   let cgImage = cachedNSImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                    // Use cached pattern image
+                    context.draw(cgImage, in: fillRect)
+                } else {
+                    // Generate and cache pattern
+                    print("[DrawingCanvasViewMacOS] Generating pattern (cache miss) - key: \(cacheKey)")
+
+                    // Create a bitmap context to render pattern
+                    let width = Int(fillRect.width)
+                    let height = Int(fillRect.height)
+                    let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+
+                    guard let bitmapContext = CGContext(
+                        data: nil,
+                        width: width,
+                        height: height,
+                        bitsPerComponent: 8,
+                        bytesPerRow: width * 4,
+                        space: CGColorSpaceCreateDeviceRGB(),
+                        bitmapInfo: bitmapInfo.rawValue
+                    ) else {
+                        print("[DrawingCanvasViewMacOS] Failed to create bitmap context for pattern")
+                        return
+                    }
+
+                    // Render pattern to bitmap context
+                    // DR-0019: Pass map scale to pattern for correct physical sizing
+                    pattern.draw(in: bitmapContext, rect: CGRect(origin: .zero, size: fillRect.size), seed: fill.patternSeed, baseColor: fill.effectiveColor, mapScale: mapScale)
+
+                    // Create and cache image
+                    if let patternImage = bitmapContext.makeImage() {
+                        let nsImage = NSImage(cgImage: patternImage, size: fillRect.size)
+                        BaseLayerImageCache.shared.set(cacheKey, image: nsImage)
+                        context.draw(patternImage, in: fillRect)
+                        print("[DrawingCanvasViewMacOS] Pattern cached - size: \(width)x\(height)")
+                    }
+                }
             } else {
                 // Simple solid color fill for exterior types without terrain metadata
                 print("[DrawingCanvasViewMacOS] Rendering solid color fill")
@@ -250,8 +316,24 @@ class MacOSDrawingView: NSView {
             drawGrid(in: context, spacing: model.gridSpacing, color: NSColor(model.gridColor))
         }
 
-        // DR-0004.3: Draw all completed strokes from model
-        if let model = canvasModel {
+        // DR-0023: Draw strokes from all visible layers (in order, bottom to top)
+        if let model = canvasModel, let layerManager = model.layerManager {
+            for layer in layerManager.sortedLayers where layer.isVisible {
+                context.saveGState()
+                context.setAlpha(layer.opacity)
+
+                for stroke in layer.macosStrokes {
+                    drawStroke(stroke, in: context)
+                }
+
+                context.restoreGState()
+            }
+        }
+
+        // Fallback: Draw model strokes if no layer system (backward compatibility)
+        if let model = canvasModel,
+           (model.layerManager == nil || model.layerManager?.layers.isEmpty == true),
+           !model.macOSStrokes.isEmpty {
             for stroke in model.macOSStrokes {
                 drawStroke(stroke, in: context)
             }

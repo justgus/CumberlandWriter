@@ -22,7 +22,13 @@ import AppKit
 /// Protocol for procedural pattern generators
 protocol ProceduralPattern {
     /// Generate pattern into a Core Graphics context
-    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color)
+    /// - Parameters:
+    ///   - context: Core Graphics context to draw into
+    ///   - rect: Rectangle to fill
+    ///   - seed: Random seed for reproducible patterns
+    ///   - baseColor: Base color for the pattern
+    ///   - mapScale: Optional map scale in miles (exterior) or feet (interior) - used to calculate physical sizes
+    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color, mapScale: Double?)
 }
 
 // MARK: - Perlin Noise Generator
@@ -135,8 +141,19 @@ struct SeededRandom {
 // MARK: - Tile Pattern
 
 struct TilePattern: ProceduralPattern {
-    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color) {
-        let tileSize: CGFloat = 64
+    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color, mapScale: Double?) {
+        // DR-0019: Calculate tile size based on map scale for interior maps
+        // 12-inch tiles (1 foot) - scale if map scale is provided
+        let baseTileSize: CGFloat = 64  // Default for backward compatibility
+        let tileSize: CGFloat
+        if let scale = mapScale {
+            // For interior maps: scale is in feet, canvas represents that many feet
+            // 12-inch (1 foot) tiles
+            let tileSizeInFeet: CGFloat = 1.0
+            tileSize = (tileSizeInFeet / CGFloat(scale)) * rect.width
+        } else {
+            tileSize = baseTileSize
+        }
         let groutWidth: CGFloat = 3
 
         let noise = NoiseGenerator(seed: seed)
@@ -192,41 +209,168 @@ struct TilePattern: ProceduralPattern {
     }
 }
 
-// MARK: - Wood Pattern
+// MARK: - Wood Plank Pattern (ER-0001 + DR-0019)
 
 struct WoodPattern: ProceduralPattern {
-    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color) {
+    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color, mapScale: Double?) {
+        var rng = SeededRandom(seed: seed)
         let noise = NoiseGenerator(seed: seed)
 
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         platformColor(from: baseColor).getRGBA(&r, &g, &b, &a)
 
+        // ER-0001 + DR-0019: Calculate plank sizes based on map scale
+        // 6-inch wide planks (0.5 feet)
+        let plankHeightInFeet: CGFloat = 0.5  // 6 inches = 0.5 feet
+
+        let plankHeight: CGFloat
+        let plankLengths: [CGFloat]
+
+        if let scale = mapScale {
+            // DR-0019: Scale planks based on map scale (for interior maps, scale is in feet)
+            // Canvas width represents 'scale' feet total
+            plankHeight = (plankHeightInFeet / CGFloat(scale)) * rect.width
+
+            // Plank lengths: 2-6 feet
+            let lengthsInFeet: [CGFloat] = [2, 3, 4, 5, 6]
+            plankLengths = lengthsInFeet.map { ($0 / CGFloat(scale)) * rect.width }
+        } else {
+            // Backward compatibility: use fixed pixel sizes
+            plankHeight = 36
+            plankLengths = [144, 216, 288, 360, 432]
+        }
+
+        // Separation line width
+        let separationWidth: CGFloat = 2
+
+        let rows = Int(ceil(rect.height / plankHeight))
+
+        var currentY: CGFloat = 0
+
+        for row in 0..<rows {
+            var currentX: CGFloat = 0
+
+            // Stagger offset for realistic appearance (50% offset every other row)
+            if row % 2 == 1 {
+                let firstPlankIndex = rng.nextInt(bound: plankLengths.count)
+                let firstPlankLength = plankLengths[firstPlankIndex] / 2
+
+                // Draw half plank at start of odd rows for stagger
+                drawPlank(
+                    context: context,
+                    rect: CGRect(x: currentX, y: currentY, width: firstPlankLength, height: plankHeight),
+                    noise: noise,
+                    rng: &rng,
+                    baseR: r, baseG: g, baseB: b, baseA: a,
+                    row: row,
+                    col: 0
+                )
+                currentX += firstPlankLength
+            }
+
+            // Draw full planks across the row
+            var col = 1
+            while currentX < rect.width {
+                let plankIndex = rng.nextInt(bound: plankLengths.count)
+                let plankWidth = plankLengths[plankIndex]
+
+                let actualWidth = min(plankWidth, rect.width - currentX)
+
+                drawPlank(
+                    context: context,
+                    rect: CGRect(x: currentX, y: currentY, width: actualWidth - separationWidth, height: plankHeight - separationWidth),
+                    noise: noise,
+                    rng: &rng,
+                    baseR: r, baseG: g, baseB: b, baseA: a,
+                    row: row,
+                    col: col
+                )
+
+                currentX += actualWidth
+                col += 1
+            }
+
+            currentY += plankHeight
+        }
+
+        // Draw plank separation lines
+        drawPlankSeparations(
+            context: context,
+            rect: rect,
+            plankHeight: plankHeight,
+            separationWidth: separationWidth,
+            r: r, g: g, b: b, a: a
+        )
+    }
+
+    private func drawPlank(
+        context: CGContext,
+        rect: CGRect,
+        noise: NoiseGenerator,
+        rng: inout SeededRandom,
+        baseR: CGFloat, baseG: CGFloat, baseB: CGFloat, baseA: CGFloat,
+        row: Int,
+        col: Int
+    ) {
+        // Per-plank color variation (±10% brightness)
+        let colorVariation = 0.9 + CGFloat(rng.nextDouble()) * 0.2
+
+        // Draw plank base color
+        let plankColor = platformColorFromRGBA(
+            baseR * colorVariation,
+            baseG * colorVariation,
+            baseB * colorVariation,
+            baseA
+        )
+        context.setFillColor(plankColor.cgColor)
+        context.fill(rect)
+
+        // Add wood grain texture
         let width = Int(rect.width)
         let height = Int(rect.height)
 
-        // Draw wood grain pattern
-        for y in 0..<height {
-            for x in 0..<width {
-                // Create wood grain using noise
-                let nx = Double(x) / 100.0
-                let ny = Double(y) / 100.0
+        for y in stride(from: 0, to: height, by: 2) {
+            for x in stride(from: 0, to: width, by: 2) {
+                let worldX = rect.minX + CGFloat(x)
+                let worldY = rect.minY + CGFloat(y)
 
-                // Combine multiple noise octaves for wood grain
-                let grain = noise.fractalNoise2D(x: nx * 0.5, y: ny * 0.5, octaves: 3)
-                let rings = sin(nx * 2.0 + grain * 3.0)
+                // Horizontal grain pattern
+                let nx = Double(worldX) / 80.0
+                let ny = Double(worldY) / 150.0
 
-                let brightness = 0.7 + (rings + 1.0) * 0.15 // 0.7 to 1.0
+                // Wood grain using noise
+                let grain = noise.fractalNoise2D(x: nx * 0.3, y: ny * 0.8, octaves: 2, persistence: 0.4)
+                let grainBrightness = 0.95 + grain * 0.05
 
-                let pixelColor = platformColorFromRGBA(
-                    r * brightness,
-                    g * brightness,
-                    b * brightness,
-                    a
+                let grainColor = platformColorFromRGBA(
+                    baseR * colorVariation * grainBrightness,
+                    baseG * colorVariation * grainBrightness,
+                    baseB * colorVariation * grainBrightness,
+                    baseA * 0.3
                 )
 
-                context.setFillColor(pixelColor.cgColor)
-                context.fill(CGRect(x: x, y: y, width: 1, height: 1))
+                context.setFillColor(grainColor.cgColor)
+                context.fill(CGRect(x: worldX, y: worldY, width: 2, height: 2))
             }
+        }
+    }
+
+    private func drawPlankSeparations(
+        context: CGContext,
+        rect: CGRect,
+        plankHeight: CGFloat,
+        separationWidth: CGFloat,
+        r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat
+    ) {
+        // Dark brown/black for plank gaps
+        let separationColor = platformColorFromRGBA(r * 0.3, g * 0.3, b * 0.3, a * 0.8)
+        context.setFillColor(separationColor.cgColor)
+
+        // Horizontal separations (between plank rows)
+        var y: CGFloat = plankHeight
+        while y < rect.height {
+            context.fill(CGRect(x: 0, y: y - separationWidth, width: rect.width, height: separationWidth))
+            y += plankHeight
         }
     }
 }
@@ -234,7 +378,7 @@ struct WoodPattern: ProceduralPattern {
 // MARK: - Slate Pattern
 
 struct SlatePattern: ProceduralPattern {
-    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color) {
+    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color, mapScale: Double?) {
         let tileWidth: CGFloat = 120
         let tileHeight: CGFloat = 60
         let groutWidth: CGFloat = 2
@@ -279,7 +423,7 @@ struct SlatePattern: ProceduralPattern {
 // MARK: - Stone Pattern
 
 struct StonePattern: ProceduralPattern {
-    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color) {
+    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color, mapScale: Double?) {
         let noise = NoiseGenerator(seed: seed)
 
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
@@ -318,7 +462,7 @@ struct StonePattern: ProceduralPattern {
 // MARK: - Cobblestone Pattern
 
 struct CobblestonePattern: ProceduralPattern {
-    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color) {
+    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color, mapScale: Double?) {
         var rng = SeededRandom(seed: seed)
         let noise = NoiseGenerator(seed: seed)
 
@@ -370,7 +514,7 @@ struct CobblestonePattern: ProceduralPattern {
 // MARK: - Concrete Pattern
 
 struct ConcretePattern: ProceduralPattern {
-    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color) {
+    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color, mapScale: Double?) {
         let noise = NoiseGenerator(seed: seed)
         var rng = SeededRandom(seed: seed)
 
@@ -425,7 +569,7 @@ struct ConcretePattern: ProceduralPattern {
 // MARK: - Metal Pattern
 
 struct MetalPattern: ProceduralPattern {
-    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color) {
+    func draw(in context: CGContext, rect: CGRect, seed: Int, baseColor: Color, mapScale: Double?) {
         let noise = NoiseGenerator(seed: seed)
         var rng = SeededRandom(seed: seed)
 

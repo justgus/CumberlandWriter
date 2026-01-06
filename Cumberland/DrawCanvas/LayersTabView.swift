@@ -103,7 +103,15 @@ struct LayersTabView: View {
         .cornerRadius(6)
         .contentShape(Rectangle())
         .onTapGesture {
+            // DR-0023: When switching layers, load that layer's drawing into the canvas
             layerManager.selectLayer(id: layer.id)
+
+            #if canImport(PencilKit) && canImport(UIKit)
+            // iOS: Load the selected layer's PKDrawing into the canvas view
+            if let selectedLayer = layerManager.getLayer(id: layer.id) {
+                canvasState.drawing = selectedLayer.drawing
+            }
+            #endif
         }
     }
 

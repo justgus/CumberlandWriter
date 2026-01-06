@@ -17,16 +17,20 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **0 unverified DRs**
+Currently: **1 unverified DR**
 
 See: [DR-unverified.md](./DR-unverified.md)
+
+| DR | Title | Component | Severity | Status |
+|----|-------|-----------|----------|--------|
+| DR-0029 | Base layer image recalculated on visibility toggle and restore | BaseLayerImageCache, DrawingCanvasView, DrawingCanvasViewMacOS | High | 🟡 Resolved - Not Verified |
 
 ### Verified DRs (Resolved Issues)
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
 | Batch 1 | DR-0001 to DR-0010 | [DR-verified-0001-0010.md](./DR-verified-0001-0010.md) | ✅ All Verified |
-| Batch 2 | DR-0011 to DR-0018 | [DR-verified-0011-0018.md](./DR-verified-0011-0018.md) | ✅ All Verified |
+| Batch 2 | DR-0011 to DR-0028 | [DR-verified-0011-0021.md](./DR-verified-0011-0021.md) | ✅ All Verified |
 
 ## DR Summary
 
@@ -88,12 +92,12 @@ When a verified batch reaches ~10-15 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 18
-- **Verified:** 18 (100%)
-- **Unverified:** 0 (0%)
-- **Latest DR:** DR-0018 (2026-01-01 - Verified)
+- **Total DRs:** 30
+- **Verified:** 29 (97%)
+- **Resolved - Not Verified:** 1 (3%)
+- **Latest DR:** DR-0029 (2026-01-06 - Base layer image caching - RESOLVED)
 
 ---
 
-*Last Updated: 2026-01-01*
-*Document Version: 2.0 (Restructured for better organization)*
+*Last Updated: 2026-01-06*
+*Document Version: 2.6 (Resolved DR-0029 - Base layer image caching for instant visibility toggle)*

@@ -12,24 +12,25 @@ This is the main index for all Cumberland Enhancement Requests. ERs track planne
 
 ### Unverified ERs (Active & Proposed)
 
-Currently: **1 active ER**
+Currently: **0 active ERs**
 
 See: [ER-unverified.md](./ER-unverified.md)
 
-| ER | Title | Component | Status | Priority |
-|----|-------|-----------|--------|----------|
-| ER-0001 | Interior vs Exterior Canvas Differentiation | DrawCanvas, ToolsTabView, BaseLayerButton | 🔵 Proposed | High |
-
 ### Verified ERs (Completed Enhancements)
 
-No verified ERs yet.
+| ER | Title | Component | Status | Date Verified |
+|----|-------|-----------|--------|---------------|
+| ER-0001 | Interior vs Exterior Canvas Differentiation | DrawCanvas, ToolsTabView, BaseLayerButton | ✅ Verified | 2026-01-03 |
+| ER-0002 | Base Layer should not receive strokes | DrawingCanvasView, DrawingCanvasViewMacOS, LayerManager | ✅ Verified | 2026-01-06 |
+
+See: [ER-verified-0001.md](./ER-verified-0001.md)
 
 ## ER Summary
 
 ### ER-0001 - Interior vs Exterior Canvas Differentiation
 
 **Component:** DrawCanvas, ToolsTabView, BaseLayerButton, TerrainPattern
-**Status:** 🔵 Proposed
+**Status:** 🟡 Implemented - Not Verified
 **Priority:** High
 **Date Requested:** 2026-01-01
 
@@ -94,13 +95,14 @@ Use the right system for the task:
 
 ## Statistics
 
-- **Total ERs:** 1
-- **Verified:** 0 (0%)
+- **Total ERs:** 2
+- **Verified:** 2 (100%)
+- **Implemented - Not Verified:** 0
 - **In Progress:** 0
-- **Proposed:** 1 (100%)
-- **Latest ER:** ER-0001 (2026-01-01 - Proposed)
+- **Proposed:** 0
+- **Latest ER:** ER-0002 (2026-01-06 - Verified - Base Layer stroke rejection)
 
 ---
 
-*Last Updated: 2026-01-01*
-*Document Version: 1.0 (Initial creation)*
+*Last Updated: 2026-01-06*
+*Document Version: 1.1 (Verified ER-0002 - Base Layer stroke rejection - ALL ERs NOW VERIFIED!)*

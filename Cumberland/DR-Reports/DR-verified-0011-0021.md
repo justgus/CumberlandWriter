@@ -842,3 +842,501 @@ terrainMetadata?.waterPercentageOverride = existingWaterOverride
 ---
 
 *When user verifies all testing checklist items, this DR can be moved to DR-verified-0011-0018.md*
+
+---
+
+## DR-0019: Interior map scale changes don't affect floor pattern size
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** ToolsTabView, DrawingCanvasView, BaseLayerPatterns
+**Severity:** High
+**Date Identified:** 2026-01-03
+**Date Resolved:** 2026-01-03
+**Date Verified:** 2026-01-03
+
+**Description:**
+When changing the map scale for Interior maps, the floor patterns appeared to resize rather than showing more or less of the floor at the same material scale. Changing from 100ft to 5ft should show a smaller area with larger-appearing floor features (zooming in).
+
+**Root Cause:**
+Patterns were using fixed PIXEL sizes instead of fixed PHYSICAL sizes. The ProceduralPattern protocol didn't pass map scale information, so patterns couldn't calculate correct physical dimensions.
+
+**Fix Applied:**
+
+1. **Updated ProceduralPattern Protocol** (BaseLayerPatterns.swift:23-31)
+   - Added `mapScale: Double?` parameter to `draw()` method
+   - Allows patterns to calculate physical sizes based on map scale
+
+2. **Updated WoodPattern** (BaseLayerPatterns.swift:215-241)
+   - Now calculates plank sizes based on map scale
+   - 6-inch planks (0.5 feet) maintain correct physical size
+   - Formula: `size = (sizeInFeet / mapScaleInFeet) * canvasWidth`
+
+3. **Updated TilePattern** (BaseLayerPatterns.swift:144-156)
+   - 12-inch (1 foot) tiles scale based on map scale
+
+4. **Updated All Pattern Implementations**
+   - All patterns now accept mapScale parameter
+
+5. **Updated Pattern Rendering** 
+   - DrawingCanvasView.swift (iOS)
+   - DrawingCanvasViewMacOS.swift (macOS)
+   - Pass map scale from terrainMetadata to pattern.draw()
+
+**Files Modified:**
+- BaseLayerPatterns.swift
+- DrawingCanvasView.swift
+- DrawingCanvasViewMacOS.swift
+- TerrainPattern.swift
+
+---
+
+## DR-0020: Interior floor material selection resets map scale
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** BaseLayerButton, ToolsTabView
+**Severity:** Medium
+**Date Identified:** 2026-01-03
+**Date Resolved:** 2026-01-03
+**Date Verified:** 2026-01-03
+
+**Description:**
+When selecting a new interior floor material while the map scale was set to 5ft, the scale automatically reverted to 100ft. This unexpected behavior lost the user's scale setting.
+
+**Root Cause:**
+BaseLayerButton.applyFill() only created terrain metadata (which stores scale) for exterior maps. Interior maps didn't get metadata, so when switching materials, there was no existing scale to preserve.
+
+**Fix Applied:**
+
+**BaseLayerButton.applyFill()** (BaseLayerButton.swift:296-358)
+- Now creates terrain metadata for BOTH exterior and interior maps
+- Preserves existing scale regardless of map type
+- Interior maps store their scale in terrainMetadata.physicalSizeMiles (repurposed to store feet)
+- Default scale: 100.0 (miles for exterior, feet for interior)
+
+**Files Modified:**
+- BaseLayerButton.swift
+
+---
+
+---
+
+## DR-0021: Layer visibility toggle not working
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** LayerManager, Layers Tab, DrawingCanvasView, DrawingCanvasViewMacOS
+**Severity:** High
+**Date Identified:** 2026-01-03
+**Date Resolved:** 2026-01-03
+**Date Verified:** 2026-01-03
+
+**Description:**
+When setting a layer's visibility to "off" or "not visible" in the Layers Tab on the tool palette (including the base layer), the layer should be hidden from view until toggled back on.
+
+**Root Cause:**
+The base layer rendering code in both DrawingCanvasView (iOS) and DrawingCanvasViewMacOS (macOS) was not checking the layer's `isVisible` property before rendering.
+
+**Fix Applied:**
+
+1. **DrawingCanvasView.canvasBackgroundView** (DrawingCanvasView.swift:135-137)
+   - Added `baseLayer.isVisible` check before rendering base layer (iOS/visionOS)
+   
+2. **DrawingCanvasViewMacOS.draw()** (DrawingCanvasViewMacOS.swift:179-181)
+   - Added `baseLayer.isVisible` check before rendering base layer (macOS)
+
+**Files Modified:**
+- DrawingCanvasView.swift
+- DrawingCanvasViewMacOS.swift
+
+---
+
+## DR-0022: Interior surfaces regenerate during pan/zoom operations
+
+**Status:** ✅ Verified
+**Platform:** All platforms
+**Component:** ProceduralPatternView, DrawingCanvasView, DrawingCanvasViewMacOS
+**Severity:** High
+**Date Identified:** 2026-01-03
+**Date Resolved:** 2026-01-03
+**Date Verified:** 2026-01-03
+
+**Description:**
+Similar to the terrain rendering system, interior floor patterns (wood, tile, stone, etc.) should be cached and not regenerate during pan, zoom, show, or hide operations. Previously, patterns regenerated unnecessarily, causing performance issues.
+
+**Root Cause Analysis:**
+ProceduralPatternUIView (iOS) and DrawingCanvasViewMacOS (macOS) were regenerating patterns on every draw call instead of caching the rendered result.
+
+**Fix Applied:**
+
+1. **ProceduralPatternUIView** (DrawingCanvasView.swift:1606-1645)
+   - Added `cachedPatternImage` and `cachedCacheKey` properties
+   - Generate cache key: `fillType_patternSeed_mapScale_width×height`
+   - Check cache before regenerating pattern
+   - Use UIGraphicsImageRenderer to generate and cache pattern image
+   - Reuse cached image on subsequent draw calls
+
+2. **DrawingCanvasViewMacOS** (DrawingCanvasViewMacOS.swift:63-64, 237-279)
+   - Added `patternCache` dictionary
+   - Generate same cache key format as iOS
+   - Create bitmap context for pattern rendering
+   - Cache CGImage and reuse on subsequent draws
+   - Pattern only regenerates when cache key changes
+
+**Files Modified:**
+- DrawingCanvasView.swift (iOS/visionOS pattern caching)
+- DrawingCanvasViewMacOS.swift (macOS pattern caching)
+
+---
+
+## DR-0023: Strokes not added to layers with visibility control
+
+**Status:** ✅ Verified
+**Platform:** All platforms
+**Component:** DrawingCanvasView, DrawingCanvasViewMacOS, LayerManager, LayersTabView
+**Severity:** High
+**Date Identified:** 2026-01-03
+**Date Resolved:** 2026-01-03
+**Date Verified:** 2026-01-03
+
+**Description:**
+When drawing strokes on the canvas, they should be added to the currently selected layer and respect layer visibility. Previously, strokes were saved to the model's main drawing properties instead of being associated with individual layers, and layer visibility didn't affect stroke rendering.
+
+**Root Cause Analysis:**
+
+**iOS/visionOS:**
+- `canvasViewDrawingDidChange` delegate saved to `model.drawing` only
+- PKCanvasView displayed `model.drawing` without layer awareness
+- No layer switching mechanism when user selected different layer
+
+**macOS:**
+- `mouseUp` handler appended strokes to `model.macOSStrokes`
+- Rendering code drew from `model.macOSStrokes` without visibility check
+- No layer-aware rendering
+
+**Fix Applied:**
+
+1. **DrawingCanvasView.swift:1195-1200** (iOS stroke saving)
+   - Updated `canvasViewDrawingDidChange` to save strokes to `activeLayer.drawing` in real-time
+   - Added lock check: only save if `!activeLayer.isLocked`
+
+2. **DrawingCanvasViewMacOS.swift:148-159** (macOS stroke saving)
+   - Updated `mouseUp` to save strokes to `activeLayer.macosStrokes` instead of `model.macOSStrokes`
+   - Added lock check and backward compatibility fallback
+
+3. **DrawingCanvasViewMacOS.swift:305-326** (macOS rendering with visibility)
+   - Replaced simple model stroke rendering with layer-aware rendering
+   - Iterate through `layerManager.sortedLayers` (bottom to top)
+   - Check `layer.isVisible` before drawing each layer's strokes
+   - Respect `layer.opacity` during rendering
+
+4. **LayersTabView.swift:106-115** (iOS layer switching)
+   - When user taps a layer, load that layer's `PKDrawing` into canvas
+   - Updates `canvasState.drawing = selectedLayer.drawing`
+
+**Files Modified:**
+- DrawingCanvasView.swift (iOS stroke saving + layer system integration)
+- DrawingCanvasViewMacOS.swift (macOS stroke saving + visibility rendering)
+- LayersTabView.swift (layer switching for iOS)
+
+**Implementation Notes:**
+
+**iOS Behavior:**
+- PKCanvasView can only display one drawing at a time
+- When switching layers, the canvas shows that layer's content
+- Only the active layer's strokes are editable on screen
+- All layers are composited when exporting
+
+**macOS Behavior:**
+- All visible layers render simultaneously in correct order
+- Layer opacity and visibility are respected
+- Active layer receives new strokes
+- Non-active layers remain visible but non-editable
+
+---
+
+## DR-0024: Strokes deleted when autosave runs
+
+**Status:** ✅ Verified
+**Platform:** All platforms
+**Component:** DrawingCanvasView, AutoSave, LayerManager
+**Severity:** Critical
+**Date Identified:** 2026-01-03
+**Date Resolved:** 2026-01-03
+**Date Verified:** 2026-01-03
+
+**Description:**
+When the system's autosave mechanism triggered, all strokes on the currently selected/active layer were deleted. This critical data loss bug was caused by obsolete migration code in the export function that was overwriting layer strokes with stale model-level drawing data.
+
+**Root Cause Analysis:**
+
+The bug was caused by an interaction between DR-0023 (real-time layer stroke saving) and obsolete migration code in `exportCanvasState()`.
+
+**Before DR-0023:**
+- Strokes were saved to `model.drawing` (iOS) and `model.macOSStrokes` (macOS)
+- Export would migrate these strokes to the active layer during save
+
+**After DR-0023:**
+- Strokes save directly to `activeLayer.drawing` and `activeLayer.macosStrokes` in real-time
+- BUT `model.drawing` is ALSO updated (for PKCanvasView display binding)
+- Migration code remained in export, creating a conflict
+
+**The Data Loss Sequence:**
+
+1. User draws on Layer 2 → strokes saved to both `model.drawing` AND `layer2.drawing` ✓
+2. User switches to view Base Layer → `baseLayer.drawing` loads into `model.drawing`
+3. Now `model.drawing` contains the **base layer's empty drawing**
+4. But `activeLayerID` still points to Layer 2
+5. **Autosave triggers** → `exportCanvasState()` runs
+6. Migration code: `activeLayer.drawing = drawing`
+7. This **overwrites Layer 2's strokes** with the **empty base layer drawing**
+8. LayerManager is encoded with Layer 2 now empty
+9. **Strokes permanently deleted**
+
+**Why This Happened:**
+- `model.drawing` is **view state** (which layer is displayed on screen)
+- `activeLayerID` is **editing state** (which layer receives new strokes)
+- These two can be out of sync (viewing one layer while another is active)
+- Migration code assumed `model.drawing` always contained the active layer's strokes
+- This assumption broke with layer switching
+
+**Fix Applied:**
+
+**DrawingCanvasView.swift:539-544** - Removed migration code from export
+
+Deleted the entire migration block that was:
+- Copying `model.drawing` → `activeLayer.drawing` (iOS)
+- Copying `model.macOSStrokes` → `activeLayer.macosStrokes` (macOS)
+- Converting PKDrawing to DrawingStroke format
+
+**Why Removal is Safe:**
+1. DR-0023 already saves strokes to layers in real-time (no migration needed)
+2. LayerManager's Codable implementation properly serializes layer strokes
+3. Import code correctly restores strokes from layers
+4. Migration was obsolete and dangerous after DR-0023
+
+**Files Modified:**
+- DrawingCanvasView.swift (removed lines 542-591, added explanatory comment)
+
+---
+
+
+## DR-0024: iOS canvas layers do not all display at once
+
+**Status:** ✅ Verified
+**Platform:** iOS
+**Component:** DrawingCanvasView, LayerManager
+**Severity:** Critical
+**Date Identified:** 2026-01-03
+**Date Resolved:** 2026-01-03
+**Date Verified:** 2026-01-03
+
+**Description:**
+On iOS, only the currently selected/active layer was visible on the canvas. All other layers were hidden regardless of their visibility settings (eye icon state). This prevented users from seeing the composite view of all visible layers, which is essential for map creation workflows.
+
+**Root Cause:**
+On iOS, PencilKitCanvasView only displays a single `PKDrawing` object bound to `canvasState.drawing`. Unlike macOS (which iterates through all visible layers in its draw method), iOS was showing only one drawing at a time—typically just the active layer's drawing—causing all other layers to be hidden.
+
+**Fix Applied:**
+Created LayerCompositeView to render all visible non-active layers as images underneath the PencilKitCanvasView, matching macOS's multi-layer compositing behavior.
+
+**Files Modified:**
+- DrawingCanvasView.swift:73-80 (added LayerCompositeView to canvas stack)
+- DrawingCanvasView.swift:95-98 (onChange handler for layer switching)
+- DrawingCanvasView.swift:133-136 (onAppear sync)
+- DrawingCanvasView.swift:1357-1396 (new LayerCompositeView struct)
+
+---
+
+## DR-0026: Switching from Base Layer deletes strokes on target layer (iOS)
+
+**Status:** ✅ Verified
+**Platform:** iOS
+**Component:** DrawingCanvasView, LayerManager, ER-0002 implementation
+**Severity:** Critical - Data Loss
+**Date Identified:** 2026-01-03
+**Date Resolved:** 2026-01-03
+**Date Verified:** 2026-01-03
+
+**Description:**
+When the Base Layer was selected and the user attempted to draw, ER-0002 correctly redirected selection to the topmost content layer. However, on iOS, this automatic layer switch deleted all existing strokes on the target layer.
+
+**Root Cause:**
+In `canvasViewDrawingDidChange`, when ER-0002's `getTargetLayerForStrokes()` switched the active layer from base to a content layer, the code immediately saved the canvas's current drawing (empty base layer) to the target layer, overwriting existing strokes.
+
+**Fix Applied:**
+Added layer switch detection that loads the target layer's drawing into the canvas instead of saving when a switch occurs, preventing data loss.
+
+**Files Modified:**
+- DrawingCanvasView.swift:333-353 (activeLayerDrawing, syncDrawingWithActiveLayer)
+- DrawingCanvasView.swift:95-98 (onChange for layer sync)
+- DrawingCanvasView.swift:1186-1219 (canvasViewDrawingDidChange with switch detection)
+
+---
+
+## DR-0025: iOS eye icon has no effect on Layer visibility
+
+**Status:** ✅ Resolved - Verified
+**Platform:** iOS
+**Component:** DrawingCanvasView, LayerManager, LayerCompositeView
+**Severity:** High
+**Date Identified:** 2026-01-03
+**Date Resolved:** 2026-01-06
+**Date Verified:** 2026-01-06
+
+**Description:**
+On iOS, toggling the eye icon in the Layers tab has no effect on layer visibility. Layers remain visible even when the eye icon is set to grey (hidden state). The visibility filter in LayerCompositeView is not working as expected.
+
+**Steps to Reproduce:**
+1. Create a map on iOS with multiple layers
+2. Add strokes to multiple layers
+3. Toggle eye icon to grey (hidden) for a layer
+4. Observe that layer's strokes still display
+
+**Expected Behavior:**
+- Eye icon enabled (blue): Layer is visible and composited into canvas
+- Eye icon disabled (grey): Layer is hidden from canvas, strokes not displayed
+
+**Actual Behavior:**
+Eye icon toggles between blue and grey, but layer strokes remain visible regardless of state.
+
+**Root Cause:**
+LayerCompositeView was not reactive to changes in layer visibility. The issue had two parts:
+
+1. **Missing .id() modifier**: LayerCompositeView lacked an identity that incorporated visibility state, so SwiftUI didn't know when to recreate the view
+2. **Observable array limitation**: Swift's @Observable macro doesn't automatically trigger change notifications when properties of objects *within* an array are modified (e.g., `layer.isVisible`)
+
+**Fix Applied:**
+**Date Fixed:** 2026-01-06
+
+**Part 1: Added .id() modifier to LayerCompositeView** (DrawingCanvasView.swift:82)
+```swift
+.id(layerManager.layers.map { "\($0.id)_\($0.isVisible)_\($0.order)" }.joined())
+```
+This creates a unique identity string that changes whenever any layer's visibility or order changes.
+
+**Part 2: Trigger observation updates in LayerManager** (LayerManager.swift)
+Added `layers = layers` reassignment to all methods that modify layer properties:
+- `toggleVisibility()` (line 390)
+- `setVisibility()` (line 398)
+- `toggleLock()` (line 406)
+- `setLock()` (line 414)
+- `setOpacity()` (line 423)
+- `setBlendMode()` (line 432)
+- `renameLayer()` (line 443)
+- `showAllLayers()` (line 486)
+- `hideAllExcept()` (line 495)
+- `lockAllExcept()` (line 505)
+- `unlockAllLayers()` (line 515)
+
+This reassignment triggers the @Observable system to notify observers that the layers array changed, which in turn causes the .id() modifier to re-evaluate.
+
+**Files Modified:**
+- DrawingCanvasView.swift (added .id modifier)
+- LayerManager.swift (added observation triggers to 11 methods)
+
+**Verification Results:**
+✅ Eye icon toggle now hides/shows layers correctly
+✅ Multiple layers can have different visibility states
+✅ LayerCompositeView updates immediately when visibility changes
+
+---
+
+## DR-0027: Masking panel obscures strokes on non-active layers (iOS)
+
+**Status:** ✅ Resolved - Verified
+**Platform:** iOS
+**Component:** DrawingCanvasView, LayerCompositeView
+**Severity:** Critical
+**Date Identified:** 2026-01-03
+**Date Resolved:** 2026-01-06
+**Date Verified:** 2026-01-06
+
+**Description:**
+A mysterious invisible masking panel obscures strokes on non-active layers when zoomed out below 50%. The visible rectangle shrinks proportionally with zoom level. At 49% zoom, approximately 49% of width/height is visible (upper left corner). At 25% zoom (minimum), only ~25% of width/height is visible. The active layer always displays all strokes everywhere, but non-active layers are partially masked.
+
+**Steps to Reproduce:**
+1. Create map on iOS with multiple layers
+2. Draw strokes across entire canvas on multiple layers
+3. Zoom out to 49% or less
+4. Observe non-active layers
+
+**Expected Behavior:**
+All visible layers should display their strokes across the entire canvas at all zoom levels, just like the active layer does.
+
+**Actual Behavior:**
+- At zoom < 50%: Non-active layer strokes are masked/clipped
+- Visible rectangle in upper left corner shrinks as zoom decreases
+- At 49% zoom: ~49% x 49% visible rectangle
+- At 25% zoom: ~25% x 25% visible rectangle
+- Active layer shows all strokes everywhere (correct)
+- Non-active layers show strokes only in shrinking rectangle (wrong)
+
+**Root Cause:**
+The issue was resolved by the same fix applied for DR-0025. The LayerCompositeView reactivity improvements (`.id()` modifier and observation triggers) caused SwiftUI to properly recreate the view, which resolved the masking issues.
+
+**Fix Applied:**
+Same fix as DR-0025:
+- Added `.id()` modifier to LayerCompositeView (DrawingCanvasView.swift:82)
+- Added observation triggers in LayerManager methods
+
+**Files Modified:**
+- DrawingCanvasView.swift (added .id modifier)
+- LayerManager.swift (added observation triggers to 11 methods)
+
+**Verification Results:**
+✅ All layers display strokes across entire canvas at all zoom levels
+✅ No masking or clipping occurs on non-active layers
+✅ Works correctly from 25% to 100% zoom
+
+---
+
+## DR-0028: Strokes dim and invert colors when layer is not selected (iOS)
+
+**Status:** ✅ Resolved - Verified
+**Platform:** iOS
+**Component:** DrawingCanvasView, LayerCompositeView
+**Severity:** High
+**Date Identified:** 2026-01-03
+**Date Resolved:** 2026-01-06
+**Date Verified:** 2026-01-06
+
+**Description:**
+Strokes on non-active layers appear dimmed and have inverted colors. Most notably, black strokes change to white when their layer is not selected. This is counterintuitive and makes it difficult to see the actual stroke colors.
+
+**Steps to Reproduce:**
+1. Create map on iOS with multiple layers
+2. Draw black strokes on Layer 1
+3. Draw black strokes on Layer 2
+4. Select Layer 1 as active
+5. Observe Layer 2 strokes
+
+**Expected Behavior:**
+All layers should display strokes in their original colors at full intensity, regardless of which layer is active. Black strokes should appear black on all layers.
+
+**Actual Behavior:**
+- Active layer: Strokes display correctly in original colors
+- Non-active layers: Strokes appear dimmed/inverted
+- Black strokes on non-active layers appear white
+- Effect is counterintuitive and confusing
+
+**Root Cause:**
+The issue was resolved by the same fix applied for DR-0025. The LayerCompositeView reactivity improvements (`.id()` modifier and observation triggers) caused SwiftUI to properly recreate and render the view with correct colors.
+
+**Fix Applied:**
+Same fix as DR-0025:
+- Added `.id()` modifier to LayerCompositeView (DrawingCanvasView.swift:82)
+- Added observation triggers in LayerManager methods
+- UIKit-based LayerCompositeView with light mode trait collection (DrawingCanvasView.swift:1410-1415)
+
+**Files Modified:**
+- DrawingCanvasView.swift (added .id modifier and UIKit implementation with light mode)
+- LayerManager.swift (added observation triggers to 11 methods)
+
+**Verification Results:**
+✅ All stroke colors display correctly on all layers
+✅ No color inversion or dimming occurs
+✅ Black strokes appear black regardless of active layer
+
+---

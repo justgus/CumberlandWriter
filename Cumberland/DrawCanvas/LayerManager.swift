@@ -64,6 +64,13 @@ class LayerManager: Codable {
         layers.first { $0.order == 0 }
     }
 
+    /// ER-0002: The topmost non-base, non-locked content layer
+    var topmostContentLayer: DrawingLayer? {
+        sortedLayers
+            .filter { $0.order != 0 && !$0.isLocked }
+            .last
+    }
+
     /// Inferred map context based on layer types
     var inferredMapContext: MapContext {
         // Check if we have any interior-specific layers
@@ -379,24 +386,32 @@ class LayerManager: Codable {
     func toggleVisibility(id: UUID) {
         guard let layer = layers.first(where: { $0.id == id }) else { return }
         layer.isVisible.toggle()
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
     }
-    
+
     /// Set layer visibility
     func setVisibility(id: UUID, isVisible: Bool) {
         guard let layer = layers.first(where: { $0.id == id }) else { return }
         layer.isVisible = isVisible
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
     }
     
     /// Toggle layer lock status
     func toggleLock(id: UUID) {
         guard let layer = layers.first(where: { $0.id == id }) else { return }
         layer.isLocked.toggle()
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
     }
-    
+
     /// Set layer lock status
     func setLock(id: UUID, isLocked: Bool) {
         guard let layer = layers.first(where: { $0.id == id }) else { return }
         layer.isLocked = isLocked
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
     }
     
     /// Set layer opacity
@@ -404,13 +419,17 @@ class LayerManager: Codable {
         guard let layer = layers.first(where: { $0.id == id }) else { return }
         layer.opacity = max(0, min(1, opacity)) // Clamp to 0-1
         layer.markModified()
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
     }
-    
+
     /// Set layer blend mode
     func setBlendMode(id: UUID, blendMode: LayerBlendMode) {
         guard let layer = layers.first(where: { $0.id == id }) else { return }
         layer.blendMode = blendMode
         layer.markModified()
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
     }
     
     // MARK: - Layer Naming
@@ -420,6 +439,8 @@ class LayerManager: Codable {
         guard let layer = layers.first(where: { $0.id == id }) else { return }
         layer.name = newName
         layer.markModified()
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
     }
 
     // MARK: - Base Layer Fill
@@ -463,20 +484,26 @@ class LayerManager: Codable {
         for layer in layers {
             layer.isVisible = true
         }
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
     }
-    
+
     /// Hide all layers except the specified one
     func hideAllExcept(id: UUID) {
         for layer in layers {
             layer.isVisible = (layer.id == id)
         }
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
     }
-    
+
     /// Lock all layers except the specified one
     func lockAllExcept(id: UUID) {
         for layer in layers {
             layer.isLocked = (layer.id != id)
         }
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
     }
     
     /// Unlock all layers
@@ -484,6 +511,8 @@ class LayerManager: Codable {
         for layer in layers {
             layer.isLocked = false
         }
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
     }
     
     // MARK: - Export
@@ -669,7 +698,29 @@ class LayerManager: Codable {
     }
     
     // MARK: - Helper Methods
-    
+
+    /// ER-0002: Get target layer for stroke saving (creates content layer if needed)
+    /// Base layer (order == 0) should never receive strokes
+    func getTargetLayerForStrokes() -> DrawingLayer {
+        // If active layer is not the base layer and not locked, use it
+        if let active = activeLayer,
+           active.order != 0,
+           !active.isLocked {
+            return active
+        }
+
+        // Otherwise, find topmost content layer
+        if let topmost = topmostContentLayer {
+            // Switch to this layer as active
+            activeLayerID = topmost.id
+            return topmost
+        }
+
+        // No valid content layers exist - create one
+        let newLayer = createLayerAboveActive(name: "Layer 1", type: .generic)
+        return newLayer
+    }
+
     #if canImport(CoreGraphics)
     /// Draw strokes in a Core Graphics context
     private func drawStrokes(_ strokes: [DrawingStroke], in context: CGContext) {

@@ -112,6 +112,20 @@ struct MapWizardView: View {
                     saveDraftWork()
                 }
             }
+            .onChange(of: selectedMethod) { _, newMethod in
+                // ER-0001: Set map category based on creation method
+                if let method = newMethod {
+                    switch method {
+                    case .draw:
+                        drawingCanvasModel.mapCategory = .exterior
+                    case .interior:
+                        drawingCanvasModel.mapCategory = .interior
+                    default:
+                        // Other methods don't use the drawing canvas base layer system
+                        break
+                    }
+                }
+            }
             #if !os(macOS)
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
                 // Save draft when app goes to background on iOS
