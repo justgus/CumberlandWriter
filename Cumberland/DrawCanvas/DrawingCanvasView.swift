@@ -70,17 +70,34 @@ struct DrawingCanvasView: View {
                         // Background
                         canvasBackgroundView
 
-                        // PencilKit Canvas
+                        // DR-0024: Render all non-active visible layers underneath the canvas
+                        if let layerManager = canvasState.layerManager {
+                            LayerCompositeView(
+                                layerManager: layerManager,
+                                canvasSize: canvasState.canvasSize,
+                                excludeActiveLayer: true
+                            )
+                            .frame(width: canvasState.canvasSize.width, height: canvasState.canvasSize.height)
+                            // DR-0025: Force SwiftUI to recreate view when layer visibility or order changes
+                            .id(layerManager.layers.map { "\($0.id)_\($0.isVisible)_\($0.order)" }.joined())
+                        }
+
+                        // PencilKit Canvas (shows only active layer)
                         PencilKitCanvasView(
                             drawing: $canvasState.drawing,
                             tool: canvasState.selectedTool,
                             isRulerActive: canvasState.isRulerActive,
                             canvasSize: canvasState.canvasSize,
-                            zoomScale: canvasState.zoomScale
+                            zoomScale: canvasState.zoomScale,
+                            layerManager: canvasState.layerManager
                         )
                         .id(canvasState.toolChangeCounter)  // Force update when tool changes (DR-0001, DR-0002, DR-0003)
                     }
                     .frame(width: canvasState.canvasSize.width, height: canvasState.canvasSize.height)
+                }
+                .onChange(of: canvasState.layerManager?.activeLayerID) { _, _ in
+                    // DR-0024/DR-0026: Sync canvas drawing with active layer when layer selection changes
+                    canvasState.syncDrawingWithActiveLayer()
                 }
                 .onChange(of: scrollPosition) { _, newValue in
                     // Keep model in sync as user pans
@@ -115,6 +132,11 @@ struct DrawingCanvasView: View {
         .onAppear {
             // Auto-initialize LayerManager for new and existing drawings
             canvasState.ensureLayerManager()
+
+            // DR-0024/DR-0026: Sync canvas with active layer on load
+            #if canImport(PencilKit) && canImport(UIKit)
+            canvasState.syncDrawingWithActiveLayer()
+            #endif
         }
     }
     
@@ -258,6 +280,9 @@ class DrawingCanvasModel {
     /// Layer manager for multi-layer drawing (optional for backward compatibility)
     var layerManager: LayerManager?
 
+    /// ER-0001: Map category (Interior vs Exterior) for context-aware UI
+    var mapCategory: BaseLayerCategory?
+
     // MARK: - Layer Manager Initialization
 
     /// Ensures a LayerManager exists, creating one if needed
@@ -317,6 +342,20 @@ class DrawingCanvasModel {
 
         layerManager = manager
     }
+
+    /// DR-0024/DR-0026: Sync canvas drawing with active layer
+    /// Call this when switching layers to load the active layer's content into the canvas
+    #if canImport(PencilKit) && canImport(UIKit)
+    func syncDrawingWithActiveLayer() {
+        guard let layerManager = layerManager,
+              let activeLayer = layerManager.activeLayer else {
+            return
+        }
+
+        print("[syncDrawingWithActiveLayer] Syncing canvas with layer: \(activeLayer.name)")
+        drawing = activeLayer.drawing
+    }
+    #endif
 
     // MARK: - Computed Properties
     
@@ -613,7 +652,9 @@ class DrawingCanvasModel {
             selectedColor: selectedColor.toHex(),
             selectedLineWidth: selectedLineWidth,
             // DR-0008: Save layer manager
-            layerManagerData: layerManagerData
+            layerManagerData: layerManagerData,
+            // ER-0001: Save map category
+            mapCategory: mapCategory?.rawValue
         )
         let encoded = try? JSONEncoder().encode(state)
         print("[EXPORT] exportCanvasState returning \(encoded?.count ?? 0) bytes total")
@@ -750,6 +791,11 @@ class DrawingCanvasModel {
         selectedToolType = DrawingToolType(rawValue: state.selectedToolType) ?? .pen
         selectedColor = Color(hex: state.selectedColor)
         selectedLineWidth = state.selectedLineWidth
+
+        // ER-0001: Restore map category
+        if let categoryString = state.mapCategory {
+            mapCategory = BaseLayerCategory(rawValue: categoryString)
+        }
 
         // Update the actual tool with restored settings
         updateTool()
@@ -1117,6 +1163,7 @@ private struct PencilKitCanvasView: UIViewRepresentable {
     let isRulerActive: Bool
     let canvasSize: CGSize
     let zoomScale: CGFloat
+    let layerManager: LayerManager?
     
     func makeUIView(context: Context) -> PKCanvasView {
         let canvasView = PKCanvasView()
@@ -1171,13 +1218,46 @@ private struct PencilKitCanvasView: UIViewRepresentable {
     
     class Coordinator: NSObject, PKCanvasViewDelegate {
         var parent: PencilKitCanvasView
-        
+        var previousActiveLayerID: UUID?
+
         init(_ parent: PencilKitCanvasView) {
             self.parent = parent
+            self.previousActiveLayerID = parent.layerManager?.activeLayerID
         }
-        
+
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-            parent.drawing = canvasView.drawing
+            // DR-0023/DR-0026: Detect layer switches to prevent data loss
+            if let layerManager = parent.layerManager {
+                let currentActiveLayerID = layerManager.activeLayerID
+
+                // Check if active layer changed since last drawing update
+                if previousActiveLayerID != currentActiveLayerID {
+                    print("[canvasViewDrawingDidChange] Layer switch detected: \(String(describing: previousActiveLayerID)) -> \(String(describing: currentActiveLayerID))")
+
+                    // Layer switched: LOAD the new active layer's drawing into canvas
+                    // Don't save - that would overwrite the new layer with old content
+                    if let activeLayer = layerManager.activeLayer {
+                        parent.drawing = activeLayer.drawing
+                        canvasView.drawing = activeLayer.drawing
+                    }
+
+                    previousActiveLayerID = currentActiveLayerID
+                    return  // Skip save on layer switch
+                }
+
+                // DR-0023 / ER-0002: Save strokes to appropriate layer
+                // Base layer (order == 0) should never receive strokes
+                let targetLayer = layerManager.getTargetLayerForStrokes()
+                targetLayer.drawing = canvasView.drawing
+                targetLayer.markModified()
+
+                // Update parent binding
+                parent.drawing = canvasView.drawing
+                previousActiveLayerID = currentActiveLayerID
+            } else {
+                // No layer manager: use simple binding update
+                parent.drawing = canvasView.drawing
+            }
         }
     }
 }
@@ -1304,6 +1384,70 @@ private struct ZoomableScrollView<Content: View>: UIViewRepresentable {
                 self.scrollPosition = newOffset
             }
         }
+    }
+}
+
+// MARK: - Layer Composite View (iOS)
+
+/// DR-0024: Renders all non-active visible layers underneath the active PencilKit canvas
+/// Uses UIKit for direct control over rendering to avoid Canvas masking and color issues
+private struct LayerCompositeView: UIViewRepresentable {
+    let layerManager: LayerManager
+    let canvasSize: CGSize
+    let excludeActiveLayer: Bool
+
+    func makeUIView(context: Context) -> LayerCompositeUIView {
+        let view = LayerCompositeUIView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false  // Let touches pass through
+        return view
+    }
+
+    func updateUIView(_ uiView: LayerCompositeUIView, context: Context) {
+        // Get layers to render (sorted bottom to top)
+        let layersToRender = layerManager.sortedLayers.filter { layer in
+            guard layer.isVisible else { return false }
+            if excludeActiveLayer && layer.id == layerManager.activeLayerID { return false }
+            if layer.order == 0 { return false }  // Base layer rendered separately
+            return true
+        }
+
+        uiView.layersToRender = layersToRender
+        uiView.canvasSize = canvasSize
+        uiView.setNeedsDisplay()
+    }
+}
+
+/// UIView that renders layer drawings directly
+private class LayerCompositeUIView: UIView {
+    var layersToRender: [DrawingLayer] = []
+    var canvasSize: CGSize = .zero
+
+    override func draw(_ rect: CGRect) {
+        guard let context = UIGraphicsGetCurrentContext() else { return }
+
+        // Render each layer
+        for layer in layersToRender {
+            context.saveGState()
+            context.setAlpha(layer.opacity)
+
+            // DR-0027/0028: Generate image at appropriate scale
+            // Use 0 for scale to match current screen automatically
+            let image = layer.drawing.image(from: CGRect(origin: .zero, size: canvasSize), scale: 0)
+
+            // DR-0027: Draw the full image at full canvas size
+            image.draw(in: CGRect(origin: .zero, size: canvasSize))
+
+            context.restoreGState()
+        }
+    }
+
+    // DR-0028: Override trait collection to force light mode (prevents color inversion)
+    override var traitCollection: UITraitCollection {
+        return UITraitCollection(traitsFrom: [
+            super.traitCollection,
+            UITraitCollection(userInterfaceStyle: .light)
+        ])
     }
 }
 
@@ -1513,14 +1657,10 @@ private class ProceduralTerrainUIView: UIView {
     var metadata: TerrainMapMetadata?
     var canvasSize: CGSize = .zero
 
-    // DR-0016.5: Cache rendered terrain to avoid regeneration on every draw
-    private var cachedTerrainImage: UIImage?
-    private var cachedCacheKey: String?
-
     override func draw(_ rect: CGRect) {
         print("[ProceduralTerrainUIView] draw() called - rect: \(rect), canvasSize: \(canvasSize)")
 
-        guard let context = UIGraphicsGetCurrentContext() else {
+        guard UIGraphicsGetCurrentContext() != nil else {
             print("[ProceduralTerrainUIView] ERROR: No graphics context")
             return
         }
@@ -1535,10 +1675,16 @@ private class ProceduralTerrainUIView: UIView {
             return
         }
 
-        // DR-0016.5: Check cache before regenerating terrain
-        let cacheKey = "\(fill.fillType.rawValue)_\(fill.patternSeed)_\(metadata.terrainSeed)_\(Int(canvasSize.width))x\(Int(canvasSize.height))"
+        // DR-0029: Use shared cache that persists across visibility toggles
+        let cacheKey = BaseLayerImageCache.cacheKey(
+            fillType: fill.fillType.rawValue,
+            patternSeed: fill.patternSeed,
+            terrainSeed: metadata.terrainSeed,
+            width: Int(canvasSize.width),
+            height: Int(canvasSize.height)
+        )
 
-        if let cachedImage = cachedTerrainImage, cachedCacheKey == cacheKey {
+        if let cachedImage = BaseLayerImageCache.shared.get(cacheKey) {
             // Use cached terrain
             cachedImage.draw(at: .zero)
         } else {
@@ -1548,11 +1694,11 @@ private class ProceduralTerrainUIView: UIView {
             let renderer = UIGraphicsImageRenderer(size: canvasSize)
             let terrainImage = renderer.image { rendererContext in
                 let pattern = TerrainPattern(metadata: metadata, dominantFillType: fill.fillType)
-                pattern.draw(in: rendererContext.cgContext, rect: CGRect(origin: .zero, size: canvasSize), seed: fill.patternSeed, baseColor: fill.effectiveColor)
+                // DR-0019: Pass map scale (terrain already uses metadata which contains scale)
+                pattern.draw(in: rendererContext.cgContext, rect: CGRect(origin: .zero, size: canvasSize), seed: fill.patternSeed, baseColor: fill.effectiveColor, mapScale: metadata.physicalSizeMiles)
             }
 
-            cachedTerrainImage = terrainImage
-            cachedCacheKey = cacheKey
+            BaseLayerImageCache.shared.set(cacheKey, image: terrainImage)
             terrainImage.draw(at: .zero)
             print("[ProceduralTerrainUIView] Terrain cached - size: \(Int(canvasSize.width))x\(Int(canvasSize.height))")
         }
@@ -1590,13 +1736,40 @@ private class ProceduralPatternUIView: UIView {
     var canvasSize: CGSize = .zero
 
     override func draw(_ rect: CGRect) {
-        guard let context = UIGraphicsGetCurrentContext(),
-              let fill = fill,
+        guard let fill = fill,
               let pattern = ProceduralPatternFactory.pattern(for: fill.fillType) else {
             return
         }
 
-        pattern.draw(in: context, rect: CGRect(origin: .zero, size: canvasSize), seed: fill.patternSeed, baseColor: fill.effectiveColor)
+        // DR-0029: Use shared cache that persists across visibility toggles
+        let mapScale = fill.terrainMetadata?.physicalSizeMiles ?? 0
+        let cacheKey = BaseLayerImageCache.cacheKey(
+            fillType: fill.fillType.rawValue,
+            patternSeed: fill.patternSeed,
+            terrainSeed: nil,  // Patterns don't use terrain seed
+            width: Int(canvasSize.width),
+            height: Int(canvasSize.height)
+        )
+
+        // Check if we can use cached pattern
+        if let cachedImage = BaseLayerImageCache.shared.get(cacheKey) {
+            // Use cached pattern
+            cachedImage.draw(at: .zero)
+            return
+        }
+
+        // Generate and cache pattern
+        print("[ProceduralPatternUIView] Generating pattern (cache miss) - key: \(cacheKey)")
+
+        let renderer = UIGraphicsImageRenderer(size: canvasSize)
+        let patternImage = renderer.image { rendererContext in
+            // DR-0019: Pass map scale to pattern for correct physical sizing
+            pattern.draw(in: rendererContext.cgContext, rect: CGRect(origin: .zero, size: canvasSize), seed: fill.patternSeed, baseColor: fill.effectiveColor, mapScale: mapScale)
+        }
+
+        BaseLayerImageCache.shared.set(cacheKey, image: patternImage)
+        patternImage.draw(at: .zero)
+        print("[ProceduralPatternUIView] Pattern cached - size: \(Int(canvasSize.width))x\(Int(canvasSize.height))")
     }
 
     override var intrinsicContentSize: CGSize {
@@ -1636,6 +1809,9 @@ struct CanvasStateData: Codable {
 
     // DR-0008: Layer manager state
     let layerManagerData: Data? // Encoded LayerManager
+
+    // ER-0001: Map category
+    let mapCategory: String? // BaseLayerCategory.rawValue
 }
 
 // MARK: - Color Hex Extensions
