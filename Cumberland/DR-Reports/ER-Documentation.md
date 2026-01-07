@@ -12,7 +12,12 @@ This is the main index for all Cumberland Enhancement Requests. ERs track planne
 
 ### Unverified ERs (Active & Proposed)
 
-Currently: **0 active ERs**
+Currently: **2 active ERs**
+
+| ER | Title | Component | Status | Date Implemented |
+|----|-------|-----------|--------|------------------|
+| ER-0003 | Integrate Exterior Brush System | DrawCanvas, BrushEngine, ToolPalette | 🟡 Implemented - Not Verified | 2026-01-07 |
+| ER-0004 | Interior Brush Implementation | BrushRegistry, InteriorMapBrushSet | 🟡 Implemented - Not Verified | 2026-01-07 |
 
 See: [ER-unverified.md](./ER-unverified.md)
 
@@ -95,14 +100,14 @@ Use the right system for the task:
 
 ## Statistics
 
-- **Total ERs:** 2
-- **Verified:** 2 (100%)
-- **Implemented - Not Verified:** 0
+- **Total ERs:** 4
+- **Verified:** 2 (50%)
+- **Implemented - Not Verified:** 2
 - **In Progress:** 0
 - **Proposed:** 0
-- **Latest ER:** ER-0002 (2026-01-06 - Verified - Base Layer stroke rejection)
+- **Latest ER:** ER-0004 (2026-01-07 - Implemented - Interior Brush System)
 
 ---
 
-*Last Updated: 2026-01-06*
-*Document Version: 1.1 (Verified ER-0002 - Base Layer stroke rejection - ALL ERs NOW VERIFIED!)*
+*Last Updated: 2026-01-07*
+*Document Version: 1.3 (Implemented ER-0004 - Interior brush system enabled)*

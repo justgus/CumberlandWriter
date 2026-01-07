@@ -259,17 +259,8 @@ struct MainAppView: View {
         #endif
         #if !os(visionOS)
         // macOS and iOS: Use traditional toolbar
+        // DR-0030: Settings button removed - now accessed via Cumberland > Preferences...
         .toolbar {
-            #if !os(iOS)
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    showingSettings = true
-                } label: {
-                    Label("Settings", systemImage: "gear")
-                }
-            }
-            #endif
-
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     showingCardEditor = true
@@ -503,15 +494,16 @@ struct MainAppView: View {
             }
         }
         .navigationTitle(contentNavigationTitle)
-        // Put iOS Settings button on the content column so it’s always visible.
+        // DR-0030: Add New Card button to iOS toolbar
         .toolbar {
             #if os(iOS)
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
-                    showingSettings = true
+                    showingCardEditor = true
                 } label: {
-                    Label("Settings", systemImage: "gear")
+                    Label("New Card", systemImage: "plus")
                 }
+                .disabled(isStructureSelected) // New Card doesn't apply to Structure directly
             }
             #endif
         }

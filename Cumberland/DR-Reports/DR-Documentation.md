@@ -17,20 +17,18 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **1 unverified DR**
+Currently: **0 unverified DRs** 🎉
+
+All issues have been verified!
 
 See: [DR-unverified.md](./DR-unverified.md)
-
-| DR | Title | Component | Severity | Status |
-|----|-------|-----------|----------|--------|
-| DR-0029 | Base layer image recalculated on visibility toggle and restore | BaseLayerImageCache, DrawingCanvasView, DrawingCanvasViewMacOS | High | 🟡 Resolved - Not Verified |
 
 ### Verified DRs (Resolved Issues)
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
 | Batch 1 | DR-0001 to DR-0010 | [DR-verified-0001-0010.md](./DR-verified-0001-0010.md) | ✅ All Verified |
-| Batch 2 | DR-0011 to DR-0028 | [DR-verified-0011-0021.md](./DR-verified-0011-0021.md) | ✅ All Verified |
+| Batch 2 | DR-0011 to DR-0030 | [DR-verified-0011-0021.md](./DR-verified-0011-0021.md) | ✅ All Verified |
 
 ## DR Summary
 
@@ -92,12 +90,13 @@ When a verified batch reaches ~10-15 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 30
-- **Verified:** 29 (97%)
-- **Resolved - Not Verified:** 1 (3%)
-- **Latest DR:** DR-0029 (2026-01-06 - Base layer image caching - RESOLVED)
+- **Total DRs:** 31
+- **Verified:** 31 (100%) ✅
+- **Resolved - Not Verified:** 0 (0%)
+- **Open:** 0 (0%)
+- **Latest DR:** DR-0030 (2026-01-07 - Missing Add Card UI and Settings reorganization - VERIFIED)
 
 ---
 
-*Last Updated: 2026-01-06*
-*Document Version: 2.6 (Resolved DR-0029 - Base layer image caching for instant visibility toggle)*
+*Last Updated: 2026-01-07*
+*Document Version: 3.0 (Verified DR-0030 - All DRs verified! 🎉)*

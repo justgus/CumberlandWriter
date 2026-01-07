@@ -133,8 +133,6 @@ struct FloatingToolPalette: View {
                     ToolsTabView(canvasState: $canvasState)
                 case .layers:
                     LayersTabView(canvasState: $canvasState)
-                case .inspector:
-                    InspectorTabView(canvasState: $canvasState)
                 }
             }
             .frame(maxWidth: .infinity)

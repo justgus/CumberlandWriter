@@ -86,58 +86,74 @@ class ProceduralPatternGenerator {
     ) -> CGPath {
         let path = CGMutablePath()
         guard points.count > 1 else { return path }
-        
+
         let subdivisionLevel = detail.subdivisionLevel
         let roughnessScale = detail.roughnessScale * erosion
-        
-        // Subdivide the path for more detail
+
+        // ER-0003: Enhanced multi-scale subdivision for more realistic coastlines
         var detailedPoints: [CGPoint] = []
-        
+
         for i in 0..<(points.count - 1) {
             let p1 = points[i]
             let p2 = points[i + 1]
-            
+
             detailedPoints.append(p1)
-            
+
             // Add intermediate points
             for j in 1..<subdivisionLevel {
                 let t = CGFloat(j) / CGFloat(subdivisionLevel)
                 let midX = p1.x + (p2.x - p1.x) * t
                 let midY = p1.y + (p2.y - p1.y) * t
-                
+
                 detailedPoints.append(CGPoint(x: midX, y: midY))
             }
         }
         detailedPoints.append(points[points.count - 1])
-        
-        // Apply noise-based displacement
+
+        // ER-0003: Apply multi-scale noise-based displacement for realistic bays and peninsulas
         path.move(to: detailedPoints[0])
-        
+
         for i in 1..<detailedPoints.count {
             let point = detailedPoints[i]
-            
+
             // Get perpendicular direction for displacement
             let prevPoint = detailedPoints[i - 1]
             let dx = point.x - prevPoint.x
             let dy = point.y - prevPoint.y
             let distance = hypot(dx, dy)
-            
+
             guard distance > 0 else { continue }
-            
+
             let perpX = -dy / distance
             let perpY = dx / distance
-            
-            // Use noise to generate natural displacement
-            let noiseValue = fbm(point.x / (width * 10), point.y / (width * 10), octaves: 4)
-            let displacement = (noiseValue - 0.5) * width * roughnessScale
-            
-            let newX = point.x + perpX * displacement
-            let newY = point.y + perpY * displacement
-            
+
+            // ER-0003: Multi-scale displacement for realistic coastline features
+            // Large-scale features (bays, peninsulas) - low frequency, high amplitude
+            let largeFBM = fbm(point.x / (width * 40), point.y / (width * 40), octaves: 3)
+            let largeDisplacement = (largeFBM - 0.5) * width * roughnessScale * 3.0
+
+            // Medium-scale features (inlets, headlands) - medium frequency
+            let mediumFBM = fbm(point.x / (width * 15), point.y / (width * 15), octaves: 5)
+            let mediumDisplacement = (mediumFBM - 0.5) * width * roughnessScale * 1.5
+
+            // Fine-scale features (rocks, small irregularities) - high frequency, low amplitude
+            let fineFBM = fbm(point.x / (width * 5), point.y / (width * 5), octaves: 6)
+            let fineDisplacement = (fineFBM - 0.5) * width * roughnessScale * 0.5
+
+            // Combine scales for realistic coastline
+            let totalDisplacement = largeDisplacement + mediumDisplacement + fineDisplacement
+
+            let newX = point.x + perpX * totalDisplacement
+            let newY = point.y + perpY * totalDisplacement
+
+            // ER-0003: Add occasional dramatic features (rocky outcrops)
+            let dramaticFeature = sin(CGFloat(i) * 0.3) > 0.85 // ~15% chance
+            let dramaticScale: CGFloat = dramaticFeature ? 1.8 : 1.0
+
             // Use curves for smoother coastline
             if i % 2 == 0 {
-                let controlX = (prevPoint.x + newX) / 2 + CGFloat.random(in: -width*0.2...width*0.2)
-                let controlY = (prevPoint.y + newY) / 2 + CGFloat.random(in: -width*0.2...width*0.2)
+                let controlX = (prevPoint.x + newX) / 2 + CGFloat.random(in: -width*0.2...width*0.2) * dramaticScale
+                let controlY = (prevPoint.y + newY) / 2 + CGFloat.random(in: -width*0.2...width*0.2) * dramaticScale
                 path.addQuadCurve(
                     to: CGPoint(x: newX, y: newY),
                     control: CGPoint(x: controlX, y: controlY)
@@ -146,7 +162,7 @@ class ProceduralPatternGenerator {
                 path.addLine(to: CGPoint(x: newX, y: newY))
             }
         }
-        
+
         return path
     }
     
@@ -262,35 +278,52 @@ class ProceduralPatternGenerator {
     ) -> CGPath {
         let path = CGMutablePath()
         guard points.count > 1 else { return path }
-        
-        // Create bumpy ridge line
+
+        // ER-0003: Create mountain ridge with passes and interconnected peaks
         var ridgePoints: [CGPoint] = []
-        
+        var passLocations: [Int] = [] // Track pass indices for visual markers
+
         for i in 0..<(points.count - 1) {
             let p1 = points[i]
             let p2 = points[i + 1]
-            
+
             let segmentLength = hypot(p2.x - p1.x, p2.y - p1.y)
             let dx = (p2.x - p1.x) / segmentLength
             let dy = (p2.y - p1.y) / segmentLength
             let perpX = -dy
             let perpY = dx
-            
+
             // Subdivide segment
             let subdivisions = max(5, Int(segmentLength / width))
-            
+
             for j in 0...subdivisions {
                 let t = CGFloat(j) / CGFloat(subdivisions)
                 let baseX = p1.x + (p2.x - p1.x) * t
                 let baseY = p1.y + (p2.y - p1.y) * t
-                
-                // Add noise-based variation to create natural ridge
+
+                // ER-0003: Generate peaks and passes using multiple frequencies
                 let noiseValue = fbm(baseX / (width * 5), baseY / (width * 5), octaves: 5)
-                let elevation = (noiseValue - 0.5) * width * prominence
-                
+
+                // Create pass pattern: periodic dips in elevation (mountain passes)
+                // Passes occur roughly every 30-50 points
+                let passFrequency = 0.15 // 15% of points are passes
+                let passPattern = sin(CGFloat(ridgePoints.count) * 0.15)
+                let isPass = passPattern < -0.7 && CGFloat.random(in: 0...1) < passFrequency
+
+                var elevation: CGFloat
+                if isPass {
+                    // Mountain pass: reduced elevation (saddle point)
+                    elevation = (noiseValue - 0.5) * width * prominence * 0.3
+                    passLocations.append(ridgePoints.count)
+                } else {
+                    // Regular peak: full elevation with variation
+                    let peakVariation = CGFloat.random(in: 0.7...1.3) // Vary peak heights
+                    elevation = (noiseValue - 0.5) * width * prominence * peakVariation
+                }
+
                 let ridgeX = baseX + perpX * elevation
                 let ridgeY = baseY + perpY * elevation
-                
+
                 ridgePoints.append(CGPoint(x: ridgeX, y: ridgeY))
             }
         }
@@ -303,36 +336,64 @@ class ProceduralPatternGenerator {
             }
         }
         
-        // Add hatching on both sides
+        // ER-0003: Add hatching on both sides with pass markers
         for i in 0..<(ridgePoints.count - 1) {
             let p1 = ridgePoints[i]
             let p2 = ridgePoints[i + 1]
-            
+
             let dx = p2.x - p1.x
             let dy = p2.y - p1.y
             let distance = hypot(dx, dy)
-            
+
             guard distance > 0 else { continue }
-            
+
             let perpX = -dy / distance
             let perpY = dx / distance
-            
+
+            // Check if this is a pass location
+            let isPassPoint = passLocations.contains(i)
+
             if i % 2 == 0 {
                 let hatchLength = width * CGFloat.random(in: 0.8...1.5)
-                
-                // Left hatch
-                path.move(to: p1)
-                path.addLine(to: CGPoint(
-                    x: p1.x - perpX * hatchLength,
-                    y: p1.y - perpY * hatchLength
-                ))
-                
-                // Right hatch
-                path.move(to: p1)
-                path.addLine(to: CGPoint(
-                    x: p1.x + perpX * hatchLength,
-                    y: p1.y + perpY * hatchLength
-                ))
+
+                // ER-0003: Visual marker for passes (saddle points)
+                if isPassPoint {
+                    // Pass marker: shorter hatches and gap in the middle
+                    let passHatchLength = hatchLength * 0.5
+
+                    // Left hatch (shorter for pass)
+                    path.move(to: p1)
+                    path.addLine(to: CGPoint(
+                        x: p1.x - perpX * passHatchLength,
+                        y: p1.y - perpY * passHatchLength
+                    ))
+
+                    // Right hatch (shorter for pass)
+                    path.move(to: p1)
+                    path.addLine(to: CGPoint(
+                        x: p1.x + perpX * passHatchLength,
+                        y: p1.y + perpY * passHatchLength
+                    ))
+
+                    // Add pass indicator (small gap/notch symbol)
+                    path.move(to: CGPoint(x: p1.x - width * 0.15, y: p1.y))
+                    path.addLine(to: CGPoint(x: p1.x + width * 0.15, y: p1.y))
+                } else {
+                    // Regular peak: full-length hatches
+                    // Left hatch
+                    path.move(to: p1)
+                    path.addLine(to: CGPoint(
+                        x: p1.x - perpX * hatchLength,
+                        y: p1.y - perpY * hatchLength
+                    ))
+
+                    // Right hatch
+                    path.move(to: p1)
+                    path.addLine(to: CGPoint(
+                        x: p1.x + perpX * hatchLength,
+                        y: p1.y + perpY * hatchLength
+                    ))
+                }
             }
         }
         

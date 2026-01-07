@@ -101,11 +101,11 @@ class BrushRegistry {
         // Load exterior brush set
         let exteriorSet = ExteriorMapBrushSet.create()
         installedBrushSets.append(exteriorSet)
-        
-        // TODO: Load interior brush set once implemented
-        // let interiorSet = InteriorMapBrushSet.create()
-        // installedBrushSets.append(interiorSet)
-        
+
+        // ER-0004: Load interior brush set
+        let interiorSet = InteriorMapBrushSet.create()
+        installedBrushSets.append(interiorSet)
+
         // Set exterior as active by default (most common use case)
         if activeBrushSetID == nil {
             activeBrushSetID = exteriorSet.id

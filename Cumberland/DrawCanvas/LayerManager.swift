@@ -433,11 +433,20 @@ class LayerManager: Codable {
     }
     
     // MARK: - Layer Naming
-    
+
     /// Rename a layer
     func renameLayer(id: UUID, newName: String) {
         guard let layer = layers.first(where: { $0.id == id }) else { return }
         layer.name = newName
+        layer.markModified()
+        // DR-0025: Trigger observation update by reassigning array
+        layers = layers
+    }
+
+    /// Set layer type
+    func setLayerType(id: UUID, type: LayerType) {
+        guard let layer = layers.first(where: { $0.id == id }) else { return }
+        layer.layerType = type
         layer.markModified()
         // DR-0025: Trigger observation update by reassigning array
         layers = layers

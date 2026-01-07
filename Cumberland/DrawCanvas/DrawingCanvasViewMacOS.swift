@@ -93,9 +93,20 @@ class MacOSDrawingView: NSView {
         // Save state for undo
         pushUndoState()
 
-        // Start new stroke
-        let color = NSColor(model.selectedColor)
-        let lineWidth = model.selectedLineWidth
+        // ER-0003: Use brush settings if a brush is selected
+        let color: NSColor
+        let lineWidth: CGFloat
+
+        if let brush = model.selectedBrush {
+            // Use brush color or fall back to selected color
+            color = brush.baseColor != nil ? NSColor(brush.baseColor!.toColor()) : NSColor(model.selectedColor)
+            // Use brush default width or fall back to selected width
+            lineWidth = model.selectedLineWidth // User can override with slider
+        } else {
+            // Use model settings
+            color = NSColor(model.selectedColor)
+            lineWidth = model.selectedLineWidth
+        }
 
         currentStroke = MacOSDrawingStroke(
             points: [location],

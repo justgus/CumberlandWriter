@@ -64,7 +64,6 @@ class ToolPaletteState: Codable {
     enum PaletteTab: String, CaseIterable, Codable {
         case tools = "Tools"
         case layers = "Layers"
-        case inspector = "Inspector"
 
         /// SF Symbol icon for this tab
         var icon: String {
@@ -73,8 +72,6 @@ class ToolPaletteState: Codable {
                 return "hammer.fill"
             case .layers:
                 return "square.stack.3d.up"
-            case .inspector:
-                return "slider.horizontal.3"
             }
         }
 
@@ -185,13 +182,6 @@ extension ToolPaletteState {
     static var sampleLayersTab: ToolPaletteState {
         let state = ToolPaletteState()
         state.selectedTab = .layers
-        return state
-    }
-
-    /// Sample state with inspector tab selected
-    static var sampleInspectorTab: ToolPaletteState {
-        let state = ToolPaletteState()
-        state.selectedTab = .inspector
         return state
     }
 }

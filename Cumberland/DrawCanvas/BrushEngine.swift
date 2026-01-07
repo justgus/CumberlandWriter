@@ -680,16 +680,68 @@ class BrushEngine {
                 erosion: 0.7
             )
             renderPatternStroke(pattern: pattern, color: color, width: width * 0.5, context: context)
-            
-        } else if brush.name.lowercased().contains("river") {
-            // Rivers use smooth, flowing lines with subtle waves
-            let pattern = generateWaterPattern(points: points, width: width, waveSize: 0.5)
-            renderPatternStroke(pattern: pattern, color: color, width: width, context: context)
-            
+
+        } else if brush.name.lowercased().contains("river") || brush.name.lowercased().contains("stream") {
+            // ER-0003: Procedural rivers with realistic meandering
+            let meanderIntensity: CGFloat = brush.name.lowercased().contains("stream") ? 0.5 : 0.7
+            let meanderedPath = generateProceduralRiverPath(
+                points: points,
+                width: width,
+                meanderIntensity: meanderIntensity
+            )
+
+            // Generate variable-width river banks
+            let (leftBank, rightBank) = generateRiverStrokeWithPressure(
+                centerPath: meanderedPath,
+                baseWidth: width
+            )
+
+            // Render river as filled polygon between banks
+            #if canImport(UIKit)
+            let cgColor = UIColor(color).cgColor
+            #elseif canImport(AppKit)
+            let cgColor = NSColor(color).cgColor
+            #else
+            let cgColor = CGColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1)
+            #endif
+
+            context.setFillColor(cgColor)
+            context.setAlpha(brush.opacity * 0.9) // Slightly transparent for water effect
+
+            // Draw filled river shape
+            context.beginPath()
+            if !leftBank.isEmpty {
+                context.move(to: leftBank[0])
+                for point in leftBank.dropFirst() {
+                    context.addLine(to: point)
+                }
+            }
+            // Connect to right bank (in reverse)
+            if !rightBank.isEmpty {
+                for point in rightBank.reversed() {
+                    context.addLine(to: point)
+                }
+            }
+            context.closePath()
+            context.fillPath()
+
+            // Add center line for detail
+            context.setStrokeColor(cgColor)
+            context.setAlpha(brush.opacity * 0.3)
+            context.setLineWidth(1.0)
+            context.beginPath()
+            if !meanderedPath.isEmpty {
+                context.move(to: meanderedPath[0])
+                for point in meanderedPath.dropFirst() {
+                    context.addLine(to: point)
+                }
+            }
+            context.strokePath()
+
         } else if brush.name.lowercased().contains("wave") {
             let pattern = generateWaterPattern(points: points, width: width, waveSize: 1.0)
             renderPatternStroke(pattern: pattern, color: color, width: width * 0.5, context: context)
-            
+
         } else {
             // Default water rendering with slight transparency
             renderSolidStroke(points: points, color: color, width: width, brush: brush, context: context)
@@ -729,9 +781,68 @@ class BrushEngine {
         } else {
             roadType = .standard
         }
-        
-        let pattern = generateRoadPattern(points: points, width: width, roadType: roadType)
+
+        // ER-0003: Apply curve smoothing for more natural roads
+        var processedPoints = points
+
+        // Smooth curves for highways and roads (not paths/trails)
+        if roadType == .highway || roadType == .standard {
+            processedPoints = smoothPath(points, amount: 0.5)
+        }
+
+        // ER-0003: Optional grid snapping for urban roads
+        if brush.snapToGrid && roadType != .path {
+            // Grid snap for urban planning (align to 45° angles and regular spacing)
+            processedPoints = applyGridSnapping(processedPoints, gridSize: width * 2)
+        }
+
+        let pattern = generateRoadPattern(points: processedPoints, width: width, roadType: roadType)
         renderPatternStroke(pattern: pattern, color: color, width: width * 0.5, context: context)
+    }
+
+    /// ER-0003: Apply grid snapping to road points for urban layouts
+    private static func applyGridSnapping(_ points: [CGPoint], gridSize: CGFloat) -> [CGPoint] {
+        guard points.count > 1 else { return points }
+
+        var snappedPoints: [CGPoint] = []
+        snappedPoints.append(points[0]) // Keep first point
+
+        for i in 1..<points.count {
+            let prevPoint = snappedPoints.last!
+            let currentPoint = points[i]
+
+            let dx = currentPoint.x - prevPoint.x
+            let dy = currentPoint.y - prevPoint.y
+
+            // Snap to dominant axis or 45° diagonal
+            let absDx = abs(dx)
+            let absDy = abs(dy)
+
+            var snappedX = currentPoint.x
+            var snappedY = currentPoint.y
+
+            // Snap to nearest 45° increment or axis-aligned direction
+            if absDx > absDy * 2 {
+                // Mostly horizontal - snap to horizontal
+                snappedY = prevPoint.y
+            } else if absDy > absDx * 2 {
+                // Mostly vertical - snap to vertical
+                snappedX = prevPoint.x
+            } else {
+                // Diagonal - snap to 45°
+                let avgDistance = (absDx + absDy) / 2
+                snappedX = prevPoint.x + (dx > 0 ? avgDistance : -avgDistance)
+                snappedY = prevPoint.y + (dy > 0 ? avgDistance : -avgDistance)
+            }
+
+            // Snap to grid
+            snappedX = round(snappedX / gridSize) * gridSize
+            snappedY = round(snappedY / gridSize) * gridSize
+
+            snappedPoints.append(CGPoint(x: snappedX, y: snappedY))
+        }
+
+        return snappedPoints
     }
     
     static func renderStructureBrush(

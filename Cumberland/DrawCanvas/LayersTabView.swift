@@ -59,10 +59,16 @@ struct LayersTabView: View {
                 .foregroundColor(layer.id == layerManager.activeLayerID ? .accentColor : .secondary)
                 .frame(width: 20)
 
-            // Layer name
-            Text(layer.name)
-                .font(.subheadline)
-                .foregroundColor(layer.id == layerManager.activeLayerID ? .primary : .secondary)
+            // Layer name and type
+            VStack(alignment: .leading, spacing: 2) {
+                Text(layer.name)
+                    .font(.subheadline)
+                    .foregroundColor(layer.id == layerManager.activeLayerID ? .primary : .secondary)
+
+                Text(layer.layerType.rawValue)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer()
 
@@ -113,15 +119,69 @@ struct LayersTabView: View {
             }
             #endif
         }
+        .contextMenu {
+            // Change layer type submenu
+            Menu {
+                ForEach(LayerType.allCases) { layerType in
+                    Button {
+                        layerManager.setLayerType(id: layer.id, type: layerType)
+                    } label: {
+                        Label {
+                            Text(layerType.rawValue)
+                        } icon: {
+                            Image(systemName: layerType.icon)
+                        }
+                    }
+                }
+            } label: {
+                Label("Change Type", systemImage: "arrow.triangle.2.circlepath")
+            }
+
+            Divider()
+
+            // Duplicate layer
+            Button {
+                layerManager.duplicateLayer(id: layer.id)
+            } label: {
+                Label("Duplicate", systemImage: "doc.on.doc")
+            }
+
+            // Delete layer (if not the last one)
+            if layerManager.layers.count > 1 {
+                Divider()
+
+                Button(role: .destructive) {
+                    layerManager.deleteLayer(id: layer.id)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
     }
 
     // MARK: - Actions Toolbar
 
     private func actionsToolbar(layerManager: LayerManager) -> some View {
         HStack(spacing: 12) {
-            // New layer
-            Button {
-                layerManager.createLayerAboveActive()
+            // New layer with type selection
+            Menu {
+                ForEach(LayerType.allCases) { layerType in
+                    Button {
+                        layerManager.createLayerAboveActive(type: layerType)
+                    } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(layerType.rawValue)
+                                    .font(.subheadline)
+                                Text(layerType.description)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: layerType.icon)
+                        }
+                    }
+                }
             } label: {
                 Label("New", systemImage: "plus.circle.fill")
                     .font(.caption)

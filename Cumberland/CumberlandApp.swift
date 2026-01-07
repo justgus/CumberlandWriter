@@ -187,6 +187,7 @@ struct CumberlandApp: App {
         #if os(macOS)
         .commands {
             AboutCommands()
+            PreferencesCommands()
             #if DEBUG
             DeveloperCommands()
             #endif
@@ -236,13 +237,15 @@ struct CumberlandApp: App {
         #endif
 
         #if os(macOS)
-        // Dedicated Settings scene for macOS
-        Settings {
+        // Dedicated Settings/Preferences window for macOS
+        // DR-0030: Accessible via Cumberland > Preferences... menu (Cmd+,)
+        Window("Preferences", id: "settings") {
             SettingsView()
                 .modelContainer(modelContainer)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 520, minHeight: 380)
         }
+        .windowResizability(.contentSize)
 
         // About window scene for macOS
         Window("About Cumberland", id: "about") {
@@ -726,6 +729,19 @@ private struct AboutCommands: Commands {
             Button("About Cumberland") {
                 openWindow(id: "about")
             }
+        }
+    }
+}
+
+private struct PreferencesCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button("Preferences...") {
+                openWindow(id: "settings")
+            }
+            .keyboardShortcut(",", modifiers: .command)
         }
     }
 }

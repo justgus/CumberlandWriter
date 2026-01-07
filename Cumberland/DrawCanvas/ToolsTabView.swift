@@ -418,9 +418,8 @@ extension ToolsTabView {
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
 
-                // Placeholder for brush grid
-                // This will be replaced with BrushGridView once implemented
-                brushGridPlaceholder
+                // Brush grid
+                BrushGridView(canvasState: $canvasState)
             }
         } else {
             // No layer manager - show message
@@ -428,27 +427,6 @@ extension ToolsTabView {
         }
     }
 
-    private var brushGridPlaceholder: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "paintbrush.pointed.fill")
-                .font(.system(size: 32))
-                .foregroundStyle(.secondary)
-
-            Text("Brush grid will appear here")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            Text("Brushes will be filtered by layer type")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(Color.secondary.opacity(0.05))
-        .cornerRadius(8)
-    }
 
     private var noLayerManagerView: some View {
         VStack(spacing: 12) {

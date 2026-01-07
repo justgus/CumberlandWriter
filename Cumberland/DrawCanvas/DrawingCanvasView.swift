@@ -138,6 +138,13 @@ struct DrawingCanvasView: View {
             canvasState.syncDrawingWithActiveLayer()
             #endif
         }
+        .onChange(of: canvasState.toolPaletteState.selectedBrushID) { _, newBrushID in
+            // ER-0003: Update canvas tool when brush selection changes (cross-platform)
+            if let brushID = newBrushID,
+               let brush = BrushRegistry.shared.selectedBrush {
+                canvasState.updateToolFromBrush(brush)
+            }
+        }
     }
     
     private func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat {
@@ -235,6 +242,9 @@ class DrawingCanvasModel {
     /// Tool change counter to force SwiftUI updates (DR-0001, DR-0002, DR-0003)
     /// PKTool is not Equatable, so we use this counter with .id() to detect changes
     var toolChangeCounter: Int = 0
+
+    /// ER-0003: Currently selected brush (nil = use basic tool settings)
+    var selectedBrush: MapBrush?
 
     // MARK: - Canvas Options
     
@@ -422,6 +432,26 @@ class DrawingCanvasModel {
         #endif
         toolChangeCounter += 1
         print("[DR-0012] Updated inking tool (\(selectedToolType.rawValue)), counter: \(toolChangeCounter)")
+        #endif
+    }
+
+    /// ER-0003: Update selected tool based on a MapBrush selection
+    func updateToolFromBrush(_ brush: MapBrush) {
+        // Store the brush for both platforms
+        selectedBrush = brush
+
+        #if canImport(PencilKit) && canImport(UIKit)
+        // iOS: Use BrushEngine to create PencilKit tool from brush
+        selectedTool = BrushEngine.createAdvancedPKTool(
+            from: brush,
+            color: selectedColor,
+            width: selectedLineWidth
+        )
+        toolChangeCounter += 1
+        print("[ER-0003] iOS - Updated tool from brush: \(brush.name), counter: \(toolChangeCounter)")
+        #elseif os(macOS)
+        // macOS: Store brush for use during drawing (no tool object needed)
+        print("[ER-0003] macOS - Selected brush: \(brush.name)")
         #endif
     }
     
