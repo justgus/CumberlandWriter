@@ -51,6 +51,7 @@
 		866A3A362E8DC16D006D3723 /* Cumberland.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cumberland.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		866A3A472E8DC16F006D3723 /* CumberlandTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		866A3A512E8DC16F006D3723 /* CumberlandUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		86F035052F0EFBF300D79640 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -353,10 +354,6 @@
 				"Documentation/visionOS-Phase4-Testing-Guide.md",
 				"Documentation/visionOS-Phase4-Visual-Reference.md",
 				"Documentation/visionOS-Quick-Testing-Guide.md",
-				"DR-Reports/DR-0001-0002-0003-Unified-Fix.md",
-				"DR-Reports/DR-0001-Development-Plan.md",
-				"DR-Reports/DR-0001-Fix-Attempt-3.md",
-				"DR-Reports/DR-Documentation-BACKUP.md",
 				"DR-Reports/DR-Documentation.md",
 				"DR-Reports/DR-GUIDELINES.md",
 				"DR-Reports/DR-unverified.md",
@@ -553,6 +550,7 @@
 		866A3A2D2E8DC16D006D3723 = {
 			isa = PBXGroup;
 			children = (
+				86F035052F0EFBF300D79640 /* CLAUDE.md */,
 				866A3A382E8DC16D006D3723 /* Cumberland */,
 				866A3A4A2E8DC16F006D3723 /* CumberlandTests */,
 				866A3A542E8DC16F006D3723 /* CumberlandUITests */,

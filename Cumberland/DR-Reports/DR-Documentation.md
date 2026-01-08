@@ -17,18 +17,24 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **0 unverified DRs** 🎉
+Currently: **1 unverified DR** (1 Not Resolved)
 
-All issues have been verified!
+| DR | Title | Component | Status |
+|----|-------|-----------|--------|
+| DR-0031 | Advanced Brush Rendering Not Executed on macOS | DrawCanvas/BrushEngine | 🔴 Not Resolved |
 
 See: [DR-unverified.md](./DR-unverified.md)
 
 ### Verified DRs (Resolved Issues)
 
+Currently: **34 verified DRs** | Next available DR: **DR-0036**
+
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
 | Batch 1 | DR-0001 to DR-0010 | [DR-verified-0001-0010.md](./DR-verified-0001-0010.md) | ✅ All Verified |
-| Batch 2 | DR-0011 to DR-0030 | [DR-verified-0011-0021.md](./DR-verified-0011-0021.md) | ✅ All Verified |
+| Batch 2 | DR-0011 to DR-0020 | [DR-verified-0011-0020.md](./DR-verified-0011-0020.md) | ✅ All Verified |
+| Batch 3 | DR-0021 to DR-0030 | [DR-verified-0021-0030.md](./DR-verified-0021-0030.md) | ✅ All Verified |
+| Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | 🚧 In Progress (4/10 verified) |
 
 ## DR Summary
 
@@ -47,7 +53,7 @@ See: [DR-unverified.md](./DR-unverified.md)
 | DR-0009 | Deleting cards from Backlog does not update Backlog count | BacklogSidebarPanel | ✅ Resolved |
 | DR-0010 | CloudKit sync fails silently without user feedback | Multiple Components | ✅ Resolved |
 
-### DR-0011 to DR-0018 - Recent Work (Verified)
+### DR-0011 to DR-0020 - Terrain Generation and Interior Maps (Verified)
 
 | DR | Title | Component | Status |
 |----|-------|-----------|--------|
@@ -65,6 +71,33 @@ See: [DR-unverified.md](./DR-unverified.md)
 | DR-0018 | Terrain composition profiles and UI improvements | TerrainPattern | ✅ Verified |
 | DR-0018.1 | Map scale resets when changing base layer | BaseLayerButton | ✅ Verified |
 | DR-0018.2 | Water % resets when changing base layer | BaseLayerButton | ✅ Verified |
+| DR-0019 | Interior map scale changes don't affect floor pattern size | ToolsTabView, BaseLayerPatterns | ✅ Verified |
+| DR-0020 | Interior floor material selection resets map scale | BaseLayerButton | ✅ Verified |
+
+### DR-0021 to DR-0030 - Layer System and UI Polish (Verified)
+
+| DR | Title | Component | Status |
+|----|-------|-----------|--------|
+| DR-0021 | Layer visibility toggle not working | LayerManager, DrawingCanvasView | ✅ Verified |
+| DR-0022 | Interior surfaces regenerate during pan/zoom | ProceduralPatternView | ✅ Verified |
+| DR-0023 | Strokes not added to layers with visibility control | DrawingCanvasView, LayerManager | ✅ Verified |
+| DR-0024 | Strokes deleted when autosave runs | DrawingCanvasView, AutoSave | ✅ Verified |
+| DR-0024b | iOS canvas layers do not all display at once | DrawingCanvasView, LayerCompositeView | ✅ Verified |
+| DR-0025 | iOS eye icon has no effect on layer visibility | LayerCompositeView | ✅ Verified |
+| DR-0026 | Switching from Base Layer deletes strokes (iOS) | DrawingCanvasView, ER-0002 | ✅ Verified |
+| DR-0027 | Masking panel obscures non-active layers (iOS) | LayerCompositeView | ✅ Verified |
+| DR-0028 | Strokes dim and invert colors when layer not selected (iOS) | LayerCompositeView | ✅ Verified |
+| DR-0029 | Base layer image recalculated on visibility toggle | BaseLayerImageCache | ✅ Verified |
+| DR-0030 | Missing "Add Card" UI on iOS/misplaced Settings | MainAppView, CumberlandApp | ✅ Verified |
+
+### DR-0032 to DR-0035 - macOS Drawing and Documentation (Verified)
+
+| DR | Title | Component | Status |
+|----|-------|-----------|--------|
+| DR-0032 | All Brush Strokes Disappear After Several Seconds on macOS | DrawCanvas/exportCanvasState | ✅ Verified |
+| DR-0033 | Duplicate Default Story Structures in Structure List | CumberlandApp/Seeding | ✅ Verified |
+| DR-0034 | iOS Crash When Adding Layer After Draft Restore | DrawCanvas/PencilKitCanvasView | ✅ Verified |
+| DR-0035 | DRs 0019-0030 Missing from DR-Documentation.md Index | DR-Documentation.md | ✅ Verified |
 
 ## How to Use This Documentation
 
@@ -83,20 +116,22 @@ See: [DR-unverified.md](./DR-unverified.md)
 
 ### Creating a New Batch
 
-When a verified batch reaches ~10-15 DRs, create a new batch file:
-1. Create `DR-verified-00XX-00YY.md`
+When a verified batch file contains 10 DRs, create a new batch file:
+1. Create `DR-verified-00XX-00YY.md` for the next 10 DRs
 2. Add new batch to the table above
 3. Continue adding verified DRs to the new batch
 
+**Example:** When DR-0030 is verified, create `DR-verified-0031-0040.md` for the next batch
+
 ## Statistics
 
-- **Total DRs:** 31
-- **Verified:** 31 (100%) ✅
-- **Resolved - Not Verified:** 0 (0%)
-- **Open:** 0 (0%)
-- **Latest DR:** DR-0030 (2026-01-07 - Missing Add Card UI and Settings reorganization - VERIFIED)
+- **Total DRs:** 35
+- **Verified:** 34 (97%) ✅
+- **Resolved - Not Verified:** 0 (0%) 🟡
+- **Open:** 1 (3%) 🔴
+- **Latest DR:** DR-0035 (2026-01-08 - Missing DRs from documentation index - VERIFIED)
 
 ---
 
-*Last Updated: 2026-01-07*
-*Document Version: 3.0 (Verified DR-0030 - All DRs verified! 🎉)*
+*Last Updated: 2026-01-08*
+*Document Version: 3.2 (Verified DR-0032 through DR-0035 - 97% verified! 🎉)*

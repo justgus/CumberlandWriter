@@ -140,7 +140,7 @@ struct DrawingCanvasView: View {
         }
         .onChange(of: canvasState.toolPaletteState.selectedBrushID) { _, newBrushID in
             // ER-0003: Update canvas tool when brush selection changes (cross-platform)
-            if let brushID = newBrushID,
+            if let _ = newBrushID,
                let brush = BrushRegistry.shared.selectedBrush {
                 canvasState.updateToolFromBrush(brush)
             }
@@ -599,59 +599,19 @@ class DrawingCanvasModel {
     func exportCanvasState() -> Data? {
         print("[EXPORT] exportCanvasState called")
 
-        // DR-0013: Ensure LayerManager exists and migrate current drawing content before export
+        // DR-0024: Migration code REMOVED - strokes now save directly to layers in real-time
+        // This obsolete migration code was causing data loss when autosave triggered:
+        // - It would overwrite activeLayer.drawing with model.drawing
+        // - But model.drawing contains view state (what's displayed), not editing state
+        // - When viewing a different layer, model.drawing doesn't match activeLayerID
+        // - Result: Autosave would overwrite the active layer with the wrong layer's content
+        //
+        // Since DR-0023, strokes save to layers in real-time via:
+        // - iOS: canvasViewDrawingDidChange() saves to activeLayer.drawing
+        // - macOS: mouseUp() saves to activeLayer.macosStrokes
+        // No migration needed at export time - layers already have the correct data.
+
         ensureLayerManager()
-
-        // DR-0013: Migrate any current drawing content to active layer for cross-platform compatibility
-        if let manager = layerManager, let activeLayer = manager.activeLayer {
-            #if canImport(PencilKit) && canImport(UIKit)
-            // iOS: Migrate PKDrawing content to active layer if not already there
-            if !drawing.bounds.isEmpty {
-                print("[EXPORT] Migrating \(drawing.strokes.count) PKDrawing strokes to active layer")
-                activeLayer.drawing = drawing
-
-                // DR-0013: Convert PKDrawing strokes to DrawingStroke format for macOS compatibility
-                var convertedStrokes: [DrawingStroke] = []
-                for pkStroke in drawing.strokes {
-                    var points: [CGPointCodable] = []
-                    for i in 0..<pkStroke.path.count {
-                        let point = pkStroke.path.interpolatedLocation(at: CGFloat(i))
-                        points.append(CGPointCodable(x: point.x, y: point.y))
-                    }
-
-                    let uiColor = UIColor(cgColor: pkStroke.ink.color.cgColor)
-                    var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-                    uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-
-                    // PKStroke doesn't expose width directly (pressure-sensitive)
-                    // Use a reasonable default or the current selected width
-                    let strokeWidth = selectedLineWidth > 0 ? selectedLineWidth : 2.0
-
-                    let drawingStroke = DrawingStroke(
-                        points: points,
-                        colorRed: red,
-                        colorGreen: green,
-                        colorBlue: blue,
-                        colorAlpha: alpha,
-                        lineWidth: strokeWidth,
-                        toolType: "pen"
-                    )
-                    convertedStrokes.append(drawingStroke)
-                }
-
-                activeLayer.macosStrokes = convertedStrokes
-                print("[EXPORT] Converted \(convertedStrokes.count) PKDrawing strokes to DrawingStroke format for cross-platform")
-                activeLayer.markModified()
-            }
-            #else
-            // macOS: Migrate macOS strokes to active layer if not already there
-            if !macOSStrokes.isEmpty {
-                print("[EXPORT] Migrating \(macOSStrokes.count) macOS strokes to active layer")
-                activeLayer.macosStrokes = macOSStrokes
-                activeLayer.markModified()
-            }
-            #endif
-        }
 
         let drawingData = exportDrawingData()
         print("[EXPORT] Got \(drawingData.count) bytes of drawing data (legacy/fallback)")
@@ -1268,7 +1228,7 @@ private struct PencilKitCanvasView: UIViewRepresentable {
                     // Don't save - that would overwrite the new layer with old content
                     if let activeLayer = layerManager.activeLayer {
                         parent.drawing = activeLayer.drawing
-                        canvasView.drawing = activeLayer.drawing
+//                        canvasView.drawing = activeLayer.drawing
                     }
 
                     previousActiveLayerID = currentActiveLayerID
@@ -1474,10 +1434,9 @@ private class LayerCompositeUIView: UIView {
 
     // DR-0028: Override trait collection to force light mode (prevents color inversion)
     override var traitCollection: UITraitCollection {
-        return UITraitCollection(traitsFrom: [
-            super.traitCollection,
-            UITraitCollection(userInterfaceStyle: .light)
-        ])
+        return super.traitCollection.modifyingTraits { mutableTraits in
+            mutableTraits.userInterfaceStyle = .light
+        }
     }
 }
 

@@ -632,37 +632,115 @@ extension CumberlandApp {
         }
     }
 
-    // New: seed StoryStructure templates if needed (idempotent)
+    // DR-0033: Improved seeding with per-template checking and deduplication
     @MainActor
     static func seedStoryStructuresIfNeeded(container: ModelContainer) async {
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Seeding")
         let ctx = container.mainContext
         ctx.autosaveEnabled = true
 
-        // If any StoryStructure exists, skip (or change to per-name check below if you prefer partial seeding).
-        var anyFetch = FetchDescriptor<StoryStructure>()
-        anyFetch.fetchLimit = 1
-        if let any = try? ctx.fetch(anyFetch), !any.isEmpty {
-            logger.debug("StoryStructure seeding skipped; structures already present.")
-            return
-        }
+        // DR-0033: First, remove any duplicates that may exist
+        await removeDuplicateStructures(container: container)
 
-        // Otherwise, insert all predefined templates
+        // DR-0033: Check each template individually instead of just checking if ANY exists
         var inserted = 0
         for template in StoryStructure.predefinedTemplates {
+            // Check if this specific template already exists by name
+            // Capture the name in a local variable for the predicate
+            let templateName = template.name
+            var fetchByName = FetchDescriptor<StoryStructure>(
+                predicate: #Predicate<StoryStructure> { structure in
+                    structure.name == templateName
+                }
+            )
+            fetchByName.fetchLimit = 1
+
+            if let existing = try? ctx.fetch(fetchByName), !existing.isEmpty {
+                logger.debug("Skipping template '\(template.name)' - already exists")
+                continue
+            }
+
+            // Template doesn't exist, insert it
             let s = StoryStructure.createFromTemplate(template)
             ctx.insert(s)
             inserted += 1
+            logger.debug("Inserting template: \(template.name)")
         }
 
         if inserted > 0 {
             do {
                 try ctx.save()
-                logger.info("Seeded \(inserted) StoryStructure template(s).")
+                logger.info("Seeded \(inserted) new StoryStructure template(s).")
             } catch {
                 logger.error("Failed to save seeded StoryStructures: \(String(describing: error))")
             }
+        } else {
+            logger.debug("All templates already present, no seeding needed.")
         }
+    }
+
+    // DR-0033: Remove duplicate structures, keeping only the first of each unique name
+    @MainActor
+    static func removeDuplicateStructures(container: ModelContainer) async {
+        let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Deduplication")
+        let ctx = container.mainContext
+        ctx.autosaveEnabled = false // Disable during cleanup
+
+        // Fetch all structures
+        let allStructuresFetch = FetchDescriptor<StoryStructure>(
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+
+        guard let allStructures = try? ctx.fetch(allStructuresFetch) else {
+            logger.error("Failed to fetch structures for deduplication")
+            return
+        }
+
+        // Group by name and find duplicates
+        var seenNames: [String: UUID] = [:] // name -> first structure ID
+        var duplicatesToDelete: [StoryStructure] = []
+
+        for structure in allStructures {
+            if let firstID = seenNames[structure.name] {
+                // This is a duplicate - mark for deletion
+                if structure.id != firstID {
+                    duplicatesToDelete.append(structure)
+                    logger.debug("Marking duplicate '\(structure.name)' (ID: \(structure.id)) for deletion")
+                }
+            } else {
+                // First occurrence - remember it
+                seenNames[structure.name] = structure.id
+                logger.debug("Keeping first '\(structure.name)' (ID: \(structure.id))")
+            }
+        }
+
+        // Delete duplicates
+        if !duplicatesToDelete.isEmpty {
+            for duplicate in duplicatesToDelete {
+                // Check if any cards are assigned to elements of this duplicate structure
+                let hasAssignments = duplicate.elements?.contains { element in
+                    !(element.assignedCards?.isEmpty ?? true)
+                } ?? false
+
+                if hasAssignments {
+                    logger.warning("Duplicate structure '\(duplicate.name)' has card assignments - skipping deletion to preserve data")
+                    continue
+                }
+
+                ctx.delete(duplicate)
+            }
+
+            do {
+                try ctx.save()
+                logger.info("Removed \(duplicatesToDelete.count) duplicate structure(s)")
+            } catch {
+                logger.error("Failed to delete duplicate structures: \(String(describing: error))")
+            }
+        } else {
+            logger.debug("No duplicate structures found")
+        }
+
+        ctx.autosaveEnabled = true
     }
 
     // Destructive reset: delete all data and reseed baseline templates.

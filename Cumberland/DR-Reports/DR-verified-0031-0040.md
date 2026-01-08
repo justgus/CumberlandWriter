@@ -1,0 +1,402 @@
+# Discrepancy Reports (DR) - Batch 4: DR-0031 to DR-0040
+
+This file contains verified discrepancy reports DR-0031 through DR-0040.
+
+**All DRs in this batch:** ✅ Verified
+
+---
+
+## DR-0032: All Brush Strokes Disappear After Several Seconds on macOS
+
+**Status:** ✅ Resolved - Verified
+**Verification Date:** 2026-01-08
+**Resolution Date:** 2026-01-08
+**Platform:** macOS
+**Component:** DrawCanvas/Layer System
+**Severity:** Critical
+**Date Identified:** 2026-01-08
+
+**Description:**
+When drawing with ANY brush on macOS, strokes initially appear but disappear from view after a few seconds without user interaction. The behavior has been observed before (similar issue may have been previously fixed and regressed).
+
+**Timing Observations:**
+- Strokes disappear automatically after a few seconds
+- May correlate with auto-save timer (~30 seconds), but correlation is not confirmed
+- User reports this behavior has been seen before, suggesting possible regression
+
+**Root Cause - CONFIRMED:**
+User correctly identified that DR-0032 is the same issue as DR-0024. The DR-0024 fix (removing obsolete migration code from `exportCanvasState()`) was either:
+1. Never actually applied to the codebase, OR
+2. Was applied but subsequently reverted/overwritten
+
+The migration code at `DrawingCanvasView.swift:602-654` was still present, causing the exact data loss scenario described in DR-0024:
+
+**The Bug:**
+```swift
+// PROBLEMATIC CODE (lines 606-654, now removed):
+if let manager = layerManager, let activeLayer = manager.activeLayer {
+    #if canImport(PencilKit)
+    if !drawing.bounds.isEmpty {
+        activeLayer.drawing = drawing  // ❌ OVERWRITES layer with view state!
+        // ... migration logic ...
+    }
+    #else
+    if !macOSStrokes.isEmpty {
+        activeLayer.macosStrokes = macOSStrokes  // ❌ OVERWRITES layer strokes!
+    }
+    #endif
+}
+```
+
+**Why This Causes Stroke Loss:**
+1. User draws on Layer 2 → strokes correctly saved to `layer2.macosStrokes`
+2. User switches view to Base Layer → `model.macOSStrokes` becomes empty
+3. But `activeLayerID` still points to Layer 2
+4. **Auto-save triggers after ~30 seconds** → `exportCanvasState()` runs
+5. Migration code: `activeLayer.macosStrokes = macOSStrokes` (empty array)
+6. **Layer 2's strokes are replaced with empty array**
+7. LayerManager encodes with Layer 2 now empty
+8. **Strokes permanently deleted**
+
+**Fix Applied:**
+`DrawingCanvasView.swift:602-654` - Removed entire migration block
+
+Replaced 50+ lines of migration code with explanatory comment explaining:
+- Why migration is no longer needed (DR-0023 saves strokes to layers in real-time)
+- Why the old code was dangerous (overwrote editing state with view state)
+- Where real-time saving happens (canvasViewDrawingDidChange on iOS, mouseUp on macOS)
+
+**Why Removal is Safe:**
+1. DR-0023 already saves strokes directly to layers in real-time
+2. No migration needed at export - layers already have correct data
+3. LayerManager's Codable implementation properly serializes layer strokes
+4. Import code correctly restores strokes from layers
+
+**Files Modified:**
+- `Cumberland/DrawCanvas/DrawingCanvasView.swift` (lines 602-619, removed lines 606-654)
+
+**Verification:**
+- ✅ Draw strokes on any layer (macOS)
+- ✅ Wait 30+ seconds for auto-save to trigger
+- ✅ Strokes remain visible
+- ✅ Console does NOT show "Migrating X strokes to active layer"
+- ✅ Save and restore map - strokes persist correctly
+
+---
+
+## DR-0033: Duplicate Default Story Structures in Structure List
+
+**Status:** ✅ Resolved - Verified
+**Verification Date:** 2026-01-08
+**Resolution Date:** 2026-01-08
+**Platform:** All platforms (iOS and macOS confirmed)
+**Component:** CumberlandApp/Seeding + CloudKit Sync
+**Severity:** Medium
+**Date Identified:** 2026-01-08
+
+**Description:**
+The Structure List contains three copies of each default structure (Three-Act Structure, Hero's Journey, etc.) on both iOS and macOS versions of the app.
+
+**Root Cause - CloudKit Sync Issue:**
+The duplicates exist in CloudKit itself, confirmed by presence on both iOS and macOS. Most likely scenario:
+
+**Multiple Device Initialization with Empty Local Stores:**
+1. **Device A** (e.g., iPhone) launches app with empty local database
+   - Seeding check: "No structures exist locally"
+   - Seeds all default structures
+   - Structures upload to CloudKit
+
+2. **Device B** (e.g., Mac) launches app BEFORE CloudKit sync completes
+   - Local database is still empty (sync hasn't pulled structures yet)
+   - Seeding check: "No structures exist locally"
+   - Seeds all default structures AGAIN
+   - Duplicate structures upload to CloudKit
+
+3. **Device C** or subsequent launch also happens before sync
+   - Same scenario repeats → Third set of duplicates
+
+**Contributing Code Issues:**
+
+1. **Weak Idempotency Check** (`CumberlandApp.swift:643-648`):
+```swift
+var anyFetch = FetchDescriptor<StoryStructure>()
+anyFetch.fetchLimit = 1
+if let any = try? ctx.fetch(anyFetch), !any.isEmpty {
+    return  // Only checks LOCAL database
+}
+```
+- Only checks local database, not CloudKit
+- No coordination between devices
+- Race condition between seeding and CloudKit sync
+
+**Fix Applied:**
+**Resolution Date:** 2026-01-08
+
+**Implementation:**
+
+Implemented a two-part solution in `CumberlandApp.swift`:
+
+**1. Deduplication Function** (`removeDuplicateStructures`, lines 680-742):
+- Fetches all structures sorted by creation date
+- Groups by name and identifies duplicates
+- Keeps the first (oldest) occurrence of each unique name
+- Safely checks for card assignments before deletion
+- Skips deletion if duplicate has card assignments (preserves user data)
+- Deletes duplicates without assignments
+- Comprehensive logging for transparency
+
+**2. Improved Seeding Logic** (`seedStoryStructuresIfNeeded`, lines 635-678):
+- Calls `removeDuplicateStructures()` first to clean up existing duplicates
+- Changed from "any structure exists" check to per-template name checking
+- For each template:
+  - Fetches by exact name match using `#Predicate<StoryStructure>`
+  - Only inserts if that specific template doesn't exist
+  - Logs each template check and insertion
+- Prevents re-seeding of templates that already exist
+- Allows partial seeding (if some templates were manually deleted)
+
+**Key Features:**
+- ✅ Removes existing duplicates on every app launch
+- ✅ Prevents future duplicates through per-name checking
+- ✅ Preserves user data (structures with card assignments)
+- ✅ Works across CloudKit sync (deduplication runs locally on each device)
+- ✅ Idempotent - safe to run multiple times
+- ✅ Comprehensive logging for debugging
+
+**Files Modified:**
+- `Cumberland/CumberlandApp.swift` (lines 635-742)
+
+**How It Addresses CloudKit Issue:**
+While we cannot use deterministic CKRecord IDs with SwiftData (not exposed), the per-name checking combined with automatic deduplication provides robust protection:
+
+1. **On Device A** (first launch):
+   - No structures exist locally
+   - Seeds all 10 templates
+   - Uploads to CloudKit
+
+2. **On Device B** (before CloudKit sync completes):
+   - No structures exist locally yet
+   - Seeds all 10 templates (creating duplicates in CloudKit)
+   - BUT: Next app launch will run deduplication and remove local duplicates
+
+3. **After CloudKit Sync**:
+   - Device pulls down synced duplicates
+   - Next launch: deduplication removes them
+   - Per-name checking prevents re-creation
+
+**Result:** Duplicates may briefly exist during multi-device initialization, but are automatically cleaned up on next launch.
+
+**Verification:**
+- ✅ Launch app with existing 3x duplicates → deduplication removes 2x copies
+- ✅ Only one copy of each template remains
+- ✅ Structures with card assignments are preserved
+- ✅ Console logs show deduplication messages
+- ✅ Create new device/fresh install → no duplicates created
+- ✅ CloudKit sync doesn't recreate duplicates
+
+---
+
+## DR-0034: iOS Crash When Adding Layer After Draft Restore - Infinite Loop in canvasViewDrawingDidChange
+
+**Status:** ✅ Resolved - Verified
+**Verification Date:** 2026-01-08
+**Resolution Date:** 2026-01-08
+**Platform:** iOS
+**Component:** DrawCanvas/PencilKitCanvasView Coordinator
+**Severity:** Critical
+**Date Identified:** 2026-01-08
+
+**Description:**
+On iOS, when restoring draft work from the Map Wizard and then adding a new layer (tested with Water Feature), the app crashes with `EXC_BAD_ACCESS (code=2)` - a stack overflow from infinite recursion at `DrawingCanvasView.swift:1271`.
+
+**Crash Evidence:**
+```
+Thread 1: EXC_BAD_ACCESS (code=2, address=0x16efdfff8)
+Location: DrawingCanvasView.swift:1271
+
+Log output (repeating infinitely):
+[canvasViewDrawingDidChange] Layer switch detected: Optional(CCB88EC1...) -> Optional(039A95EF...)
+[canvasViewDrawingDidChange] Layer switch detected: Optional(CCB88EC1...) -> Optional(039A95EF...)
+[canvasViewDrawingDidChange] Layer switch detected: Optional(CCB88EC1...) -> Optional(039A95EF...)
+... (continues until stack overflow)
+```
+
+**Root Cause - CONFIRMED:**
+Infinite recursion loop in `canvasViewDrawingDidChange` delegate method. Here's the sequence:
+
+1. **User adds new layer** → `LayerManager.createLayerAboveActive()` sets `activeLayerID = newLayer.id` (LayerManager.swift:166)
+
+2. **onChange triggers** (DrawingCanvasView.swift:98-100) → Calls `syncDrawingWithActiveLayer()`
+
+3. **syncDrawingWithActiveLayer** (line 366) → Sets `drawing = activeLayer.drawing`
+
+4. **First canvasViewDrawingDidChange call** (lines 1258-1276):
+   - Detects layer switch: `previousActiveLayerID (CCB88EC1) != currentActiveLayerID (039A95EF)`
+   - Prints: "Layer switch detected"
+   - **Line 1270**: Sets `parent.drawing = activeLayer.drawing`
+   - **Line 1271**: Sets `canvasView.drawing = activeLayer.drawing` ⚠️ **THE BUG**
+
+5. **Setting `canvasView.drawing` triggers another `canvasViewDrawingDidChange` call!**
+   - PKCanvasView's delegate is called even for programmatic changes
+   - The method runs again with the SAME layer IDs
+   - Because `previousActiveLayerID` is updated at line 1274 AFTER the recursive call starts
+
+6. **Infinite loop**: Step 4-5 repeat until stack overflow
+
+**Why It Happens After Restore:**
+The issue occurs specifically after restore because:
+- Restored maps have existing layers with content
+- When a new layer is added, `syncDrawingWithActiveLayer()` loads that layer's drawing
+- The drawing is non-empty (from restored state), which may trigger more aggressive delegate notifications
+- Without restore (empty drawing), the issue might not manifest as clearly
+
+**Affected Code:**
+- `Cumberland/DrawCanvas/DrawingCanvasView.swift:1258-1292` - canvasViewDrawingDidChange delegate
+- `Cumberland/DrawCanvas/DrawingCanvasView.swift:1270-1271` - Programmatic drawing updates triggering delegate
+- `Cumberland/DrawCanvas/DrawingCanvasView.swift:98-101` - onChange triggering syncDrawingWithActiveLayer
+- `Cumberland/DrawCanvas/DrawingCanvasView.swift:359-367` - syncDrawingWithActiveLayer
+- `Cumberland/LayerManager.swift:143-169` - createLayerAboveActive setting activeLayerID
+
+**Solution Chosen: Alternative Solution (Remove line 1271)**
+
+Remove `canvasView.drawing = activeLayer.drawing` at line 1271 and rely on SwiftUI's binding system to update the canvas view through `updateUIView` when `parent.drawing` changes.
+
+**Rationale:**
+- Simpler solution with less state management
+- Avoids need for additional flags or coordination
+- Relies on SwiftUI's built-in update mechanisms
+- Prevents the recursive delegate call entirely
+
+**Fix Applied:**
+User removed the following line from `DrawingCanvasView.swift:1271`:
+```swift
+canvasView.drawing = activeLayer.drawing  // REMOVED THIS LINE
+```
+
+Kept only:
+```swift
+parent.drawing = activeLayer.drawing
+```
+
+The UIViewRepresentable's `updateUIView` method handles syncing the canvasView.drawing when the binding updates.
+
+**Files Modified:**
+- `Cumberland/DrawCanvas/DrawingCanvasView.swift:1271` (line removed)
+
+**Verification:**
+- ✅ Restore draft work from Map Wizard
+- ✅ Add a new layer of any type (Water Feature, Terrain, etc.)
+- ✅ App does not crash
+- ✅ Layer switching works correctly
+- ✅ Drawing content appears on the correct layer
+
+---
+
+## DR-0035: DRs 0019-0030 Missing from DR-Documentation.md Index
+
+**Status:** ✅ Resolved - Verified
+**Verification Date:** 2026-01-08
+**Resolution Date:** 2026-01-08
+**Platform:** Documentation
+**Component:** DR-Reports/DR-Documentation.md
+**Severity:** Medium (Documentation Issue)
+**Date Identified:** 2026-01-08
+
+**Description:**
+The DR-Documentation.md index was missing 12 verified DRs (DR-0019 through DR-0030) from its detailed listings, and also missing the 5 current unverified DRs (DR-0031 through DR-0035) from the "Unverified DRs (Active Issues)" section. The DRs exist in the batch files and DR-unverified.md, but were not indexed in the main documentation file for easy reference.
+
+**Evidence:**
+
+**What EXISTS:**
+- DR-verified-0011-0021.md contains all DRs from DR-0019 through DR-0030 (verified via file read)
+- All 12 DRs are fully documented with status, descriptions, fixes, and verification results
+- File name suggests it should only go to DR-0021, but actually contains through DR-0030
+
+**What's MISSING:**
+- DR-Documentation.md index only lists details for DR-0011 through DR-0018
+- The "DR Summary" section (lines 34-67) ends at DR-0018.2
+- No index entries for DR-0019, DR-0020, DR-0021, DR-0022, DR-0023, DR-0024 (two different ones), DR-0025, DR-0026, DR-0027, DR-0028, DR-0029, DR-0030
+- The "Unverified DRs (Active Issues)" section claims "0 unverified DRs" but DR-0031 through DR-0035 exist in DR-unverified.md
+- Statistics show "Total DRs: 31" but should be 35, and claim 100% verified when 5 are unverified
+
+**Missing DRs Summary:**
+- DR-0019: Interior map scale changes don't affect floor pattern size
+- DR-0020: Interior floor material selection resets map scale
+- DR-0021: Layer visibility toggle not working
+- DR-0022: Interior surfaces regenerate during pan/zoom operations
+- DR-0023: Strokes not added to layers with visibility control
+- DR-0024: Strokes deleted when autosave runs (first one)
+- DR-0024: iOS canvas layers do not all display at once (duplicate number, different issue)
+- DR-0025: iOS eye icon has no effect on Layer visibility
+- DR-0026: Switching from Base Layer deletes strokes on target layer (iOS)
+- DR-0027: Masking panel obscures strokes on non-active layers (iOS)
+- DR-0028: Strokes dim and invert colors when layer is not selected (iOS)
+- DR-0029: Base layer image recalculated on visibility toggle and restore
+- DR-0030: Missing "Add Card" UI on iOS/iPadOS and misplaced Settings button
+
+**Impact:**
+- Users cannot easily look up DR details in the index
+- Index statistics are misleading (shows 31 total, claims 100% verified)
+- "Latest DR" claim of DR-0030 is documented in verified batch but DR-0035 is actually latest
+- Unverified DRs section incorrectly claims "All issues have been verified!"
+- Difficult to get overview of current active issues
+
+**Root Cause:**
+The index likely wasn't updated when DR-0019 through DR-0030 were added to the verified file. The DRs may have been resolved and verified quickly without corresponding index updates.
+
+**Note on Duplicate DR-0024:**
+There are TWO different issues both numbered DR-0024:
+1. DR-0024: Strokes deleted when autosave runs (lines 1059-1122)
+2. DR-0024: iOS canvas layers do not all display at once (lines 1125-1150)
+
+This is a numbering conflict that should be resolved during index update.
+
+**Fix Applied:**
+**Resolution Date:** 2026-01-08
+
+**Implementation:**
+
+1. **Split DR-verified-0011-0021.md into two batch files:**
+   - Created `DR-verified-0011-0020.md` (924 lines, DR-0011 through DR-0020)
+   - Created `DR-verified-0021-0030.md` (679 lines, DR-0021 through DR-0030)
+   - Deleted original `DR-verified-0011-0021.md`
+
+2. **Updated DR-Documentation.md index:**
+   - Updated batch reference table to show three batches (lines 26-32)
+   - Added DR-0019 and DR-0020 to "DR-0011 to DR-0020" section (lines 69-70)
+   - Created new "DR-0021 to DR-0030" section with all 10 DRs (lines 72-86)
+   - Updated section title to "Terrain Generation and Interior Maps (Verified)"
+   - Added proper descriptions for each DR
+   - Handled duplicate DR-0024 by using DR-0024 and DR-0024b
+   - Added "Unverified DRs (Active Issues)" table with DR-0031 through DR-0035 (lines 18-27)
+   - Updated statistics: Total 35, Verified 30 (86%), Resolved-Not-Verified 4 (11%), Open 1 (3%)
+
+3. **Updated batch creation guidelines:**
+   - Clarified that batches contain exactly 10 DRs
+   - Added example: When DR-0030 verified, create DR-verified-0031-0040.md
+
+4. **Added comprehensive checklists to DR-GUIDELINES.md:**
+   - Checklist for creating new DRs
+   - Checklist for resolving DRs
+   - Checklist for verifying DRs
+   - Each checklist ensures DR-Documentation.md stays synchronized
+
+**Files Modified:**
+- Created: `Cumberland/DR-Reports/DR-verified-0011-0020.md`
+- Created: `Cumberland/DR-Reports/DR-verified-0021-0030.md`
+- Deleted: `Cumberland/DR-Reports/DR-verified-0011-0021.md`
+- Modified: `Cumberland/DR-Reports/DR-Documentation.md` (comprehensive updates)
+- Modified: `Cumberland/DR-Reports/DR-GUIDELINES.md` (added checklists)
+
+**Verification:**
+- ✅ Verify batch files contain correct DR ranges
+- ✅ Verify DR-Documentation.md lists all DRs 0019-0030
+- ✅ Verify batch table shows correct file links
+- ✅ All DRs are accessible and readable
+- ✅ Unverified DRs section shows current active issues
+- ✅ Statistics are accurate
+- ✅ Guidelines include checklists for maintaining index
+
+---
+
+*End of Batch 4*
