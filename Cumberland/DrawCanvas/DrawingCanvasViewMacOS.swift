@@ -96,23 +96,27 @@ class MacOSDrawingView: NSView {
         // ER-0003: Use brush settings if a brush is selected
         let color: NSColor
         let lineWidth: CGFloat
+        let brushID: UUID?  // DR-0031: Capture brush ID for advanced rendering
 
         if let brush = model.selectedBrush {
             // Use brush color or fall back to selected color
             color = brush.baseColor != nil ? NSColor(brush.baseColor!.toColor()) : NSColor(model.selectedColor)
             // Use brush default width or fall back to selected width
             lineWidth = model.selectedLineWidth // User can override with slider
+            brushID = brush.id  // DR-0031: Store brush ID
         } else {
             // Use model settings
             color = NSColor(model.selectedColor)
             lineWidth = model.selectedLineWidth
+            brushID = nil
         }
 
         currentStroke = MacOSDrawingStroke(
             points: [location],
             color: color,
             lineWidth: lineWidth,
-            toolType: model.selectedToolType
+            toolType: model.selectedToolType,
+            brushID: brushID  // DR-0031: Pass brush ID to stroke
         )
 
         needsDisplay = true
@@ -143,6 +147,7 @@ class MacOSDrawingView: NSView {
             var a: CGFloat = 0
             stroke.color.getRed(&r, green: &g, blue: &b, alpha: &a)
 
+            // DR-0031: Include brushID in stored stroke for advanced rendering
             let codableStroke = DrawingStroke(
                 points: stroke.points.map { CGPointCodable(x: $0.x, y: $0.y) },
                 colorRed: r,
@@ -150,7 +155,8 @@ class MacOSDrawingView: NSView {
                 colorBlue: b,
                 colorAlpha: a,
                 lineWidth: stroke.lineWidth,
-                toolType: stroke.toolType.rawValue
+                toolType: stroke.toolType.rawValue,
+                brushID: stroke.brushID
             )
 
             // DR-0023 / ER-0002: Store stroke in appropriate layer
@@ -362,7 +368,34 @@ class MacOSDrawingView: NSView {
     private func drawStroke(_ stroke: DrawingStroke, in context: CGContext) {
         let points = stroke.cgPoints
         guard points.count > 1 else { return }
-        
+
+        // DR-0031: Check if this stroke has an advanced brush that needs BrushEngine rendering
+        if let brushID = stroke.brushID,
+           let brush = BrushRegistry.shared.findBrush(id: brushID),
+           BrushEngine.recommendedRenderingMethod(for: brush) == .advanced {
+            // Use BrushEngine for advanced rendering
+            let swiftUIColor = Color(
+                red: Double(stroke.colorRed),
+                green: Double(stroke.colorGreen),
+                blue: Double(stroke.colorBlue),
+                opacity: Double(stroke.colorAlpha)
+            )
+            // DR-0032: Pass terrain metadata for scale-aware beach rendering
+            let terrainMetadata = canvasModel?.layerManager?.baseLayer?.layerFill?.terrainMetadata
+
+            BrushEngine.renderAdvancedStroke(
+                brush: brush,
+                points: points,
+                color: swiftUIColor,
+                width: stroke.lineWidth,
+                context: context,
+                terrainMetadata: terrainMetadata
+            )
+            return
+        }
+
+        // Standard rendering (no brush or simple brush)
+
         // Handle eraser differently
         if let toolType = DrawingToolType(rawValue: stroke.toolType), toolType == .eraser {
             // For eraser, we need to remove intersecting strokes
@@ -379,7 +412,7 @@ class MacOSDrawingView: NSView {
             context.setLineCap(.round)
             context.setLineJoin(.round)
             context.setBlendMode(.normal)
-            
+
             // Apply different styles based on tool type
             if let toolType = DrawingToolType(rawValue: stroke.toolType) {
                 switch toolType {
@@ -397,15 +430,15 @@ class MacOSDrawingView: NSView {
                 context.setAlpha(1.0)
             }
         }
-        
+
         // Draw the path
         context.beginPath()
         context.move(to: points[0])
-        
+
         // Use quadratic bezier curves for smooth lines
         for i in 1..<points.count {
             let current = points[i]
-            
+
             if i < points.count - 1 {
                 let next = points[i + 1]
                 let midPoint = CGPoint(
@@ -417,9 +450,9 @@ class MacOSDrawingView: NSView {
                 context.addLine(to: current)
             }
         }
-        
+
         context.strokePath()
-        
+
         // Reset blend mode and alpha
         context.setBlendMode(.normal)
         context.setAlpha(1.0)
@@ -427,7 +460,18 @@ class MacOSDrawingView: NSView {
     
     private func drawCurrentStroke(_ stroke: MacOSDrawingStroke, in context: CGContext) {
         guard stroke.points.count > 1 else { return }
-        
+
+        // DR-0031: For real-time preview of advanced brushes, use simple rendering for performance
+        // Full advanced rendering will be applied on mouseUp when stroke is finalized
+        // This prevents the expensive procedural generation from running dozens of times per second
+
+        // Visual hint: Draw with slight transparency to indicate preview
+        let isAdvancedBrush = stroke.brushID != nil &&
+            BrushRegistry.shared.findBrush(id: stroke.brushID!) != nil &&
+            BrushEngine.recommendedRenderingMethod(for: BrushRegistry.shared.findBrush(id: stroke.brushID!)!) == .advanced
+
+        // Standard rendering for real-time preview (fast)
+
         // Handle eraser differently
         if stroke.toolType == .eraser {
             // For eraser, we need to remove intersecting strokes
@@ -444,29 +488,34 @@ class MacOSDrawingView: NSView {
             context.setLineCap(.round)
             context.setLineJoin(.round)
             context.setBlendMode(.normal)
-            
-            // Apply different styles based on tool type
-            switch stroke.toolType {
-            case .pencil:
-                // Pencil: slight transparency for texture
-                context.setAlpha(0.8)
-            case .marker:
-                // Marker: more transparent and wider
-                context.setAlpha(0.4)
-                context.setLineWidth(stroke.lineWidth * 2)
-            default:
-                context.setAlpha(1.0)
+
+            // DR-0031: Use reduced opacity for advanced brush preview to indicate it's temporary
+            if isAdvancedBrush {
+                context.setAlpha(0.5)  // Lighter preview for advanced brushes
+            } else {
+                // Apply different styles based on tool type
+                switch stroke.toolType {
+                case .pencil:
+                    // Pencil: slight transparency for texture
+                    context.setAlpha(0.8)
+                case .marker:
+                    // Marker: more transparent and wider
+                    context.setAlpha(0.4)
+                    context.setLineWidth(stroke.lineWidth * 2)
+                default:
+                    context.setAlpha(1.0)
+                }
             }
         }
-        
+
         // Draw the path
         context.beginPath()
         context.move(to: stroke.points[0])
-        
+
         // Use quadratic bezier curves for smooth lines
         for i in 1..<stroke.points.count {
             let current = stroke.points[i]
-            
+
             if i < stroke.points.count - 1 {
                 let next = stroke.points[i + 1]
                 let midPoint = CGPoint(
@@ -478,9 +527,9 @@ class MacOSDrawingView: NSView {
                 context.addLine(to: current)
             }
         }
-        
+
         context.strokePath()
-        
+
         // Reset blend mode and alpha
         context.setBlendMode(.normal)
         context.setAlpha(1.0)
@@ -677,6 +726,7 @@ private struct MacOSDrawingStroke {
     var color: NSColor
     var lineWidth: CGFloat
     var toolType: DrawingToolType
+    var brushID: UUID?  // DR-0031: Store brush ID for advanced rendering
 }
 
 #endif

@@ -471,17 +471,33 @@ extension BrushEngine {
     ) -> [CGPoint] {
         guard points.count > 1 else { return points }
 
-        var meanderedPoints: [CGPoint] = []
-        let segmentsPerSection = 8 // Controls smoothness
-
-        // Seeded randomizer for reproducible meanders
-        srand48(seed)
+        // DR-0031: Calculate total path length for distance-based frequency
+        var cumulativeDistance: CGFloat = 0
+        var segmentLengths: [CGFloat] = []
 
         for i in 0..<(points.count - 1) {
             let p1 = points[i]
             let p2 = points[i + 1]
+            let length = hypot(p2.x - p1.x, p2.y - p1.y)
+            segmentLengths.append(length)
+            cumulativeDistance += length
+        }
 
-            let segmentLength = hypot(p2.x - p1.x, p2.y - p1.y)
+        guard cumulativeDistance > 0 else { return points }
+
+        var meanderedPoints: [CGPoint] = []
+        let segmentsPerSection = 4 // Controls smoothness
+
+        // Seeded randomizer for reproducible meanders
+        srand48(seed)
+
+        var distanceTraveled: CGFloat = 0
+
+        for i in 0..<(points.count - 1) {
+            let p1 = points[i]
+            let p2 = points[i + 1]
+            let segmentLength = segmentLengths[i]
+
             let dx = (p2.x - p1.x) / segmentLength
             let dy = (p2.y - p1.y) / segmentLength
 
@@ -494,6 +510,9 @@ extension BrushEngine {
                 meanderedPoints.append(p1)
             }
 
+            // Generate one random offset per segment
+            let segmentRandomOffset = CGFloat(drand48() - 0.5) * 0.15
+
             // Create meandering between p1 and p2
             for j in 1...segmentsPerSection {
                 let t = CGFloat(j) / CGFloat(segmentsPerSection)
@@ -502,20 +521,21 @@ extension BrushEngine {
                 let baseX = p1.x + (p2.x - p1.x) * t
                 let baseY = p1.y + (p2.y - p1.y) * t
 
-                // Meandering displacement using sinusoidal combination
-                // Multiple frequencies create natural river-like curves
-                let freq1 = 2.0 * .pi * t
-                let freq2 = 5.0 * .pi * t
-                let freq3 = 11.0 * .pi * t
+                // DR-0031: Use GLOBAL position along path for consistent frequency
+                // Frequency independent of point density - depends on actual distance
+                let localDistance = t * segmentLength
+                let globalT = (distanceTraveled + localDistance) / cumulativeDistance
 
-                // Combine frequencies with different amplitudes (natural meander signature)
-                let meander = sin(freq1) * 0.6 + sin(freq2) * 0.3 + sin(freq3) * 0.1
+                // Fixed frequency based on total distance (not segment count)
+                // 3π means 1.5 complete waves along entire path
+                let freq1 = 3.0 * .pi * globalT  // Primary meander
+                let freq2 = 7.0 * .pi * globalT  // Secondary variation (3.5 waves)
 
-                // Add random variation for natural irregularity
-                let randomVariation = CGFloat(drand48() - 0.5) * 0.3
+                // Combine frequencies
+                let meander = sin(freq1) * 0.7 + sin(freq2) * 0.3
 
                 // Scale by width and intensity
-                let displacement = (meander + randomVariation) * width * meanderIntensity
+                let displacement = (meander + segmentRandomOffset) * width * meanderIntensity
 
                 // Apply perpendicular displacement
                 let meanderedX = baseX + perpX * displacement
@@ -523,12 +543,44 @@ extension BrushEngine {
 
                 meanderedPoints.append(CGPoint(x: meanderedX, y: meanderedY))
             }
+
+            distanceTraveled += segmentLength
         }
 
         // Add final point
         meanderedPoints.append(points.last!)
 
         return meanderedPoints
+    }
+
+    /// DR-0031: Generate synthetic pressure profile for river width variation
+    static func generateRiverPressureProfile(pointCount: Int) -> [CGFloat] {
+        guard pointCount > 0 else { return [] }
+
+        var pressures: [CGFloat] = []
+
+        for i in 0..<pointCount {
+            let t = CGFloat(i) / CGFloat(pointCount - 1)
+
+            // DR-0031: More dramatic tapered ends for visible effect
+            let taperStart: CGFloat = min(1.0, t * 4.0)  // Ramp up over first 25%
+            let taperEnd: CGFloat = min(1.0, (1.0 - t) * 4.0)  // Ramp down over last 25%
+            let taper = min(taperStart, taperEnd)
+
+            // Natural variation using smoother sine waves (removed high-frequency)
+            let variation1 = sin(t * .pi * 2.0) * 0.15  // Slow variation
+            let variation2 = sin(t * .pi * 4.0) * 0.08  // Medium variation
+
+            // Combine taper with variation
+            let basePressure: CGFloat = 0.9
+            let variation = variation1 + variation2
+            let pressure = (basePressure + variation) * taper
+
+            // DR-0031: Wider range (0.2 to 1.0) for more dramatic width variation
+            pressures.append(max(0.2, min(1.0, pressure)))
+        }
+
+        return pressures
     }
 
     /// ER-0003: Generate river stroke with variable width (pressure-sensitive)

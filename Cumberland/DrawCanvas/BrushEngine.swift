@@ -584,27 +584,28 @@ class BrushEngine {
         points: [CGPoint],
         color: Color,
         width: CGFloat? = nil,
-        context: CGContext
+        context: CGContext,
+        terrainMetadata: TerrainMapMetadata? = nil
     ) {
         guard points.count > 1 else { return }
-        
+
         let finalWidth = width ?? brush.defaultWidth
-        
+
         // Apply brush settings to context
         context.saveGState()
         context.setAlpha(brush.opacity)
         context.setBlendMode(brush.blendMode.cgBlendMode)
-        
+
         // Apply smoothing if needed
         let smoothedPoints = brush.smoothing > 0 ? smoothPath(points, amount: brush.smoothing) : points
-        
+
         // Use advanced pattern generators based on category
         switch brush.category {
         case .terrain:
             renderTerrainBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
-            
+
         case .water:
-            renderWaterBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
+            renderWaterBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context, terrainMetadata: terrainMetadata)
             
         case .vegetation:
             renderVegetationBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
@@ -665,12 +666,67 @@ class BrushEngine {
         }
     }
     
+    /// DR-0032: Calculate scale-aware beach width based on map's physical size
+    /// Base layer uses ~10% of elevation range for beaches, we match that proportion
+    private static func calculateScaleAwareBeachWidth(
+        brushWidth: CGFloat,
+        terrainMetadata: TerrainMapMetadata?,
+        waterType: WaterType
+    ) -> CGFloat {
+        // If no terrain metadata, fall back to percentage of brush width
+        guard let metadata = terrainMetadata else {
+            switch waterType {
+            case .lake: return brushWidth * 0.5
+            case .sea: return brushWidth * 0.55
+            case .ocean: return brushWidth * 0.6
+            case .river: return brushWidth * 0.3
+            case .stream: return brushWidth * 0.15
+            }
+        }
+
+        // Calculate beach width based on map scale
+        // Base layer: beaches are ~10% of terrain features
+        // For a 100-mile map, terrain features span ~10 miles, so beaches ~1 mile
+        // We need to convert this to brush coordinate space
+        let mapSizeMiles = metadata.physicalSizeMiles
+
+        // Adjust beach multiplier based on map scale (larger maps = relatively smaller beaches)
+        let scaleMultiplier: CGFloat
+        if mapSizeMiles < 10 {
+            // Small scale (village/battlefield): Proportionally larger beaches
+            scaleMultiplier = 0.7
+        } else if mapSizeMiles < 100 {
+            // Medium scale (city/region): Moderate beaches
+            scaleMultiplier = 0.5
+        } else {
+            // Large scale (continent/world): Proportionally smaller beaches
+            scaleMultiplier = 0.35
+        }
+
+        // Apply water type hierarchy: Ocean > Sea > Lake > River > Stream
+        let typeMultiplier: CGFloat
+        switch waterType {
+        case .ocean: typeMultiplier = 1.2
+        case .sea: typeMultiplier = 1.0
+        case .lake: typeMultiplier = 0.85
+        case .river: typeMultiplier = 0.5
+        case .stream: typeMultiplier = 0.25
+        }
+
+        return brushWidth * scaleMultiplier * typeMultiplier
+    }
+
+    enum WaterType {
+        case lake, sea, ocean, river, stream
+    }
+
     static func renderWaterBrush(
         brush: MapBrush,
         points: [CGPoint],
         color: Color,
         width: CGFloat,
-        context: CGContext
+        context: CGContext,
+        terrainMetadata: TerrainMapMetadata? = nil
     ) {
         if brush.name.lowercased().contains("coast") {
             let pattern = ProceduralPatternGenerator.generateDetailedCoastline(
@@ -683,20 +739,95 @@ class BrushEngine {
 
         } else if brush.name.lowercased().contains("river") || brush.name.lowercased().contains("stream") {
             // ER-0003: Procedural rivers with realistic meandering
-            let meanderIntensity: CGFloat = brush.name.lowercased().contains("stream") ? 0.5 : 0.7
+            // DR-0031: Increased intensity for more visible meandering
+            let isStream = brush.name.lowercased().contains("stream")
+            let meanderIntensity: CGFloat = isStream ? 1.0 : 1.5
+            let waterType: WaterType = isStream ? .stream : .river
+
             let meanderedPath = generateProceduralRiverPath(
                 points: points,
                 width: width,
                 meanderIntensity: meanderIntensity
             )
 
-            // Generate variable-width river banks
-            let (leftBank, rightBank) = generateRiverStrokeWithPressure(
-                centerPath: meanderedPath,
-                baseWidth: width
+            // DR-0031: Generate synthetic pressure values for width variation and tapered ends
+            let pressureValues = generateRiverPressureProfile(pointCount: meanderedPath.count)
+
+            // DR-0032: Calculate scale-aware beach width for sandy banks
+            let beachWidth = calculateScaleAwareBeachWidth(
+                brushWidth: width,
+                terrainMetadata: terrainMetadata,
+                waterType: waterType
             )
 
-            // Render river as filled polygon between banks
+            // Generate outer banks (sandy beach)
+            let (leftBeachBank, rightBeachBank) = generateRiverStrokeWithPressure(
+                centerPath: meanderedPath,
+                baseWidth: width + beachWidth * 2, // Add beach on both sides
+                pressureValues: pressureValues
+            )
+
+            // Generate inner banks (water edge)
+            let (leftBank, rightBank) = generateRiverStrokeWithPressure(
+                centerPath: meanderedPath,
+                baseWidth: width,
+                pressureValues: pressureValues
+            )
+
+            // DR-0032: First, render sandy beach banks
+            #if canImport(UIKit)
+            let sandColor = UIColor(red: 0.90, green: 0.75, blue: 0.50, alpha: 1.0).cgColor
+            #elseif canImport(AppKit)
+            let sandColor = NSColor(red: 0.90, green: 0.75, blue: 0.50, alpha: 1.0).cgColor
+            #else
+            let sandColor = CGColor(red: 0.90, green: 0.75, blue: 0.50, alpha: 1.0)
+            #endif
+
+            context.setFillColor(sandColor)
+            context.setAlpha(brush.opacity)
+
+            context.beginPath()
+            if !leftBeachBank.isEmpty {
+                context.move(to: leftBeachBank[0])
+                for i in 1..<leftBeachBank.count {
+                    let current = leftBeachBank[i]
+                    if i < leftBeachBank.count - 1 {
+                        let next = leftBeachBank[i + 1]
+                        let midPoint = CGPoint(
+                            x: (current.x + next.x) / 2,
+                            y: (current.y + next.y) / 2
+                        )
+                        context.addQuadCurve(to: midPoint, control: current)
+                    } else {
+                        context.addLine(to: current)
+                    }
+                }
+            }
+            // Connect to right beach bank (in reverse)
+            if !rightBeachBank.isEmpty {
+                let reversedBank = rightBeachBank.reversed()
+                for (i, point) in reversedBank.enumerated() {
+                    if i == 0 {
+                        context.addLine(to: point)
+                    } else if i < rightBeachBank.count - 1 {
+                        let nextIndex = rightBeachBank.count - i - 2
+                        if nextIndex >= 0 {
+                            let next = rightBeachBank[nextIndex]
+                            let midPoint = CGPoint(
+                                x: (point.x + next.x) / 2,
+                                y: (point.y + next.y) / 2
+                            )
+                            context.addQuadCurve(to: midPoint, control: point)
+                        }
+                    } else {
+                        context.addLine(to: point)
+                    }
+                }
+            }
+            context.closePath()
+            context.fillPath()
+
+            // Render river water as filled polygon between inner banks
             #if canImport(UIKit)
             let cgColor = UIColor(color).cgColor
             #elseif canImport(AppKit)
@@ -708,32 +839,71 @@ class BrushEngine {
             context.setFillColor(cgColor)
             context.setAlpha(brush.opacity * 0.9) // Slightly transparent for water effect
 
-            // Draw filled river shape
+            // DR-0031: Draw filled river shape with smooth curves instead of jagged lines
             context.beginPath()
             if !leftBank.isEmpty {
                 context.move(to: leftBank[0])
-                for point in leftBank.dropFirst() {
-                    context.addLine(to: point)
+                // Use quadratic curves for smooth banks
+                for i in 1..<leftBank.count {
+                    let current = leftBank[i]
+                    if i < leftBank.count - 1 {
+                        let next = leftBank[i + 1]
+                        let midPoint = CGPoint(
+                            x: (current.x + next.x) / 2,
+                            y: (current.y + next.y) / 2
+                        )
+                        context.addQuadCurve(to: midPoint, control: current)
+                    } else {
+                        context.addLine(to: current)
+                    }
                 }
             }
-            // Connect to right bank (in reverse)
+            // Connect to right bank (in reverse) with smooth curves
             if !rightBank.isEmpty {
-                for point in rightBank.reversed() {
-                    context.addLine(to: point)
+                let reversedBank = rightBank.reversed()
+                for (i, point) in reversedBank.enumerated() {
+                    if i == 0 {
+                        context.addLine(to: point)
+                    } else if i < rightBank.count - 1 {
+                        let nextIndex = rightBank.count - i - 2
+                        if nextIndex >= 0 {
+                            let next = rightBank[nextIndex]
+                            let midPoint = CGPoint(
+                                x: (point.x + next.x) / 2,
+                                y: (point.y + next.y) / 2
+                            )
+                            context.addQuadCurve(to: midPoint, control: point)
+                        }
+                    } else {
+                        context.addLine(to: point)
+                    }
                 }
             }
             context.closePath()
             context.fillPath()
 
-            // Add center line for detail
+            // DR-0031: Add center line for detail with smooth curves
             context.setStrokeColor(cgColor)
             context.setAlpha(brush.opacity * 0.3)
             context.setLineWidth(1.0)
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
             context.beginPath()
             if !meanderedPath.isEmpty {
                 context.move(to: meanderedPath[0])
-                for point in meanderedPath.dropFirst() {
-                    context.addLine(to: point)
+                // Smooth center line with quadratic curves
+                for i in 1..<meanderedPath.count {
+                    let current = meanderedPath[i]
+                    if i < meanderedPath.count - 1 {
+                        let next = meanderedPath[i + 1]
+                        let midPoint = CGPoint(
+                            x: (current.x + next.x) / 2,
+                            y: (current.y + next.y) / 2
+                        )
+                        context.addQuadCurve(to: midPoint, control: current)
+                    } else {
+                        context.addLine(to: current)
+                    }
                 }
             }
             context.strokePath()
@@ -742,12 +912,505 @@ class BrushEngine {
             let pattern = generateWaterPattern(points: points, width: width, waveSize: 1.0)
             renderPatternStroke(pattern: pattern, color: color, width: width * 0.5, context: context)
 
+        } else if brush.name.lowercased().contains("ocean") {
+            // DR-0031: Ocean rendering - large scale area fill
+            renderOceanBrush(brush: brush, points: points, color: color, width: width, context: context, terrainMetadata: terrainMetadata)
+
+        } else if brush.name.lowercased().contains("sea") {
+            // DR-0031: Sea rendering - medium scale area fill
+            renderSeaBrush(brush: brush, points: points, color: color, width: width, context: context, terrainMetadata: terrainMetadata)
+
+        } else if brush.name.lowercased().contains("lake") {
+            // DR-0031: Lake rendering - filled area with irregular organic shoreline
+            renderLakeBrush(brush: brush, points: points, color: color, width: width, context: context, terrainMetadata: terrainMetadata)
+
+        } else if brush.name.lowercased().contains("marsh") {
+            // DR-0031: Marsh rendering - scattered vegetation with water patches
+            renderMarshBrush(brush: brush, points: points, color: color, width: width, context: context)
+
         } else {
             // Default water rendering with slight transparency
             renderSolidStroke(points: points, color: color, width: width, brush: brush, context: context)
         }
     }
-    
+
+    /// DR-0031: Render lake with sandy shoreline and base-layer-matched water color
+    static func renderLakeBrush(
+        brush: MapBrush,
+        points: [CGPoint],
+        color: Color,
+        width: CGFloat,
+        context: CGContext,
+        terrainMetadata: TerrainMapMetadata? = nil
+    ) {
+        guard points.count > 1 else { return }
+
+        let seed = Int.random(in: 0...10000)
+        srand48(seed)
+
+        // Create irregular shoreline by adding randomized offset to path
+        var shorelinePoints: [CGPoint] = []
+        for i in 0..<points.count {
+            let point = points[i]
+            let randomOffset = CGFloat(drand48() - 0.5) * width * 0.3
+            let offsetPoint = CGPoint(
+                x: point.x + randomOffset,
+                y: point.y + randomOffset
+            )
+            shorelinePoints.append(offsetPoint)
+        }
+
+        // DR-0031: Use base layer colors - sand and water
+        let sandColor = Color(red: 0.90, green: 0.75, blue: 0.50)  // Beach sand
+        let waterColor = Color(hue: 0.55, saturation: 0.70, brightness: 0.5)  // Base layer water
+
+        #if canImport(UIKit)
+        let sandCGColor = UIColor(sandColor).cgColor
+        let waterCGColor = UIColor(waterColor).cgColor
+        #elseif canImport(AppKit)
+        let sandCGColor = NSColor(sandColor).cgColor
+        let waterCGColor = NSColor(waterColor).cgColor
+        #else
+        let sandCGColor = CGColor(red: 0.90, green: 0.75, blue: 0.50, alpha: 1)
+        let waterCGColor = CGColor(red: 0.4, green: 0.6, blue: 0.8, alpha: 1)
+        #endif
+
+        // First, draw sandy shoreline (outer ring)
+        context.setFillColor(sandCGColor)
+        context.setAlpha(1.0)  // Opaque sand
+
+        context.beginPath()
+        if !shorelinePoints.isEmpty {
+            context.move(to: shorelinePoints[0])
+            for i in 1..<shorelinePoints.count {
+                let current = shorelinePoints[i]
+                if i < shorelinePoints.count - 1 {
+                    let next = shorelinePoints[i + 1]
+                    let midPoint = CGPoint(
+                        x: (current.x + next.x) / 2,
+                        y: (current.y + next.y) / 2
+                    )
+                    context.addQuadCurve(to: midPoint, control: current)
+                } else {
+                    context.addLine(to: current)
+                }
+            }
+        }
+        context.fillPath()
+
+        // Second, draw water (slightly inset from sandy shore)
+        var waterPoints: [CGPoint] = []
+        // DR-0032: Use scale-aware beach width calculation
+        let insetAmount = calculateScaleAwareBeachWidth(
+            brushWidth: width,
+            terrainMetadata: terrainMetadata,
+            waterType: .lake
+        )
+
+        for i in 0..<shorelinePoints.count {
+            let point = shorelinePoints[i]
+            // Simple inward offset (toward center)
+            let centerX = shorelinePoints.reduce(0.0) { $0 + $1.x } / CGFloat(shorelinePoints.count)
+            let centerY = shorelinePoints.reduce(0.0) { $0 + $1.y } / CGFloat(shorelinePoints.count)
+            let dx = centerX - point.x
+            let dy = centerY - point.y
+            let dist = hypot(dx, dy)
+            if dist > 0 {
+                let offsetX = point.x + (dx / dist) * insetAmount
+                let offsetY = point.y + (dy / dist) * insetAmount
+                waterPoints.append(CGPoint(x: offsetX, y: offsetY))
+            } else {
+                waterPoints.append(point)
+            }
+        }
+
+        context.setFillColor(waterCGColor)
+        context.setAlpha(1.0)  // DR-0031: Opaque water
+
+        context.beginPath()
+        if !waterPoints.isEmpty {
+            context.move(to: waterPoints[0])
+            for i in 1..<waterPoints.count {
+                let current = waterPoints[i]
+                if i < waterPoints.count - 1 {
+                    let next = waterPoints[i + 1]
+                    let midPoint = CGPoint(
+                        x: (current.x + next.x) / 2,
+                        y: (current.y + next.y) / 2
+                    )
+                    context.addQuadCurve(to: midPoint, control: current)
+                } else {
+                    context.addLine(to: current)
+                }
+            }
+        }
+        context.fillPath()
+
+        // DR-0031: Add subtle stippling for water texture (keep this effect)
+        context.setAlpha(0.2)
+        for point in waterPoints where drand48() < 0.3 {
+            let stippleOffset = CGPoint(
+                x: point.x + CGFloat(drand48() - 0.5) * width * 0.3,
+                y: point.y + CGFloat(drand48() - 0.5) * width * 0.3
+            )
+            context.fillEllipse(in: CGRect(x: stippleOffset.x - 1, y: stippleOffset.y - 1, width: 2, height: 2))
+        }
+    }
+
+    /// DR-0031: Render marsh as filled area with scattered vegetation and water patches
+    static func renderMarshBrush(
+        brush: MapBrush,
+        points: [CGPoint],
+        color: Color,
+        width: CGFloat,
+        context: CGContext
+    ) {
+        guard points.count > 1 else { return }
+
+        let seed = Int.random(in: 0...10000)
+        srand48(seed)
+
+        // Create marsh boundary with slight irregularity
+        var marshPoints: [CGPoint] = []
+        for i in 0..<points.count {
+            let point = points[i]
+            let randomOffset = CGFloat(drand48() - 0.5) * width * 0.2
+            let offsetPoint = CGPoint(
+                x: point.x + randomOffset,
+                y: point.y + randomOffset
+            )
+            marshPoints.append(offsetPoint)
+        }
+
+        // DR-0031: Use base layer water color for marsh water
+        let waterColor = Color(hue: 0.55, saturation: 0.70, brightness: 0.45)  // Slightly darker water
+        let mudColor = Color(red: 0.45, green: 0.40, blue: 0.30)  // Muddy brown
+
+        #if canImport(UIKit)
+        let mudCGColor = UIColor(mudColor).cgColor
+        let waterCGColor = UIColor(waterColor).cgColor
+        let vegetationColor = UIColor.green.withAlphaComponent(0.7).cgColor
+        #elseif canImport(AppKit)
+        let mudCGColor = NSColor(mudColor).cgColor
+        let waterCGColor = NSColor(waterColor).cgColor
+        let vegetationColor = NSColor.green.withAlphaComponent(0.7).cgColor
+        #else
+        let mudCGColor = CGColor(red: 0.45, green: 0.40, blue: 0.30, alpha: 1)
+        let waterCGColor = CGColor(red: 0.3, green: 0.5, blue: 0.7, alpha: 1)
+        let vegetationColor = CGColor(red: 0.2, green: 0.6, blue: 0.2, alpha: 0.7)
+        #endif
+
+        // First, fill with muddy base
+        context.setFillColor(mudCGColor)
+        context.setAlpha(1.0)
+
+        context.beginPath()
+        if !marshPoints.isEmpty {
+            context.move(to: marshPoints[0])
+            for i in 1..<marshPoints.count {
+                let current = marshPoints[i]
+                if i < marshPoints.count - 1 {
+                    let next = marshPoints[i + 1]
+                    let midPoint = CGPoint(
+                        x: (current.x + next.x) / 2,
+                        y: (current.y + next.y) / 2
+                    )
+                    context.addQuadCurve(to: midPoint, control: current)
+                } else {
+                    context.addLine(to: current)
+                }
+            }
+        }
+        context.fillPath()
+
+        // Calculate bounding box for scattering elements
+        let minX = marshPoints.map { $0.x }.min() ?? 0
+        let maxX = marshPoints.map { $0.x }.max() ?? 0
+        let minY = marshPoints.map { $0.y }.min() ?? 0
+        let maxY = marshPoints.map { $0.y }.max() ?? 0
+
+        // Scatter water patches and vegetation throughout the area
+        let density = Int(width * 3)  // More elements for wider brush
+        for _ in 0..<density {
+            let scatterX = minX + CGFloat(drand48()) * (maxX - minX)
+            let scatterY = minY + CGFloat(drand48()) * (maxY - minY)
+
+            if drand48() < 0.4 {
+                // Draw water patch (small circle)
+                context.setFillColor(waterCGColor)
+                context.setAlpha(0.8)
+                let patchSize = CGFloat(drand48() * 4 + 2)
+                context.fillEllipse(in: CGRect(
+                    x: scatterX - patchSize,
+                    y: scatterY - patchSize,
+                    width: patchSize * 2,
+                    height: patchSize * 2
+                ))
+            } else {
+                // Draw reed/vegetation (short vertical line)
+                context.setStrokeColor(vegetationColor)
+                context.setAlpha(0.8)
+                context.setLineWidth(1.5)
+                context.setLineCap(.round)
+
+                let reedHeight = CGFloat(drand48() * 8 + 5)
+                context.beginPath()
+                context.move(to: CGPoint(x: scatterX, y: scatterY))
+                context.addLine(to: CGPoint(x: scatterX + CGFloat(drand48() - 0.5) * 2, y: scatterY - reedHeight))
+                context.strokePath()
+            }
+        }
+    }
+
+    /// DR-0031: Render ocean as large-scale water area (could extend to canvas edges in future)
+    static func renderOceanBrush(
+        brush: MapBrush,
+        points: [CGPoint],
+        color: Color,
+        width: CGFloat,
+        context: CGContext,
+        terrainMetadata: TerrainMapMetadata? = nil
+    ) {
+        guard points.count > 1 else { return }
+
+        let seed = Int.random(in: 0...10000)
+        srand48(seed)
+
+        // Ocean has very subtle coastline variation (more gradual than lakes)
+        var coastlinePoints: [CGPoint] = []
+        for i in 0..<points.count {
+            let point = points[i]
+            let randomOffset = CGFloat(drand48() - 0.5) * width * 0.15  // Less variation than lake
+            let offsetPoint = CGPoint(
+                x: point.x + randomOffset,
+                y: point.y + randomOffset
+            )
+            coastlinePoints.append(offsetPoint)
+        }
+
+        // DR-0031: Use base layer colors - sand and deeper water
+        let sandColor = Color(red: 0.90, green: 0.75, blue: 0.50)  // Beach sand
+        let deepWaterColor = Color(hue: 0.55, saturation: 0.75, brightness: 0.4)  // Deeper/darker water
+
+        #if canImport(UIKit)
+        let sandCGColor = UIColor(sandColor).cgColor
+        let waterCGColor = UIColor(deepWaterColor).cgColor
+        #elseif canImport(AppKit)
+        let sandCGColor = NSColor(sandColor).cgColor
+        let waterCGColor = NSColor(deepWaterColor).cgColor
+        #else
+        let sandCGColor = CGColor(red: 0.90, green: 0.75, blue: 0.50, alpha: 1)
+        let waterCGColor = CGColor(red: 0.3, green: 0.5, blue: 0.75, alpha: 1)
+        #endif
+
+        // Draw sandy beach (wider for ocean)
+        context.setFillColor(sandCGColor)
+        context.setAlpha(1.0)
+
+        context.beginPath()
+        if !coastlinePoints.isEmpty {
+            context.move(to: coastlinePoints[0])
+            for i in 1..<coastlinePoints.count {
+                let current = coastlinePoints[i]
+                if i < coastlinePoints.count - 1 {
+                    let next = coastlinePoints[i + 1]
+                    let midPoint = CGPoint(
+                        x: (current.x + next.x) / 2,
+                        y: (current.y + next.y) / 2
+                    )
+                    context.addQuadCurve(to: midPoint, control: current)
+                } else {
+                    context.addLine(to: current)
+                }
+            }
+        }
+        context.fillPath()
+
+        // Inset for water (larger beach zone for ocean)
+        var waterPoints: [CGPoint] = []
+        // DR-0032: Use scale-aware beach width calculation
+        let insetAmount = calculateScaleAwareBeachWidth(
+            brushWidth: width,
+            terrainMetadata: terrainMetadata,
+            waterType: .ocean
+        )
+
+        for i in 0..<coastlinePoints.count {
+            let point = coastlinePoints[i]
+            let centerX = coastlinePoints.reduce(0.0) { $0 + $1.x } / CGFloat(coastlinePoints.count)
+            let centerY = coastlinePoints.reduce(0.0) { $0 + $1.y } / CGFloat(coastlinePoints.count)
+            let dx = centerX - point.x
+            let dy = centerY - point.y
+            let dist = hypot(dx, dy)
+            if dist > 0 {
+                let offsetX = point.x + (dx / dist) * insetAmount
+                let offsetY = point.y + (dy / dist) * insetAmount
+                waterPoints.append(CGPoint(x: offsetX, y: offsetY))
+            } else {
+                waterPoints.append(point)
+            }
+        }
+
+        // Draw deep ocean water
+        context.setFillColor(waterCGColor)
+        context.setAlpha(1.0)
+
+        context.beginPath()
+        if !waterPoints.isEmpty {
+            context.move(to: waterPoints[0])
+            for i in 1..<waterPoints.count {
+                let current = waterPoints[i]
+                if i < waterPoints.count - 1 {
+                    let next = waterPoints[i + 1]
+                    let midPoint = CGPoint(
+                        x: (current.x + next.x) / 2,
+                        y: (current.y + next.y) / 2
+                    )
+                    context.addQuadCurve(to: midPoint, control: current)
+                } else {
+                    context.addLine(to: current)
+                }
+            }
+        }
+        context.fillPath()
+
+        // Add wave texture (horizontal lines for ocean waves)
+        context.setStrokeColor(waterCGColor)
+        context.setAlpha(0.15)
+        context.setLineWidth(1.0)
+        for point in waterPoints where drand48() < 0.2 {
+            let waveY = point.y + CGFloat(drand48() - 0.5) * width * 0.3
+            let waveLength = CGFloat(drand48() * 15 + 10)
+            context.beginPath()
+            context.move(to: CGPoint(x: point.x - waveLength / 2, y: waveY))
+            context.addLine(to: CGPoint(x: point.x + waveLength / 2, y: waveY))
+            context.strokePath()
+        }
+    }
+
+    /// DR-0031: Render sea as medium-scale water area
+    static func renderSeaBrush(
+        brush: MapBrush,
+        points: [CGPoint],
+        color: Color,
+        width: CGFloat,
+        context: CGContext,
+        terrainMetadata: TerrainMapMetadata? = nil
+    ) {
+        guard points.count > 1 else { return }
+
+        let seed = Int.random(in: 0...10000)
+        srand48(seed)
+
+        // Sea has moderate coastline variation (between ocean and lake)
+        var coastlinePoints: [CGPoint] = []
+        for i in 0..<points.count {
+            let point = points[i]
+            let randomOffset = CGFloat(drand48() - 0.5) * width * 0.25
+            let offsetPoint = CGPoint(
+                x: point.x + randomOffset,
+                y: point.y + randomOffset
+            )
+            coastlinePoints.append(offsetPoint)
+        }
+
+        // DR-0031: Use base layer colors - sand and medium-depth water
+        let sandColor = Color(red: 0.90, green: 0.75, blue: 0.50)  // Beach sand
+        let seaWaterColor = Color(hue: 0.55, saturation: 0.72, brightness: 0.45)  // Medium depth water
+
+        #if canImport(UIKit)
+        let sandCGColor = UIColor(sandColor).cgColor
+        let waterCGColor = UIColor(seaWaterColor).cgColor
+        #elseif canImport(AppKit)
+        let sandCGColor = NSColor(sandColor).cgColor
+        let waterCGColor = NSColor(seaWaterColor).cgColor
+        #else
+        let sandCGColor = CGColor(red: 0.90, green: 0.75, blue: 0.50, alpha: 1)
+        let waterCGColor = CGColor(red: 0.35, green: 0.55, blue: 0.75, alpha: 1)
+        #endif
+
+        // Draw sandy shoreline
+        context.setFillColor(sandCGColor)
+        context.setAlpha(1.0)
+
+        context.beginPath()
+        if !coastlinePoints.isEmpty {
+            context.move(to: coastlinePoints[0])
+            for i in 1..<coastlinePoints.count {
+                let current = coastlinePoints[i]
+                if i < coastlinePoints.count - 1 {
+                    let next = coastlinePoints[i + 1]
+                    let midPoint = CGPoint(
+                        x: (current.x + next.x) / 2,
+                        y: (current.y + next.y) / 2
+                    )
+                    context.addQuadCurve(to: midPoint, control: current)
+                } else {
+                    context.addLine(to: current)
+                }
+            }
+        }
+        context.fillPath()
+
+        // Inset for water
+        var waterPoints: [CGPoint] = []
+        // DR-0032: Use scale-aware beach width calculation
+        let insetAmount = calculateScaleAwareBeachWidth(
+            brushWidth: width,
+            terrainMetadata: terrainMetadata,
+            waterType: .sea
+        )
+
+        for i in 0..<coastlinePoints.count {
+            let point = coastlinePoints[i]
+            let centerX = coastlinePoints.reduce(0.0) { $0 + $1.x } / CGFloat(coastlinePoints.count)
+            let centerY = coastlinePoints.reduce(0.0) { $0 + $1.y } / CGFloat(coastlinePoints.count)
+            let dx = centerX - point.x
+            let dy = centerY - point.y
+            let dist = hypot(dx, dy)
+            if dist > 0 {
+                let offsetX = point.x + (dx / dist) * insetAmount
+                let offsetY = point.y + (dy / dist) * insetAmount
+                waterPoints.append(CGPoint(x: offsetX, y: offsetY))
+            } else {
+                waterPoints.append(point)
+            }
+        }
+
+        // Draw sea water
+        context.setFillColor(waterCGColor)
+        context.setAlpha(1.0)
+
+        context.beginPath()
+        if !waterPoints.isEmpty {
+            context.move(to: waterPoints[0])
+            for i in 1..<waterPoints.count {
+                let current = waterPoints[i]
+                if i < waterPoints.count - 1 {
+                    let next = waterPoints[i + 1]
+                    let midPoint = CGPoint(
+                        x: (current.x + next.x) / 2,
+                        y: (current.y + next.y) / 2
+                    )
+                    context.addQuadCurve(to: midPoint, control: current)
+                } else {
+                    context.addLine(to: current)
+                }
+            }
+        }
+        context.fillPath()
+
+        // Add subtle stippling for water texture
+        context.setAlpha(0.15)
+        for point in waterPoints where drand48() < 0.25 {
+            let stippleOffset = CGPoint(
+                x: point.x + CGFloat(drand48() - 0.5) * width * 0.3,
+                y: point.y + CGFloat(drand48() - 0.5) * width * 0.3
+            )
+            context.fillEllipse(in: CGRect(x: stippleOffset.x - 1, y: stippleOffset.y - 1, width: 2, height: 2))
+        }
+    }
+
     static func renderVegetationBrush(
         brush: MapBrush,
         points: [CGPoint],

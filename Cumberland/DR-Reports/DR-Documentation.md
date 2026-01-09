@@ -17,24 +17,25 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **1 unverified DR** (1 Not Resolved)
+Currently: **2 unverified DRs** (1 Not Resolved, 1 Resolved - Not Verified)
 
 | DR | Title | Component | Status |
 |----|-------|-----------|--------|
-| DR-0031 | Advanced Brush Rendering Not Executed on macOS | DrawCanvas/BrushEngine | 🔴 Not Resolved |
+| DR-0032 | Insufficient Sandy Beach Area Around Water Brushes | DrawCanvas/BrushEngine Water Rendering | 🔴 Not Resolved |
+| DR-0031 | Advanced Brush Rendering Not Executed on Any Platform (Critical Architecture Issue) | DrawCanvas/BrushEngine Integration | 🟡 Resolved - Not Verified (macOS) |
 
 See: [DR-unverified.md](./DR-unverified.md)
 
 ### Verified DRs (Resolved Issues)
 
-Currently: **34 verified DRs** | Next available DR: **DR-0036**
+Currently: **35 verified DRs** | Next available DR: **DR-0037**
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
 | Batch 1 | DR-0001 to DR-0010 | [DR-verified-0001-0010.md](./DR-verified-0001-0010.md) | ✅ All Verified |
 | Batch 2 | DR-0011 to DR-0020 | [DR-verified-0011-0020.md](./DR-verified-0011-0020.md) | ✅ All Verified |
 | Batch 3 | DR-0021 to DR-0030 | [DR-verified-0021-0030.md](./DR-verified-0021-0030.md) | ✅ All Verified |
-| Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | 🚧 In Progress (4/10 verified) |
+| Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | 🚧 In Progress (5/10 verified) |
 
 ## DR Summary
 
@@ -96,6 +97,7 @@ Currently: **34 verified DRs** | Next available DR: **DR-0036**
 |----|-------|-----------|--------|
 | DR-0032 | All Brush Strokes Disappear After Several Seconds on macOS | DrawCanvas/exportCanvasState | ✅ Verified |
 | DR-0033 | Duplicate Default Story Structures in Structure List | CumberlandApp/Seeding | ✅ Verified |
+| DR-0033.1 | "Novel" Structure Still Has Duplicate Entry After Deduplication | CumberlandApp/Deduplication | ✅ Verified |
 | DR-0034 | iOS Crash When Adding Layer After Draft Restore | DrawCanvas/PencilKitCanvasView | ✅ Verified |
 | DR-0035 | DRs 0019-0030 Missing from DR-Documentation.md Index | DR-Documentation.md | ✅ Verified |
 
@@ -125,13 +127,13 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 35
-- **Verified:** 34 (97%) ✅
-- **Resolved - Not Verified:** 0 (0%) 🟡
+- **Total DRs:** 37
+- **Verified:** 35 (95%) ✅
+- **Resolved - Not Verified:** 1 (3%) 🟡
 - **Open:** 1 (3%) 🔴
-- **Latest DR:** DR-0035 (2026-01-08 - Missing DRs from documentation index - VERIFIED)
+- **Latest DR:** DR-0032 (2026-01-08 - Insufficient Sandy Beach Area - OPEN)
 
 ---
 
 *Last Updated: 2026-01-08*
-*Document Version: 3.2 (Verified DR-0032 through DR-0035 - 97% verified! 🎉)*
+*Document Version: 3.8 (Added DR-0032 - water brush beach sizing issue)*

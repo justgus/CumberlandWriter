@@ -53,7 +53,17 @@ class BrushRegistry {
             selectedBrushID = newValue?.id
         }
     }
-    
+
+    /// DR-0031: Find a brush by ID across all installed brush sets
+    func findBrush(id: UUID) -> MapBrush? {
+        for brushSet in installedBrushSets {
+            if let brush = brushSet.getBrush(id: id) {
+                return brush
+            }
+        }
+        return nil
+    }
+
     /// All built-in brush sets
     var builtInBrushSets: [BrushSet] {
         installedBrushSets.filter { $0.isBuiltIn }

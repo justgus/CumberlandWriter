@@ -78,6 +78,9 @@ struct MapWizardView: View {
     @State private var generationPrompt: String = ""
     @State private var isGenerating = false
     @State private var generationError: String?
+
+    // MARK: - Base Layer Generation State (ER-0006)
+    @State private var isGeneratingBaseLayer = false
     
     // MARK: - Draft Restoration State
     @State private var showDraftRestorationPrompt = false
@@ -839,7 +842,7 @@ struct MapWizardView: View {
                     Menu("Base Layer") {
                         Button("None") {
                             selectedBaseLayerType = nil
-                            applyBaseLayerFill(nil)
+                            Task { await applyBaseLayerFillAsync(nil) }
                         }
 
                         Divider()
@@ -848,7 +851,7 @@ struct MapWizardView: View {
                             ForEach(BaseLayerFillType.exteriorTypes) { fillType in
                                 Button(fillType.displayName) {
                                     selectedBaseLayerType = fillType
-                                    applyBaseLayerFill(fillType)
+                                    Task { await applyBaseLayerFillAsync(fillType) }
                                 }
                             }
                         }
@@ -857,7 +860,7 @@ struct MapWizardView: View {
                             ForEach(BaseLayerFillType.interiorTypes) { fillType in
                                 Button(fillType.displayName) {
                                     selectedBaseLayerType = fillType
-                                    applyBaseLayerFill(fillType)
+                                    Task { await applyBaseLayerFillAsync(fillType) }
                                 }
                             }
                         }
@@ -906,7 +909,7 @@ struct MapWizardView: View {
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 80)
                             .onChange(of: terrainMapSizeMiles) { _, _ in
-                                applyBaseLayerFill(selectedBaseLayerType)
+                                Task { await applyBaseLayerFillAsync(selectedBaseLayerType) }
                             }
 
                         Text("mi")
@@ -943,6 +946,24 @@ struct MapWizardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .shadow(radius: 3)
                 .padding()
+                // ER-0006: Progress indicator overlay during base layer rendering
+                .overlay {
+                    if isGeneratingBaseLayer {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                            VStack(spacing: 16) {
+                                ProgressView()
+                                    .scaleEffect(1.5)
+                                Text("Generating Base Layer...")
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                        }
+                        .padding()
+                    }
+                }
         }
         .onChange(of: drawingCanvasModel.drawing) { _, _ in
             // DR-0013: Trigger immediate debounced save when drawing changes
@@ -1053,6 +1074,24 @@ struct MapWizardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .shadow(radius: 3)
                 .padding()
+                // ER-0006: Progress indicator overlay during base layer rendering
+                .overlay {
+                    if isGeneratingBaseLayer {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                            VStack(spacing: 16) {
+                                ProgressView()
+                                    .scaleEffect(1.5)
+                                Text("Generating Base Layer...")
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                        }
+                        .padding()
+                    }
+                }
         }
         .onChange(of: drawingCanvasModel.drawing) { _, _ in
             // DR-0013: Trigger immediate debounced save when drawing changes
@@ -2154,6 +2193,25 @@ extension MapWizardView {
         } else {
             return .large
         }
+    }
+
+    /// ER-0006: Async wrapper for base layer fill with progress indicator
+    @MainActor
+    private func applyBaseLayerFillAsync(_ fillType: BaseLayerFillType?) async {
+        // Show progress indicator
+        isGeneratingBaseLayer = true
+
+        // Longer delay to ensure UI updates and indicator is visible (minimum 0.3s)
+        try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+
+        // Apply the fill (this is where the expensive rendering happens)
+        applyBaseLayerFill(fillType)
+
+        // Ensure indicator stays visible for at least 0.5s total to be noticeable
+        try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+
+        // Hide progress indicator
+        isGeneratingBaseLayer = false
     }
 
     /// Apply base layer fill to the drawing canvas

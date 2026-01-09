@@ -679,7 +679,7 @@ extension CumberlandApp {
         }
     }
 
-    // DR-0033: Remove duplicate structures, keeping only the first of each unique name
+    // DR-0033, DR-0033.1: Remove duplicate structures, keeping only the first of each unique name
     @MainActor
     static func removeDuplicateStructures(container: ModelContainer) async {
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Deduplication")
@@ -696,48 +696,107 @@ extension CumberlandApp {
             return
         }
 
-        // Group by name and find duplicates
-        var seenNames: [String: UUID] = [:] // name -> first structure ID
-        var duplicatesToDelete: [StoryStructure] = []
+        // DR-0033.1: Group by NORMALIZED name (trimmed whitespace, lowercased)
+        // Build a dictionary of normalized name -> [all structures with that name]
+        var nameGroups: [String: [StoryStructure]] = [:]
 
         for structure in allStructures {
-            if let firstID = seenNames[structure.name] {
-                // This is a duplicate - mark for deletion
-                if structure.id != firstID {
-                    duplicatesToDelete.append(structure)
-                    logger.debug("Marking duplicate '\(structure.name)' (ID: \(structure.id)) for deletion")
-                }
-            } else {
-                // First occurrence - remember it
-                seenNames[structure.name] = structure.id
-                logger.debug("Keeping first '\(structure.name)' (ID: \(structure.id))")
+            // DR-0033.1: Normalize the name for comparison (trim whitespace, lowercase)
+            let normalizedName = structure.name.trimmingCharacters(in: .whitespaces).lowercased()
+
+            if nameGroups[normalizedName] == nil {
+                nameGroups[normalizedName] = []
             }
+            nameGroups[normalizedName]?.append(structure)
         }
 
-        // Delete duplicates
-        if !duplicatesToDelete.isEmpty {
-            for duplicate in duplicatesToDelete {
-                // Check if any cards are assigned to elements of this duplicate structure
-                let hasAssignments = duplicate.elements?.contains { element in
+        // For each group, determine which structure to keep and which to delete
+        var duplicatesToDelete: [StoryStructure] = []
+
+        for (normalizedName, structures) in nameGroups {
+            guard structures.count > 1 else {
+                // No duplicates for this name
+                let structure = structures[0]
+                let rawNameDebug = structure.name.replacingOccurrences(of: " ", with: "·")
+                logger.debug("Processing '\(rawNameDebug)' (normalized: '\(normalizedName)') - no duplicates")
+                continue
+            }
+
+            // We have duplicates! Decide which to keep
+            logger.info("Found \(structures.count) structures with normalized name '\(normalizedName)'")
+
+            // DR-0033.1: Prefer keeping structures WITH card assignments
+            // Check each structure for assignments
+            var structuresWithAssignments: [StoryStructure] = []
+            var structuresWithoutAssignments: [StoryStructure] = []
+
+            for structure in structures {
+                let hasAssignments = structure.elements?.contains { element in
                     !(element.assignedCards?.isEmpty ?? true)
                 } ?? false
 
+                let rawNameDebug = structure.name.replacingOccurrences(of: " ", with: "·")
                 if hasAssignments {
-                    logger.warning("Duplicate structure '\(duplicate.name)' has card assignments - skipping deletion to preserve data")
-                    continue
+                    structuresWithAssignments.append(structure)
+                    logger.debug("  '\(rawNameDebug)' (ID: \(structure.id)) - HAS card assignments")
+                } else {
+                    structuresWithoutAssignments.append(structure)
+                    logger.debug("  '\(rawNameDebug)' (ID: \(structure.id)) - NO card assignments")
+                }
+            }
+
+            // DR-0033.1: Smart deletion strategy
+            if !structuresWithAssignments.isEmpty {
+                // Keep the first one WITH assignments, delete all others
+                let toKeep = structuresWithAssignments[0]
+                let rawNameDebug = toKeep.name.replacingOccurrences(of: " ", with: "·")
+                logger.info("Keeping '\(rawNameDebug)' (ID: \(toKeep.id)) - has card assignments")
+
+                // Delete remaining structures with assignments (if any)
+                for structure in structuresWithAssignments.dropFirst() {
+                    let rawNameDebug = structure.name.replacingOccurrences(of: " ", with: "·")
+                    logger.warning("Cannot delete '\(rawNameDebug)' (ID: \(structure.id)) - has card assignments, manual merge needed")
+                    // Don't add to duplicatesToDelete - preserve user data
                 }
 
+                // Delete all structures WITHOUT assignments
+                for structure in structuresWithoutAssignments {
+                    duplicatesToDelete.append(structure)
+                    let rawNameDebug = structure.name.replacingOccurrences(of: " ", with: "·")
+                    logger.info("Marking '\(rawNameDebug)' (ID: \(structure.id)) for deletion - no assignments")
+                }
+            } else {
+                // None have assignments - keep the oldest (first in sorted list)
+                let toKeep = structures[0]
+                let rawNameDebug = toKeep.name.replacingOccurrences(of: " ", with: "·")
+                logger.info("Keeping oldest '\(rawNameDebug)' (ID: \(toKeep.id)) - none have assignments")
+
+                // Delete the rest
+                for structure in structures.dropFirst() {
+                    duplicatesToDelete.append(structure)
+                    let rawNameDebug = structure.name.replacingOccurrences(of: " ", with: "·")
+                    logger.info("Marking '\(rawNameDebug)' (ID: \(structure.id)) for deletion")
+                }
+            }
+        }
+
+        // Delete duplicates (these should all be safe to delete)
+        if !duplicatesToDelete.isEmpty {
+            logger.info("Deleting \(duplicatesToDelete.count) duplicate structure(s)")
+            for duplicate in duplicatesToDelete {
+                let rawNameDebug = duplicate.name.replacingOccurrences(of: " ", with: "·")
+                logger.info("Deleting '\(rawNameDebug)' (ID: \(duplicate.id))")
                 ctx.delete(duplicate)
             }
 
             do {
                 try ctx.save()
-                logger.info("Removed \(duplicatesToDelete.count) duplicate structure(s)")
+                logger.info("Successfully removed \(duplicatesToDelete.count) duplicate structure(s)")
             } catch {
                 logger.error("Failed to delete duplicate structures: \(String(describing: error))")
             }
         } else {
-            logger.debug("No duplicate structures found")
+            logger.debug("No duplicate structures to delete")
         }
 
         ctx.autosaveEnabled = true

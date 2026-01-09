@@ -399,4 +399,150 @@ This is a numbering conflict that should be resolved during index update.
 
 ---
 
+## DR-0033.1: "Novel" Structure Still Has Duplicate Entry After Deduplication
+
+**Status:** ✅ Resolved - Verified
+**Verification Date:** 2026-01-08
+**Resolution Date:** 2026-01-08
+**Platform:** All platforms (macOS and iOS confirmed)
+**Component:** CumberlandApp/Seeding + Deduplication
+**Severity:** Medium
+**Date Identified:** 2026-01-08
+
+**Description:**
+After the DR-0033 deduplication fix was applied and verified, the "Novel" structure still appears twice in the Structure List. This duplicate exists on both macOS and iOS, indicating it's in CloudKit.
+
+**User Confirmation:**
+- First "Novel" structure: NO card assignments (initially reported as having assignments - later corrected)
+- Second "Novel" structure: HAS card assignments
+- User cannot see trailing spaces visually
+
+**Root Cause - CONFIRMED:**
+The original DR-0033 deduplication code compared structure names using exact string matching without normalizing whitespace. One of the "Novel" structures has trailing or leading whitespace that's invisible to the user, causing the names to not match during deduplication.
+
+**The Bug:**
+```swift
+// OLD CODE (DR-0033):
+if let firstID = seenNames[structure.name] {  // Exact string match
+    // Mark as duplicate
+}
+```
+
+If one structure is named "Novel" and the other is "Novel " (with trailing space), they won't match and both are kept.
+
+**Initial Fix Problem:**
+The first iteration of the fix normalized names and detected duplicates correctly, but kept the FIRST (oldest) occurrence regardless of card assignments. This meant it would keep an empty structure and try to delete one with user data.
+
+Console logs from first fix showed:
+```
+Processing 'Novel' (normalized: 'novel')
+Keeping first 'Novel' (ID: 62C270DF-F86B-4395-BEB8-AF05CF901F25)
+Processing 'Novel' (normalized: 'novel')
+Marking duplicate 'Novel' (ID: D043E502-0554-4C52-9308-EB4EF6B01E99) for deletion
+Duplicate structure 'Novel' has card assignments - skipping deletion to preserve data
+No duplicates could be deleted (all have card assignments)
+```
+
+The deduplication kept 62C270DF (no assignments) and tried to delete D043E502 (has assignments), which was correctly prevented by the safety check.
+
+**Improved Fix - Smart Selection:**
+
+Enhanced deduplication logic in `CumberlandApp.swift:682-803` with **smart selection strategy**:
+
+**1. Name Normalization (line 705):**
+```swift
+// Normalize the name for comparison (trim whitespace, lowercase)
+let normalizedName = structure.name.trimmingCharacters(in: .whitespaces).lowercased()
+```
+
+**2. Group All Duplicates (lines 699-711):**
+```swift
+// Build dictionary: normalized name -> [all structures with that name]
+var nameGroups: [String: [StoryStructure]] = [:]
+for structure in allStructures {
+    let normalizedName = structure.name.trimmingCharacters(in: .whitespaces).lowercased()
+    nameGroups[normalizedName]?.append(structure)
+}
+```
+
+**3. Smart Selection Strategy (lines 728-780):**
+- Categorizes each structure by whether it has card assignments
+- **If any have assignments**: Keep first one WITH assignments, delete ALL without assignments
+- **If none have assignments**: Keep oldest, delete rest
+
+```swift
+// Check which structures have card assignments
+var structuresWithAssignments: [StoryStructure] = []
+var structuresWithoutAssignments: [StoryStructure] = []
+
+// Categorize each duplicate
+for structure in structures {
+    let hasAssignments = structure.elements?.contains { element in
+        !(element.assignedCards?.isEmpty ?? true)
+    } ?? false
+
+    if hasAssignments {
+        structuresWithAssignments.append(structure)
+    } else {
+        structuresWithoutAssignments.append(structure)
+    }
+}
+
+// Smart strategy:
+if !structuresWithAssignments.isEmpty {
+    // Keep the first one WITH assignments
+    let toKeep = structuresWithAssignments[0]
+    logger.info("Keeping '\(toKeep.name)' (ID: \(toKeep.id)) - has card assignments")
+
+    // Delete ALL structures WITHOUT assignments
+    for structure in structuresWithoutAssignments {
+        duplicatesToDelete.append(structure)
+    }
+} else {
+    // None have assignments - keep oldest, delete rest
+    let toKeep = structures[0]
+    for structure in structures.dropFirst() {
+        duplicatesToDelete.append(structure)
+    }
+}
+```
+
+**Key Improvements:**
+- ✅ Trims leading/trailing whitespace from names before comparison
+- ✅ Case-insensitive comparison (prevents "Novel" vs "novel" duplicates)
+- ✅ **SMART SELECTION**: Keeps structures WITH card assignments, not just oldest
+- ✅ Deletes ALL duplicates without assignments when one has assignments
+- ✅ Enhanced logging shows invisible whitespace as middot (·)
+- ✅ Detailed logging of which structure is kept and why
+
+**Files Modified:**
+- `Cumberland/CumberlandApp.swift` (lines 682-803)
+
+**How It Works:**
+1. Fetch all structures sorted by creation date
+2. Group by normalized name (trim whitespace, lowercase)
+3. For each group with duplicates:
+   - Categorize by whether they have card assignments
+   - **If any have assignments**: Keep first one with assignments, delete all without
+   - **If none have assignments**: Keep oldest, delete rest
+4. Delete marked structures and save
+
+**Result:**
+- First "Novel" (ID: 62C270DF..., no assignments) was deleted
+- Second "Novel" (ID: D043E502..., has assignments) was kept
+- Console logs showed: "Successfully removed 1 duplicate structure(s)"
+
+**Verification:**
+- ✅ Restart app on macOS
+- ✅ Console logs showed proper detection and smart selection
+- ✅ Structure list shows only ONE "Novel"
+- ✅ Remaining "Novel" has user's card assignments
+- ✅ CloudKit sync propagates deletion to iOS
+- ✅ Both devices show only one "Novel" with card assignments
+
+**Related Issues:**
+- DR-0033: Original duplicate structures issue (resolved and verified)
+
+---
+
 *End of Batch 4*

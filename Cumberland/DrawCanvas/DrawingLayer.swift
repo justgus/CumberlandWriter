@@ -340,13 +340,16 @@ struct DrawingStroke: Codable {
     var colorAlpha: CGFloat
     var lineWidth: CGFloat
     var toolType: String
-    
+
+    // DR-0031: Store brush metadata for advanced rendering
+    var brushID: UUID?  // Optional for backward compatibility
+
     #if os(macOS)
     /// Convert to NSColor for rendering
     var color: NSColor {
         NSColor(red: colorRed, green: colorGreen, blue: colorBlue, alpha: colorAlpha)
     }
-    
+
     /// Convert points to CGPoint array
     var cgPoints: [CGPoint] {
         points.map { CGPoint(x: $0.x, y: $0.y) }

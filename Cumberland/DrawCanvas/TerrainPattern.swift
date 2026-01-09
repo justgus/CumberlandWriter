@@ -279,7 +279,8 @@ struct TerrainPattern: ProceduralPattern {
 
     /// Land terrain: Lakes/rivers with beaches and grasslands
     private func compositionLandType(elevation: Double, noise: Double) -> Color {
-        if elevation < 0.05 {
+        // ER-0007: Standardized threshold to 0.1 for consistency with all terrain types
+        if elevation < 0.1 {
             // Sandy shores/beaches
             return Color(red: 0.90, green: 0.75, blue: 0.50).adjusted(brightness: 1.0 + noise * 0.05)
         } else {
@@ -305,7 +306,8 @@ struct TerrainPattern: ProceduralPattern {
 
     /// Forested terrain: Rivers/lakes with shores and dense forest
     private func compositionForestedType(elevation: Double, noise: Double) -> Color {
-        if elevation < 0.05 {
+        // ER-0007: Standardized threshold to 0.1 for consistency with all terrain types
+        if elevation < 0.1 {
             // Sandy shores
             return Color(red: 0.90, green: 0.75, blue: 0.50).adjusted(brightness: 1.0 + noise * 0.05)
         } else if elevation < 0.2 {
