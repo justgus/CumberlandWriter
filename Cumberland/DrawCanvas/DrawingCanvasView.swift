@@ -290,6 +290,11 @@ class DrawingCanvasModel {
     /// Layer manager for multi-layer drawing (optional for backward compatibility)
     var layerManager: LayerManager?
 
+    // MARK: - Base Layer Generation State (ER-0006)
+
+    /// Indicates whether base layer terrain is currently being generated
+    var isGeneratingBaseLayer: Bool = false
+
     /// ER-0001: Map category (Interior vs Exterior) for context-aware UI
     var mapCategory: BaseLayerCategory?
 

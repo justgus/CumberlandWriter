@@ -195,36 +195,12 @@ struct ExteriorMapBrushSet {
     
     // MARK: - Water Feature Brushes
     
+    // ER-0005: Simplified water brush set - removed Ocean, Sea, Stream, Waterfall
+    // Ocean/Sea: Redundant with base layer terrain generation
+    // Stream: Visually indistinguishable from River
+    // Waterfall: No clear use case (better as symbol/stamp)
     private static func createWaterBrushes() -> [MapBrush] {
         return [
-            MapBrush(
-                name: "Ocean",
-                icon: "water.waves",
-                category: .water,
-                baseColor: Color(.sRGB, red: 0.2, green: 0.4, blue: 0.7),
-                defaultWidth: 30.0,
-                minWidth: 20.0,
-                maxWidth: 80.0,
-                opacity: 0.6,
-                patternType: .solid,
-                requiresLayer: .water,
-                smoothing: 0.8,
-                isBuiltIn: true
-            ),
-            MapBrush(
-                name: "Sea",
-                icon: "drop.fill",
-                category: .water,
-                baseColor: Color(.sRGB, red: 0.25, green: 0.45, blue: 0.75),
-                defaultWidth: 25.0,
-                minWidth: 15.0,
-                maxWidth: 60.0,
-                opacity: 0.65,
-                patternType: .solid,
-                requiresLayer: .water,
-                smoothing: 0.8,
-                isBuiltIn: true
-            ),
             MapBrush(
                 name: "River",
                 icon: "arrow.down.forward.and.arrow.up.backward",
@@ -239,22 +215,6 @@ struct ExteriorMapBrushSet {
                 patternType: .solid,
                 requiresLayer: .water,
                 smoothing: 0.9,
-                isBuiltIn: true
-            ),
-            MapBrush(
-                name: "Stream",
-                icon: "wind",
-                category: .water,
-                baseColor: Color(.sRGB, red: 0.35, green: 0.55, blue: 0.85),
-                defaultWidth: 4.0,
-                minWidth: 1.5,
-                maxWidth: 8.0,
-                opacity: 0.7,
-                taperStart: true,
-                taperEnd: true,
-                patternType: .solid,
-                requiresLayer: .water,
-                smoothing: 0.85,
                 isBuiltIn: true
             ),
             MapBrush(
@@ -285,20 +245,6 @@ struct ExteriorMapBrushSet {
                 scatterAmount: 0.5,
                 requiresLayer: .water,
                 smoothing: 0.7,
-                isBuiltIn: true
-            ),
-            MapBrush(
-                name: "Waterfall",
-                icon: "arrow.down.circle.fill",
-                category: .water,
-                baseColor: Color(.sRGB, red: 0.3, green: 0.6, blue: 0.9),
-                defaultWidth: 10.0,
-                minWidth: 5.0,
-                maxWidth: 20.0,
-                opacity: 0.8,
-                patternType: .stamp,
-                spacing: 15.0,
-                requiresLayer: .water,
                 isBuiltIn: true
             )
         ]

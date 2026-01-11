@@ -140,6 +140,14 @@ class MacOSDrawingView: NSView {
     override func mouseUp(with event: NSEvent) {
         // Finalize stroke
         if let stroke = currentStroke, let model = canvasModel {
+            // Apply endpoint snapping for wall brushes
+            var finalPoints = stroke.points
+            if let brushID = stroke.brushID,
+               let brush = BrushRegistry.shared.findBrush(id: brushID),
+               isWallBrush(brush) {
+                finalPoints = applyEndpointSnapping(to: finalPoints, model: model)
+            }
+
             // Convert to codable DrawingStroke
             var r: CGFloat = 0
             var g: CGFloat = 0
@@ -149,7 +157,7 @@ class MacOSDrawingView: NSView {
 
             // DR-0031: Include brushID in stored stroke for advanced rendering
             let codableStroke = DrawingStroke(
-                points: stroke.points.map { CGPointCodable(x: $0.x, y: $0.y) },
+                points: finalPoints.map { CGPointCodable(x: $0.x, y: $0.y) },
                 colorRed: r,
                 colorGreen: g,
                 colorBlue: b,
@@ -461,6 +469,24 @@ class MacOSDrawingView: NSView {
     private func drawCurrentStroke(_ stroke: MacOSDrawingStroke, in context: CGContext) {
         guard stroke.points.count > 1 else { return }
 
+        // Check brush type for special preview rendering
+        var brush: MapBrush?
+        if let brushID = stroke.brushID {
+            brush = BrushRegistry.shared.findBrush(id: brushID)
+        }
+
+        // Special preview for stamp brushes (furniture, doors, etc.)
+        if let brush = brush, brush.patternType == .stamp {
+            drawStampPreview(stroke: stroke, in: context)
+            return
+        }
+
+        // Special preview for wall brushes
+        if let brush = brush, isWallBrush(brush) {
+            drawWallPreview(stroke: stroke, in: context)
+            return
+        }
+
         // DR-0031: For real-time preview of advanced brushes, use simple rendering for performance
         // Full advanced rendering will be applied on mouseUp when stroke is finalized
         // This prevents the expensive procedural generation from running dozens of times per second
@@ -534,7 +560,105 @@ class MacOSDrawingView: NSView {
         context.setBlendMode(.normal)
         context.setAlpha(1.0)
     }
-    
+
+    /// Draw preview for stamp brushes - selection lasso showing bounding box
+    private func drawStampPreview(stroke: MacOSDrawingStroke, in context: CGContext) {
+        guard let start = stroke.points.first, let end = stroke.points.last else { return }
+
+        // Calculate bounding box
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+
+        // Create rectangle from start (upper-left) to end (lower-right)
+        let rect = CGRect(
+            x: min(start.x, end.x),
+            y: min(start.y, end.y),
+            width: abs(dx),
+            height: abs(dy)
+        )
+
+        // Draw selection rectangle (dashed outline)
+        context.saveGState()
+
+        // Use selection color (blue with transparency)
+        context.setStrokeColor(NSColor.systemBlue.withAlphaComponent(0.7).cgColor)
+        context.setLineWidth(1.0 / zoomScale) // Keep line width consistent at zoom
+        context.setLineDash(phase: 0, lengths: [4.0 / zoomScale, 4.0 / zoomScale]) // Dashed line
+
+        // Draw rectangle
+        context.stroke(rect)
+
+        // Fill with very light blue
+        context.setFillColor(NSColor.systemBlue.withAlphaComponent(0.05).cgColor)
+        context.fill(rect)
+
+        // Draw corner handles for visual feedback
+        let handleSize: CGFloat = 6.0 / zoomScale
+        let corners = [
+            CGPoint(x: rect.minX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.minY),
+            CGPoint(x: rect.minX, y: rect.maxY),
+            CGPoint(x: rect.maxX, y: rect.maxY)
+        ]
+
+        context.setFillColor(NSColor.systemBlue.withAlphaComponent(0.9).cgColor)
+        for corner in corners {
+            let handleRect = CGRect(
+                x: corner.x - handleSize/2,
+                y: corner.y - handleSize/2,
+                width: handleSize,
+                height: handleSize
+            )
+            context.fill(handleRect)
+        }
+
+        context.restoreGState()
+    }
+
+    /// Draw preview for wall brushes - dotted line from start to end
+    private func drawWallPreview(stroke: MacOSDrawingStroke, in context: CGContext) {
+        guard let start = stroke.points.first, let end = stroke.points.last else { return }
+
+        context.saveGState()
+
+        // Use wall color with some transparency
+        context.setStrokeColor(stroke.color.withAlphaComponent(0.6).cgColor)
+        context.setLineWidth(stroke.lineWidth)
+        context.setLineCap(.square)
+
+        // Dotted line pattern
+        context.setLineDash(phase: 0, lengths: [8.0 / zoomScale, 8.0 / zoomScale])
+
+        // Draw straight line from start to end
+        context.beginPath()
+        context.move(to: start)
+        context.addLine(to: end)
+        context.strokePath()
+
+        // Draw endpoint indicators
+        let endpointRadius: CGFloat = 4.0 / zoomScale
+        context.setFillColor(stroke.color.withAlphaComponent(0.8).cgColor)
+        context.setLineDash(phase: 0, lengths: []) // Solid for endpoints
+
+        // Start point
+        context.fillEllipse(in: CGRect(
+            x: start.x - endpointRadius,
+            y: start.y - endpointRadius,
+            width: endpointRadius * 2,
+            height: endpointRadius * 2
+        ))
+
+        // End point
+        context.fillEllipse(in: CGRect(
+            x: end.x - endpointRadius,
+            y: end.y - endpointRadius,
+            width: endpointRadius * 2,
+            height: endpointRadius * 2
+        ))
+
+        context.restoreGState()
+    }
+
     private func drawGrid(in context: CGContext, spacing: CGFloat, color: NSColor) {
         context.setStrokeColor(color.cgColor)
         // DR-0014: Scale line width inversely to maintain consistent visual thickness
@@ -715,6 +839,117 @@ class MacOSDrawingView: NSView {
         
         needsDisplay = true
         model.hasStrokes = false
+    }
+
+    // MARK: - Wall Endpoint Snapping
+
+    /// Check if a brush is a wall brush (architectural walls)
+    private func isWallBrush(_ brush: MapBrush) -> Bool {
+        let name = brush.name.lowercased()
+        return name.contains("wall") && brush.category == .architectural
+    }
+
+    /// Apply endpoint snapping to wall strokes
+    private func applyEndpointSnapping(to points: [CGPoint], model: DrawingCanvasModel) -> [CGPoint] {
+        guard points.count >= 2 else { return points }
+
+        var snappedPoints = points
+
+        // Get snapping distance based on map scale
+        // "A few inches" = 3 inches in real world
+        let snapDistanceInches: Double = 3.0
+        let snapDistance = getSnapDistanceInCanvasPoints(inches: snapDistanceInches, model: model)
+
+        // Get all existing wall endpoints
+        let existingEndpoints = getAllWallEndpoints(model: model)
+
+        // Snap start point if near an existing endpoint
+        if let nearestStart = findNearestEndpoint(to: points.first!, in: existingEndpoints, within: snapDistance) {
+            snappedPoints[0] = nearestStart
+        }
+
+        // Snap end point if near an existing endpoint
+        if let nearestEnd = findNearestEndpoint(to: points.last!, in: existingEndpoints, within: snapDistance) {
+            snappedPoints[snappedPoints.count - 1] = nearestEnd
+        }
+
+        return snappedPoints
+    }
+
+    /// Get all wall endpoints from existing strokes in current layer
+    private func getAllWallEndpoints(model: DrawingCanvasModel) -> [CGPoint] {
+        var endpoints: [CGPoint] = []
+
+        guard let layerManager = model.layerManager else { return endpoints }
+
+        // Get current layer strokes
+        let currentLayer = layerManager.getTargetLayerForStrokes()
+
+        for stroke in currentLayer.macosStrokes {
+            // Check if this stroke is a wall brush
+            if let brushID = stroke.brushID,
+               let brush = BrushRegistry.shared.findBrush(id: brushID),
+               isWallBrush(brush),
+               stroke.points.count >= 2 {
+                // Add start and end points
+                if let first = stroke.points.first {
+                    endpoints.append(CGPoint(x: first.x, y: first.y))
+                }
+                if let last = stroke.points.last {
+                    endpoints.append(CGPoint(x: last.x, y: last.y))
+                }
+            }
+        }
+
+        return endpoints
+    }
+
+    /// Find nearest endpoint within snapping distance
+    private func findNearestEndpoint(to point: CGPoint, in endpoints: [CGPoint], within distance: CGFloat) -> CGPoint? {
+        var nearestPoint: CGPoint?
+        var nearestDistance: CGFloat = distance
+
+        for endpoint in endpoints {
+            let d = hypot(endpoint.x - point.x, endpoint.y - point.y)
+            if d < nearestDistance {
+                nearestDistance = d
+                nearestPoint = endpoint
+            }
+        }
+
+        return nearestPoint
+    }
+
+    /// Convert real-world inches to canvas points based on map scale
+    private func getSnapDistanceInCanvasPoints(inches: Double, model: DrawingCanvasModel) -> CGFloat {
+        // Try to get map scale from terrain metadata
+        if let layerManager = model.layerManager,
+           let baseLayer = layerManager.baseLayer,
+           let fill = baseLayer.layerFill,
+           let metadata = fill.terrainMetadata {
+            // Terrain metadata has scale in miles
+            // Convert: miles -> feet -> inches -> canvas points
+            let mapWidthMiles = metadata.physicalSizeMiles
+            let mapWidthFeet = mapWidthMiles * 5280.0
+            let mapWidthInches = mapWidthFeet * 12.0
+
+            // Canvas width in points (unzoomed)
+            let canvasWidthPoints = Double(bounds.width / zoomScale)
+
+            // Points per inch
+            let pointsPerInch = canvasWidthPoints / mapWidthInches
+
+            return CGFloat(inches * pointsPerInch)
+        }
+
+        // Fallback: Interior maps use feet scale
+        // Assume a typical interior map is 50 feet wide
+        let mapWidthFeet: Double = 50.0
+        let mapWidthInches = mapWidthFeet * 12.0
+        let canvasWidthPoints = Double(bounds.width / zoomScale)
+        let pointsPerInch = canvasWidthPoints / mapWidthInches
+
+        return CGFloat(inches * pointsPerInch)
     }
 }
 

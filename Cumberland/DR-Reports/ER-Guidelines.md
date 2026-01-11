@@ -121,14 +121,54 @@ Proposed → In Progress → Implemented → Verified
 - ✅ Change ER priority levels
 - ✅ Move ERs between batches
 
-## File Organization
+## File Organization and Batch Management
 
-Similar to the DR system, ERs are organized into multiple files:
+### Batch File Policy
 
-- **ER-Documentation.md** - Main index and quick reference
-- **ER-Guidelines.md** - This file - rules and templates
-- **ER-unverified.md** - Active and implemented-but-unverified ERs
-- **ER-verified-XXXX-YYYY.md** - Batches of verified enhancements
+**Verified ERs are organized into batch files with flexible sizing:**
+
+- **ER-verified-0001.md** - First batch (ERs 1-2)
+- **ER-verified-0002.md** - Second batch (ERs 3, 5-6)
+- **ER-verified-0003.md** - Third batch (future ERs)
+- *...and so on*
+
+**Rationale:** Unlike DRs which use fixed batches of 10, ERs use flexible batching since enhancements are typically more detailed and occur less frequently. Batch files are created as needed when previous batches reach a reasonable size (~1000-1500 lines).
+
+### When to Create a New Batch File
+
+When a batch file becomes large (~1000-1500 lines or ~5-10 ERs):
+1. Create new batch file with next sequential number
+2. Update ER-Documentation.md index to reference new batch
+3. Continue adding verified ERs to the new batch
+
+**Example:** When ER-verified-0002.md has sufficient content, create `ER-verified-0003.md` for the next batch.
+
+### Quick Reference Index
+
+**ER-Documentation.md serves as the master index and quick reference:**
+- Lists all ERs with title, component, and status
+- Has TWO main sections:
+  1. **Unverified ERs (Active & Proposed)** - Current work-in-progress ERs
+  2. **ER Summary** - Verified ERs organized by batch with summary tables
+- Organized by batch for easy lookup
+- **MUST be updated whenever:**
+  - A new ER is created (add to Unverified table)
+  - An ER status changes (update status emoji in table)
+  - An ER is moved from unverified to verified (move from Unverified to Summary)
+  - A new batch file is created (add to batch reference table)
+- Provides up-to-date statistics (total ERs, verified count, latest ER)
+
+**Purpose:** Users can quickly scan all ERs without opening multiple batch files.
+
+**CRITICAL:** ER-Documentation.md is the single source of truth for ER status. It MUST be kept in sync with ER-unverified.md and batch files at all times.
+
+## File Naming Convention
+
+- **ER-Documentation.md** - Quick reference index (all ERs, always up-to-date)
+- **ER-unverified.md** - Proposed, in-progress, and implemented-but-unverified enhancements
+- **ER-verified-XXXX.md** - Verified enhancements in sequential batches
+- **ER-Guidelines.md** - This file (documentation standards)
+- **DR-Documentation.md** - Discrepancy Reports index (see DR-GUIDELINES.md)
 
 ## Best Practices
 
@@ -156,5 +196,46 @@ Similar to the DR system, ERs are organized into multiple files:
 
 ---
 
-*Version: 1.0*
-*Last Updated: 2026-01-01*
+## ER-Documentation.md Update Checklist
+
+**Use this checklist for EVERY ER operation:**
+
+### When Creating a New ER:
+- [ ] ER added to ER-unverified.md
+- [ ] ER added to "Unverified ERs (Active & Proposed)" table in ER-Documentation.md
+- [ ] Unverified count updated (e.g., "Currently: **3 unverified ERs**")
+- [ ] "Next available ER" incremented in "Verified ERs (Completed Enhancements)" section (e.g., ER-0008 → ER-0009)
+- [ ] "Total ERs" incremented in Statistics
+- [ ] Appropriate status count incremented (Proposed or Implemented-Not-Verified)
+- [ ] "Latest ER" updated to new ER number
+- [ ] "Last Updated" date updated
+
+### When Implementing an ER:
+- [ ] Status changed to 🟡 In Progress in ER-unverified.md
+- [ ] Status emoji updated in "Unverified ERs (Active & Proposed)" table
+- [ ] "In Progress" incremented, "Proposed" decremented in Statistics (if was Proposed)
+- [ ] "Last Updated" date updated
+
+### When Marking ER as Implemented - Not Verified:
+- [ ] Status changed to 🟡 Implemented - Not Verified in ER-unverified.md
+- [ ] Status emoji updated in "Unverified ERs (Active & Proposed)" table
+- [ ] "Implemented - Not Verified" incremented, "In Progress" decremented in Statistics
+- [ ] "Last Updated" date updated
+
+### When Verifying an ER:
+- [ ] ER moved from ER-unverified.md to appropriate batch file
+- [ ] ER removed from "Unverified ERs (Active & Proposed)" table
+- [ ] ER added to appropriate "ER Summary" section
+- [ ] Unverified count decremented
+- [ ] "Verified" incremented, "Implemented - Not Verified" decremented in Statistics
+- [ ] Percentages recalculated
+- [ ] "Last Updated" date updated
+
+---
+
+**REMINDER:** Every ER operation MUST update ER-Documentation.md before marking work as complete. This is not optional!
+
+---
+
+*Version: 2.0*
+*Last Updated: 2026-01-10*

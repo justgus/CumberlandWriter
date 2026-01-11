@@ -83,16 +83,20 @@ class BrushRegistry {
     
     private init() {
         loadPersistedBrushSets()
-        
+
         // If no brush sets exist, load built-in sets
         if installedBrushSets.isEmpty {
             loadBuiltInBrushSets()
+        } else {
+            // ER-0005: Always refresh built-in sets to pick up code changes
+            // Built-in sets should reflect current code, not persisted state
+            refreshBuiltInBrushSets()
         }
-        
+
         // Set active brush set if not set
         if activeBrushSetID == nil, let firstSet = installedBrushSets.first {
             activeBrushSetID = firstSet.id
-            
+
             // Select first brush in set
             if let firstBrush = firstSet.brushes.first {
                 selectedBrushID = firstBrush.id
@@ -101,13 +105,13 @@ class BrushRegistry {
     }
     
     // MARK: - Built-In Brush Sets
-    
+
     /// Load all built-in brush sets
     func loadBuiltInBrushSets() {
         // Create basic brush set (always available)
         let basicSet = createBasicBrushSet()
         installedBrushSets.append(basicSet)
-        
+
         // Load exterior brush set
         let exteriorSet = ExteriorMapBrushSet.create()
         installedBrushSets.append(exteriorSet)
@@ -123,8 +127,29 @@ class BrushRegistry {
                 selectedBrushID = firstBrush.id
             }
         }
-        
+
         saveBrushSets()
+    }
+
+    /// ER-0005: Refresh built-in brush sets to pick up code changes
+    /// Built-in sets should always reflect current code, not persisted state
+    func refreshBuiltInBrushSets() {
+        // Store custom (non-built-in) sets
+        let customSets = installedBrushSets.filter { !$0.isBuiltIn }
+
+        // Clear all sets
+        installedBrushSets.removeAll()
+
+        // Reload built-in sets from code
+        loadBuiltInBrushSets()
+
+        // Re-add custom sets
+        installedBrushSets.append(contentsOf: customSets)
+
+        // Re-save to persist changes
+        saveBrushSets()
+
+        print("[BrushRegistry] Refreshed built-in brush sets from code")
     }
     
     /// Create the basic built-in brush set

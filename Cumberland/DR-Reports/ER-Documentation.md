@@ -2,66 +2,63 @@
 
 This is the main index for all Cumberland Enhancement Requests. ERs track planned improvements, new features, and requirement changes to the system.
 
+> **Note:** For bugs and unintended behavior, see [Discrepancy Reports (DR)](./DR-Documentation.md)
+>
+> **Overview of both systems:** [README.md](./README.md)
+
+ERs are organized into separate files for easier navigation and maintenance.
+
 ## Organization
 
-- **ER-Guidelines.md** - Rules, templates, and workflow for ER management
-- **ER-unverified.md** - Proposed and implemented-but-unverified enhancements
-- **ER-verified-XXXX-YYYY.md** - Batches of verified enhancements
+- **ER-unverified.md** - Proposed, in-progress, and implemented-but-unverified enhancements
+- **ER-verified-XXXX.md** - Verified enhancements in batches
 
 ## Quick Reference
 
 ### Unverified ERs (Active & Proposed)
 
-Currently: **2 active ERs**
+Currently: **2 unverified ERs** (1 Proposed, 1 Implemented - Not Verified)
 
-| ER | Title | Component | Status | Date Implemented |
-|----|-------|-----------|--------|------------------|
-| ER-0003 | Integrate Exterior Brush System | DrawCanvas, BrushEngine, ToolPalette | 🟡 Implemented - Not Verified | 2026-01-07 |
-| ER-0004 | Interior Brush Implementation | BrushRegistry, InteriorMapBrushSet | 🟡 Implemented - Not Verified | 2026-01-07 |
+| ER | Title | Component | Status |
+|----|-------|-----------|--------|
+| ER-0007 | Unify Map Rendering - Base Layer and Brushes | BrushEngine, TerrainPattern | 🔵 Proposed |
+| ER-0004 | Interior Brush Implementation | BrushRegistry, InteriorMapBrushSet, BrushEngine | 🟡 Implemented - Not Verified (macOS complete, iOS pending) |
 
 See: [ER-unverified.md](./ER-unverified.md)
 
 ### Verified ERs (Completed Enhancements)
 
-| ER | Title | Component | Status | Date Verified |
-|----|-------|-----------|--------|---------------|
-| ER-0001 | Interior vs Exterior Canvas Differentiation | DrawCanvas, ToolsTabView, BaseLayerButton | ✅ Verified | 2026-01-03 |
-| ER-0002 | Base Layer should not receive strokes | DrawingCanvasView, DrawingCanvasViewMacOS, LayerManager | ✅ Verified | 2026-01-06 |
+Currently: **5 verified ERs** | Next available ER: **ER-0008**
 
-See: [ER-verified-0001.md](./ER-verified-0001.md)
+| Batch | ERs | File | Status |
+|-------|-----|------|--------|
+| Batch 1 | ER-0001 to ER-0002 | [ER-verified-0001.md](./ER-verified-0001.md) | ✅ All Verified |
+| Batch 2 | ER-0003, ER-0005, ER-0006 | [ER-verified-0002.md](./ER-verified-0002.md) | ✅ All Verified |
 
 ## ER Summary
 
-### ER-0001 - Interior vs Exterior Canvas Differentiation
+### ER-0001 to ER-0002 - Core Canvas Features
 
-**Component:** DrawCanvas, ToolsTabView, BaseLayerButton, TerrainPattern
-**Status:** 🟡 Implemented - Not Verified
-**Priority:** High
-**Date Requested:** 2026-01-01
+| ER | Title | Component | Status |
+|----|-------|-----------|--------|
+| ER-0001 | Interior vs Exterior Canvas Differentiation | DrawCanvas, ToolsTabView, BaseLayerButton | ✅ Verified |
+| ER-0002 | Base Layer Should Not Receive Strokes | DrawingCanvasView, DrawingCanvasViewMacOS, LayerManager | ✅ Verified |
 
-**Summary:**
-Differentiate between Interior and Exterior map types by:
-- Filtering base layer dropdowns to show only relevant options (exterior terrains vs interior floors)
-- Removing water percentage slider for interior maps
-- Displaying scale in feet (interior) vs miles (exterior)
-- Implementing fixed-scale floor patterns that don't change size with map scale
-- Creating realistic 6-inch wood plank pattern for interior flooring
+### ER-0003, ER-0005, ER-0006 - Brush System Integration
 
-**Key Requirements:**
-1. Context-aware base layer menu filtering
-2. Interior-specific UI adjustments (scale units, hide water %)
-3. Fixed-scale floor pattern rendering
-4. Wood plank pattern generation
-5. Map type persistence across save/load
+| ER | Title | Component | Status |
+|----|-------|-----------|--------|
+| ER-0003 | Integrate Exterior Brush System | DrawCanvas, BrushEngine, ToolPalette | ✅ Verified |
+| ER-0005 | Remove Redundant Water Brush Types | ExteriorMapBrushSet | ✅ Verified |
+| ER-0006 | Display Working Indicator During Base Layer Rendering | MapWizardView, BaseLayerButton, ToolsTabView | ✅ Verified |
 
 ## How to Use This Documentation
 
-### Creating a New ER
+### Adding a New ER
 
-1. Add entry to **ER-unverified.md** using the template from ER-Guidelines.md
-2. Set status to 🔵 Proposed
-3. Complete the analysis and design sections before implementing
-4. Update this index with the new ER in the Unverified section
+1. Add entry to **ER-unverified.md**
+2. Follow the standard ER template
+3. Update this index with the new ER in the Unverified section
 
 ### Implementing an ER
 
@@ -74,40 +71,29 @@ Differentiate between Interior and Exterior map types by:
 
 1. User tests the enhancement following the test steps
 2. **Only user** can mark as ✅ Implemented - Verified
-3. Move the ER from ER-unverified.md to appropriate batch file
+3. Move the ER from ER-unverified.md to the appropriate ER-verified batch file
 4. Update this index to reflect the change
+5. Mark status as ✅ Verified
 
 ### Creating a New Batch
 
-When a verified batch reaches ~10-15 ERs, create a new batch file:
-1. Create `ER-verified-00XX-00YY.md`
+When a verified batch file contains multiple ERs (flexible batching), create a new batch file:
+1. Create `ER-verified-00XX.md` for the next batch
 2. Add new batch to the table above
 3. Continue adding verified ERs to the new batch
 
-## ER vs DR
-
-Use the right system for the task:
-
-| Scenario | System | Reason |
-|----------|--------|--------|
-| Bug or defect | DR | System not working as intended |
-| Missing feature | ER | New requirement or capability |
-| Performance issue | DR | System not meeting quality standards |
-| UI/UX improvement | ER | Planned enhancement to user experience |
-| Code refactoring | ER | Technical debt reduction or architecture improvement |
-| Crash or error | DR | System failure |
-| New workflow | ER | Adding new capability |
+**Example:** When ER-verified-0002.md has sufficient content, create `ER-verified-0003.md` for the next batch
 
 ## Statistics
 
-- **Total ERs:** 4
-- **Verified:** 2 (50%)
-- **Implemented - Not Verified:** 2
-- **In Progress:** 0
-- **Proposed:** 0
-- **Latest ER:** ER-0004 (2026-01-07 - Implemented - Interior Brush System)
+- **Total ERs:** 7
+- **Verified:** 5 (71%) ✅
+- **Implemented - Not Verified:** 1 (14%) 🟡
+- **In Progress:** 0 (0%)
+- **Proposed:** 1 (14%) 🔵
+- **Latest ER:** ER-0007 (2026-01-09 - Proposed - Unify Map Rendering)
 
 ---
 
-*Last Updated: 2026-01-07*
-*Document Version: 1.3 (Implemented ER-0004 - Interior brush system enabled)*
+*Last Updated: 2026-01-10*
+*Document Version: 2.2 (Re-implemented ER-0004 - macOS pattern-based rendering complete)*

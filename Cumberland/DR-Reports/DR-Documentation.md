@@ -17,25 +17,26 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **2 unverified DRs** (1 Not Resolved, 1 Resolved - Not Verified)
+Currently: **3 unverified DRs** (2 Open, 1 Resolved - Not Verified)
 
 | DR | Title | Component | Status |
 |----|-------|-----------|--------|
-| DR-0032 | Insufficient Sandy Beach Area Around Water Brushes | DrawCanvas/BrushEngine Water Rendering | 🔴 Not Resolved |
+| DR-0039 | Saved Strokes/Settings Failed to Restore During Drawing Canvas Restoration | DrawCanvas / Draft Persistence / LayerManager | 🔴 Open |
+| DR-0038 | Draft Interior Drawing Settings Not Remembered Between View Loads | MapWizardView / Draft Persistence | 🔴 Open |
 | DR-0031 | Advanced Brush Rendering Not Executed on Any Platform (Critical Architecture Issue) | DrawCanvas/BrushEngine Integration | 🟡 Resolved - Not Verified (macOS) |
 
 See: [DR-unverified.md](./DR-unverified.md)
 
 ### Verified DRs (Resolved Issues)
 
-Currently: **35 verified DRs** | Next available DR: **DR-0037**
+Currently: **37 verified DRs** | Next available DR: **DR-0038**
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
 | Batch 1 | DR-0001 to DR-0010 | [DR-verified-0001-0010.md](./DR-verified-0001-0010.md) | ✅ All Verified |
 | Batch 2 | DR-0011 to DR-0020 | [DR-verified-0011-0020.md](./DR-verified-0011-0020.md) | ✅ All Verified |
 | Batch 3 | DR-0021 to DR-0030 | [DR-verified-0021-0030.md](./DR-verified-0021-0030.md) | ✅ All Verified |
-| Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | 🚧 In Progress (5/10 verified) |
+| Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | 🚧 In Progress (7/10 verified) |
 
 ## DR Summary
 
@@ -91,7 +92,7 @@ Currently: **35 verified DRs** | Next available DR: **DR-0037**
 | DR-0029 | Base layer image recalculated on visibility toggle | BaseLayerImageCache | ✅ Verified |
 | DR-0030 | Missing "Add Card" UI on iOS/misplaced Settings | MainAppView, CumberlandApp | ✅ Verified |
 
-### DR-0032 to DR-0035 - macOS Drawing and Documentation (Verified)
+### DR-0032 to DR-0037 - macOS Drawing, Documentation, and Architectural Issues (Verified)
 
 | DR | Title | Component | Status |
 |----|-------|-----------|--------|
@@ -100,6 +101,8 @@ Currently: **35 verified DRs** | Next available DR: **DR-0037**
 | DR-0033.1 | "Novel" Structure Still Has Duplicate Entry After Deduplication | CumberlandApp/Deduplication | ✅ Verified |
 | DR-0034 | iOS Crash When Adding Layer After Draft Restore | DrawCanvas/PencilKitCanvasView | ✅ Verified |
 | DR-0035 | DRs 0019-0030 Missing from DR-Documentation.md Index | DR-Documentation.md | ✅ Verified |
+| DR-0036 | Interior / Architectural Maps Header Controls Take Up Too Much Space on iPad | MapWizardView / Interior Configuration UI | ✅ Verified |
+| DR-0037 | Insufficient Sandy Beach Area Around Water Brushes | DrawCanvas/BrushEngine Water Rendering | ✅ Resolved - Closed (Expanded to ER-0007) |
 
 ## How to Use This Documentation
 
@@ -127,13 +130,13 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 37
-- **Verified:** 35 (95%) ✅
-- **Resolved - Not Verified:** 1 (3%) 🟡
-- **Open:** 1 (3%) 🔴
-- **Latest DR:** DR-0032 (2026-01-08 - Insufficient Sandy Beach Area - OPEN)
+- **Total DRs:** 40
+- **Verified:** 37 (93%) ✅
+- **Resolved - Not Verified:** 1 (2%) 🟡
+- **Open:** 2 (5%) 🔴
+- **Latest DR:** DR-0039 (2026-01-11 - Saved Strokes/Settings Failed to Restore)
 
 ---
 
-*Last Updated: 2026-01-08*
-*Document Version: 3.8 (Added DR-0032 - water brush beach sizing issue)*
+*Last Updated: 2026-01-11*
+*Document Version: 4.4 (Opened DR-0039 - Stroke restoration failure)*

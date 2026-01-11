@@ -81,7 +81,7 @@ struct ToolsTabView: View {
                     TextField("Miles", value: Binding(
                         get: { fill.terrainMetadata?.physicalSizeMiles ?? 100.0 },
                         set: { newValue in
-                            updateTerrainScale(fill: fill, miles: newValue)
+                            Task { await updateTerrainScaleAsync(fill: fill, miles: newValue) }
                         }
                     ), format: .number)
                     .textFieldStyle(.roundedBorder)
@@ -114,7 +114,7 @@ struct ToolsTabView: View {
 
     private func scalePresetButton(fill: LayerFill, miles: Double, label: String) -> some View {
         Button(label) {
-            updateTerrainScale(fill: fill, miles: miles)
+            Task { await updateTerrainScaleAsync(fill: fill, miles: miles) }
         }
         .buttonStyle(.bordered)
         .controlSize(.mini)
@@ -204,7 +204,7 @@ struct ToolsTabView: View {
                 label: label,
                 currentValue: currentValue,
                 onUpdate: { newValue in
-                    updateWaterPercentage(fill: fill, percentage: newValue)
+                    Task { await updateWaterPercentageAsync(fill: fill, percentage: newValue) }
                 }
             )
         }
@@ -303,6 +303,28 @@ private struct WaterPercentageSliderView: View {
 
 extension ToolsTabView {
 
+    /// ER-0006: Async wrapper for water percentage update with progress indicator
+    @MainActor
+    private func updateWaterPercentageAsync(fill: LayerFill, percentage: Double?) async {
+        // Show progress indicator
+        canvasState.isGeneratingBaseLayer = true
+
+        // Yield to allow UI to update
+        await Task.yield()
+
+        // Brief delay to ensure progress indicator is visible
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+
+        // Perform the update
+        updateWaterPercentage(fill: fill, percentage: percentage)
+
+        // Keep indicator visible for minimum time
+        try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+
+        // Hide progress indicator
+        canvasState.isGeneratingBaseLayer = false
+    }
+
     private func updateWaterPercentage(fill: LayerFill, percentage: Double?) {
         guard var metadata = fill.terrainMetadata else { return }
 
@@ -341,6 +363,28 @@ extension ToolsTabView {
             return .medium
         }
         return metadata.scaleCategory
+    }
+
+    /// ER-0006: Async wrapper for terrain scale update with progress indicator
+    @MainActor
+    private func updateTerrainScaleAsync(fill: LayerFill, miles: Double) async {
+        // Show progress indicator
+        canvasState.isGeneratingBaseLayer = true
+
+        // Yield to allow UI to update
+        await Task.yield()
+
+        // Brief delay to ensure progress indicator is visible
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+
+        // Perform the update
+        updateTerrainScale(fill: fill, miles: miles)
+
+        // Keep indicator visible for minimum time
+        try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+
+        // Hide progress indicator
+        canvasState.isGeneratingBaseLayer = false
     }
 
     private func updateTerrainScale(fill: LayerFill, miles: Double) {

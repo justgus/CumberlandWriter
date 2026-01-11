@@ -21,6 +21,30 @@ import UIKit
 import AppKit
 #endif
 
+// MARK: - Seeded Random Generator
+
+/// Simple seeded random number generator for consistent pseudo-random variation
+struct SeededRandomGenerator {
+    private var state: UInt64
+
+    init(seed: Int) {
+        self.state = UInt64(abs(seed))
+        // Mix the seed to improve distribution
+        self.state = self.state &* 6364136223846793005 &+ 1442695040888963407
+    }
+
+    mutating func next() -> UInt64 {
+        // Linear congruential generator
+        state = state &* 6364136223846793005 &+ 1442695040888963407
+        return state
+    }
+
+    mutating func nextDouble(in range: ClosedRange<CGFloat>) -> CGFloat {
+        let normalized = CGFloat(next() % 10000) / 10000.0
+        return range.lowerBound + normalized * (range.upperBound - range.lowerBound)
+    }
+}
+
 // MARK: - Brush Engine
 
 /// Handles rendering of brush strokes with various patterns and effects
@@ -606,21 +630,30 @@ class BrushEngine {
 
         case .water:
             renderWaterBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context, terrainMetadata: terrainMetadata)
-            
+
         case .vegetation:
             renderVegetationBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
-            
+
         case .roads:
             renderRoadBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
-            
+
         case .structures:
             renderStructureBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
-            
+
+        case .architectural, .symbols:
+            // ER-0004: Render interior/architectural brushes based on pattern type
+            renderPatternBasedBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
+
         default:
-            // Fall back to standard rendering
-            renderStroke(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
+            // Check if pattern type requires advanced rendering
+            if brush.patternType == .stamp || brush.patternType == .hatched || brush.patternType == .stippled || brush.patternType == .textured {
+                renderPatternBasedBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
+            } else {
+                // Fall back to standard rendering
+                renderStroke(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
+            }
         }
-        
+
         context.restoreGState()
     }
     
@@ -912,14 +945,7 @@ class BrushEngine {
             let pattern = generateWaterPattern(points: points, width: width, waveSize: 1.0)
             renderPatternStroke(pattern: pattern, color: color, width: width * 0.5, context: context)
 
-        } else if brush.name.lowercased().contains("ocean") {
-            // DR-0031: Ocean rendering - large scale area fill
-            renderOceanBrush(brush: brush, points: points, color: color, width: width, context: context, terrainMetadata: terrainMetadata)
-
-        } else if brush.name.lowercased().contains("sea") {
-            // DR-0031: Sea rendering - medium scale area fill
-            renderSeaBrush(brush: brush, points: points, color: color, width: width, context: context, terrainMetadata: terrainMetadata)
-
+        // ER-0005: Ocean and Sea brushes removed (redundant with base layer)
         } else if brush.name.lowercased().contains("lake") {
             // DR-0031: Lake rendering - filled area with irregular organic shoreline
             renderLakeBrush(brush: brush, points: points, color: color, width: width, context: context, terrainMetadata: terrainMetadata)
@@ -1162,255 +1188,6 @@ class BrushEngine {
         }
     }
 
-    /// DR-0031: Render ocean as large-scale water area (could extend to canvas edges in future)
-    static func renderOceanBrush(
-        brush: MapBrush,
-        points: [CGPoint],
-        color: Color,
-        width: CGFloat,
-        context: CGContext,
-        terrainMetadata: TerrainMapMetadata? = nil
-    ) {
-        guard points.count > 1 else { return }
-
-        let seed = Int.random(in: 0...10000)
-        srand48(seed)
-
-        // Ocean has very subtle coastline variation (more gradual than lakes)
-        var coastlinePoints: [CGPoint] = []
-        for i in 0..<points.count {
-            let point = points[i]
-            let randomOffset = CGFloat(drand48() - 0.5) * width * 0.15  // Less variation than lake
-            let offsetPoint = CGPoint(
-                x: point.x + randomOffset,
-                y: point.y + randomOffset
-            )
-            coastlinePoints.append(offsetPoint)
-        }
-
-        // DR-0031: Use base layer colors - sand and deeper water
-        let sandColor = Color(red: 0.90, green: 0.75, blue: 0.50)  // Beach sand
-        let deepWaterColor = Color(hue: 0.55, saturation: 0.75, brightness: 0.4)  // Deeper/darker water
-
-        #if canImport(UIKit)
-        let sandCGColor = UIColor(sandColor).cgColor
-        let waterCGColor = UIColor(deepWaterColor).cgColor
-        #elseif canImport(AppKit)
-        let sandCGColor = NSColor(sandColor).cgColor
-        let waterCGColor = NSColor(deepWaterColor).cgColor
-        #else
-        let sandCGColor = CGColor(red: 0.90, green: 0.75, blue: 0.50, alpha: 1)
-        let waterCGColor = CGColor(red: 0.3, green: 0.5, blue: 0.75, alpha: 1)
-        #endif
-
-        // Draw sandy beach (wider for ocean)
-        context.setFillColor(sandCGColor)
-        context.setAlpha(1.0)
-
-        context.beginPath()
-        if !coastlinePoints.isEmpty {
-            context.move(to: coastlinePoints[0])
-            for i in 1..<coastlinePoints.count {
-                let current = coastlinePoints[i]
-                if i < coastlinePoints.count - 1 {
-                    let next = coastlinePoints[i + 1]
-                    let midPoint = CGPoint(
-                        x: (current.x + next.x) / 2,
-                        y: (current.y + next.y) / 2
-                    )
-                    context.addQuadCurve(to: midPoint, control: current)
-                } else {
-                    context.addLine(to: current)
-                }
-            }
-        }
-        context.fillPath()
-
-        // Inset for water (larger beach zone for ocean)
-        var waterPoints: [CGPoint] = []
-        // DR-0032: Use scale-aware beach width calculation
-        let insetAmount = calculateScaleAwareBeachWidth(
-            brushWidth: width,
-            terrainMetadata: terrainMetadata,
-            waterType: .ocean
-        )
-
-        for i in 0..<coastlinePoints.count {
-            let point = coastlinePoints[i]
-            let centerX = coastlinePoints.reduce(0.0) { $0 + $1.x } / CGFloat(coastlinePoints.count)
-            let centerY = coastlinePoints.reduce(0.0) { $0 + $1.y } / CGFloat(coastlinePoints.count)
-            let dx = centerX - point.x
-            let dy = centerY - point.y
-            let dist = hypot(dx, dy)
-            if dist > 0 {
-                let offsetX = point.x + (dx / dist) * insetAmount
-                let offsetY = point.y + (dy / dist) * insetAmount
-                waterPoints.append(CGPoint(x: offsetX, y: offsetY))
-            } else {
-                waterPoints.append(point)
-            }
-        }
-
-        // Draw deep ocean water
-        context.setFillColor(waterCGColor)
-        context.setAlpha(1.0)
-
-        context.beginPath()
-        if !waterPoints.isEmpty {
-            context.move(to: waterPoints[0])
-            for i in 1..<waterPoints.count {
-                let current = waterPoints[i]
-                if i < waterPoints.count - 1 {
-                    let next = waterPoints[i + 1]
-                    let midPoint = CGPoint(
-                        x: (current.x + next.x) / 2,
-                        y: (current.y + next.y) / 2
-                    )
-                    context.addQuadCurve(to: midPoint, control: current)
-                } else {
-                    context.addLine(to: current)
-                }
-            }
-        }
-        context.fillPath()
-
-        // Add wave texture (horizontal lines for ocean waves)
-        context.setStrokeColor(waterCGColor)
-        context.setAlpha(0.15)
-        context.setLineWidth(1.0)
-        for point in waterPoints where drand48() < 0.2 {
-            let waveY = point.y + CGFloat(drand48() - 0.5) * width * 0.3
-            let waveLength = CGFloat(drand48() * 15 + 10)
-            context.beginPath()
-            context.move(to: CGPoint(x: point.x - waveLength / 2, y: waveY))
-            context.addLine(to: CGPoint(x: point.x + waveLength / 2, y: waveY))
-            context.strokePath()
-        }
-    }
-
-    /// DR-0031: Render sea as medium-scale water area
-    static func renderSeaBrush(
-        brush: MapBrush,
-        points: [CGPoint],
-        color: Color,
-        width: CGFloat,
-        context: CGContext,
-        terrainMetadata: TerrainMapMetadata? = nil
-    ) {
-        guard points.count > 1 else { return }
-
-        let seed = Int.random(in: 0...10000)
-        srand48(seed)
-
-        // Sea has moderate coastline variation (between ocean and lake)
-        var coastlinePoints: [CGPoint] = []
-        for i in 0..<points.count {
-            let point = points[i]
-            let randomOffset = CGFloat(drand48() - 0.5) * width * 0.25
-            let offsetPoint = CGPoint(
-                x: point.x + randomOffset,
-                y: point.y + randomOffset
-            )
-            coastlinePoints.append(offsetPoint)
-        }
-
-        // DR-0031: Use base layer colors - sand and medium-depth water
-        let sandColor = Color(red: 0.90, green: 0.75, blue: 0.50)  // Beach sand
-        let seaWaterColor = Color(hue: 0.55, saturation: 0.72, brightness: 0.45)  // Medium depth water
-
-        #if canImport(UIKit)
-        let sandCGColor = UIColor(sandColor).cgColor
-        let waterCGColor = UIColor(seaWaterColor).cgColor
-        #elseif canImport(AppKit)
-        let sandCGColor = NSColor(sandColor).cgColor
-        let waterCGColor = NSColor(seaWaterColor).cgColor
-        #else
-        let sandCGColor = CGColor(red: 0.90, green: 0.75, blue: 0.50, alpha: 1)
-        let waterCGColor = CGColor(red: 0.35, green: 0.55, blue: 0.75, alpha: 1)
-        #endif
-
-        // Draw sandy shoreline
-        context.setFillColor(sandCGColor)
-        context.setAlpha(1.0)
-
-        context.beginPath()
-        if !coastlinePoints.isEmpty {
-            context.move(to: coastlinePoints[0])
-            for i in 1..<coastlinePoints.count {
-                let current = coastlinePoints[i]
-                if i < coastlinePoints.count - 1 {
-                    let next = coastlinePoints[i + 1]
-                    let midPoint = CGPoint(
-                        x: (current.x + next.x) / 2,
-                        y: (current.y + next.y) / 2
-                    )
-                    context.addQuadCurve(to: midPoint, control: current)
-                } else {
-                    context.addLine(to: current)
-                }
-            }
-        }
-        context.fillPath()
-
-        // Inset for water
-        var waterPoints: [CGPoint] = []
-        // DR-0032: Use scale-aware beach width calculation
-        let insetAmount = calculateScaleAwareBeachWidth(
-            brushWidth: width,
-            terrainMetadata: terrainMetadata,
-            waterType: .sea
-        )
-
-        for i in 0..<coastlinePoints.count {
-            let point = coastlinePoints[i]
-            let centerX = coastlinePoints.reduce(0.0) { $0 + $1.x } / CGFloat(coastlinePoints.count)
-            let centerY = coastlinePoints.reduce(0.0) { $0 + $1.y } / CGFloat(coastlinePoints.count)
-            let dx = centerX - point.x
-            let dy = centerY - point.y
-            let dist = hypot(dx, dy)
-            if dist > 0 {
-                let offsetX = point.x + (dx / dist) * insetAmount
-                let offsetY = point.y + (dy / dist) * insetAmount
-                waterPoints.append(CGPoint(x: offsetX, y: offsetY))
-            } else {
-                waterPoints.append(point)
-            }
-        }
-
-        // Draw sea water
-        context.setFillColor(waterCGColor)
-        context.setAlpha(1.0)
-
-        context.beginPath()
-        if !waterPoints.isEmpty {
-            context.move(to: waterPoints[0])
-            for i in 1..<waterPoints.count {
-                let current = waterPoints[i]
-                if i < waterPoints.count - 1 {
-                    let next = waterPoints[i + 1]
-                    let midPoint = CGPoint(
-                        x: (current.x + next.x) / 2,
-                        y: (current.y + next.y) / 2
-                    )
-                    context.addQuadCurve(to: midPoint, control: current)
-                } else {
-                    context.addLine(to: current)
-                }
-            }
-        }
-        context.fillPath()
-
-        // Add subtle stippling for water texture
-        context.setAlpha(0.15)
-        for point in waterPoints where drand48() < 0.25 {
-            let stippleOffset = CGPoint(
-                x: point.x + CGFloat(drand48() - 0.5) * width * 0.3,
-                y: point.y + CGFloat(drand48() - 0.5) * width * 0.3
-            )
-            context.fillEllipse(in: CGRect(x: stippleOffset.x - 1, y: stippleOffset.y - 1, width: 2, height: 2))
-        }
-    }
-
     static func renderVegetationBrush(
         brush: MapBrush,
         points: [CGPoint],
@@ -1529,20 +1306,937 @@ class BrushEngine {
             style.render(in: rect, context: context, color: cgColor)
         }
     }
-    
+
+    // MARK: - Pattern-Based Renderer (ER-0004)
+
+    /// Render brushes based on their pattern type (for architectural, symbols, and other pattern-driven brushes)
+    static func renderPatternBasedBrush(
+        brush: MapBrush,
+        points: [CGPoint],
+        color: Color,
+        width: CGFloat,
+        context: CGContext
+    ) {
+        #if canImport(UIKit)
+        let cgColor = UIColor(color).cgColor
+        #elseif canImport(AppKit)
+        let cgColor = NSColor(color).cgColor
+        #else
+        let cgColor = CGColor(red: 0, green: 0, blue: 0, alpha: 1)
+        #endif
+
+        context.setStrokeColor(cgColor)
+        context.setFillColor(cgColor)
+        context.setLineWidth(width)
+
+        // Check if this is a wall brush - use smart wall rendering
+        let brushName = brush.name.lowercased()
+        if brushName.contains("wall") && brush.patternType == .solid {
+            renderSmartWall(points: points, width: width, context: context, brushName: brush.name)
+            return
+        }
+
+        switch brush.patternType {
+        case .stamp:
+            // Render stamps (symbols, furniture, etc.) along the path
+            renderStampPattern(points: points, width: width, spacing: width * 2.0, context: context, brush: brush)
+
+        case .hatched:
+            // Render cross-hatch pattern for floors, areas
+            renderHatchedPattern(points: points, width: width, context: context)
+
+        case .stippled:
+            // Render stippled/dotted pattern
+            renderStippledPattern(points: points, width: width, context: context)
+
+        case .textured:
+            // Render textured stroke
+            renderTexturedPattern(points: points, width: width, context: context)
+
+        case .solid:
+            // Check if this is an area fill brush (not a wall)
+            if brushName.contains("lava") || brushName.contains("chasm") ||
+               brushName.contains("carpet") || brushName.contains("water feature") {
+                // Area fill - fill the entire area with solid color
+                renderSolidAreaFill(points: points, width: width, context: context)
+            } else {
+                // Solid line - use standard rendering
+                renderStroke(brush: brush, points: points, color: color, width: width, context: context)
+            }
+
+        default:
+            // Fall back to standard rendering
+            renderStroke(brush: brush, points: points, color: color, width: width, context: context)
+        }
+    }
+
+    /// Render smart walls with straight lines, thickness, and dungeon features
+    static func renderSmartWall(
+        points: [CGPoint],
+        width: CGFloat,
+        context: CGContext,
+        brushName: String
+    ) {
+        guard points.count > 1 else { return }
+
+        let name = brushName.lowercased()
+        let isDungeon = name.contains("dungeon") || name.contains("cavern") || name.contains("cave")
+        let isThick = name.contains("thick")
+        let isThin = name.contains("thin")
+
+        // The 'width' parameter should represent 6 inches in canvas points
+        // (based on grid scale: if grid = 1 foot, then width should be half a grid square)
+        //
+        // Standard wall = 6 inches = width
+        // Thick wall = 12 inches = width * 2
+        // Thin wall = 2 inches = width / 3
+
+        let actualWidth: CGFloat
+        if isThick {
+            actualWidth = width * 2.0  // 12 inches = 2x standard
+        } else if isThin {
+            actualWidth = width / 3.0  // 2 inches = 1/3 standard
+        } else {
+            actualWidth = width        // 6 inches = standard
+        }
+
+        context.setLineWidth(actualWidth)
+        context.setLineCap(.square)
+        context.setLineJoin(.miter)
+
+        if isDungeon {
+            // Jagged, rough walls for dungeons/caverns
+            renderJaggedWall(points: points, width: actualWidth, context: context)
+        } else if isThin {
+            // Thin wall: just two solid lines, no fill
+            renderThinWall(points: points, width: actualWidth, context: context)
+        } else if isThick {
+            // Thick wall: two standard walls side-by-side
+            renderThickWall(points: points, width: actualWidth, context: context)
+        } else {
+            // Standard wall: line-fill-line architectural style
+            renderStraightWall(points: points, width: actualWidth, context: context)
+        }
+    }
+
+    /// Render straight architectural walls - double-line architectural style
+    static func renderStraightWall(
+        points: [CGPoint],
+        width: CGFloat,
+        context: CGContext
+    ) {
+        guard points.count > 1 else { return }
+
+        // Draw a perfectly straight line from start to end, ignoring all intermediate points
+        let start = points.first!
+        let end = points.last!
+
+        // Calculate perpendicular direction for offset
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let length = hypot(dx, dy)
+        guard length > 0.01 else { return }
+
+        // Unit perpendicular vector
+        let perpX = -dy / length
+        let perpY = dx / length
+
+        // Wall consists of:
+        // - 1" solid line on one side
+        // - 4" reduced opacity rectangle in middle
+        // - 1" solid line on other side
+        // Total = 6" standard wall
+
+        let solidLineThickness = width / 6.0  // 1" in canvas units
+        let halfTotalThickness = width / 2.0   // 3" offset from centerline
+
+        // Outer line 1 (offset by +3")
+        let outerOffset1 = halfTotalThickness
+        let outer1Start = CGPoint(
+            x: start.x + perpX * outerOffset1,
+            y: start.y + perpY * outerOffset1
+        )
+        let outer1End = CGPoint(
+            x: end.x + perpX * outerOffset1,
+            y: end.y + perpY * outerOffset1
+        )
+
+        // Outer line 2 (offset by -3")
+        let outerOffset2 = -halfTotalThickness
+        let outer2Start = CGPoint(
+            x: start.x + perpX * outerOffset2,
+            y: start.y + perpY * outerOffset2
+        )
+        let outer2End = CGPoint(
+            x: end.x + perpX * outerOffset2,
+            y: end.y + perpY * outerOffset2
+        )
+
+        // Draw middle fill rectangle (4" wide, reduced opacity)
+        context.saveGState()
+        context.setAlpha(0.3)  // Reduced opacity for interior
+
+        let fillOffset1 = (width / 2.0) - solidLineThickness
+        let fillOffset2 = -(width / 2.0) + solidLineThickness
+
+        let fillP1 = CGPoint(x: start.x + perpX * fillOffset1, y: start.y + perpY * fillOffset1)
+        let fillP2 = CGPoint(x: end.x + perpX * fillOffset1, y: end.y + perpY * fillOffset1)
+        let fillP3 = CGPoint(x: end.x + perpX * fillOffset2, y: end.y + perpY * fillOffset2)
+        let fillP4 = CGPoint(x: start.x + perpX * fillOffset2, y: start.y + perpY * fillOffset2)
+
+        context.beginPath()
+        context.move(to: fillP1)
+        context.addLine(to: fillP2)
+        context.addLine(to: fillP3)
+        context.addLine(to: fillP4)
+        context.closePath()
+        context.fillPath()
+        context.restoreGState()
+
+        // Draw outer solid lines (1" thick each)
+        context.setLineWidth(solidLineThickness)
+        context.setLineCap(.square)
+
+        // First outer line
+        context.beginPath()
+        context.move(to: outer1Start)
+        context.addLine(to: outer1End)
+        context.strokePath()
+
+        // Second outer line
+        context.beginPath()
+        context.move(to: outer2Start)
+        context.addLine(to: outer2End)
+        context.strokePath()
+    }
+
+    /// Render thin walls - just two solid lines (no fill rectangle)
+    static func renderThinWall(
+        points: [CGPoint],
+        width: CGFloat,
+        context: CGContext
+    ) {
+        guard points.count > 1 else { return }
+
+        let start = points.first!
+        let end = points.last!
+
+        // Calculate perpendicular direction
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let length = hypot(dx, dy)
+        guard length > 0.01 else { return }
+
+        let perpX = -dy / length
+        let perpY = dx / length
+
+        // Thin wall = two 1" lines separated by nothing
+        // Total width = 2", so each line offset by ±1"
+        let halfWidth = width / 2.0
+        let lineThickness = width / 2.0  // Each line is 1" thick
+
+        // Line 1 (offset +1")
+        let line1Start = CGPoint(x: start.x + perpX * halfWidth, y: start.y + perpY * halfWidth)
+        let line1End = CGPoint(x: end.x + perpX * halfWidth, y: end.y + perpY * halfWidth)
+
+        // Line 2 (offset -1")
+        let line2Start = CGPoint(x: start.x - perpX * halfWidth, y: start.y - perpY * halfWidth)
+        let line2End = CGPoint(x: end.x - perpX * halfWidth, y: end.y - perpY * halfWidth)
+
+        context.setLineWidth(lineThickness)
+        context.setLineCap(.square)
+
+        // Draw both lines
+        context.beginPath()
+        context.move(to: line1Start)
+        context.addLine(to: line1End)
+        context.strokePath()
+
+        context.beginPath()
+        context.move(to: line2Start)
+        context.addLine(to: line2End)
+        context.strokePath()
+    }
+
+    /// Render thick walls - two standard walls side-by-side
+    static func renderThickWall(
+        points: [CGPoint],
+        width: CGFloat,
+        context: CGContext
+    ) {
+        guard points.count > 1 else { return }
+
+        let start = points.first!
+        let end = points.last!
+
+        // Calculate perpendicular direction
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let length = hypot(dx, dy)
+        guard length > 0.01 else { return }
+
+        let perpX = -dy / length
+        let perpY = dx / length
+
+        // Thick wall = two standard 6" walls side-by-side = 12" total
+        // Each standard wall is 6" (half the total width)
+        let standardWallWidth = width / 2.0
+
+        // Offset each wall by ±3" from center
+        let offsetDistance = standardWallWidth / 2.0
+
+        // Render first wall (offset +3")
+        let wall1Start = CGPoint(x: start.x + perpX * offsetDistance, y: start.y + perpY * offsetDistance)
+        let wall1End = CGPoint(x: end.x + perpX * offsetDistance, y: end.y + perpY * offsetDistance)
+        renderStandardWallSegment(from: wall1Start, to: wall1End, width: standardWallWidth, context: context)
+
+        // Render second wall (offset -3")
+        let wall2Start = CGPoint(x: start.x - perpX * offsetDistance, y: start.y - perpY * offsetDistance)
+        let wall2End = CGPoint(x: end.x - perpX * offsetDistance, y: end.y - perpY * offsetDistance)
+        renderStandardWallSegment(from: wall2Start, to: wall2End, width: standardWallWidth, context: context)
+    }
+
+    /// Helper: Render a single standard wall segment (line-fill-line)
+    static func renderStandardWallSegment(
+        from start: CGPoint,
+        to end: CGPoint,
+        width: CGFloat,
+        context: CGContext
+    ) {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let length = hypot(dx, dy)
+        guard length > 0.01 else { return }
+
+        let perpX = -dy / length
+        let perpY = dx / length
+
+        let solidLineThickness = width / 6.0
+        let halfTotalThickness = width / 2.0
+
+        // Outer lines
+        let outer1Start = CGPoint(x: start.x + perpX * halfTotalThickness, y: start.y + perpY * halfTotalThickness)
+        let outer1End = CGPoint(x: end.x + perpX * halfTotalThickness, y: end.y + perpY * halfTotalThickness)
+        let outer2Start = CGPoint(x: start.x - perpX * halfTotalThickness, y: start.y - perpY * halfTotalThickness)
+        let outer2End = CGPoint(x: end.x - perpX * halfTotalThickness, y: end.y - perpY * halfTotalThickness)
+
+        // Middle fill
+        context.saveGState()
+        context.setAlpha(0.3)
+
+        let fillOffset1 = halfTotalThickness - solidLineThickness
+        let fillOffset2 = -halfTotalThickness + solidLineThickness
+
+        let fillP1 = CGPoint(x: start.x + perpX * fillOffset1, y: start.y + perpY * fillOffset1)
+        let fillP2 = CGPoint(x: end.x + perpX * fillOffset1, y: end.y + perpY * fillOffset1)
+        let fillP3 = CGPoint(x: end.x + perpX * fillOffset2, y: end.y + perpY * fillOffset2)
+        let fillP4 = CGPoint(x: start.x + perpX * fillOffset2, y: start.y + perpY * fillOffset2)
+
+        context.beginPath()
+        context.move(to: fillP1)
+        context.addLine(to: fillP2)
+        context.addLine(to: fillP3)
+        context.addLine(to: fillP4)
+        context.closePath()
+        context.fillPath()
+        context.restoreGState()
+
+        // Draw outer lines
+        context.setLineWidth(solidLineThickness)
+        context.setLineCap(.square)
+
+        context.beginPath()
+        context.move(to: outer1Start)
+        context.addLine(to: outer1End)
+        context.strokePath()
+
+        context.beginPath()
+        context.move(to: outer2Start)
+        context.addLine(to: outer2End)
+        context.strokePath()
+    }
+
+    /// Render jagged dungeon/cavern walls - straight line with jaggedness
+    static func renderJaggedWall(
+        points: [CGPoint],
+        width: CGFloat,
+        context: CGContext
+    ) {
+        guard points.count > 1 else { return }
+
+        // Use ONLY start and end points - ignore mouse path
+        let start = points.first!
+        let end = points.last!
+
+        // Calculate straight line direction
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let lineLength = hypot(dx, dy)
+
+        guard lineLength > 0.01 else { return }
+
+        // Unit vectors along and perpendicular to line
+        let dirX = dx / lineLength
+        let dirY = dy / lineLength
+        let perpX = -dirY
+        let perpY = dirX
+
+        // Cave walls: organic varied amplitude
+        let baseAmplitude = width * 0.5 // Maximum deviation from centerline
+
+        // Lower frequency - longer wavelengths for more organic feel
+        let primaryWavelength: CGFloat = 30.0 // Main undulation
+        let secondaryWavelength: CGFloat = 12.0 // Finer detail
+
+        // Generate jagged points along the straight line
+        context.beginPath()
+        context.move(to: start)
+
+        // Fewer segments for lower frequency (one every ~8 canvas units)
+        let numSegments = max(3, Int(lineLength / 8.0))
+
+        // Use random seed based on start point for consistent variation
+        let seed = Int(start.x * 1000 + start.y * 1000)
+        var rng = SeededRandomGenerator(seed: seed)
+
+        for i in 1..<numSegments {
+            let t = CGFloat(i) / CGFloat(numSegments)
+            let distanceAlongLine = t * lineLength
+
+            // Base point on the straight line
+            let baseX = start.x + dirX * distanceAlongLine
+            let baseY = start.y + dirY * distanceAlongLine
+
+            // Layered sine waves for organic variation
+            // Primary wave: large, slow undulation
+            let primaryPhase = (distanceAlongLine / primaryWavelength) * 2.0 * CGFloat.pi
+            let primaryOffset = sin(primaryPhase)
+
+            // Secondary wave: finer detail at lower amplitude
+            let secondaryPhase = (distanceAlongLine / secondaryWavelength) * 2.0 * CGFloat.pi
+            let secondaryOffset = sin(secondaryPhase) * 0.3
+
+            // Vary amplitude along the wall for organic feel (use slower noise)
+            let amplitudePhase = (distanceAlongLine / (primaryWavelength * 2.0)) * 2.0 * CGFloat.pi
+            let amplitudeVariation = 0.7 + sin(amplitudePhase) * 0.3 // Range: 0.4 to 1.0
+
+            // Combine waves with varied amplitude
+            let combinedOffset = (primaryOffset + secondaryOffset) * baseAmplitude * amplitudeVariation
+
+            // Add subtle random variation (seeded for consistency)
+            let randomVariation = rng.nextDouble(in: -0.15...0.15) * baseAmplitude
+            let offset = combinedOffset + randomVariation
+
+            let jaggedX = baseX + perpX * offset
+            let jaggedY = baseY + perpY * offset
+
+            context.addLine(to: CGPoint(x: jaggedX, y: jaggedY))
+        }
+
+        // End at the actual end point (not jagged)
+        context.addLine(to: end)
+        context.strokePath()
+    }
+
+    /// Render stamp pattern - ALWAYS place single item, sized and oriented by drag
+    static func renderStampPattern(
+        points: [CGPoint],
+        width: CGFloat,
+        spacing: CGFloat,
+        context: CGContext,
+        brush: MapBrush
+    ) {
+        guard points.count > 1 else { return }
+
+        // ER-0004: Click-and-drag interaction for stamp brushes
+        // ALWAYS render a single item - user feedback: "I'd like the switch to never occur"
+        // Drag defines bounding box: start = upper-left corner, end = lower-right corner
+
+        let start = points.first!
+        let end = points.last!
+
+        // Calculate bounding box dimensions
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let boxWidth = abs(dx)
+        let boxHeight = abs(dy)
+
+        // Size is the diagonal of the bounding box (max dimension for square objects)
+        // Or we could use the larger of width/height
+        let itemSize = max(boxWidth, boxHeight)
+
+        // Position is the CENTER of the bounding box
+        let centerX = start.x + dx / 2.0
+        let centerY = start.y + dy / 2.0
+        let center = CGPoint(x: centerX, y: centerY)
+
+        // NO ROTATION - keep items axis-aligned (not rotated by drag direction)
+        // User feedback: stamps were rotating 45° when dragging corner-to-corner
+        let angle: CGFloat = 0
+
+        // Minimum size threshold (don't let items get too tiny)
+        let minSize: CGFloat = 20.0
+        let finalSize = max(itemSize, minSize)
+
+        // Place ONE item at the CENTER of bounding box, sized by drag dimensions, axis-aligned
+        renderStampShape(
+            at: center,
+            size: finalSize,
+            angle: angle,
+            context: context,
+            brushName: brush.name
+        )
+    }
+
+    /// Render specific stamp shapes based on brush name
+    static func renderStampShape(
+        at position: CGPoint,
+        size: CGFloat,
+        angle: CGFloat,
+        context: CGContext,
+        brushName: String
+    ) {
+        context.saveGState()
+        context.translateBy(x: position.x, y: position.y)
+        context.rotate(by: angle)
+
+        let name = brushName.lowercased()
+
+        if name.contains("door") {
+            // Draw door arc
+            let rect = CGRect(x: -size/2, y: -size/2, width: size, height: size)
+            context.setLineWidth(2.0)
+
+            // Door frame
+            context.stroke(rect)
+
+            // Door swing arc
+            context.beginPath()
+            context.addArc(center: CGPoint(x: -size/2, y: size/2),
+                          radius: size,
+                          startAngle: -CGFloat.pi/2,
+                          endAngle: 0,
+                          clockwise: false)
+            context.strokePath()
+
+        } else if name.contains("archway") || name.contains("arch") {
+            // Draw archway - gap in wall with arched top
+            let wallThickness = size * 0.15
+            context.setLineWidth(wallThickness)
+
+            // Left wall segment
+            context.beginPath()
+            context.move(to: CGPoint(x: -size/2, y: size/2))
+            context.addLine(to: CGPoint(x: -size/2, y: -size/4))
+            context.strokePath()
+
+            // Right wall segment
+            context.beginPath()
+            context.move(to: CGPoint(x: size/2, y: size/2))
+            context.addLine(to: CGPoint(x: size/2, y: -size/4))
+            context.strokePath()
+
+            // Arch top (semicircle connecting the walls)
+            context.beginPath()
+            context.addArc(center: CGPoint(x: 0, y: -size/4),
+                          radius: size/2,
+                          startAngle: CGFloat.pi,
+                          endAngle: 0,
+                          clockwise: false)
+            context.strokePath()
+
+        } else if name.contains("portcullis") || name.contains("gate") {
+            // Draw portcullis - gap in wall filled with small circles (bars)
+            let wallThickness = size * 0.15
+            context.setLineWidth(wallThickness)
+
+            // Left wall segment
+            context.beginPath()
+            context.move(to: CGPoint(x: -size/2, y: size/2))
+            context.addLine(to: CGPoint(x: -size/2, y: -size/2))
+            context.strokePath()
+
+            // Right wall segment
+            context.beginPath()
+            context.move(to: CGPoint(x: size/2, y: size/2))
+            context.addLine(to: CGPoint(x: size/2, y: -size/2))
+            context.strokePath()
+
+            // Top wall segment
+            context.beginPath()
+            context.move(to: CGPoint(x: -size/2, y: -size/2))
+            context.addLine(to: CGPoint(x: size/2, y: -size/2))
+            context.strokePath()
+
+            // Fill gap with small circles representing bars
+            let barSize = size * 0.08
+            let barSpacing = size * 0.15
+            let gapWidth = size - wallThickness * 2
+            let gapHeight = size * 0.8
+
+            // Draw vertical bars (small circles in rows and columns)
+            var x = -gapWidth/2 + barSpacing
+            while x <= gapWidth/2 {
+                var y = -gapHeight/2 + barSpacing
+                while y <= gapHeight/2 {
+                    let barRect = CGRect(x: x - barSize/2, y: y - barSize/2, width: barSize, height: barSize)
+                    context.fillEllipse(in: barRect)
+                    y += barSpacing
+                }
+                x += barSpacing
+            }
+
+        } else if name.contains("window") {
+            // Draw window (cross pattern)
+            let rect = CGRect(x: -size/2, y: -size/2, width: size, height: size)
+            context.setLineWidth(2.0)
+            context.stroke(rect)
+
+            // Cross panes
+            context.beginPath()
+            context.move(to: CGPoint(x: -size/2, y: 0))
+            context.addLine(to: CGPoint(x: size/2, y: 0))
+            context.move(to: CGPoint(x: 0, y: -size/2))
+            context.addLine(to: CGPoint(x: 0, y: size/2))
+            context.strokePath()
+
+        } else if name.contains("round") && name.contains("table") {
+            // Draw round table (circle)
+            let rect = CGRect(x: -size/2, y: -size/2, width: size, height: size)
+            context.fillEllipse(in: rect)
+            context.setLineWidth(1.5)
+            context.strokeEllipse(in: rect)
+
+        } else if name.contains("table") {
+            // Draw table (rectangle)
+            let rect = CGRect(x: -size/2, y: -size/3, width: size, height: size * 0.66)
+            context.fill(rect)
+            context.setLineWidth(1.5)
+            context.stroke(rect)
+
+        } else if name.contains("chair") {
+            // Draw chair (small square with back)
+            let seatSize = size * 0.6
+            let seatRect = CGRect(x: -seatSize/2, y: -seatSize/4, width: seatSize, height: seatSize/2)
+            context.fill(seatRect)
+
+            // Chair back
+            let backRect = CGRect(x: -seatSize/2, y: -seatSize/2, width: seatSize, height: seatSize/4)
+            context.fill(backRect)
+
+        } else if name.contains("bed") {
+            // Draw bed (rectangle with headboard)
+            let bedRect = CGRect(x: -size/2, y: -size/3, width: size, height: size * 0.66)
+            context.fill(bedRect)
+
+            // Headboard
+            context.setLineWidth(3.0)
+            context.beginPath()
+            context.move(to: CGPoint(x: -size/2, y: -size/3))
+            context.addLine(to: CGPoint(x: size/2, y: -size/3))
+            context.strokePath()
+
+        } else if name.contains("chest") || name.contains("crate") {
+            // Draw chest/crate (square with X)
+            let rect = CGRect(x: -size/2, y: -size/2, width: size, height: size)
+            context.fill(rect)
+            context.setLineWidth(1.5)
+            context.stroke(rect)
+
+            // X pattern
+            context.beginPath()
+            context.move(to: CGPoint(x: -size/2, y: -size/2))
+            context.addLine(to: CGPoint(x: size/2, y: size/2))
+            context.move(to: CGPoint(x: size/2, y: -size/2))
+            context.addLine(to: CGPoint(x: -size/2, y: size/2))
+            context.strokePath()
+
+        } else if name.contains("throne") {
+            // Draw throne (chair with high back)
+            let seatSize = size * 0.7
+            let seatRect = CGRect(x: -seatSize/2, y: -seatSize/4, width: seatSize, height: seatSize/2)
+            context.fill(seatRect)
+
+            // High back
+            let backRect = CGRect(x: -seatSize/3, y: -size/2, width: seatSize * 0.66, height: size * 0.4)
+            context.fill(backRect)
+
+            // Armrests
+            context.setLineWidth(2.0)
+            context.beginPath()
+            context.move(to: CGPoint(x: -seatSize/2, y: -seatSize/4))
+            context.addLine(to: CGPoint(x: -seatSize/1.5, y: -seatSize/4))
+            context.move(to: CGPoint(x: seatSize/2, y: -seatSize/4))
+            context.addLine(to: CGPoint(x: seatSize/1.5, y: -seatSize/4))
+            context.strokePath()
+
+        } else if name.contains("altar") {
+            // Draw altar (elevated platform)
+            let altarRect = CGRect(x: -size/2, y: -size/4, width: size, height: size/2)
+            context.fill(altarRect)
+
+            // Base
+            let baseRect = CGRect(x: -size/3, y: size/4, width: size * 0.66, height: size/8)
+            context.fill(baseRect)
+
+        } else if name.contains("statue") {
+            // Draw statue (pedestal with figure)
+            let pedestalRect = CGRect(x: -size/3, y: size/6, width: size * 0.66, height: size/3)
+            context.fill(pedestalRect)
+
+            // Figure (circle on top)
+            let figureRect = CGRect(x: -size/4, y: -size/2, width: size/2, height: size * 0.66)
+            context.fillEllipse(in: figureRect)
+
+        } else if name.contains("column") || name.contains("pillar") {
+            // Draw column (circle)
+            let rect = CGRect(x: -size/2, y: -size/2, width: size, height: size)
+            context.fillEllipse(in: rect)
+            context.setLineWidth(2.0)
+            context.strokeEllipse(in: rect)
+
+        } else if name.contains("barrel") || name.contains("keg") {
+            // Draw barrel (oval)
+            let rect = CGRect(x: -size/2, y: -size/3, width: size, height: size * 0.66)
+            context.fillEllipse(in: rect)
+
+            // Bands
+            context.setLineWidth(1.5)
+            context.beginPath()
+            context.move(to: CGPoint(x: -size/2, y: -size/6))
+            context.addLine(to: CGPoint(x: size/2, y: -size/6))
+            context.move(to: CGPoint(x: -size/2, y: size/6))
+            context.addLine(to: CGPoint(x: size/2, y: size/6))
+            context.strokePath()
+
+        } else {
+            // Default: circle
+            let rect = CGRect(x: -size/2, y: -size/2, width: size, height: size)
+            context.fillEllipse(in: rect)
+        }
+
+        context.restoreGState()
+    }
+
+    /// Render hatched pattern - area fill with hatch lines (for stairs, floors, grids)
+    static func renderHatchedPattern(
+        points: [CGPoint],
+        width: CGFloat,
+        context: CGContext
+    ) {
+        guard points.count > 1 else { return }
+
+        // Create closed path
+        let clipPath = CGMutablePath()
+        clipPath.move(to: points[0])
+        for point in points.dropFirst() {
+            clipPath.addLine(to: point)
+        }
+        clipPath.closeSubpath()
+
+        // Fill with light base color
+        context.saveGState()
+        context.setAlpha(0.2)
+        context.addPath(clipPath)
+        context.fillPath()
+        context.restoreGState()
+
+        // Draw hatch lines across the area
+        // Calculate bounding box
+        let boundingBox = clipPath.boundingBox
+        guard !boundingBox.isEmpty else {
+            return
+        }
+
+        let hatchSpacing = width * 0.4
+        let hatchAngle = CGFloat.pi / 4 // 45 degrees
+
+        // Draw diagonal hatch lines
+        context.setLineWidth(1.0)
+
+        // First direction (/)
+        let diagonal = hypot(boundingBox.width, boundingBox.height)
+        var offset: CGFloat = -diagonal
+
+        while offset < diagonal * 2 {
+            let startX = boundingBox.minX + offset
+            let startY = boundingBox.minY
+            let endX = boundingBox.minX + offset + boundingBox.height * tan(hatchAngle)
+            let endY = boundingBox.maxY
+
+            context.saveGState()
+            context.addPath(clipPath)
+            context.clip()
+
+            context.beginPath()
+            context.move(to: CGPoint(x: startX, y: startY))
+            context.addLine(to: CGPoint(x: endX, y: endY))
+            context.strokePath()
+
+            context.restoreGState()
+
+            offset += hatchSpacing
+        }
+
+        // Second direction (\) for cross-hatch
+        offset = -diagonal
+        while offset < diagonal * 2 {
+            let startX = boundingBox.maxX - offset
+            let startY = boundingBox.minY
+            let endX = boundingBox.maxX - offset - boundingBox.height * tan(hatchAngle)
+            let endY = boundingBox.maxY
+
+            context.saveGState()
+            context.addPath(clipPath)
+            context.clip()
+
+            context.beginPath()
+            context.move(to: CGPoint(x: startX, y: startY))
+            context.addLine(to: CGPoint(x: endX, y: endY))
+            context.strokePath()
+
+            context.restoreGState()
+
+            offset += hatchSpacing
+        }
+    }
+
+    /// Render stippled pattern - area fill with dots (for rubble, rough surfaces)
+    static func renderStippledPattern(
+        points: [CGPoint],
+        width: CGFloat,
+        context: CGContext
+    ) {
+        guard points.count > 1 else { return }
+
+        // Create closed path
+        let clipPath = CGMutablePath()
+        clipPath.move(to: points[0])
+        for point in points.dropFirst() {
+            clipPath.addLine(to: point)
+        }
+        clipPath.closeSubpath()
+
+        // Fill with light base color
+        context.saveGState()
+        context.setAlpha(0.15)
+        context.addPath(clipPath)
+        context.fillPath()
+        context.restoreGState()
+
+        // Draw dots densely across the area
+        let boundingBox = clipPath.boundingBox
+        guard !boundingBox.isEmpty else {
+            return
+        }
+
+        let dotSpacing = width * 0.2
+        let minDotSize = width * 0.05
+        let maxDotSize = width * 0.15
+
+        // Clip to the closed path area
+        context.saveGState()
+        context.addPath(clipPath)
+        context.clip()
+
+        // Generate random dots within the bounding box
+        let numDotsX = Int(boundingBox.width / dotSpacing) + 1
+        let numDotsY = Int(boundingBox.height / dotSpacing) + 1
+
+        for i in 0..<numDotsX {
+            for j in 0..<numDotsY {
+                let baseX = boundingBox.minX + CGFloat(i) * dotSpacing
+                let baseY = boundingBox.minY + CGFloat(j) * dotSpacing
+
+                // Add randomness
+                let offsetX = CGFloat.random(in: -dotSpacing/3...dotSpacing/3)
+                let offsetY = CGFloat.random(in: -dotSpacing/3...dotSpacing/3)
+                let dotSize = CGFloat.random(in: minDotSize...maxDotSize)
+
+                let x = baseX + offsetX
+                let y = baseY + offsetY
+
+                // Vary opacity for more natural look
+                let opacity = CGFloat.random(in: 0.4...0.9)
+                context.setAlpha(opacity)
+
+                let dotRect = CGRect(x: x - dotSize/2, y: y - dotSize/2, width: dotSize, height: dotSize)
+                context.fillEllipse(in: dotRect)
+            }
+        }
+
+        context.restoreGState() // Restore the clip/dot drawing state
+    }
+
+    /// Render solid area fill - for area tiles like lava, carpet, water feature, chasm
+    static func renderSolidAreaFill(
+        points: [CGPoint],
+        width: CGFloat,
+        context: CGContext
+    ) {
+        guard points.count > 1 else { return }
+
+        // Create path from points
+        context.beginPath()
+        context.move(to: points[0])
+
+        for point in points.dropFirst() {
+            context.addLine(to: point)
+        }
+
+        // Close the path to create an enclosed area
+        context.closePath()
+
+        // Fill the interior of the closed area
+        context.fillPath()
+    }
+
+    /// Render textured pattern - rough/sketchy texture
+    static func renderTexturedPattern(
+        points: [CGPoint],
+        width: CGFloat,
+        context: CGContext
+    ) {
+        guard points.count > 1 else { return }
+
+        // Draw multiple offset strokes for texture effect
+        context.setLineWidth(width * 0.7)
+
+        for offset in stride(from: -width/3, to: width/3, by: width/6) {
+            context.beginPath()
+            context.move(to: points[0])
+
+            for point in points.dropFirst() {
+                let offsetX = CGFloat.random(in: -1...1) * offset
+                let offsetY = CGFloat.random(in: -1...1) * offset
+                context.addLine(to: CGPoint(x: point.x + offsetX, y: point.y + offsetY))
+            }
+
+            context.strokePath()
+        }
+    }
+
     // MARK: - Brush Presets with Advanced Patterns
-    
+
     /// Get recommended rendering method for a brush
     static func recommendedRenderingMethod(for brush: MapBrush) -> BrushRenderingMethod {
         // Determine if brush should use standard or advanced rendering
+
+        // Category-based advanced rendering
         if brush.category == .terrain || brush.category == .water || brush.category == .vegetation {
             return .advanced
         }
-        
-        if brush.patternType == .stamp || brush.patternType == .textured {
+
+        // ER-0004: Interior brush categories need advanced rendering
+        if brush.category == .architectural || brush.category == .symbols {
             return .advanced
         }
-        
+
+        // Pattern-based advanced rendering
+        if brush.patternType == .stamp || brush.patternType == .textured || brush.patternType == .hatched || brush.patternType == .stippled {
+            return .advanced
+        }
+
         return .standard
     }
 }

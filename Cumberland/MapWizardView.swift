@@ -79,9 +79,6 @@ struct MapWizardView: View {
     @State private var isGenerating = false
     @State private var generationError: String?
 
-    // MARK: - Base Layer Generation State (ER-0006)
-    @State private var isGeneratingBaseLayer = false
-    
     // MARK: - Draft Restoration State
     @State private var showDraftRestorationPrompt = false
     @State private var hasPendingDraftToRestore = false
@@ -948,7 +945,7 @@ struct MapWizardView: View {
                 .padding()
                 // ER-0006: Progress indicator overlay during base layer rendering
                 .overlay {
-                    if isGeneratingBaseLayer {
+                    if drawingCanvasModel.isGeneratingBaseLayer {
                         ZStack {
                             RoundedRectangle(cornerRadius: 12)
                                 .fill(.ultraThinMaterial)
@@ -975,94 +972,102 @@ struct MapWizardView: View {
     
     private var interiorConfigView: some View {
         VStack(spacing: 0) {
-            // Header and controls
-            VStack(spacing: 12) {
-                HStack {
-                    Text("Interior / Architectural Maps")
-                        .font(.title2).bold()
-                    Spacer()
-                }
-                
-                // Presets
-                HStack(spacing: 8) {
-                    Button {
-                        applyInteriorPreset(.floorplan)
-                    } label: {
-                        Label("Floorplan", systemImage: "house")
+            // DR-0036: Compact header with hamburger menu (like exterior maps)
+            HStack {
+                Text("Interior / Architectural Maps")
+                    .font(.title2)
+                    .bold()
+
+                Spacer()
+
+                // DR-0036: Compact options menu (hamburger menu)
+                Menu {
+                    // Map Presets
+                    Menu("Map Presets") {
+                        Button {
+                            applyInteriorPreset(.floorplan)
+                        } label: {
+                            Label("Floorplan", systemImage: "house")
+                        }
+
+                        Button {
+                            applyInteriorPreset(.dungeon)
+                        } label: {
+                            Label("Dungeon", systemImage: "square.grid.3x3")
+                        }
+
+                        Button {
+                            applyInteriorPreset(.caverns)
+                        } label: {
+                            Label("Caverns", systemImage: "mountain.2")
+                        }
                     }
-                    .buttonStyle(.bordered)
-                    
-                    Button {
-                        applyInteriorPreset(.dungeon)
-                    } label: {
-                        Label("Dungeon", systemImage: "square.grid.3x3")
+
+                    Divider()
+
+                    // Canvas Settings
+                    Menu("Canvas Size") {
+                        Button("Small (1024×1024)") {
+                            drawingCanvasModel.canvasSize = CGSize(width: 1024, height: 1024)
+                        }
+                        Button("Medium (2048×2048)") {
+                            drawingCanvasModel.canvasSize = CGSize(width: 2048, height: 2048)
+                        }
+                        Button("Large (4096×4096)") {
+                            drawingCanvasModel.canvasSize = CGSize(width: 4096, height: 4096)
+                        }
                     }
-                    .buttonStyle(.bordered)
-                    
-                    Button {
-                        applyInteriorPreset(.caverns)
-                    } label: {
-                        Label("Caverns", systemImage: "mountain.2")
+
+                    Menu("Background") {
+                        Button("White") { drawingCanvasModel.backgroundColor = .white }
+                        Button("Dark") { drawingCanvasModel.backgroundColor = .black }
+                        Button("Parchment") {
+                            drawingCanvasModel.backgroundColor = Color(red: 0.96, green: 0.93, blue: 0.85)
+                        }
+                        Button("Gray") { drawingCanvasModel.backgroundColor = .gray.opacity(0.2) }
                     }
-                    .buttonStyle(.bordered)
-                }
-                
-                // Units, grid, grid type, snap
-                HStack(spacing: 16) {
+
+                    Divider()
+
+                    // Units
                     Picker("Units", selection: $interiorUnits) {
                         ForEach(InteriorUnits.allCases) { u in
                             Text(u.displayName).tag(u)
                         }
                     }
-                    .pickerStyle(.menu)
-                    
+
+                    Divider()
+
+                    // Grid Settings
                     Toggle("Show Grid", isOn: $drawingCanvasModel.showGrid)
-                    
-                    Picker("Grid Type", selection: $drawingCanvasModel.gridType) {
-                        ForEach(GridType.allCases) { gt in
-                            Text(gt.rawValue).tag(gt)
+
+                    if drawingCanvasModel.showGrid {
+                        Picker("Grid Type", selection: $drawingCanvasModel.gridType) {
+                            ForEach(GridType.allCases) { gt in
+                                Text(gt.rawValue).tag(gt)
+                            }
                         }
+
+                        Menu("Grid Spacing") {
+                            Button("1 ft") { drawingCanvasModel.gridSpacing = 20 }
+                            Button("5 ft") { drawingCanvasModel.gridSpacing = 80 }
+                            Button("10 ft") { drawingCanvasModel.gridSpacing = 160 }
+
+                            Divider()
+
+                            Button("Custom...") {
+                                // Could show a dialog, but slider below also works
+                            }
+                        }
+
+                        Toggle("Snap to Grid", isOn: $interiorSnapToGrid)
                     }
-                    .pickerStyle(.menu)
-                    
-                    Toggle("Snap to Grid", isOn: $interiorSnapToGrid)
-                        .help("UI only for now; snapping assistance to be implemented")
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .foregroundStyle(.blue)
                 }
-                
-                // Grid spacing control with quick presets appropriate for interiors
-                HStack(spacing: 12) {
-                    Text("Grid Spacing")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button("1 ft") { drawingCanvasModel.gridSpacing = 20 } // UI points; tune as desired
-                    Button("5 ft") { drawingCanvasModel.gridSpacing = 80 }
-                    Button("10 ft") { drawingCanvasModel.gridSpacing = 160 }
-                    
-                    Slider(value: $drawingCanvasModel.gridSpacing, in: 10...200, step: 2)
-                        .frame(maxWidth: 220)
-                    Text("\(Int(drawingCanvasModel.gridSpacing)) pt")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 60, alignment: .trailing)
-                }
-                
-                // Canvas and background presets
-                HStack(spacing: 16) {
-                    Menu("Canvas Size") {
-                        Button("Small (1024×1024)") { drawingCanvasModel.canvasSize = CGSize(width: 1024, height: 1024) }
-                        Button("Medium (2048×2048)") { drawingCanvasModel.canvasSize = CGSize(width: 2048, height: 2048) }
-                        Button("Large (4096×4096)") { drawingCanvasModel.canvasSize = CGSize(width: 4096, height: 4096) }
-                    }
-                    
-                    Menu("Background") {
-                        Button("White") { drawingCanvasModel.backgroundColor = .white }
-                        Button("Dark") { drawingCanvasModel.backgroundColor = .black }
-                        Button("Parchment") { drawingCanvasModel.backgroundColor = Color(red: 0.96, green: 0.93, blue: 0.85) }
-                        Button("Gray") { drawingCanvasModel.backgroundColor = .gray.opacity(0.2) }
-                    }
-                    
-                    Spacer()
-                }
+                .menuStyle(.borderlessButton)
+                .help("Canvas Options")
             }
             .padding()
             
@@ -1076,7 +1081,7 @@ struct MapWizardView: View {
                 .padding()
                 // ER-0006: Progress indicator overlay during base layer rendering
                 .overlay {
-                    if isGeneratingBaseLayer {
+                    if drawingCanvasModel.isGeneratingBaseLayer {
                         ZStack {
                             RoundedRectangle(cornerRadius: 12)
                                 .fill(.ultraThinMaterial)
@@ -2199,19 +2204,24 @@ extension MapWizardView {
     @MainActor
     private func applyBaseLayerFillAsync(_ fillType: BaseLayerFillType?) async {
         // Show progress indicator
-        isGeneratingBaseLayer = true
+        drawingCanvasModel.isGeneratingBaseLayer = true
 
-        // Longer delay to ensure UI updates and indicator is visible (minimum 0.3s)
-        try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+        // Critical: Yield immediately to allow UI to update and show the progress indicator
+        // This ensures the modal dismisses and the indicator appears before heavy work starts
+        await Task.yield()
+
+        // Brief delay to ensure the UI has fully rendered the progress indicator
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
 
         // Apply the fill (this is where the expensive rendering happens)
+        // Note: This still runs on main thread but UI has already updated
         applyBaseLayerFill(fillType)
 
-        // Ensure indicator stays visible for at least 0.5s total to be noticeable
-        try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+        // Keep indicator visible for minimum time to be noticeable
+        try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
 
         // Hide progress indicator
-        isGeneratingBaseLayer = false
+        drawingCanvasModel.isGeneratingBaseLayer = false
     }
 
     /// Apply base layer fill to the drawing canvas

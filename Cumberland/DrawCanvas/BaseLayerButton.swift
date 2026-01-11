@@ -294,6 +294,33 @@ struct BaseLayerButton: View {
     // MARK: - Actions
 
     private func applyFill(_ fillType: BaseLayerFillType) {
+        Task {
+            await applyFillAsync(fillType)
+        }
+    }
+
+    @MainActor
+    private func applyFillAsync(_ fillType: BaseLayerFillType) async {
+        // Show progress indicator
+        canvasState.isGeneratingBaseLayer = true
+
+        // Yield to allow UI to update
+        await Task.yield()
+
+        // Brief delay to ensure progress indicator is visible
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+
+        // Perform the actual fill application
+        applySynchronousFill(fillType)
+
+        // Keep indicator visible for minimum time
+        try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+
+        // Hide progress indicator
+        canvasState.isGeneratingBaseLayer = false
+    }
+
+    private func applySynchronousFill(_ fillType: BaseLayerFillType) {
         // DR-0016.1 + DR-0020: Create terrain metadata for both exterior and interior types
         var terrainMetadata: TerrainMapMetadata? = nil
 
@@ -358,6 +385,18 @@ struct BaseLayerButton: View {
     }
 
     private func clearFill() {
+        Task {
+            await clearFillAsync()
+        }
+    }
+
+    @MainActor
+    private func clearFillAsync() async {
+        // Show progress indicator
+        canvasState.isGeneratingBaseLayer = true
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+
         canvasState.layerManager?.applyFillToBaseLayer(nil)
 
         // Add haptic feedback on iOS (not available on visionOS)
@@ -365,9 +404,24 @@ struct BaseLayerButton: View {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.warning)
         #endif
+
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        canvasState.isGeneratingBaseLayer = false
     }
 
     private func applyCustomColor() {
+        Task {
+            await applyCustomColorAsync()
+        }
+    }
+
+    @MainActor
+    private func applyCustomColorAsync() async {
+        // Show progress indicator
+        canvasState.isGeneratingBaseLayer = true
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+
         // Create fill with current type or default to land
         let fillType = currentFill?.fillType ?? .land
         let fill = LayerFill(fillType: fillType, color: customColor, opacity: 1.0)
@@ -378,6 +432,9 @@ struct BaseLayerButton: View {
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
         #endif
+
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        canvasState.isGeneratingBaseLayer = false
     }
 
     // MARK: - Helpers
