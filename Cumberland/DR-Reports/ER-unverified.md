@@ -2,259 +2,10 @@
 
 This document tracks enhancement requests that are proposed, in progress, or implemented but awaiting user verification.
 
-**Status:** Currently **3 active ERs**
+**Status:** Currently **1 active ER**
 
 ---
 
-## ER-0007: Unify Map Rendering - Base Layer and Brushes Should Produce Identical Features
-
-**Status:** 🔵 Proposed
-**Component:** BrushEngine, TerrainPattern, BaseLayerRendering
-**Priority:** High
-**Date Requested:** 2026-01-09
-
-**Rationale:**
-Currently, base layer terrain generation and water brush strokes use completely different rendering approaches, creating visual inconsistency:
-
-- **Base Layer**: Uses elevation maps with elevation-based thresholds (e.g., `elevation < 0.1` = beach) that create organically varying beach/shore widths
-- **Brush Strokes**: Use fixed percentage-based calculations (e.g., `width * 0.5`) that create uniform-width beaches regardless of terrain context
-
-This results in maps where base layer water features look fundamentally different from brushed water features. A unified approach using elevation-based rendering for both would create visual consistency and geological realism.
-
-**Current Issues:**
-
-1. **Lake Brush**: Uses fixed inset percentage; doesn't match base layer lake appearance
-2. **River Brush**:
-   - Short rivers meander well but long rivers become almost straight
-   - All rivers same width regardless of length (unrealistic)
-   - Uses fixed "beach" width instead of elevation-based basin/valley
-3. **Base Layer Sandy Areas**: May be too wide/narrow to match proposed brush approach
-
-**Desired Unified Approach:**
-
-### 1. Lake Brush → Elevation-Based Rendering
-
-**Implementation:**
-- Generate `ElevationMap` for lake area (similar to base layer)
-- Use same elevation thresholds as base layer: `elevation < 0.1` = beach/sand
-- Creates organically varying beach widths matching base layer exactly
-- Same fractal noise, same color mapping, identical appearance
-
-**Technical Approach:**
-```swift
-// Generate elevation map for lake region
-let elevationMap = ElevationMap(
-    width: boundingWidth,
-    height: boundingHeight,
-    seed: randomSeed,
-    waterPercentage: 0.6, // 60% water, 40% beach/land
-    scale: mapScale, // From terrain metadata
-    octaves: 6
-)
-
-// For each pixel in lake region:
-let elevation = elevationMap.elevationAt(x: x, y: y)
-if elevation < 0.1 {
-    // Sandy beach - matches base layer exactly
-    color = Color(red: 0.90, green: 0.75, blue: 0.50)
-} else if elevation < 0.0 {
-    // Shallow water near shore
-    color = waterColor.adjusted(brightness: 1.1)
-} else {
-    // Deep water
-    color = waterColor
-}
-```
-
-**Result:**
-- Extremely large sandy areas of varying shape/width (as requested)
-- Looks **exactly** like base layer water features
-- Perfect visual consistency
-
-### 2. River Brush → Elevation-Based Valley/Basin Rendering
-
-**Problem Analysis:**
-- Short rivers meander ✓ but long rivers straighten ✗
-- Current meandering: fixed intensity per segment, accumulated error makes long rivers straight
-- All rivers same width (geologically incorrect)
-- "Beach" concept wrong - should be "basin/valley" representation
-
-**Proposed Solution:**
-
-**A. Variable River Width Based on Path Length:**
-```swift
-// River width scales with total path length
-let pathLength = calculatePathLength(points)
-let riverWidth = baseWidth * (1.0 + log10(pathLength / 100.0))
-// Short river (100pt): baseWidth × 1.0 = narrow
-// Medium river (1000pt): baseWidth × 2.0 = wider
-// Long river (10000pt): baseWidth × 3.0 = very wide (major river)
-```
-
-**B. Consistent Meandering Regardless of Length:**
-```swift
-// Instead of meandering per segment (accumulates error),
-// meander based on distance along path (maintains consistency)
-func generateMeander(atDistance: Double, pathLength: Double) -> CGPoint {
-    // Sinusoidal meandering with fixed wavelength
-    let wavelength = 200.0 // Constant meander frequency
-    let amplitude = riverWidth * 0.5 // Scales with river width
-    let phase = (atDistance / wavelength) * 2.0 * .pi
-    return perpendicular offset of sin(phase) * amplitude
-}
-```
-
-**C. Elevation-Based Valley/Basin:**
-```swift
-// Generate elevation map along river path
-// Width of elevation map = valley width (very wide for long rivers)
-let valleyWidth = riverWidth * (5.0...15.0) // 5-15× wider than river
-// For a 1000pt long river with 40pt width:
-// Valley width = 200-600pt (can affect large map areas)
-
-let elevationMap = generateRiverValleyElevation(
-    centerPath: riverPath,
-    valleyWidth: valleyWidth,
-    depth: 0.3 // Valley depth in elevation units
-)
-
-// Render using elevation thresholds:
-if elevation < -0.2 {
-    // River water (deepest part)
-    color = waterColor
-} else if elevation < 0.0 {
-    // Flood plain / wet basin
-    color = Color(red: 0.80, green: 0.75, blue: 0.60) // Muddy/wet
-} else if elevation < 0.15 {
-    // Sandy banks / dry basin
-    color = Color(red: 0.90, green: 0.75, blue: 0.50) // Sand
-} else {
-    // Valley walls / surrounding terrain
-    color = grassColor
-}
-```
-
-**Result:**
-- Long rivers are wider (geologically correct)
-- All rivers meander consistently
-- Valley/basin effect visible, especially for long rivers
-- Extremely wide boundaries for major rivers (affecting entire map area if needed)
-- Matches geological reality (Mississippi River valley, etc.)
-
-### 3. Adjust Base Layer Sandy Areas
-
-**Question to User:**
-Should we adjust base layer beach rendering to match the new brush approach? Options:
-
-**Option A: Keep Base Layer As-Is**
-- Base layer: `elevation < 0.1` threshold (current)
-- Brush elevation maps: `elevation < 0.1` threshold (matching)
-- Result: Identical rendering
-
-**Option B: Reduce Base Layer Beaches**
-- Base layer: `elevation < 0.05` threshold (narrower beaches)
-- Brush elevation maps: `elevation < 0.05` threshold (matching)
-- Result: Less sandy area overall, but still consistent
-
-**Option C: Configurable Per Terrain Type**
-- Different terrain types use different thresholds
-- Coastal/water types: `< 0.1` (wide beaches)
-- Land/forested types: `< 0.05` (narrow shores)
-- Brush elevation maps match the terrain type context
-
-**Recommendation:** Option A (keep current, ensure brushes match exactly)
-
-**Implementation Plan:**
-
-**Phase 1: Lake Brush Elevation-Based Rendering**
-1. Create `generateLakeElevationMap()` function in BrushEngine
-2. Modify `renderLakeBrush()` to use elevation-based pixel coloring
-3. Reuse `compositionWaterType()` or `compositionLandType()` logic from TerrainPattern
-4. Test against base layer lakes - should be visually identical
-
-**Phase 2: River Brush Valley Rendering**
-1. Modify river width calculation: scale with path length
-2. Improve meandering algorithm: distance-based instead of segment-based
-3. Create `generateRiverValleyElevationMap()` function
-4. Render river using elevation thresholds (water/flood plain/sand/grass)
-5. Test short vs. long rivers - both should meander, long ones wider with massive valleys
-
-**Phase 3: Base Layer Consistency Check**
-1. Review all terrain composition functions in TerrainPattern.swift
-2. Ensure elevation thresholds are consistent
-3. Document standard thresholds:
-   - `< -0.2`: Deep water
-   - `< 0.0`: Shallow water
-   - `< 0.05` or `< 0.1`: Beaches/shores (decide on standard)
-   - `< 0.2`: Low grasslands
-   - etc.
-
-**Phase 4: Remove Redundant Brushes (ER-0005)**
-1. Remove Ocean, Sea, Stream, Waterfall brushes
-2. Clean up rendering code
-3. Update documentation
-
-**Files Affected:**
-- `BrushEngine.swift`: Lake and River rendering completely rewritten
-- `TerrainPattern.swift`: Possibly extract elevation threshold constants
-- `ElevationMap.swift`: May need river-specific elevation generation
-- `ExteriorMapBrushSet.swift`: Remove redundant brushes (ER-0005)
-
-**Expected Outcomes:**
-1. ✅ Lakes drawn with brush look **exactly** like base layer lakes
-2. ✅ Rivers scale width with length (geological realism)
-3. ✅ Rivers meander consistently regardless of length
-4. ✅ River valleys visible with extremely wide boundaries for long rivers
-5. ✅ Base layer and brushes use identical rendering methodology
-6. ✅ Simplified brush palette (Lake, River, Marsh only)
-7. ✅ Perfect visual consistency across entire map
-
-**Confirmed Decisions (2026-01-09):**
-
-1. ✅ **Lake rendering approach**: Generate full elevation map for lake region, use `elevation < 0.1` threshold for beaches
-2. ✅ **River width scaling**: `width * (1 + log10(pathLength/100))` formula approved PLUS fix meandering so long rivers meander as much as short rivers
-3. ✅ **River valley width**: 5-15× river width for valley approved
-4. ✅ **Base layer beach threshold**: Standardize everything to **single threshold of `< 0.1`** for all terrain types
-5. ✅ **River elevation thresholds**: Approved as proposed (Water `< -0.2`, flood plain `< 0`, sand `< 0.15`, grass `> 0.15`)
-
-**Implementation Status:** 🔵 Awaiting User Approval
-
-**📋 Detailed Implementation Plan:** See `ER-0007-IMPLEMENTATION-PLAN.md` for comprehensive technical details, risk assessment, and approval checklist.
-
-**Notes:**
-- This is a significant architectural change but will dramatically improve visual consistency
-- Elevation-based rendering is the "right" approach geologically
-- May increase rendering time slightly (generating elevation maps per stroke)
-- Could add caching to improve performance if needed
-- Backward compatible: old brush strokes will render with new algorithm (may look different/better)
-
-**Implementation Progress:**
-
-**Phase 0: Foundation Work** ✅ Complete
-- ✅ Base layer threshold standardized to 0.1 (TerrainPattern.swift)
-- ✅ Redundant brushes removed via ER-0005 (ExteriorMapBrushSet.swift, BrushEngine.swift)
-- ✅ Build verified: Success
-
-**Phase 1: Lake Brush Elevation-Based Rendering** ⏸️ Awaiting Approval
-- Generate ElevationMap for lake region
-- Pixel-by-pixel rendering with elevation thresholds
-- Match base layer output exactly
-- Estimated: 4-6 hours implementation + 1-2 hours testing
-
-**Phase 2: River Brush Valley Rendering** ⏸️ Awaiting Approval
-- Width scaling based on path length (logarithmic)
-- Distance-based meandering (consistent for all lengths)
-- Valley elevation map generation
-- Render with water/flood plain/sand/grass zones
-- Estimated: 8-12 hours implementation + 2-3 hours testing
-
-**Phase 3: Integration & Final Testing** ⏸️ Pending Phases 1-2
-- Cross-platform testing (macOS, iOS)
-- Performance profiling
-- Documentation updates
-- Estimated: 4-6 hours
-
----
 
 ## ER-0006: Display Working Indicator During Base Layer Rendering - REOPENED
 
@@ -327,1449 +78,1257 @@ ER-0006 was previously implemented and verified for base layer rendering progres
 
 ---
 
-## ER-0004: Interior Brush Implementation
+## ER-0008: Time-Based Timeline System with Custom Calendars and Multi-Timeline Visualization
 
-**Status:** 🟡 Implemented - Not Verified (macOS complete, iOS pending)
-**Component:** BrushRegistry, InteriorMapBrushSet, BrushEngine
+**Status:** 🔵 Proposed
+**Component:** Timeline System, Card Model, TimelineChartView
 **Priority:** High
-**Date Requested:** 2026-01-07
-**Date Implemented:** 2026-01-10 (macOS advanced rendering complete)
-**Date Verification Failed:** 2026-01-10 (initial)
-**Date Re-Implemented:** 2026-01-10 (pattern-based rendering added)
+**Date Requested:** 2026-01-20
 
 **Rationale:**
-The interior brush system has been fully implemented in `InteriorMapBrushSet.swift` with 50+ professional brushes for indoor maps, floor plans, and dungeons. However, the brush set is not currently loaded in the BrushRegistry (lines 105-107 are commented out). Users working on interior maps need access to these brushes.
+
+The current Timeline system uses simple ordinal ordering (1, 2, 3...) which works well for compact visualizations but cannot represent actual temporal relationships. Writers need to:
+
+1. **Place scenes on real timelines** spanning hours, days, months, years, or millennia
+2. **Support custom calendar systems** for fantasy/sci-fi worlds with non-standard time divisions
+3. **Visualize multiple timelines** sharing a common calendar to show parallel events
+4. **Maintain backward compatibility** with existing ordinal-based timelines
+
+This enhancement transforms Timelines from simple sequence lists into true temporal visualization tools, enabling writers to track complex world events across custom time systems.
 
 **Current Behavior:**
-- InteriorMapBrushSet.swift exists with complete brush definitions
-- 50+ interior brushes are defined (walls, doors, furniture, dungeon features, etc.)
-- BrushRegistry.loadBuiltInBrushSets() has commented-out code to load interior brushes
-- Only Exterior brushes are currently available in the brush grid
-- Users cannot access interior brushes for floor plans/dungeon maps
+
+- **SceneRow** uses simple integer `order` field (1, 2, 3...)
+- **TimelineChartView** displays scenes in ordinal sequence along X-axis
+- **No temporal positioning** - scenes are evenly spaced regardless of time passage
+- **No calendar system** - assumes standard Gregorian calendar implicitly
+- **Single timeline view** - cannot compare multiple timelines
+- **Relations:**
+  - Scene → Timeline: "describes/described-by"
+  - Character → Scene: "appears-in/is-appeared-by"
+  - Scene → Chapter: "part-of/has-scene"
 
 **Desired Behavior:**
-- Interior brush set loads automatically on app startup
-- Brush grid displays interior brushes when appropriate layer is selected
-- Users can select and use interior brushes for drawing
-- Cross-platform support (iOS and macOS) - should work automatically since BrushGridView is already cross-platform
+
+### Phase 1: Time-Based Scene Positioning
+
+- **Gantt-chart style visualization:**
+  - X-axis: Timeline (dates/times, not ordinals)
+  - Y-axis: Scenes
+  - Resources: Characters appearing in scenes (similar to Gantt resource allocation)
+- **Scene temporal properties:**
+  - Start date/time
+  - Optional duration (defaults to minimum visual width)
+- **Zoom controls:**
+  - Scenes become 1-pixel minimum when zoomed out
+  - Scroll controls maintain scope awareness
+- **Backward compatibility:**
+  - Timelines without calendars continue using ordinal ordering
+
+### Phase 2: Calendar Systems
+
+- **Calendar Card Type:**
+  - New subset of "Rules" card type (`kindDetail` or similar)
+  - Defines custom time divisions and subdivisions
+- **Time Divisions:**
+  - **Sub-day:** seconds, minutes, hours (customizable)
+  - **Days and weeks:** custom day names, week length
+  - **Months:** custom month names, month lengths
+  - **Years:** custom year names (e.g., Chinese calendar style)
+  - **Longer periods:** decades, centuries, millennia
+  - **Eras/Ages:** variable length, named periods
+- **Pre-populated Gregorian Calendar:**
+  - Default calendar available immediately
+  - Standard Earth time divisions
+- **Relations:**
+  - Timeline → "uses/used-by" ← Calendar
+
+### Phase 3: Epochs
+
+- **Epoch Definition:**
+  - Starting point for a timeline
+  - Defines "zero" on the calendar
+  - Format: date/time in the associated Calendar System
+  - Example: "00:00:00 First-Day, Month-of-Awakening, Year-1 of the First Age"
+- **Timeline Requirements:**
+  - Timeline with Calendar must have an Epoch
+  - Epoch is specific to each Timeline
+  - Scene positions calculated relative to Epoch
+
+### Phase 4: Multi-Timeline Graph
+
+- **New Visualization:**
+  - Shows multiple timelines sharing a Calendar System
+  - X-axis: Calendar timeframe (common to all timelines)
+  - Y-axis: Multiple timelines (each as a horizontal line)
+  - Scenes shown as labeled tickmarks on timeline lines
+- **UI Location:**
+  - Third tab view on Calendar Card detail page
+  - Lists all timelines using this calendar
+- **Use Case:**
+  - Visualize parallel storylines
+  - Track simultaneous world events
+  - Compare different character arcs over same period
 
 **Requirements:**
-1. Uncomment interior brush set loading in BrushRegistry.swift
-2. Verify interior brushes appear in brush grid for interior map layers
-3. Test that interior brushes work on iOS with PencilKit
-4. Test that interior brushes work on macOS with Core Graphics
-5. Verify brush filtering by layer type works correctly (e.g., walls layer shows wall brushes)
+
+### Data Model Requirements:
+
+1. **Calendar System Model** (subset of Rules card or new model)
+   - Time division definitions (configurable hierarchy)
+   - Division names and lengths
+   - Support for both fixed and variable-length divisions
+   - Pre-populated Gregorian calendar
+
+2. **Epoch Model or Properties**
+   - Associated with a specific Calendar
+   - Stores zero-point date/time in calendar format
+   - One Epoch per Timeline (when calendar is associated)
+
+3. **Enhanced Scene Positioning**
+   - Current: `order: Int` (ordinal)
+   - New: `temporalPosition: Date?` or calendar-specific timestamp
+   - Optional: `duration: TimeInterval?` for scene length
+
+4. **New Relation Types**
+   - Timeline → "uses/used-by" ← Calendar
+   - Timeline → "starts-at" ← Epoch (or Epoch as Timeline property)
+
+### UI Requirements:
+
+5. **Enhanced TimelineChartView**
+   - Detect if Timeline has associated Calendar
+   - If yes: use temporal positioning (Gantt-style)
+   - If no: use current ordinal positioning (backward compatible)
+   - Adaptive X-axis: ordinal or temporal
+   - Scene minimum width: 1 pixel when zoomed out
+
+6. **Calendar Editor View**
+   - Create/edit custom calendar systems
+   - Define time divisions and subdivisions
+   - Name divisions (days, months, years, etc.)
+   - Preview calendar structure
+
+7. **Epoch Editor**
+   - Set Timeline starting date/time
+   - Calendar-aware date picker
+   - Display in associated Calendar's format
+
+8. **Multi-Timeline Graph View**
+   - Third tab on Calendar card detail
+   - List all timelines using this calendar
+   - Horizontal timeline visualization
+   - Scene tickmarks with labels
+   - Synchronized X-axis (calendar time)
+
+### Backward Compatibility Requirements:
+
+9. **Existing Timelines**
+   - Continue working with ordinal ordering
+   - No required migration
+   - Optional upgrade path to calendar-based
+
+10. **Data Migration Safety**
+    - New properties optional (nil-safe)
+    - Schema migration for new models
+    - Preserve existing Scene order values
 
 **Design Approach:**
-- Minimal code change: uncomment 2 lines in BrushRegistry.swift:106-107
-- Existing BrushGridView from ER-0003 should automatically display interior brushes
-- Brush filtering by layer type should work automatically (MapBrush.requiresLayer already implemented)
-- No new UI components needed - reuse existing infrastructure
+
+### Phase 1: Data Model Foundation
+
+1. **Create Calendar System Model**
+   - Extend Rules card type or create dedicated model
+   - Define time division schema (JSON or structured SwiftData)
+   - Implement Gregorian calendar template
+
+2. **Add Epoch Support**
+   - New model or Timeline property
+   - Calendar-specific date/time representation
+   - Association with Timeline
+
+3. **Enhance Scene Properties**
+   - Add optional temporal position
+   - Add optional duration
+   - Maintain backward compatibility with `order`
+
+4. **New Relation Types**
+   - "uses/used-by" for Timeline-Calendar
+   - Register in RelationType system
+
+### Phase 2: Core Logic
+
+5. **Calendar System Logic**
+   - Date/time parsing and formatting
+   - Duration calculations
+   - Calendar-aware date arithmetic
+
+6. **Timeline Positioning Logic**
+   - Detect calendar association
+   - Calculate scene positions (ordinal vs temporal)
+   - Handle zoom levels and minimum widths
+
+### Phase 3: UI Implementation
+
+7. **Update TimelineChartView**
+   - Conditional rendering (ordinal vs temporal)
+   - Gantt-style layout for temporal mode
+   - Adaptive X-axis formatting
+
+8. **Calendar Editor Views**
+   - Calendar creation/editing
+   - Division configuration
+   - Preview and validation
+
+9. **Epoch Editor**
+   - Date/time picker for calendar
+   - Integration with Timeline detail view
+
+10. **Multi-Timeline Graph**
+    - New view for Calendar card
+    - Timeline aggregation
+    - Synchronized visualization
 
 **Components Affected:**
-- BrushRegistry: Uncomment interior brush set loading
+
+- **Model/Card.swift** - Potential new properties for temporal positioning
+- **Model/Migrations.swift** - Schema updates for new models
+- **TimelineChartView.swift** - Major enhancements for temporal visualization
+- **CardEditorView.swift** - Calendar and Epoch editing UI
+- **New: CalendarSystemModel.swift** - Calendar system data model
+- **New: EpochModel.swift** - Epoch definition (or Timeline extension)
+- **New: CalendarEditorView.swift** - Calendar system editor
+- **New: EpochEditorView.swift** - Epoch configuration
+- **New: MultiTimelineGraphView.swift** - Multi-timeline visualization
+- **RelationType.swift** - New relation types
 
 **Implementation Details:**
 
-### Interior Brush Set Loading Enabled
-
-The interior brush system was already fully implemented in `InteriorMapBrushSet.swift` with 50+ professional brushes:
-
-**8 Architectural Brushes:**
-- Wall, Thick Wall, Thin Wall, Cave Wall, Dungeon Wall, Stone Wall, Secret Door, Column
-
-**6 Door/Window Brushes:**
-- Door, Double Door, Archway, Window, Arrow Slit, Gate
-
-**8 Room Feature Brushes:**
-- Floor Tile, Carpet, Pit, Trap, Stairs Up, Stairs Down, Stairs Spiral, Water Shallow
-
-**8 Furniture Brushes:**
-- Table, Chair, Bed, Chest, Bookshelf, Throne, Altar, Statue
-
-**8 Dungeon Brushes:**
-- Prison Bars, Chains, Cobweb, Rubble, Sarcophagus, Lava, Bones, Mushrooms
-
-**4 Grid Brushes:**
-- Square Grid 5ft, Square Grid 10ft, Hex Grid 5ft, Measurement Ruler
-
-The only change needed was to uncomment lines 105-107 in BrushRegistry.swift:106-107 to enable loading the interior brush set at startup. This minimal change activates all 50+ brushes for use in the brush grid.
-
-**Build Result:**
-- iOS build completed successfully with no errors
-- BrushRegistry.swift compiled without issues
-- Interior brush set will now load on app startup alongside Basic and Exterior brush sets
-
-**Files Modified:**
-- BrushRegistry.swift (lines 105-107) - Uncommented interior brush set loading:
-  ```swift
-  // ER-0004: Load interior brush set
-  let interiorSet = InteriorMapBrushSet.create()
-  installedBrushSets.append(interiorSet)
-  ```
+*To be filled in during implementation*
 
 **Test Steps:**
 
-1. **Interior Brush Set Loading**
-   - ✅ Launch Cumberland on iOS or macOS
-   - ✅ Verify no errors on startup
-   - ✅ Check BrushRegistry.shared.installedBrushSets includes "Interior & Architectural" set
-   - ✅ Expected: 3 brush sets loaded (Basic, Exterior, Interior)
-
-2. **Brush Grid Display - Interior Brushes**
-   - ✅ Create a new interior map or switch to interior layer
-   - ✅ Open tool palette → Tools tab
-   - ✅ Verify brush grid displays interior brushes
-   - ✅ Expected: Wall, Door, Furniture, and other interior brushes visible
-
-3. **Layer-Specific Filtering**
-   - ✅ Switch to "Walls" layer
-   - ✅ Verify brush grid shows wall-related brushes (Wall, Thick Wall, Thin Wall, Cave Wall, Dungeon Wall, Prison Bars)
-   - ✅ Switch to "Furniture" layer
-   - ✅ Verify brush grid shows furniture brushes (Table, Chair, Bed, Chest, etc.)
-   - ✅ Switch to "Structures" layer
-   - ✅ Verify brush grid shows door/window brushes
-
-4. **Drawing with Interior Brushes - iOS**
-   - ✅ Select "Wall" brush
-   - ✅ Draw a stroke with Apple Pencil
-   - ✅ Verify wall appears as solid dark line
-   - ✅ Select "Door" brush
-   - ✅ Draw a stroke
-   - ✅ Verify door stamps appear at spacing intervals
-
-5. **Drawing with Interior Brushes - macOS**
-   - ✅ Select "Column" brush
-   - ✅ Draw a stroke with mouse
-   - ✅ Verify column stamps appear
-   - ✅ Select "Floor Tile" brush
-   - ✅ Draw an area
-   - ✅ Verify hatched pattern appears
-
-6. **Grid Snapping (Interior Brushes)**
-   - ✅ Select any brush with snapToGrid=true (e.g., Wall, Column)
-   - ✅ Draw a stroke
-   - ✅ Verify stroke snaps to grid if grid is enabled
-   - ✅ Expected: Clean alignment for architectural elements
-
-7. **Special Interior Brush Patterns**
-   - ✅ Select "Stairs Up" brush
-   - ✅ Verify hatched pattern with upward orientation
-   - ✅ Select "Square Grid 5ft" brush
-   - ✅ Verify grid pattern renders correctly
-   - ✅ Select "Lava" brush
-   - ✅ Verify solid orange/red fill
+*To be defined during implementation planning*
 
 **Notes:**
-- Interior brushes are already fully implemented - just need to enable loading
-- All 50+ brushes should work immediately with existing BrushEngine and BrushGridView
-- Some interior brushes use specialized patterns (hatched, stippled, stamp) that are already supported
-- Grid snapping is built into many interior brushes for architectural accuracy
-- This ER has minimal risk since it's just enabling existing functionality
 
-**Verification Results (2026-01-10):**
+### Open Design Questions:
 
-**FAILED - Interior brush advanced rendering not executing**
+1. **Scene Duration:**
+   - Should scenes have explicit duration?
+   - Default duration value (e.g., 1 hour, 1 scene-unit)?
+   - How to handle scenes with unknown/undefined duration?
 
-| Test Step | Result | Details |
-|-----------|--------|---------|
-| Step 1 | ✅ PASSED | Interior brush set loads, 3 brush sets present |
-| Step 2 | ✅ PASSED | Brush grid displays interior brushes |
-| Step 3 | ✅ PASSED | Layer-specific filtering works correctly |
-| Step 4 (iOS) | ❌ FAILED | Brushes selectable but strokes are simple lines - no wall/door patterns render |
-| Step 5 (macOS) | ❌ FAILED | Brushes selectable but strokes are simple lines - no column/floor tile patterns render |
-| Step 6 (Grid Snap) | ❌ FAILED | No grid snapping observed on either platform |
-| Step 7 (Patterns) | ❌ FAILED | No special patterns (stairs, grids, lava) - all strokes are simple, fills don't work |
+2. **Calendar Representation:**
+   - Store as JSON in Rules card?
+   - Dedicated SwiftData model?
+   - Hybrid approach (Rules card with structured data)?
 
-**Root Cause Analysis:**
+3. **Epoch Storage:**
+   - Property on Timeline card?
+   - Separate Epoch model with relation?
+   - Embed in Calendar association?
 
-This is the **same issue as DR-0031** but for interior brushes:
-- Interior brushes load and can be selected from the palette ✅
-- BrushID is captured when brush is selected ✅
-- BUT BrushEngine.renderAdvancedStroke() is not being called for interior brushes ❌
+4. **Multi-Timeline Performance:**
+   - Limit number of timelines in multi-view?
+   - Lazy loading for large timelines?
+   - Aggregation strategies?
 
-**Why This is Happening:**
+5. **Date/Time Formatting:**
+   - Custom formatters per calendar?
+   - Localization support for custom calendars?
+   - Display format preferences?
 
-1. **macOS (DR-0031)**:
-   - DR-0031 fixed advanced rendering for exterior brushes on macOS
-   - The fix uses `BrushEngine.recommendedRenderingMethod(for: brush) == .advanced`
-   - Interior brushes may not be returning `.advanced` from this method
-   - OR interior brush categories (.architectural, .furniture, etc.) are not handled in the rendering decision
+6. **Zoom Behavior:**
+   - Logarithmic vs linear zoom for large time spans?
+   - Smart zoom levels (hour, day, month, year, decade, century)?
+   - Minimap for context when zoomed in?
 
-2. **iOS (Still Pending from DR-0031)**:
-   - DR-0031 implementation was marked "iOS pending"
-   - iOS uses PencilKit which doesn't support custom rendering during drawing
-   - Post-processing architecture was planned but never implemented
-   - Interior brushes on iOS have the same unresolved issue as exterior brushes
+### Future Enhancements (Out of Scope for ER-0008):
 
-**Required Fixes:**
+- Import/export calendar definitions
+- Calendar templates library (historical calendars)
+- Calendar conversion tools (between systems)
+- Recurring events on timelines
+- Time-based queries (scenes in date range)
+- Timeline analytics (time passage analysis)
 
-This ER cannot be marked as verified until **both** of these issues are resolved:
+### Related Systems:
 
-1. **Fix BrushEngine.recommendedRenderingMethod()** (BrushEngine.swift:~530-550)
-   - Add interior brush categories to advanced rendering detection
-   - Check for `.architectural`, `.furniture`, `.dungeon`, `.grid` categories
-   - Verify interior pattern types (hatched, stippled, stamp) trigger advanced rendering
+- **Structure Board** - May benefit from temporal visualization
+- **Card Relationships** - Temporal relationships between cards
+- **Citations** - Date-based source tracking
 
-2. **Implement iOS Advanced Brush Rendering** (NEW work, DR-0031 deferred this)
-   - Options:
-     - Post-processing: Extract PKDrawing stroke → call BrushEngine → composite result
-     - Overlay layer: Render advanced brushes to separate layer above PencilKit
-     - Hybrid: Use BrushEngine for advanced brushes, PencilKit for simple ones
-   - This affects BOTH exterior and interior brushes on iOS
+### Implementation Phases:
 
-**Status Change:** 🟡 Implemented - Not Verified → ❌ Failed Verification - Requires Additional Work
+This is a large enhancement that should be implemented incrementally:
 
-**Next Steps:**
-1. Investigate `BrushEngine.recommendedRenderingMethod()` to understand why interior brushes don't trigger advanced rendering
-2. Update method to handle interior brush categories
-3. Implement iOS advanced brush rendering architecture (solves DR-0031 iOS issue AND this ER)
-4. Re-test all interior brushes on both platforms
-
-**Related Issues:**
-- **DR-0031**: Advanced Brush Rendering Not Executed (macOS resolved, iOS pending)
-- This ER blocked on same iOS rendering issue
+1. **Phase 1-A:** Calendar System model and basic editor
+2. **Phase 1-B:** Epoch support and Timeline-Calendar association
+3. **Phase 2-A:** Enhanced scene temporal positioning
+4. **Phase 2-B:** TimelineChartView temporal mode (Gantt-style)
+5. **Phase 3:** Multi-Timeline Graph visualization
+6. **Phase 4:** Polish, performance optimization, edge cases
 
 ---
 
-### macOS Fix Applied (2026-01-10)
-
-**Root Cause Identified:**
-
-The issue was NOT that interior brushes weren't loading - they were loading fine. The problem was that `BrushEngine` didn't recognize interior brushes as requiring advanced rendering, so they fell through to simple line rendering.
-
-**Two-Part Problem:**
-
-1. **recommendedRenderingMethod() didn't recognize interior categories:**
-   - Only checked for `.terrain`, `.water`, `.vegetation` categories
-   - Didn't check for `.architectural` or `.symbols` categories
-   - Only checked for `.stamp` and `.textured` pattern types, but not `.hatched` or `.stippled`
-
-2. **renderAdvancedStroke() had no handlers for interior categories:**
-   - Switch statement only had cases for exterior categories
-   - `.architectural` and `.symbols` fell through to `default` → standard rendering
-   - Even `.stamp` brushes that qualified for advanced rendering had no handler
-
-**Fix Applied:**
-
-**1. Updated `recommendedRenderingMethod()`** (BrushEngine.swift:1280-1299)
-
-```swift
-// Added interior category recognition
-if brush.category == .architectural || brush.category == .symbols {
-    return .advanced
-}
-
-// Added missing pattern types
-if brush.patternType == .stamp || brush.patternType == .textured ||
-   brush.patternType == .hatched || brush.patternType == .stippled {
-    return .advanced
-}
-```
-
-**2. Added cases in `renderAdvancedStroke()`** (BrushEngine.swift:619-631)
-
-```swift
-case .architectural, .symbols:
-    // Render interior/architectural brushes based on pattern type
-    renderPatternBasedBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
-
-default:
-    // Check if pattern type requires advanced rendering
-    if brush.patternType == .stamp || brush.patternType == .hatched ||
-       brush.patternType == .stippled || brush.patternType == .textured {
-        renderPatternBasedBrush(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
-    } else {
-        renderStroke(brush: brush, points: smoothedPoints, color: color, width: finalWidth, context: context)
-    }
-```
-
-**3. Implemented `renderPatternBasedBrush()`** (BrushEngine.swift:1286-1480)
-
-New pattern-based rendering system that handles:
-
-- **`.stamp`** - Places symbols/icons at regular intervals along path
-  - Furniture (tables, chairs, beds)
-  - Doors and windows
-  - Special features (altars, statues, thrones)
-  - Current implementation: circles (can be customized per brush)
-
-- **`.hatched`** - Cross-hatch patterns for floors and areas
-  - Draws outline stroke
-  - Adds perpendicular hatch marks
-  - Creates cross-hatch fill effect
-  - Used for: stairs, floor tiles, carpets
-
-- **`.stippled`** - Dotted/stippled texture
-  - Distributes dots along and around path
-  - Adds randomness for organic appearance
-  - Used for: rough surfaces, textured areas
-
-- **`.textured`** - Rough/sketchy texture effect
-  - Multiple offset strokes for texture
-  - Random variation for hand-drawn feel
-  - Used for: organic surfaces, natural materials
-
-- **`.solid`** - Falls back to standard line rendering
-  - Used for: walls, solid lines
-
-**Files Modified:**
-
-- `Cumberland/DrawCanvas/BrushEngine.swift` (lines 602-631, 1280-1480)
-  - Updated `recommendedRenderingMethod()` to recognize interior categories
-  - Added `.architectural` and `.symbols` cases to `renderAdvancedStroke()`
-  - Implemented `renderPatternBasedBrush()` and pattern-specific renderers
-  - Added `renderStampPattern()`, `renderHatchedPattern()`, `renderStippledPattern()`, `renderTexturedPattern()`
-
-**Build Status:**
-✅ macOS build succeeded with no errors
-
-**macOS Test Results (2026-01-10):**
-
-1. **Interior Brush Loading** (macOS)
-   - ✅ **PASSED** - Interior brush set loads correctly
-   - ✅ **PASSED** - 3 brush sets present (Basic, Exterior, Interior)
-
-2. **Stamp Pattern Brushes** (macOS)
-   - ✅ **PASSED** - Circles appear along path at intervals
-   - ⚠️ **NEEDS ENHANCEMENT** - Currently just circles, need actual furniture/door shapes
-   - User feedback: "I only hope that you are planning to do more there than just draw dots"
-
-3. **Hatched Pattern Brushes** (macOS)
-   - ❌ **FAILED** - Stairs and tiles showing normal lines, no cross-hatch pattern visible
-   - Issue: `renderHatchedPattern()` not being called or pattern not rendering correctly
-   - Needs investigation and fix
-
-4. **Stippled Pattern Brushes** (macOS)
-   - ✅ **PASSED** - Dotted texture visible along path
-   - ⚠️ **NEEDS ENHANCEMENT** - Should be area fills like lakes/mountains, not just line textures
-   - User feedback: "I only hope that you are planning to make these area brushes like lakes and mountains"
-
-5. **Solid Pattern Brushes** (macOS)
-   - ✅ **PASSED** - Normal lines render correctly
-   - ⚠️ **NEEDS ENHANCEMENT** - Need smart features:
-     - Straight lines for walls (snap to horizontal/vertical)
-     - Actual thickness variations for different wall types
-     - Jagged walls for dungeons/caverns
-   - User feedback: "I only hope that you are planning enhancements here"
-
-**Summary:**
-- ✅ Basic pattern rendering infrastructure works (3 of 5 patterns functional)
-- ❌ Hatched patterns completely broken (needs immediate fix)
-- ⚠️ All patterns need significant enhancements to match exterior brush quality
-- **Status remains:** 🟡 Implemented - Not Verified (macOS partial, hatched broken, iOS pending)
-
----
-
-### Pattern Enhancement Implementation (2026-01-10)
-
-**User Feedback Addressed:**
-
-Based on user testing feedback, all four pattern types were significantly enhanced:
-
-1. **Stamp brushes:** "I only hope that you are planning to do more there than just draw dots"
-2. **Hatched patterns:** "I only saw normal brushes for the stairs and tiles"
-3. **Stippled patterns:** "I only hope that you are planning to make these area brushes like lakes and mountains"
-4. **Solid brushes:** "I only hope that you are planning enhancements here (i.e. straight lines for walls, actual thickness changes for varying thickness walls, jagged walls for dungeons and caverns etc.)"
-
-**Enhancements Implemented:**
-
-**1. Fixed Hatched Patterns** (BrushEngine.swift:1544-1620)
-
-Completely rewrote `renderHatchedPattern()` to create proper area fills with cross-hatch lines instead of simple perpendicular marks:
-
-```swift
-// Build a thickened path representing the area to fill
-var thickenedPoints: [CGPoint] = []
-for i in 0..<points.count {
-    let perpendicular = calculatePerpendicular(at: i)
-    thickenedPoints.append(points[i] + perpendicular * width/2)
-}
-// Add reverse side
-for i in stride(from: points.count - 1, through: 0, by: -1) {
-    let perpendicular = calculatePerpendicular(at: i)
-    thickenedPoints.append(points[i] - perpendicular * width/2)
-}
-
-// Fill the area with lighter base color
-context.setAlpha(0.2)
-context.addPath(path)
-context.fillPath()
-
-// Draw diagonal hatch lines in two directions (cross-hatch)
-while offset < diagonal * 2 {
-    context.addPath(path)
-    context.clip()
-    // Draw hatch lines at 45° and -45° angles
-    context.strokePath()
-}
-```
-
-**Result:** Stairs and floor tiles now render as proper filled areas with cross-hatch patterns
-
-**2. Enhanced Stippled Patterns to Area Fills** (BrushEngine.swift:1511-1620)
-
-Converted from line texture to area fill with dense random dots (like rubble/rough surfaces):
-
-```swift
-// Create filled area path (like hatched)
-// ... thickened path construction ...
-
-// Clip to the path area
-context.addPath(path)
-context.clip()
-
-// Generate random dots within the bounding box
-let numDotsX = Int(boundingBox.width / dotSpacing) + 1
-let numDotsY = Int(boundingBox.height / dotSpacing) + 1
-
-for i in 0..<numDotsX {
-    for j in 0..<numDotsY {
-        let baseX = boundingBox.minX + CGFloat(i) * dotSpacing
-        let baseY = boundingBox.minY + CGFloat(j) * dotSpacing
-        let offsetX = CGFloat.random(in: -dotSpacing/3...dotSpacing/3)
-        let offsetY = CGFloat.random(in: -dotSpacing/3...dotSpacing/3)
-        let dotSize = CGFloat.random(in: minDotSize...maxDotSize)
-        let opacity = CGFloat.random(in: 0.4...0.9)
-
-        context.setAlpha(opacity)
-        context.fillEllipse(in: dotRect)
-    }
-}
-```
-
-**Result:** Rubble and rough surfaces now fill entire brushed area with dense random dots, matching the area fill behavior of lakes and mountains
-
-**3. Added Actual Furniture and Architectural Shapes** (BrushEngine.swift:1388-1542)
-
-Replaced generic circles with specific, recognizable shapes for each stamp brush:
-
-```swift
-func renderStampShape(name: String, size: CGFloat, context: CGContext) {
-    if name.contains("door") {
-        // Door frame (rectangle) with swing arc
-        context.stroke(rect)
-        context.addArc(center: CGPoint(x: -size/2, y: size/2),
-                      radius: size, startAngle: -CGFloat.pi/2, endAngle: 0, clockwise: false)
-        context.strokePath()
-
-    } else if name.contains("window") {
-        // Window frame with cross panes
-        context.stroke(rect)
-        // Vertical divider
-        context.move(to: CGPoint(x: 0, y: -size/2))
-        context.addLine(to: CGPoint(x: 0, y: size/2))
-        // Horizontal divider
-        context.move(to: CGPoint(x: -size/2, y: 0))
-        context.addLine(to: CGPoint(x: size/2, y: 0))
-        context.strokePath()
-
-    } else if name.contains("table") {
-        // Rounded rectangle for table top
-        context.fillEllipse(in: CGRect(x: -size/2, y: -size/3, width: size, height: size * 2/3))
-
-    } else if name.contains("chair") {
-        // Chair seat and back
-        let seatSize = size * 0.7
-        let seatRect = CGRect(x: -seatSize/2, y: -seatSize/4, width: seatSize, height: seatSize/2)
-        context.fill(seatRect)
-        let backRect = CGRect(x: -seatSize/2, y: -seatSize/2, width: seatSize, height: seatSize/4)
-        context.fill(backRect)
-
-    } else if name.contains("bed") {
-        // Bed frame and pillow
-        context.fill(bedRect)
-        context.fill(pillowRect)
-
-    } else if name.contains("chest") {
-        // Chest with lid line
-        context.fill(chestRect)
-        context.strokePath() // lid line
-
-    } else if name.contains("throne") {
-        // Throne with high back
-        context.fill(seatRect)
-        context.fill(highBackRect)
-
-    } else if name.contains("altar") {
-        // Altar platform
-        context.fill(platformRect)
-
-    } else if name.contains("statue") {
-        // Statue on pedestal
-        context.fillEllipse(in: headCircle)
-        context.fill(bodyRect)
-        context.fill(pedestalRect)
-
-    } else if name.contains("column") {
-        // Column with capital
-        context.fillEllipse(in: topCircle)
-        context.fill(shaftRect)
-        context.fillEllipse(in: baseCircle)
-
-    } else if name.contains("barrel") {
-        // Barrel (circle)
-        context.fillEllipse(in: barrelCircle)
-    }
-}
-```
-
-**Shapes Added:**
-- **Doors**: Rectangle frame with curved arc showing swing direction
-- **Windows**: Frame with cross panes (4-pane window)
-- **Tables**: Rounded rectangle (table top view)
-- **Chairs**: Seat rectangle + back rectangle (from above)
-- **Beds**: Large rectangle with pillow area
-- **Chests**: Rectangle with lid line
-- **Thrones**: Seat with tall back
-- **Altars**: Platform shape
-- **Statues**: Circle head + body + pedestal
-- **Columns**: Top capital + shaft + base
-- **Barrels**: Simple circle
-
-**Result:** Each furniture/architectural element now renders with a recognizable, purpose-specific shape instead of generic dots
-
-**4. Implemented Smart Wall Features** (BrushEngine.swift:1342-1457)
-
-Added intelligent rendering for solid brush patterns based on brush name:
-
-```swift
-func renderSmartWall(brush: MapBrush, points: [CGPoint], width: CGFloat, context: CGContext) {
-    let name = brush.name.lowercased()
-    let isDungeon = name.contains("dungeon") || name.contains("cavern") || name.contains("cave")
-    let isThick = name.contains("thick")
-
-    // Thickness variation: thick walls are 1.5× wider
-    let actualWidth = isThick ? width * 1.5 : width
-
-    if isDungeon {
-        renderJaggedWall(points: points, width: actualWidth, context: context)
-    } else {
-        renderStraightWall(points: points, width: actualWidth, context: context)
-    }
-}
-
-func renderStraightWall(points: [CGPoint], width: CGFloat, context: CGContext) {
-    // Auto-straighten near-horizontal or near-vertical lines
-    let straighteningThreshold = CGFloat.pi / 8 // ~22.5 degrees
-
-    for i in 1..<points.count {
-        let prev = snappedPoints[i-1]
-        let current = points[i]
-        let angle = atan2(current.y - prev.y, current.x - prev.x)
-
-        var snappedPoint = current
-        if abs(abs(angle) - 0) < straighteningThreshold {
-            // Nearly horizontal - snap to horizontal
-            snappedPoint = CGPoint(x: current.x, y: prev.y)
-        } else if abs(abs(angle) - CGFloat.pi/2) < straighteningThreshold {
-            // Nearly vertical - snap to vertical
-            snappedPoint = CGPoint(x: prev.x, y: current.y)
-        }
-        snappedPoints.append(snappedPoint)
-    }
-    // Draw with snapped points
-}
-
-func renderJaggedWall(points: [CGPoint], width: CGFloat, context: CGContext) {
-    // Add random perpendicular offsets for rough, natural look
-    let jaggedAmount = width * 0.3
-
-    for i in 0..<points.count {
-        let perpendicular = calculatePerpendicular(at: i)
-        let offset = CGFloat.random(in: -jaggedAmount...jaggedAmount)
-        let jaggedPoint = points[i] + perpendicular * offset
-        jaggedPoints.append(jaggedPoint)
-    }
-    // Draw with jagged points
-}
-```
-
-**Features:**
-- **Auto-straightening**: Architectural walls snap to horizontal/vertical when nearly aligned (~22.5° threshold)
-- **Thickness variations**: Brushes with "thick" in name render at 1.5× width
-- **Jagged walls**: Dungeon/cavern/cave walls have random perpendicular offsets for rough, natural appearance
-
-**Result:** Walls now render intelligently based on their purpose - clean straight lines for architectural elements, rough jagged edges for natural caves
-
-**Files Modified:**
-
-- `Cumberland/DrawCanvas/BrushEngine.swift`:
-  - Lines 1342-1457: Smart wall rendering (`renderSmartWall`, `renderStraightWall`, `renderJaggedWall`)
-  - Lines 1388-1542: Furniture and architectural shapes (`renderStampShape`)
-  - Lines 1544-1620: Hatched pattern area fills (`renderHatchedPattern`)
-  - Lines 1511-1620: Stippled pattern area fills (`renderStippledPattern`)
-  - Lines 1744-1745, 1871-1872: Fixed compilation errors (removed incorrect `guard let` for non-optional `boundingBox`)
-
-**Build Status:**
-- ✅ iOS build succeeded
-- ✅ macOS build succeeded
-
-**Ready for User Testing:**
-
-All four pattern enhancement categories are now implemented and ready for verification:
-
-1. ✅ Stamp brushes render actual furniture/architectural shapes (12+ specific shapes)
-2. ✅ Hatched patterns create proper area fills with cross-hatch lines
-3. ✅ Stippled patterns fill entire areas with dense random dots
-4. ✅ Solid brushes have smart features (auto-straightening, thickness variations, jagged rendering)
-
----
-
-### Click-and-Drag Interaction Model for Stamp Brushes (2026-01-10)
-
-**User Request:** "How should I 'Draw' a Bed or a Table? Do I simply click on the canvas? How does it get sized? How does it get positioned? Should I drag in the direction I want it to face? or will dragging allow me to change the size of the thing?"
-
-**Implementation:** Click-and-drag to size and orient (Option 1)
-
-Stamp brushes (furniture, doors, windows, etc.) now support an intuitive click-and-drag interaction:
-
-**Interaction Model:**
-
-1. **Click** where you want to place the item (e.g., bed, table, chair)
-2. **Drag** to the opposite corner to define size and orientation
-3. **Release** to place the item
-
-**Behavior:**
-
-- **Size**: Determined by drag distance (longer drag = bigger item)
-- **Orientation**: Determined by drag direction (drag right = faces right, drag up = faces up, etc.)
-- **Minimum size**: 20pt threshold prevents items from becoming too tiny
-- **Single placement**: One item per click-drag gesture
-
-**Technical Details:**
-
-Modified `renderStampPattern()` (BrushEngine.swift:1469-1492) to detect simple click-drag gestures:
-
-```swift
-// If only 2 points (simple click-drag), use drag distance for size and direction for orientation
-if points.count == 2 {
-    let start = points[0]
-    let end = points[1]
-    let dx = end.x - start.x
-    let dy = end.y - start.y
-    let dragDistance = hypot(dx, dy)
-    let angle = atan2(dy, dx)
-
-    // Minimum size threshold (don't let items get too tiny)
-    let minSize: CGFloat = 20.0
-    let itemSize = max(dragDistance, minSize)
-
-    // Place ONE item at the start point, sized and oriented by the drag
-    renderStampShape(
-        at: start,
-        size: itemSize,
-        angle: angle,
-        context: context,
-        brushName: brush.name
-    )
-    return
-}
-```
-
-**Backward Compatibility:**
-
-Multi-point paths (drawing a curved line) still place stamps at regular intervals along the path - useful for placing multiple columns along a hallway, or a row of chairs, etc.
-
-**Shape Orientations:**
-
-Each shape is designed with natural orientation:
-- **Beds**: Headboard at top, foot at bottom
-- **Chairs/Thrones**: Back at top, seat facing down
-- **Tables**: Rectangular, longer dimension follows drag direction
-- **Doors**: Frame with arc showing swing direction
-- **Barrels**: Oval with horizontal bands
-
-**Example Usage:**
-
-- **Place a bed facing right**: Click at head position, drag right to foot position
-- **Place a vertical table**: Click at one end, drag vertically to other end
-- **Place a small chair**: Short click-drag in desired facing direction
-- **Place a large throne**: Long click-drag for bigger size
-
-**Files Modified:**
-
-- `Cumberland/DrawCanvas/BrushEngine.swift`:
-  - Lines 1469-1492: Click-and-drag detection and single item placement
-
-**Build Status:**
-- ✅ iOS build succeeded
-- ✅ macOS build succeeded
-
----
-
-### Additional macOS Fixes Based on User Testing (2026-01-10)
-
-**User Feedback:**
-1. "Walls to be perfectly straight between the two endpoints" - Not just straightened, but literally a straight line
-2. "Cave walls suffer from the same problems the River Brush did" - Frequency/amplitude changes with stroke velocity
-3. "Tiled brushes - dotted lines of tiny renders" - Stamp detection not working correctly; should ALWAYS render single tile
-4. "Chests and barrels worked correctly every time, but chairs, tables, beds and doors always tried to draw a line of tiny icons"
-
-**Fixes Applied:**
-
-**1. Walls Now Perfectly Straight** (BrushEngine.swift:1371-1387)
-
-Changed from point-by-point snapping to simple start-to-end line:
-
-```swift
-static func renderStraightWall(points: [CGPoint], width: CGFloat, context: CGContext) {
-    guard points.count > 1 else { return }
-
-    // Draw a perfectly straight line from start to end, ignoring all intermediate points
-    let start = points.first!
-    let end = points.last!
-
-    context.beginPath()
-    context.move(to: start)
-    context.addLine(to: end)
-    context.strokePath()
-}
-```
-
-**Result:** All architectural walls (Wall, Thick Wall, etc.) now render as perfectly straight lines regardless of hand wobble during drawing.
-
-**2. Cave Walls Fixed - Distance-Based Jaggedness** (BrushEngine.swift:1389-1450)
-
-Rewrote to use distance along path instead of per-point offsets:
-
-```swift
-// Fixed wavelength for jagged pattern (independent of stroke speed)
-let jaggedWavelength: CGFloat = 10.0 // One peak/valley every 10 points of distance
-let jaggedAmount = width * 0.5 // Amplitude
-
-// Jagged offset based on distance along path (sine wave + random)
-let phase = (totalDistance / jaggedWavelength) * 2.0 * CGFloat.pi
-let baseOffset = sin(phase) * jaggedAmount
-
-// Add random variation for natural roughness
-let randomVariation = CGFloat.random(in: -0.3...0.3) * jaggedAmount
-let offset = baseOffset + randomVariation
-```
-
-**Result:** Cave/cavern walls have consistent jaggedness regardless of drawing speed. Increased amplitude (0.5× width vs 0.3×) for more extreme cave-like appearance.
-
-**Note:** Dungeon walls currently use same algorithm. User mentioned "I don't know how to distinguish dungeon walls from cave walls. Not color. Perhaps a lower amplitude of jaggedness?" - TODO: Add distinction (maybe dungeon = 0.3× amplitude, cave = 0.5×).
-
-**3. Stamp Brushes - Always Single Item** (BrushEngine.swift:1452-1485)
-
-Completely removed multi-stamp behavior per user request: "I'd like the switch to never occur. It should only ever draw single brush tiles."
-
-```swift
-static func renderStampPattern(points: [CGPoint], width: CGFloat, spacing: CGFloat, context: CGContext, brush: MapBrush) {
-    guard points.count > 1 else { return }
-
-    // ALWAYS render a single item - user feedback: "I'd like the switch to never occur"
-    // Size determined by drag distance, orientation by drag direction
-
-    let start = points.first!
-    let end = points.last!
-    let dragDistance = hypot(end.x - start.x, end.y - start.y)
-    let angle = atan2(end.y - start.y, end.x - start.x)
-
-    let minSize: CGFloat = 20.0
-    let itemSize = max(dragDistance, minSize)
-
-    // Place ONE item at the start point, sized and oriented by the drag
-    renderStampShape(at: start, size: itemSize, angle: angle, context: context, brushName: brush.name)
-}
-```
-
-**Result:** All stamp brushes (doors, windows, tables, chairs, beds, chests, thrones, altars, statues, columns, barrels) now ALWAYS place a single item. Drag distance = item size, drag direction = item orientation. No more dotted lines of tiny icons.
-
-**Files Modified:**
-- `Cumberland/DrawCanvas/BrushEngine.swift`:
-  - Lines 1371-1387: Simplified wall rendering to perfect straight lines
-  - Lines 1389-1450: Distance-based jaggedness for cave walls
-  - Lines 1452-1485: Removed multi-stamp behavior, always single item
-
-**Build Status:**
-- ✅ macOS build succeeded (2026-01-10)
-
-**Ready for Re-Testing:**
-
-All three major issues addressed:
-1. ✅ Walls are perfectly straight (start to end line)
-2. ✅ Cave walls have consistent jaggedness (distance-based, not point-based)
-3. ✅ Stamp brushes always place single item (no more dotted lines)
-
----
-
-### Wall Endpoint Snapping Implementation (2026-01-10)
-
-**User Request:** "If an endpoint of a dragged wall is 'near' (say, within a few inches, you have a map scale and so should be able to determine that) an open endpoint of another already drawn wall path, the endpoint should 'snap' to the other endpoint thus merging those points."
-
-**Implementation:**
-
-Added intelligent endpoint snapping for architectural wall brushes on macOS. When drawing a wall, if either endpoint is within 3 inches (in real-world map scale) of an existing wall endpoint, it snaps to that point, allowing perfect wall connections.
-
-**How It Works:**
-
-1. **Scale-Aware Snapping Distance** (DrawingCanvasViewMacOS.swift:807-837)
-   - Uses map scale to convert 3 real-world inches to canvas points
-   - For exterior maps: Uses `TerrainMapMetadata.physicalSizeMiles`
-   - For interior maps: Assumes 50-foot default width
-   - Example: On a 5-mile map (village scale), 3 inches ≈ 0.0047% of map width
-
-2. **Endpoint Detection** (DrawingCanvasViewMacOS.swift:763-789)
-   - Scans all existing wall strokes in current layer
-   - Extracts start and end points from each wall
-   - Only considers strokes drawn with wall brushes (architectural category)
-
-3. **Snapping Logic** (DrawingCanvasViewMacOS.swift:736-761)
-   - When wall stroke completes (mouseUp), checks both start and end points
-   - Finds nearest existing wall endpoint within snapping distance
-   - Replaces new endpoint with existing endpoint position
-   - Creates perfect connection between walls
-
-**Technical Details:**
-
-```swift
-// Check if brush is a wall
-private func isWallBrush(_ brush: MapBrush) -> Bool {
-    let name = brush.name.lowercased()
-    return name.contains("wall") && brush.category == .architectural
-}
-
-// Apply snapping before stroke is saved
-override func mouseUp(with event: NSEvent) {
-    if let brushID = stroke.brushID,
-       let brush = BrushRegistry.shared.findBrush(id: brushID),
-       isWallBrush(brush) {
-        finalPoints = applyEndpointSnapping(to: finalPoints, model: model)
-    }
-    // ... save stroke with snapped endpoints
-}
-
-// Convert real-world inches to canvas points
-let mapWidthInches = mapWidthMiles * 5280.0 * 12.0
-let canvasWidthPoints = Double(bounds.width / zoomScale)
-let pointsPerInch = canvasWidthPoints / mapWidthInches
-let snapDistance = CGFloat(3.0 * pointsPerInch) // 3 inches
-```
-
-**Snapping Behavior:**
-
-- **Visual Feedback**: When endpoint snaps, wall connects perfectly to existing endpoint
-- **No gaps**: Snapped walls share exact same point - no pixel gaps
-- **Intelligent**: Only snaps to nearest endpoint within threshold
-- **Per-layer**: Only snaps to walls on the same layer
-- **Non-intrusive**: If no endpoint within 3 inches, draws normally
-
-**Wall Types That Snap:**
-- Wall
-- Thick Wall
-- Thin Wall
-- Stone Wall
-- Dungeon Wall
-- Cave Wall
-- Any brush with "wall" in name and architectural category
-
-**Example Usage:**
-
-1. Draw first wall segment (e.g., north wall of room)
-2. Draw second wall starting near the endpoint of first wall
-3. If within 3 inches, endpoint automatically snaps to connect
-4. Continue drawing walls - each can snap to any existing wall endpoint
-5. Result: Perfect room with no gaps at corners
-
-**Files Modified:**
-- `Cumberland/DrawCanvas/DrawingCanvasViewMacOS.swift`:
-  - Lines 143-149: Apply snapping in mouseUp before saving stroke
-  - Lines 728-837: Snapping implementation (5 helper functions)
-
-**Build Status:**
-- ✅ macOS build succeeded (2026-01-10)
-
-**Benefits:**
-1. ✅ **Precision**: Perfect wall connections without manual alignment
-2. ✅ **Speed**: Faster room/dungeon drawing workflow
-3. ✅ **Scale-aware**: 3-inch threshold adapts to map scale
-4. ✅ **Layer-aware**: Only snaps within same layer
-5. ✅ **Automatic**: No extra clicks or modes - just works
-
-**Note:** Snapping currently only implemented for macOS. iOS implementation pending due to PencilKit integration requirements.
-
----
-
-### Wall Thickness and Stamp Positioning Fixes (2026-01-10)
-
-**User Feedback:**
-
-1. "A standard wall is six inches thick. A thick wall should be something like 12 inches thick and a thin wall should be something like three to four inches thick. Your wall widths are more like stroke thicknesses and are 1, 2, and 3 inches thick respectively."
-
-2. "While I'm expecting to start the drag in what will be the upper left corner of the tile, the result is that the drag starts at what will be the center of the tile. Also while I expect that the drag will end at the lower right corner of the tile, the result is that the drag ends twice the distance from the center of the tile to the side of the tile."
-
-**Fixes Applied:**
-
-**1. Real-World Architectural Wall Thickness** (BrushEngine.swift:1342-1384)
-
-Changed wall rendering to use proper architectural dimensions instead of stroke thickness:
-
-```swift
-// Real-world architectural wall thickness in inches
-let wallThicknessInches: CGFloat
-if isThick {
-    wallThicknessInches = 12.0  // Thick wall = 12 inches
-} else if isThin {
-    wallThicknessInches = 3.5   // Thin wall = 3.5 inches
-} else {
-    wallThicknessInches = 6.0   // Standard wall = 6 inches
-}
-
-// Convert to canvas points using width parameter as visual scale multiplier
-let actualWidth = wallThicknessInches * (width / 6.0)
-```
-
-**Wall Types and Thickness:**
-- **Standard Wall**: 6 inches (2× thicker than before)
-- **Thick Wall**: 12 inches (6× thicker than before)
-- **Thin Wall**: 3.5 inches (slightly thicker than before)
-- **Dungeon/Cave Walls**: Same thickness standards, with jagged edges
-
-**Result:** Walls now have proper architectural thickness for floor plans and dungeons.
-
-**2. Stamp Brush Bounding Box Positioning** (BrushEngine.swift:1467-1514)
-
-Changed stamp rendering from center+radius to corner-to-corner bounding box:
-
-**Before:**
-- Drag start = center of object
-- Drag distance = size
-- Object extends (size/2) from center in all directions
-
-**After:**
-```swift
-// Calculate bounding box dimensions
-let dx = end.x - start.x
-let dy = end.y - start.y
-let boxWidth = abs(dx)
-let boxHeight = abs(dy)
-
-// Size is max dimension of bounding box
-let itemSize = max(boxWidth, boxHeight)
-
-// Position is the CENTER of the bounding box
-let centerX = start.x + dx / 2.0
-let centerY = start.y + dy / 2.0
-let center = CGPoint(x: centerX, y: centerY)
-
-// Render at center with calculated size
-renderStampShape(at: center, size: itemSize, angle: angle, ...)
-```
-
-**New Behavior:**
-- Drag start = upper-left corner of bounding box
-- Drag end = lower-right corner of bounding box
-- Object centered in bounding box
-- Size = larger of width or height (maintains square aspect for most items)
-
-**Result:** Intuitive corner-to-corner drag creates furniture items that fit exactly in the dragged region.
-
-**Files Modified:**
-- `Cumberland/DrawCanvas/BrushEngine.swift`:
-  - Lines 1342-1384: Real-world wall thickness calculation
-  - Lines 1467-1514: Bounding box stamp positioning
-
-**Build Status:**
-- ✅ macOS build succeeded (2026-01-10)
-
-**Ready for Testing:**
-1. Wall thickness - should be 2-6× thicker (6", 12", 3.5" instead of 1-2")
-2. Stamp positioning - drag from corner to corner to define size/position
-
----
-
-### Drag Preview Visual Feedback (2026-01-10)
-
-**User Request:** "Additionally you should not render the stroke when I'm dragging furniture stamps. It is distracting. perhaps a selection lasso or, for walls, a temporary dotted line."
-
-**Implementation:**
-
-Added specialized visual feedback during dragging to replace the distracting solid stroke preview:
-
-**1. Stamp Brushes (Furniture) - Selection Lasso** (DrawingCanvasViewMacOS.swift:564-616)
-
-When dragging with a stamp brush (tables, chairs, beds, doors, etc.):
-- **Dashed blue rectangle** showing bounding box (4pt dash pattern)
-- **Light blue fill** (5% opacity) inside rectangle
-- **Corner handles** (small blue squares) at all four corners
-- **No stroke rendering** - clean, professional selection appearance
-
-```swift
-// Selection rectangle with dashed outline
-context.setStrokeColor(NSColor.systemBlue.withAlphaComponent(0.7).cgColor)
-context.setLineDash(phase: 0, lengths: [4.0 / zoomScale, 4.0 / zoomScale])
-context.stroke(rect)
-
-// Light fill
-context.setFillColor(NSColor.systemBlue.withAlphaComponent(0.05).cgColor)
-context.fill(rect)
-
-// Corner handles for visual feedback
-for corner in corners {
-    context.fill(handleRect)
-}
-```
-
-**Result:** Clean selection lasso shows exactly where furniture will be placed without cluttering the canvas.
-
-**2. Wall Brushes - Dotted Line Preview** (DrawingCanvasViewMacOS.swift:618-660)
-
-When dragging with a wall brush:
-- **Dotted line** from start to end point (8pt dash pattern)
-- **Semi-transparent** (60% opacity) in wall color
-- **Endpoint indicators** (small circles) at start and end
-- **Straight line** showing final wall position
-
-```swift
-// Dotted line from start to end
-context.setStrokeColor(stroke.color.withAlphaComponent(0.6).cgColor)
-context.setLineDash(phase: 0, lengths: [8.0 / zoomScale, 8.0 / zoomScale])
-context.move(to: start)
-context.addLine(to: end)
-context.strokePath()
-
-// Draw endpoint indicators
-context.fillEllipse(in: startCircle)
-context.fillEllipse(in: endCircle)
-```
-
-**Result:** Clear preview of wall placement without the messy curved stroke. Endpoint circles show snapping targets.
-
-**3. Other Brushes - Standard Preview**
-
-Non-stamp, non-wall brushes (terrain, water, vegetation, etc.) keep the existing curved stroke preview for accurate path visualization.
-
-**Benefits:**
-1. ✅ **Less distracting**: No messy stroke lines while dragging
-2. ✅ **More precise**: Selection lasso shows exact bounding box
-3. ✅ **Zoom-aware**: All preview elements scale with zoom level
-4. ✅ **Professional**: Clean, tool-like appearance similar to design software
-5. ✅ **Context-appropriate**: Different preview types for different brush types
-
-**Files Modified:**
-- `Cumberland/DrawCanvas/DrawingCanvasViewMacOS.swift`:
-  - Lines 469-488: Check brush type and route to appropriate preview
-  - Lines 564-616: Stamp brush selection lasso preview
-  - Lines 618-660: Wall brush dotted line preview
-
-**Build Status:**
-- ✅ macOS build succeeded (2026-01-10)
-
-**Ready for Testing:**
-1. Stamp brushes - should show blue selection rectangle while dragging
-2. Wall brushes - should show dotted line while dragging
-3. Other brushes - should show standard curved preview
-
----
-
-### 12. Improved Cave/Dungeon Wall Organic Rendering (2026-01-10)
-
-**User Feedback:** "the cave and dungeon walls are ok. but I think I'd like something more organic. while I like that the wall begins and ends at the given points i think I want more varied amplitude in the wavyness and a lower frequency."
-
-**Changes Made:**
-
-**A. Added Seeded Random Number Generator** (BrushEngine.swift:24-46)
-
-Created `SeededRandomGenerator` struct for consistent pseudo-random variation:
-```swift
-struct SeededRandomGenerator {
-    private var state: UInt64
-
-    init(seed: Int) {
-        self.state = UInt64(abs(seed))
-        self.state = self.state &* 6364136223846793005 &+ 1442695040888963407
-    }
-
-    mutating func next() -> UInt64 {
-        state = state &* 6364136223846793005 &+ 1442695040888963407
-        return state
-    }
-
-    mutating func nextDouble(in range: ClosedRange<CGFloat>) -> CGFloat {
-        let normalized = CGFloat(next() % 10000) / 10000.0
-        return range.lowerBound + normalized * (range.upperBound - range.lowerBound)
-    }
-}
-```
-
-**Purpose:** Ensures consistent randomness for cave walls (same stroke always renders the same way)
-
-**B. Enhanced Jagged Wall Algorithm** (BrushEngine.swift:1653-1703)
-
-Replaced simple sine wave with multi-layered organic variation:
-
-**Lower Frequency:**
-- Increased primary wavelength: 15.0 → 30.0 canvas units
-- Increased segment spacing: 5.0 → 8.0 canvas units
-- Result: Longer, smoother undulations instead of tight jagged pattern
-
-**Varied Amplitude:**
-- **Primary wave**: Large, slow undulation (wavelength = 30.0)
-- **Secondary wave**: Finer detail at 30% amplitude (wavelength = 12.0)
-- **Amplitude variation**: Sinusoidal modulation ranging 0.4× to 1.0× base amplitude
-  ```swift
-  let amplitudePhase = (distanceAlongLine / (primaryWavelength * 2.0)) * 2.0 * CGFloat.pi
-  let amplitudeVariation = 0.7 + sin(amplitudePhase) * 0.3 // Range: 0.4 to 1.0
-  ```
-- **Combined offset**: `(primaryOffset + secondaryOffset) × baseAmplitude × amplitudeVariation`
-
-**Seeded Random Variation:**
-- Uses stroke start point as seed for consistency
-- Adds ±15% random variation (reduced from ±25%)
-- More subtle than previous implementation
-
-**Result:**
-- More organic, natural-looking cave walls
-- Amplitude varies smoothly along wall length (some areas have deeper undulation)
-- Lower frequency creates smoother, more realistic geological features
-- Consistent rendering for same stroke (seeded randomness)
-
-**Files Modified:**
-- `Cumberland/DrawCanvas/BrushEngine.swift`:
-  - Lines 24-46: Added SeededRandomGenerator struct
-  - Lines 1653-1703: Enhanced renderJaggedWall with multi-layered variation
-
-**Build Status:**
-- ✅ macOS build succeeded (2026-01-10)
-
-**Ready for Testing:**
-1. Draw cave walls - should show organic, varied-amplitude undulation
-2. Draw dungeon walls - should have lower frequency (smoother curves)
-3. Compare with architectural walls - should be noticeably more natural/organic
-
----
-
-### 13. Fixed Stamp Brush Rendering Issues (2026-01-10)
-
-**User Feedback:** "ok the round table renders as a rectangle. The arch renders as a single circle. it should render as a gap in a wall. the portcullis should render as a gap in a wall filled with small circles (one of the only times this should be true."
-
-**Changes Made:**
-
-**A. Round Table Rendering** (BrushEngine.swift:1829-1841)
-
-Fixed "Round Table" brush to render as a circle instead of rectangle:
-```swift
-} else if name.contains("round") && name.contains("table") {
-    // Draw round table (circle)
-    let rect = CGRect(x: -size/2, y: -size/2, width: size, height: size)
-    context.fillEllipse(in: rect)
-    context.setLineWidth(1.5)
-    context.strokeEllipse(in: rect)
-
-} else if name.contains("table") {
-    // Draw table (rectangle) - unchanged
-```
-
-**Logic:** Check for "round" before checking for "table" to distinguish between the two brush types.
-
-**B. Archway Rendering** (BrushEngine.swift:1815-1839)
-
-Completely redesigned archway to render as a gap in a wall with arched top:
-```swift
-} else if name.contains("archway") || name.contains("arch") {
-    // Draw archway - gap in wall with arched top
-    let wallThickness = size * 0.15
-
-    // Left wall segment (from bottom to arch spring)
-    context.move(to: CGPoint(x: -size/2, y: size/2))
-    context.addLine(to: CGPoint(x: -size/2, y: -size/4))
-
-    // Right wall segment
-    context.move(to: CGPoint(x: size/2, y: size/2))
-    context.addLine(to: CGPoint(x: size/2, y: -size/4))
-
-    // Arch top (semicircle connecting the walls)
-    context.addArc(center: CGPoint(x: 0, y: -size/4),
-                  radius: size/2,
-                  startAngle: π,
-                  endAngle: 0)
-}
-```
-
-**Result:** Shows opening in wall with classic arched entrance, suitable for medieval/dungeon architecture
-
-**C. Portcullis Rendering** (BrushEngine.swift:1841-1880)
-
-Implemented portcullis as a gated opening filled with small circles (bars):
-```swift
-} else if name.contains("portcullis") || name.contains("gate") {
-    let wallThickness = size * 0.15
-
-    // Left, right, and top wall segments (creating 3-sided frame)
-    // ... wall rendering code ...
-
-    // Fill gap with small circles representing bars
-    let barSize = size * 0.08
-    let barSpacing = size * 0.15
-
-    // Draw vertical bars in grid pattern
-    var x = -gapWidth/2 + barSpacing
-    while x <= gapWidth/2 {
-        var y = -gapHeight/2 + barSpacing
-        while y <= gapHeight/2 {
-            context.fillEllipse(in: barRect) // Small circle for each bar
-            y += barSpacing
-        }
-        x += barSpacing
-    }
-}
-```
-
-**Special Note:** As user mentioned, this is "one of the only times" small circles should appear in a stamp brush - the circles represent the metal bars of the portcullis gate.
-
-**Result:** Shows gated entrance with grid of small circles representing iron bars, appropriate for castle/dungeon gates
-
-**Files Modified:**
-- `Cumberland/DrawCanvas/BrushEngine.swift`:
-  - Lines 1815-1839: Archway rendering (gap in wall with arch)
-  - Lines 1841-1880: Portcullis rendering (gap with bar grid)
-  - Lines 1829-1841: Round table vs regular table distinction
-
-**Build Status:**
-- ✅ macOS build succeeded (2026-01-10)
-
-**Ready for Testing:**
-1. Round table - should render as filled circle with outline
-2. Regular table - should remain rectangle (unchanged)
-3. Archway - should show gap in wall with semicircular arch top
-4. Portcullis - should show gap in wall with grid of small circles (bars)
-
----
-
-### 14. Implemented Area Fill Rendering for Terrain Brushes (2026-01-10)
-
-**User Feedback:** "lava, chasm, dungeon floor, rubble, carpet, and water feature are all area tiles and should fill with their respective color/pattern."
-
-**Problem:** These brushes were rendering as simple lines instead of filled areas. Area fill brushes should paint the entire stroked area with their color or pattern, not just draw a stroke line.
-
-**Changes Made:**
-
-**A. Added Solid Area Fill Renderer** (BrushEngine.swift:2258-2324)
-
-Created new `renderSolidAreaFill` function for solid color area fills:
-```swift
-static func renderSolidAreaFill(
-    points: [CGPoint],
-    width: CGFloat,
-    context: CGContext
-) {
-    // Build a thickened path representing the area to fill
-    // Create offset points for both sides of the stroke
-    // Fill the entire area with solid color
-    context.addPath(path)
-    context.fillPath()
-}
-```
-
-**Purpose:** Creates a filled polygon following the stroke path with width offset, then fills it with solid color
-
-**B. Updated Pattern Routing Logic** (BrushEngine.swift:1356-1365)
-
-Modified the `.solid` pattern case to distinguish between area fills and line strokes:
-```swift
-case .solid:
-    // Check if this is an area fill brush (not a wall)
-    if brushName.contains("lava") || brushName.contains("chasm") ||
-       brushName.contains("carpet") || brushName.contains("water feature") {
-        // Area fill - fill the entire area with solid color
-        renderSolidAreaFill(points: points, width: width, context: context)
-    } else {
-        // Solid line - use standard rendering
-        renderStroke(brush: brush, points: points, color: color, width: width, context: context)
-    }
-```
-
-**Logic:** Brushes with specific names get area fill rendering; all other solid brushes get line rendering
-
-**C. Stippled Pattern Already Supports Area Fill**
-
-The existing `renderStippledPattern` function (BrushEngine.swift:2147-2256) already creates thickened path areas and fills them with dots, so these brushes already work correctly:
-- **Rubble** (stippled pattern) - fills area with random-sized gray dots
-- **Dungeon Floor** (stippled pattern) - fills area with brown stippled texture
-
-**Brush Behavior After Changes:**
-
-| Brush | Pattern Type | Rendering | Appearance |
-|-------|-------------|-----------|------------|
-| Lava | Solid | Area Fill | Orange-red filled area |
-| Chasm | Solid | Area Fill | Black filled area (pit/hole) |
-| Carpet | Solid | Area Fill | Dark red filled area |
-| Water Feature | Solid | Area Fill | Blue filled area |
-| Rubble | Stippled | Area Fill | Gray area with random dots |
-| Dungeon Floor | Stippled | Area Fill | Brown area with stippled texture |
-
-**Files Modified:**
-- `Cumberland/DrawCanvas/BrushEngine.swift`:
-  - Lines 2258-2324: Added renderSolidAreaFill function
-  - Lines 1356-1365: Updated solid pattern routing to check for area fill brushes
-
-**Build Status:**
-- ✅ macOS build succeeded (2026-01-10)
-
-**Ready for Testing:**
-1. Lava - should fill area with orange-red color
-2. Chasm - should fill area with black color
-3. Carpet - should fill area with dark red color
-4. Water Feature - should fill area with blue color
-5. Rubble - should fill area with gray stippled dots (already working)
-6. Dungeon Floor - should fill area with brown stippled texture (already working)
-
----
-
-### 15. Fixed Area Fill Path Generation Bug (2026-01-11)
-
-**User Report:** "I went to test the area brush features and found that it doesn't work. I create a new map canvas, select Lava. and draw a rough circle. A red stroke appears, but it is not filled. I select the Rubble Brush, draw another rough circle, and the stippled texture appears, but only on the stroke, and the inner part of the area is not filled."
-
-**Root Cause:** The area fill functions had a critical bug in the perpendicular offset calculation for creating thickened paths. When iterating in reverse to create the second side of the path, the condition `if i < points.count - 1` would never be true for most points during reverse iteration, resulting in perpX = 0 and perpY = 0 for almost all points. This created malformed paths that only rendered as strokes without interior fills.
-
-**Solution:** Rewrote all three area fill functions to use CGPath's `copy(strokingWithWidth:)` method, which correctly creates a filled path outline from a stroked center line:
-
-**A. Simplified Area Fill Algorithm**
-
-Old approach (buggy):
-```swift
-// Manually calculate perpendicular offsets for both sides
-for i in 0..<points.count { /* forward pass */ }
-for i in stride(from: points.count - 1, through: 0, by: -1) {
-    // BUG: condition never true in reverse!
-    if i < points.count - 1 { ... }
-}
-```
-
-New approach (correct):
-```swift
-// Let Core Graphics handle the path offsetting
-let centerPath = CGMutablePath()
-centerPath.move(to: points[0])
-for point in points.dropFirst() { centerPath.addLine(to: point) }
-
-// Use CGPath's copy(strokingWithWidth:) to create filled outline
-let strokedPath = centerPath.copy(
-    strokingWithWidth: width,
-    lineCap: .round,
-    lineJoin: .round,
-    miterLimit: 10.0
-)
-
-// Fill the stroked outline
-context.addPath(strokedPath)
-context.fillPath()
-```
-
-**B. Fixed Functions**
-
-**renderSolidAreaFill** (BrushEngine.swift:2196-2223):
-- Used by: Lava, Chasm, Carpet, Water Feature
-- Now creates proper filled areas with solid color
-- Simplified from 69 lines to 19 lines using CGPath.copy(strokingWithWidth:)
-
-**renderStippledPattern** (BrushEngine.swift:2117-2191):
-- Used by: Rubble, Dungeon Floor
-- Now fills interior area with stippled dots
-- Uses CGPath.copy(strokingWithWidth:) to create proper filled outline
-- Fixed saveGState/restoreGState balance
-
-**renderHatchedPattern** (BrushEngine.swift:2021-2111):
-- Used by: Floor tiles, hatched patterns
-- Now fills interior area with cross-hatch lines
-- Uses CGPath.copy(strokingWithWidth:) to create proper filled outline
-- Fixed saveGState/restoreGState balance
-
-**Files Modified:**
-- `Cumberland/DrawCanvas/BrushEngine.swift`:
-  - Lines 2021-2111: Rewrote renderHatchedPattern with CGPath.copy(strokingWithWidth:)
-  - Lines 2117-2191: Rewrote renderStippledPattern with CGPath.copy(strokingWithWidth:)
-  - Lines 2196-2223: Rewrote renderSolidAreaFill with CGPath.copy(strokingWithWidth:)
-
-**Build Status:**
-- ✅ macOS build succeeded (2026-01-11)
-
-**Ready for Testing:**
-1. Lava - should now fill interior with orange-red color (not just stroke)
-2. Chasm - should now fill interior with black color (not just stroke)
-3. Carpet - should now fill interior with dark red color (not just stroke)
-4. Water Feature - should now fill interior with blue color (not just stroke)
-5. Rubble - should now fill interior area with gray stippled dots
-6. Dungeon Floor - should now fill interior area with brown stippled texture
-
----
-
-**iOS Status:**
-
-The iOS implementation is still pending. iOS uses PencilKit which doesn't support custom rendering during drawing. Two options:
-
-1. **Post-Processing** (Recommended):
-   - Detect when stroke completes in PencilKit
-   - Extract stroke path
-   - Call BrushEngine to generate pattern
-   - Composite result over PencilKit canvas
-
-2. **Overlay Layer**:
-   - Render advanced brushes to separate layer
-   - Display above PencilKit canvas
-   - Keep PencilKit for simple brushes only
-
-The macOS implementation provides the rendering engine that iOS can use - just needs integration with PencilKit's drawing workflow.
-
-**Next Steps:**
-
-1. **User verification on macOS** - Test all interior brush patterns
-2. **iOS implementation** - Integrate BrushEngine with PencilKit (post-processing or overlay)
-3. **Brush-specific customization** - Replace generic circles with actual brush symbols (door icons, furniture shapes, etc.)
-4. **Grid snapping** - Implement for architectural elements (walls, doors, columns)
-
----
-
-## Template for Adding New ERs
-
-When a new enhancement is requested, add it here using this template:
-
-```markdown
-## ER-XXXX: [Brief Title]
-
-**Status:** 🔵 Proposed / 🟡 In Progress / 🟡 Implemented - Not Verified
-**Component:** [Primary Component Name]
-**Priority:** Critical / High / Medium / Low
-**Date Requested:** YYYY-MM-DD
-**Date Implemented:** YYYY-MM-DD (if applicable)
-**Date Verified:** YYYY-MM-DD (if applicable)
+## ER-0009: AI Image Generation for Cards (Apple Intelligence and Third-Party APIs)
+
+**Status:** 🔵 Proposed
+**Component:** Card Image System, Settings, MapWizard, Image Import
+**Priority:** High
+**Date Requested:** 2026-01-20
 
 **Rationale:**
-[Why this enhancement is needed - business case, user benefit, technical debt reduction]
+
+Visual inspiration is crucial for worldbuilding and narrative design, but writers often lack the artistic skills or resources to create custom imagery for their characters, locations, vehicles, and other story elements. AI image generation can:
+
+1. **Provide visual inspiration** for characters, locations, vehicles, and other story elements
+2. **Encourage detailed descriptions** by rewarding descriptive text with generated images
+3. **Accelerate worldbuilding** by visualizing concepts quickly
+4. **Maintain writer ownership** by generating only images (not text), preserving copyright claims
+
+**CRITICAL CONSTRAINT:** AI must NEVER be used for text generation in this app. Text generation raises copyright and ownership questions that are fundamentally incompatible with the creative writing process. This enhancement is **images only**.
 
 **Current Behavior:**
-[How the system currently works]
+
+- **Images imported manually** via file picker, Photos, drag & drop
+- **No AI generation** capability
+- **Map Wizard** has placeholder for AI generation (not implemented)
+- **All card types** support images but require manual sourcing
 
 **Desired Behavior:**
-[How the system should work after enhancement]
+
+### Core Capabilities:
+
+1. **AI Provider Configuration (Settings)**
+   - Default: Apple Intelligence (Image Playground API) - no API key needed
+   - Optional: ChatGPT API key
+   - Optional: Claude API key (Anthropic)
+   - Provider selection per generation or default in settings
+
+2. **Image Generation Modes:**
+   - **Manual Generation:** User provides prompt, clicks "Generate Image"
+   - **Smart Auto-Generation:** App extracts prompt from card type + description, generates automatically
+   - **Semi-Automatic:** "Generate Image" button appears when sufficient description detected
+
+3. **Auto-Generation Settings:**
+   - **Auto Generate Images** toggle (off by default)
+   - **Only generate for cards without images**
+   - **Only generate when sufficient descriptive text available**
+   - **Minimum description length** threshold (configurable, e.g., 50 words)
+
+4. **Smart Prompt Extraction:**
+   - Use card type (Character, Location, Vehicle, etc.) as context
+   - Extract key descriptive phrases from `detailedText`
+   - Combine card name + subtitle + relevant description excerpts
+   - Generate appropriate image prompt for AI provider
+
+5. **UI Integration:**
+   - **Card Detail View:** "Generate Image" button near image area
+   - **Map Wizard:** AI Generation tab (already has placeholder)
+   - **Batch Generation:** Generate images for multiple cards (optional)
+   - **Generation History:** Track generated images, allow regeneration
+
+6. **Generation Feedback:**
+   - Progress indicator during generation
+   - Success/failure notifications
+   - Option to retry with modified prompt
+   - Option to discard and try again
 
 **Requirements:**
-1. [Specific requirement 1]
-2. [Specific requirement 2]
-3. [Specific requirement 3]
+
+### Settings Requirements:
+
+1. **AI Provider Settings Panel**
+   - Default provider selection (Apple Intelligence, ChatGPT, Claude)
+   - API key storage (secure, keychain)
+   - API key validation
+   - Provider availability check (Apple Intelligence requires iOS 18.2+)
+
+2. **Auto-Generation Settings**
+   - "Auto Generate Images" toggle
+   - "Minimum Description Length" slider (25-200 words)
+   - "Auto-generate only for cards without images" checkbox (always on)
+   - "Prompt Prefix" field (optional, e.g., "In the style of fantasy art...")
+
+### Data Model Requirements:
+
+3. **Track AI-Generated Images**
+   - Flag on Card: `imageGeneratedByAI: Bool?`
+   - AI provider used: `imageAIProvider: String?` (e.g., "AppleIntelligence", "ChatGPT", "Claude")
+   - Generation prompt: `imageAIPrompt: String?` (for regeneration)
+   - Generation timestamp: `imageAIGeneratedAt: Date?`
+
+4. **Generation Metadata**
+   - Store prompts for regeneration
+   - Track success/failure
+   - Optional: Store multiple generated variants
+
+### AI Integration Requirements:
+
+5. **Apple Intelligence Integration**
+   - Use Image Playground API (iOS 18.2+, macOS 15.2+)
+   - Native integration, no API key needed
+   - On-device processing (privacy-preserving)
+   - Fallback for older OS versions
+
+6. **ChatGPT Integration**
+   - OpenAI DALL-E API
+   - Requires API key
+   - Cloud-based generation
+   - Handle rate limits and errors
+
+7. **Claude Integration (Anthropic)**
+   - Note: As of 2026-01, Claude does not generate images
+   - Future-proofing for when/if Anthropic adds image generation
+   - May need to use alternative (Stable Diffusion, Midjourney API)
+
+### Prompt Engineering Requirements:
+
+8. **Smart Prompt Extraction**
+   - Analyze `card.kind` for context
+   - Extract key phrases from `detailedText`
+   - Identify visual descriptions (appearance, colors, mood)
+   - Ignore non-visual content (dialogue, plot, relationships)
+   - Format prompts appropriately for each AI provider
+
+9. **Prompt Templates by Card Type**
+   - **Characters:** "Portrait of [name], [description]"
+   - **Locations:** "Landscape of [name], [description]"
+   - **Buildings:** "Architecture of [name], [description]"
+   - **Vehicles:** "Technical illustration of [name], [description]"
+   - **Maps:** "Fantasy map of [name], [description]" (Map Wizard)
+   - **Artifacts:** "Object illustration of [name], [description]"
+   - And so on for all card types
+
+### UI Requirements:
+
+10. **Card Detail View Integration**
+    - "Generate Image" button appears when:
+      - No image currently set, OR
+      - User explicitly wants to regenerate
+      - Description meets minimum length threshold
+    - Button states: Available, Generating, Unavailable (insufficient description)
+    - Tooltip explains why button is disabled
+
+11. **Map Wizard AI Generation Tab**
+    - Prompt input field (pre-populated from card description if available)
+    - Provider selection
+    - "Generate" button
+    - Preview generated image
+    - Accept/Retry/Discard options
+
+12. **Generation Progress UI**
+    - Modal or inline progress indicator
+    - "Generating image with [Provider]..."
+    - Estimated time (if available from provider)
+    - Cancel option
+
+13. **Generated Image Review**
+    - Preview before accepting
+    - "Use This Image" button
+    - "Regenerate" button (reuses prompt)
+    - "Edit Prompt & Regenerate" option
+    - "Discard" option
+
+### Quality & Safety Requirements:
+
+14. **Description Quality Detection**
+    - Minimum word count (configurable, default 50 words)
+    - Detect visual descriptions (color words, size words, etc.)
+    - Confidence score for prompt quality
+    - Warning if description is likely insufficient
+
+15. **Error Handling**
+    - Network errors (retry logic)
+    - API key invalid
+    - Rate limiting (queue and retry)
+    - Provider unavailable
+    - Content policy violations (inappropriate prompts)
+
+16. **Privacy & Security**
+    - API keys stored in Keychain (not in SwiftData)
+    - Option to use on-device only (Apple Intelligence)
+    - Clear disclosure when data sent to cloud APIs
+    - Option to disable AI features entirely
+
+### Attribution & Metadata Requirements:
+
+17. **Image Attribution**
+    - **CRITICAL:** All AI-generated images must include proper attribution
+    - Attribution text format:
+      - Apple Intelligence: "Generated by Apple Intelligence"
+      - ChatGPT/DALL-E: "Generated by DALL-E (OpenAI)"
+      - Claude/Future: "Generated by [Provider Name]"
+    - Attribution storage:
+      - Embed in image EXIF/IPTC metadata
+      - Store in Card metadata (`imageAIProvider`, `imageAIPrompt`, `imageAIGeneratedAt`)
+      - Persist attribution even if image is exported/shared
+    - Attribution display:
+      - Small text overlay or caption when viewing image
+      - Visible in image detail view
+      - Include in image info panel
+
+18. **Image Metadata (EXIF/IPTC)**
+    - **Creator:** "Cumberland App + [AI Provider]"
+    - **Copyright:** User-configurable (default: writer's name/copyright)
+    - **Description:** Original prompt used for generation
+    - **Keywords:** "AI-generated", card type, card name
+    - **Software:** "Cumberland [version]"
+    - **Source:** "[AI Provider] Image Generation"
+    - **DateCreated:** ISO timestamp of generation
+    - **UserComment:** Full generation details JSON (prompt, provider, model version, settings)
+    - **ImageHistory:** Track if image has been regenerated (version tracking)
+
+19. **Attribution UI Display**
+    - **Card Detail View:**
+      - Small badge/label: "AI Generated" with provider icon
+      - Tappable for full attribution details
+    - **Image Detail/Fullscreen View:**
+      - Footer text: "Generated by [Provider] on [Date]"
+      - "View Generation Details" button
+    - **Image Info Panel:**
+      - Provider name
+      - Generation date/time
+      - Prompt used
+      - Model version (if available)
+      - Regeneration history (if applicable)
+
+20. **Attribution Persistence**
+    - Attribution must survive:
+      - Image export (to Files, Photos, etc.)
+      - Project export/backup
+      - CloudKit sync across devices
+      - Image replacement/regeneration
+    - Metadata embedded in image file (EXIF/IPTC)
+    - Metadata also stored in Card properties (redundancy)
+
+21. **Licensing Information**
+    - **Apple Intelligence:**
+      - User owns generated images (as of iOS 18.2 policy)
+      - Can be used commercially in user's creative work
+      - Attribution recommended but not legally required (include anyway)
+    - **ChatGPT/DALL-E:**
+      - OpenAI grants user rights to generated images (as of 2024 policy)
+      - Commercial use permitted
+      - Attribution recommended
+      - Check current OpenAI terms and include reference
+    - **Future Providers:**
+      - Display licensing terms in settings when API key is configured
+      - Link to provider's terms of service
+      - Warn if provider has restrictive licensing
+
+22. **Attribution Settings**
+    - **"Always show AI attribution"** toggle (on by default)
+    - **Copyright text template** (e.g., "© 2026 [Writer Name]. Image generated by AI.")
+    - **Attribution placement** (subtle badge vs. visible caption)
+    - **Export behavior:** "Include attribution in exported images" (on by default)
+
+23. **Legal Compliance**
+    - Comply with AI provider terms of service (attribution requirements)
+    - Comply with App Store guidelines for AI-generated content
+    - Transparency about AI usage
+    - Clear disclosure to users about generated content
+    - Option to disable AI features if user has concerns
+
+24. **Regeneration Tracking**
+    - If image is regenerated:
+      - Store previous image (optional, user setting)
+      - Track generation history (version 1, 2, 3...)
+      - Metadata shows regeneration count
+      - User can revert to previous version
+    - History format in metadata:
+      - "Generated 2026-01-20 (v1), Regenerated 2026-01-22 (v2)"
 
 **Design Approach:**
-[High-level implementation strategy - completed during analysis phase]
+
+### Phase 1: Apple Intelligence Foundation
+
+1. **Settings UI for AI Configuration**
+   - Create AISettings view
+   - Provider selection
+   - Auto-generation toggle
+   - Minimum description threshold
+
+2. **Apple Intelligence Integration**
+   - Import ImagePlayground framework (iOS 18.2+)
+   - Implement basic image generation
+   - Test with simple prompts
+
+3. **UI Integration in Card Detail**
+   - Add "Generate Image" button
+   - Description quality detection
+   - Progress indicator
+   - Image preview and acceptance
+
+### Phase 2: Smart Prompt Extraction
+
+4. **Prompt Engineering System**
+   - Analyze card type and description
+   - Extract visual elements
+   - Template-based prompt generation
+   - Test with various card types
+
+5. **Description Analysis**
+   - Word count
+   - Visual keyword detection
+   - Quality scoring
+   - Feedback to user
+
+### Phase 3: Third-Party API Integration
+
+6. **ChatGPT/DALL-E Integration**
+   - OpenAI API client
+   - API key management
+   - Rate limiting
+   - Error handling
+
+7. **Future Provider Support**
+   - Plugin architecture for new providers
+   - Stable Diffusion
+   - Midjourney (if/when API available)
+
+### Phase 4: Auto-Generation & Polish
+
+8. **Auto-Generation Logic**
+   - Trigger on card save (if enabled)
+   - Check conditions (no image, sufficient description)
+   - Background generation
+   - Notification on completion
+
+9. **Map Wizard Integration**
+   - AI Generation tab implementation
+   - Custom prompt input
+   - Map-specific prompt templates
+
+10. **Batch Generation (Optional)**
+    - Select multiple cards
+    - Generate images for all
+    - Progress tracking
+    - Review generated images
 
 **Components Affected:**
-- Component 1: [What changes]
-- Component 2: [What changes]
+
+- **Settings/SettingsView.swift** - New AI configuration panel, attribution settings
+- **Model/Card.swift** - New properties for AI-generated image metadata, attribution data
+- **Model/Migrations.swift** - Schema updates for new properties
+- **CardEditorView.swift** - "Generate Image" button integration, attribution display
+- **MapWizardView.swift** - AI Generation tab implementation
+- **New: AIImageGenerator.swift** - Core AI integration logic, metadata embedding
+- **New: AISettings.swift** - Settings data model, attribution preferences
+- **New: PromptExtractor.swift** - Smart prompt generation from card data
+- **New: AppleIntelligenceProvider.swift** - Apple Intelligence integration
+- **New: OpenAIProvider.swift** - ChatGPT/DALL-E integration
+- **New: AIProviderProtocol.swift** - Protocol for AI providers
+- **New: AIImageGenerationView.swift** - Image generation UI component, attribution display
+- **New: DescriptionAnalyzer.swift** - Description quality detection
+- **New: ImageMetadataManager.swift** - EXIF/IPTC metadata writing and reading
+- **New: AttributionView.swift** - UI component for displaying attribution badges and details
+- **New: ImageInfoPanel.swift** - Detailed image info view (prompt, provider, metadata)
 
 **Implementation Details:**
-[Detailed description of changes made - filled in during implementation]
 
-**Files Modified:**
-- file_path:line_range - [Description of changes]
+*To be filled in during implementation*
 
 **Test Steps:**
-1. [Step to verify requirement 1]
-2. [Step to verify requirement 2]
-3. [Expected results]
+
+*To be defined during implementation planning*
 
 **Notes:**
-[Any additional context, trade-offs, or future considerations]
+
+### Open Design Questions:
+
+1. **Image Storage:**
+   - Store generated images same as imported images (originalImageData)?
+   - Keep generation metadata separate?
+   - Allow multiple generated variants per card?
+
+2. **Regeneration Strategy:**
+   - Overwrite existing AI-generated image?
+   - Keep history of generated images?
+   - Allow comparison between variants?
+
+3. **Prompt Editing:**
+   - Always allow manual prompt editing?
+   - Show extracted prompt before generation?
+   - Save custom prompts for reuse?
+
+4. **Auto-Generation Triggers:**
+   - On card save?
+   - On description threshold reached?
+   - On user request only?
+   - Background vs foreground generation?
+
+5. **Cost Management (Cloud APIs):**
+   - Token/credit usage tracking?
+   - Warn user about API costs?
+   - Limit generations per day?
+
+6. **Image Style Consistency:**
+   - Global style settings ("fantasy art", "realistic", etc.)?
+   - Per-card style override?
+   - Style presets library?
+
+7. **Multi-Platform Considerations:**
+   - Apple Intelligence available on macOS 15.2+, iOS 18.2+
+   - Fallback for visionOS?
+   - Fallback for older OS versions?
+
+8. **Description Analysis Accuracy:**
+   - Simple word count sufficient?
+   - NLP-based quality detection?
+   - User override option?
+
+9. **Attribution Display:**
+   - How prominent should attribution be?
+   - Subtle badge vs. visible text overlay?
+   - Always visible or only on hover/tap?
+   - User preference for attribution visibility?
+
+10. **Metadata Export:**
+    - Ensure EXIF/IPTC data survives export?
+    - Include attribution in exported file names (e.g., "character_AIgen.png")?
+    - Export attribution as separate text file alongside image?
+    - Handle cases where export format doesn't support metadata?
+
+11. **Regeneration History:**
+    - Store all previous versions or just latest?
+    - Storage limit (e.g., max 5 versions)?
+    - Allow user to delete history to save space?
+    - Display version comparison (side-by-side)?
+
+### Implementation Priorities:
+
+**Phase 1 (MVP):**
+- Apple Intelligence integration (default provider)
+- Manual generation with user-provided prompts
+- Card detail view integration
+- Basic settings panel
+- **Basic attribution:** Provider name, generation date in Card metadata
+- **Attribution display:** Simple "AI Generated" badge
+
+**Phase 2 (Smart Features):**
+- Smart prompt extraction from descriptions
+- Description quality detection
+- "Generate Image" button auto-enable
+- Map Wizard AI generation tab
+- **Enhanced attribution:** EXIF/IPTC metadata embedding
+- **Attribution UI:** Detailed image info panel
+
+**Phase 3 (Advanced):**
+- Auto-generation on card save
+- Third-party API integration (ChatGPT)
+- Batch generation
+- Generation history and regeneration
+- **Attribution persistence:** Ensure metadata survives export/sync
+- **Licensing display:** Show provider terms in settings
+
+**Phase 4 (Polish):**
+- Style presets
+- Cost tracking for cloud APIs
+- Advanced prompt editing
+- Multi-variant generation
+- **Regeneration tracking:** Version history with attribution per version
+- **Attribution preferences:** User control over display/export behavior
+
+### Security & Privacy Considerations:
+
+- **API Keys:** Store in Keychain, never in SwiftData or CloudKit
+- **Cloud Disclosure:** Clearly indicate when images sent to cloud services
+- **On-Device Priority:** Default to Apple Intelligence (on-device)
+- **Data Minimization:** Send only necessary data to cloud APIs (prompt only, not full card data)
+- **User Control:** Easy to disable AI features entirely
+
+### Related Systems:
+
+- **Image Import System** - Integrate generation as alternative to import
+- **Map Wizard** - AI generation as fourth creation method
+- **Settings** - New AI configuration panel
+- **Card Detail Views** - Generation UI integration
+
+### Future Enhancements (Out of Scope for ER-0009):
+
+- Image editing/refinement (inpainting, outpainting)
+- Style transfer (apply one image's style to another)
+- Image-to-image generation (refine imported images)
+- AI-assisted tagging/categorization of images
+- Character consistency across multiple generations
+- Background removal and composition
+- Image variations for same prompt
+
+### Why Images Only (No Text Generation):
+
+**Copyright & Ownership Concerns:**
+- AI-generated text raises questions about authorship
+- Copyright law unclear on AI-written content
+- Publishers may reject AI-written manuscripts
+- Writer's voice and style must remain authentic
+
+**Images Are Different:**
+- Visual inspiration, not creative output
+- Similar to reference photos or concept art
+- Writer still creates all narrative content
+- No ownership ambiguity for the written work
+
+**App Philosophy:**
+- Cumberland supports writers, not replaces them
+- AI as tool for visualization, not creation
+- Writer maintains full creative control
+- All narrative content is human-authored
+
+---
+
+## ER-0010: AI Assistant for Content Analysis and Structured Data Extraction
+
+**Status:** 🔵 Proposed
+**Component:** Card Editors, AI System, Relationship Manager, Settings
+**Priority:** High
+**Date Requested:** 2026-01-20
+
+**Rationale:**
+
+Writers create rich descriptive text about their worlds, characters, and scenes, but manually extracting structured data (locations mentioned, artifacts described, rules implied) is tedious and error-prone. AI can analyze text the writer has already written to:
+
+1. **Identify worldbuilding elements** mentioned in descriptions (locations, artifacts, vehicles, buildings, rules)
+2. **Suggest relationships** to existing cards
+3. **Suggest creation of new cards** for mentioned entities that don't yet exist
+4. **Generate calendar systems** from temporal descriptions (complements ER-0008)
+5. **Maintain consistency** across the project by surfacing relationships
+
+**CRITICAL DISTINCTION:** The AI analyzes and extracts structure from text **the writer already wrote**. It does not generate narrative content. This preserves copyright and ownership while providing intelligent assistance.
+
+**Current Behavior:**
+
+- **Manual card creation** - Writer must manually create cards for every entity
+- **Manual relationship management** - Writer must manually link related cards
+- **No analysis tools** - Mentions of locations/artifacts in scenes require manual tracking
+- **Consistency challenges** - Easy to forget to create cards for mentioned entities
+
+**Desired Behavior:**
+
+### Core Capabilities:
+
+1. **"Analyze" Button Integration**
+   - Appears near description editor in all card types
+   - On-demand analysis (not automatic)
+   - Analyzes current card's description text
+   - Presents suggestions in a review UI
+
+2. **Entity Extraction**
+   - Identify mentions of:
+     - **Locations** (cities, regions, buildings)
+     - **Artifacts** (objects, weapons, tools)
+     - **Vehicles** (ships, mounts, transports)
+     - **Buildings** (structures, landmarks)
+     - **Rules** (magic systems, laws, customs)
+     - **Characters** (people, creatures)
+     - **Temporal Systems** (calendar mentions, time periods)
+   - Match against existing cards
+   - Suggest new cards for unmatched entities
+
+3. **Relationship Suggestions**
+   - "Character X appears in Scene Y" (appears-in relationship)
+   - "Location Z is part of World W" (part-of relationship)
+   - "Artifact A is owned by Character C" (custom relationship)
+   - Present suggestions for user approval
+
+4. **Calendar System Generation** (ER-0008 Enhancement)
+   - Analyze temporal descriptions in scenes/timelines
+   - Extract time divisions mentioned (months, seasons, holidays)
+   - Generate calendar system definition
+   - Suggest names for time periods based on descriptions
+   - Example: "the Month of Harvest" → calendar month name
+
+5. **Assistant Settings**
+   - **"Enable Assistant"** master toggle
+   - **Analysis scope:** (Conservative / Moderate / Aggressive)
+   - **Auto-suggest relationships:** (on/off)
+   - **Minimum confidence threshold:** (slider, 50-95%)
+   - **Entity types to detect:** (checkboxes for each type)
+
+6. **Suggestion Review UI**
+   - Non-intrusive presentation of suggestions
+   - Approve/Reject individual suggestions
+   - Batch approve/reject
+   - "Never suggest this again" option
+   - Preview of what will be created/linked
+
+### Use Case Examples:
+
+**Example 1: Scene Analysis**
+
+Scene description contains:
+> "Aria drew the **Sunblade** from its sheath as she entered the **Temple of Shadows** in **Blackrock City**. The ancient **law of sanctuary** protected her here."
+
+AI Analysis suggests:
+- ✅ Create Artifact card: "Sunblade" → Link to Aria (character) via "owned-by"
+- ✅ Create Building card: "Temple of Shadows" → Link to scene via "setting"
+- ✅ Link to existing Location card: "Blackrock City" → Relationship already exists
+- ✅ Create Rules card: "Law of Sanctuary" → Link to Temple and City
+
+**Example 2: Character Analysis**
+
+Character description contains:
+> "Born in the **Frostlands**, trained at the **Academy of Blades**, now serves in the **Royal Guard**."
+
+AI Analysis suggests:
+- ✅ Link to existing Location: "Frostlands" via "born-in"
+- ✅ Create Building: "Academy of Blades" → Link via "trained-at"
+- ✅ Create Organization/Rules card: "Royal Guard" → Link via "member-of"
+
+**Example 3: Calendar Generation** (ER-0008 Related)
+
+Timeline/Scene descriptions contain:
+> "In the **third week of the Harvest Moon**, during the **Festival of Stars**..."
+> "The **War of Shadows** lasted three **Long Years**, from the **Time of Fire** to the **Age of Ice**."
+
+AI Analysis suggests:
+- ✅ Create Calendar System with:
+  - Month name: "Harvest Moon"
+  - Festival/Event: "Festival of Stars" (recurring event)
+  - Era names: "Time of Fire", "Age of Ice"
+  - Year type: "Long Year" (custom year definition?)
+
+**Requirements:**
+
+### Settings Requirements:
+
+1. **Enable Assistant Setting**
+   - Master toggle for all AI assistant features
+   - Independent of ER-0009 image generation (can enable one without the other)
+   - Clear explanation of what Assistant does
+
+2. **Analysis Configuration**
+   - **Analysis Scope:**
+     - Conservative: High confidence only, fewer suggestions
+     - Moderate: Balanced confidence, typical use
+     - Aggressive: Lower confidence, more suggestions (may have false positives)
+   - **Entity Detection Toggles:**
+     - Detect Locations ☑
+     - Detect Artifacts ☑
+     - Detect Vehicles ☑
+     - Detect Buildings ☑
+     - Detect Rules ☑
+     - Detect Characters ☑
+     - Detect Temporal Systems ☑
+   - **Confidence Threshold:** 50-95% (default 70%)
+
+3. **Behavior Settings**
+   - "Auto-suggest relationships for existing cards" (on/off)
+   - "Suggest creation of new cards" (on/off)
+   - "Remember 'never suggest' preferences" (on/off)
+
+### UI Requirements:
+
+4. **"Analyze" Button Placement**
+   - Near description editor in:
+     - Scene cards
+     - Character cards
+     - Project cards (for world descriptions)
+     - Timeline cards (for calendar extraction)
+     - Location cards
+     - All other card types
+   - Button states:
+     - Available (sufficient text to analyze)
+     - Disabled (insufficient text, e.g., < 25 words)
+     - Analyzing (in progress)
+   - Tooltip: "Analyze description to find mentioned entities and suggest cards/relationships"
+
+5. **Suggestion Review Panel**
+   - Modal or sheet presentation
+   - Grouped by suggestion type:
+     - "New Cards to Create" section
+     - "Relationships to Add" section
+     - "Calendar System Detected" section (if applicable)
+   - Each suggestion shows:
+     - Entity name (extracted)
+     - Card type (detected)
+     - Confidence score (%)
+     - Context (surrounding text snippet)
+     - Preview of what will be created
+   - Actions per suggestion:
+     - ✅ Accept
+     - ❌ Reject
+     - 🔇 Never suggest this
+     - ✏️ Edit before creating
+   - Batch actions:
+     - "Accept All High Confidence (>80%)"
+     - "Accept All"
+     - "Reject All"
+
+6. **Suggestion Preview**
+   - For new cards: Show card type, name, initial description (from context)
+   - For relationships: Show source → relationship type → target
+   - For calendar systems: Show detected time divisions and names
+
+### AI Integration Requirements:
+
+7. **Entity Recognition (NER - Named Entity Recognition)**
+   - Use AI provider (Apple Intelligence, ChatGPT, Claude) for entity extraction
+   - Structured output: entity name, type, confidence, context
+   - Proper noun detection
+   - Context-aware typing (is "Shadowblade" a person, place, or thing?)
+
+8. **Relationship Inference**
+   - Analyze sentence structure to infer relationships
+   - "X drew the Y" → X owns/uses Y
+   - "entered the Z" → Z is a location/building
+   - "in the city of W" → W is a location
+   - "the law of V" → V is a rule/custom
+
+9. **Calendar System Extraction** (ER-0008 Integration)
+   - Detect temporal vocabulary (months, seasons, years, eras)
+   - Extract custom time period names
+   - Identify hierarchy (days → weeks → months → years → eras)
+   - Generate calendar structure definition
+   - Suggest to user for review before creating Calendar card
+
+10. **Deduplication**
+    - Check if extracted entity matches existing card (fuzzy matching)
+    - Avoid suggesting creation of duplicates
+    - Suggest linking to existing card instead
+
+### Data Model Requirements:
+
+11. **Suggestion Tracking**
+    - Track accepted suggestions (for learning/improvement)
+    - Track rejected suggestions
+    - "Never suggest" preferences (per entity or pattern)
+    - Optional: Learn from user preferences over time
+
+12. **Analysis History (Optional)**
+    - When was card last analyzed
+    - What suggestions were made/accepted
+    - Avoid re-suggesting same entities
+
+### Quality & Safety Requirements:
+
+13. **Confidence Scoring**
+    - Each suggestion has confidence score (0-100%)
+    - Display confidence to user
+    - Allow filtering by confidence threshold
+    - High confidence (>85%): Likely accurate
+    - Medium confidence (60-85%): Review recommended
+    - Low confidence (<60%): May be false positive
+
+14. **False Positive Handling**
+    - Avoid suggesting common words as entity names
+    - Context awareness (is "shadows" a place or just darkness?)
+    - Proper noun vs common noun distinction
+    - User feedback improves accuracy over time
+
+15. **Privacy & Security**
+    - Same privacy model as ER-0009
+    - On-device processing preferred (Apple Intelligence)
+    - Clear disclosure when sending text to cloud APIs
+    - Option to disable cloud-based analysis
+    - Data minimization (send only description text, not entire card)
+
+**Design Approach:**
+
+### Phase 1: Core Analysis Engine
+
+1. **AI Provider Integration**
+   - Reuse provider architecture from ER-0009
+   - Add NER (Named Entity Recognition) capabilities
+   - Structured output parsing
+
+2. **Entity Extractor**
+   - Analyze text for entity mentions
+   - Type detection (Location, Artifact, etc.)
+   - Confidence scoring
+   - Context extraction
+
+3. **Settings UI**
+   - Enable Assistant toggle
+   - Analysis scope configuration
+   - Entity type toggles
+
+### Phase 2: Suggestion System
+
+4. **Suggestion Engine**
+   - Generate card creation suggestions
+   - Generate relationship suggestions
+   - Deduplication logic
+   - Confidence ranking
+
+5. **Review UI**
+   - Suggestion panel design
+   - Accept/Reject/Edit flows
+   - Batch operations
+   - Preview functionality
+
+### Phase 3: Card & Relationship Creation
+
+6. **Automated Card Creation**
+   - Create cards from accepted suggestions
+   - Pre-populate name, type, initial description
+   - Link to source card (e.g., "mentioned in Scene X")
+
+7. **Automated Relationship Creation**
+   - Create CardEdge relationships
+   - Use appropriate RelationType
+   - Maintain bidirectional consistency
+
+### Phase 4: Calendar System Generation (ER-0008 Integration)
+
+8. **Temporal Analysis**
+   - Detect calendar-related vocabulary
+   - Extract time period names and hierarchy
+   - Generate calendar system structure
+
+9. **Calendar Card Creation**
+   - Create Rules card with calendar system data
+   - Populate time divisions
+   - Suggest to user for review/editing
+
+### Phase 5: Learning & Refinement
+
+10. **Preference Learning (Optional)**
+    - Track user accept/reject patterns
+    - Adjust confidence thresholds
+    - Improve entity type detection
+    - Reduce false positives over time
+
+**Components Affected:**
+
+- **Settings/SettingsView.swift** - Add "Enable Assistant" and analysis settings
+- **CardEditorView.swift** - Add "Analyze" button near description editor
+- **Model/Card.swift** - Optional: Track analysis metadata
+- **AI/AIImageGenerator.swift** - Extend or share provider infrastructure with ER-0009
+- **New: AIAssistant.swift** - Core assistant logic and orchestration
+- **New: EntityExtractor.swift** - NER and entity detection
+- **New: SuggestionEngine.swift** - Generate card/relationship suggestions
+- **New: SuggestionReviewView.swift** - UI for reviewing suggestions
+- **New: RelationshipInference.swift** - Infer relationships from context
+- **New: CalendarSystemExtractor.swift** - Extract calendar systems from text (ER-0008 tie-in)
+- **New: AnalysisSettings.swift** - Settings data model
+- **New: SuggestionTracker.swift** - Track accepted/rejected suggestions
+
+**Implementation Details:**
+
+*To be filled in during implementation*
+
+**Test Steps:**
+
+*To be defined during implementation planning*
+
+**Notes:**
+
+### Open Design Questions:
+
+1. **Analysis Triggers:**
+   - Only on "Analyze" button click?
+   - Optional: Auto-analyze on card save (with user confirmation)?
+   - Analyze entire project (batch)?
+
+2. **Suggestion Persistence:**
+   - Store pending suggestions for later review?
+   - Discard suggestions when panel closes?
+   - Allow "review later" queue?
+
+3. **Learning & Adaptation:**
+   - Learn from user accept/reject patterns?
+   - Adjust confidence thresholds per user?
+   - Privacy implications of tracking preferences?
+
+4. **Calendar Generation Accuracy:**
+   - Minimum text required to extract calendar?
+   - How to handle incomplete calendar systems?
+   - User guidance for improving calendar extraction?
+
+5. **Relationship Type Selection:**
+   - Auto-select relationship types based on context?
+   - Ask user to confirm/override relationship types?
+   - Create custom relationship types on the fly?
+
+6. **Batch Analysis:**
+   - Analyze multiple cards at once?
+   - Analyze entire project (all scenes)?
+   - Progress tracking for large projects?
+
+7. **Conflict Resolution:**
+   - What if analysis suggests conflicting relationships?
+   - What if extracted entity could be multiple types?
+   - How to handle ambiguity?
+
+8. **Integration with ER-0009:**
+   - After creating suggested cards, auto-generate images?
+   - Combined workflow (analyze → create cards → generate images)?
+   - Separate or integrated UI?
+
+### Implementation Priorities:
+
+**Phase 1 (MVP):**
+- Enable Assistant setting
+- Basic entity extraction (Locations, Artifacts, Characters)
+- "Analyze" button in Scene and Character editors
+- Simple suggestion review UI
+- Card creation from accepted suggestions
+
+**Phase 2 (Relationships):**
+- Relationship inference
+- Relationship suggestions
+- Deduplication (match against existing cards)
+- Improved confidence scoring
+
+**Phase 3 (Calendar Systems):**
+- Temporal analysis for ER-0008
+- Calendar system extraction
+- Calendar card generation
+- Integration with Timeline system
+
+**Phase 4 (Advanced):**
+- Batch analysis
+- Learning from user preferences
+- Advanced entity types (Organizations, Events, etc.)
+- Multi-language support (if needed)
+
+### Integration with Other ERs:
+
+**ER-0008 (Timeline System):**
+- Extract calendar systems from scene/timeline descriptions
+- Auto-populate calendar time divisions
+- Suggest calendar names and structures
+
+**ER-0009 (AI Image Generation):**
+- Share AI provider infrastructure
+- After creating suggested cards, optionally generate images
+- Combined workflow possible
+
+### Why This Doesn't Cross the Copyright Line:
+
+**The Writer Wrote the Text:**
+- AI analyzes text the writer already created
+- No new narrative content generated
+- Writer maintains full authorship
+
+**Extraction, Not Generation:**
+- AI identifies patterns in existing text
+- Suggests organizational structure
+- Writer approves all changes
+
+**Transparency & Control:**
+- User explicitly triggers analysis ("Analyze" button)
+- All suggestions require approval
+- Easy to reject or disable
+
+**Comparable to Other Tools:**
+- Similar to search/find (identifying text patterns)
+- Similar to spell-check suggestions
+- Similar to autocomplete (based on existing text)
+
+### Future Enhancements (Out of Scope for ER-0010):
+
+- Multi-card analysis (analyze relationships between multiple scenes)
+- Timeline extraction (extract event sequences from narrative)
+- Contradiction detection (identify inconsistencies across scenes)
+- Character trait extraction (build character profiles from descriptions)
+- Plot point extraction (identify key story beats)
+- World consistency checker (ensure rules/laws are consistently applied)
+- Export analysis reports
+- Natural language queries ("Show me all scenes mentioning the sword")
 
 ---
 ```

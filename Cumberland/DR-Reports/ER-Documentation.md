@@ -17,23 +17,27 @@ ERs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified ERs (Active & Proposed)
 
-Currently: **2 unverified ERs** (1 Proposed, 1 Implemented - Not Verified)
+Currently: **4 unverified ERs**
 
 | ER | Title | Component | Status |
 |----|-------|-----------|--------|
-| ER-0007 | Unify Map Rendering - Base Layer and Brushes | BrushEngine, TerrainPattern | 🔵 Proposed |
-| ER-0004 | Interior Brush Implementation | BrushRegistry, InteriorMapBrushSet, BrushEngine | 🟡 Implemented - Not Verified (macOS complete, iOS pending) |
+| ER-0006 | Display Working Indicator During Base Layer Rendering | MapWizardView, BaseLayerButton, ToolsTabView | 🔴 Reopened (Regression) |
+| ER-0008 | Time-Based Timeline System with Custom Calendars and Multi-Timeline Visualization | Timeline System, Card Model, TimelineChartView | 🔵 Proposed |
+| ER-0009 | AI Image Generation for Cards (Apple Intelligence and Third-Party APIs) | Card Image System, Settings, MapWizard, Image Import | 🔵 Proposed |
+| ER-0010 | AI Assistant for Content Analysis and Structured Data Extraction | Card Editors, AI System, Relationship Manager, Settings | 🔵 Proposed |
 
 See: [ER-unverified.md](./ER-unverified.md)
 
 ### Verified ERs (Completed Enhancements)
 
-Currently: **5 verified ERs** | Next available ER: **ER-0008**
+Currently: **7 verified ERs** | Next available ER: **ER-0011**
 
 | Batch | ERs | File | Status |
 |-------|-----|------|--------|
 | Batch 1 | ER-0001 to ER-0002 | [ER-verified-0001.md](./ER-verified-0001.md) | ✅ All Verified |
 | Batch 2 | ER-0003, ER-0005, ER-0006 | [ER-verified-0002.md](./ER-verified-0002.md) | ✅ All Verified |
+| Batch 4 | ER-0004 | [ER-verified-0004.md](./ER-verified-0004.md) | ✅ Verified |
+| Batch 7 | ER-0007 | [ER-verified-0007.md](./ER-verified-0007.md) | ⚠️ Partially Verified (Lake ✅, River needs revision) |
 
 ## ER Summary
 
@@ -51,6 +55,18 @@ Currently: **5 verified ERs** | Next available ER: **ER-0008**
 | ER-0003 | Integrate Exterior Brush System | DrawCanvas, BrushEngine, ToolPalette | ✅ Verified |
 | ER-0005 | Remove Redundant Water Brush Types | ExteriorMapBrushSet | ✅ Verified |
 | ER-0006 | Display Working Indicator During Base Layer Rendering | MapWizardView, BaseLayerButton, ToolsTabView | ✅ Verified |
+
+### ER-0004 - Interior Brush System
+
+| ER | Title | Component | Status |
+|----|-------|-----------|--------|
+| ER-0004 | Interior Brush Implementation | BrushRegistry, InteriorMapBrushSet, BrushEngine | ✅ Verified |
+
+### ER-0007 - Map Rendering Unification
+
+| ER | Title | Component | Status |
+|----|-------|-----------|--------|
+| ER-0007 | Unify Map Rendering - Base Layer and Brushes Should Produce Identical Features | BrushEngine, TerrainPattern, BaseLayerRendering | ⚠️ Partially Verified (Lake ✅, River needs future revision) |
 
 ## How to Use This Documentation
 
@@ -86,14 +102,15 @@ When a verified batch file contains multiple ERs (flexible batching), create a n
 
 ## Statistics
 
-- **Total ERs:** 7
-- **Verified:** 5 (71%) ✅
-- **Implemented - Not Verified:** 1 (14%) 🟡
+- **Total ERs:** 10
+- **Verified:** 7 (70.0%) ✅
+- **Implemented - Not Verified:** 0 (0%) 🟡
 - **In Progress:** 0 (0%)
-- **Proposed:** 1 (14%) 🔵
-- **Latest ER:** ER-0007 (2026-01-09 - Proposed - Unify Map Rendering)
+- **Proposed:** 3 (30.0%) 🔵
+- **Reopened:** 1 (ER-0006 regression)
+- **Latest ER:** ER-0010 (2026-01-20 - Proposed - AI Assistant for Content Analysis)
 
 ---
 
-*Last Updated: 2026-01-10*
-*Document Version: 2.2 (Re-implemented ER-0004 - macOS pattern-based rendering complete)*
+*Last Updated: 2026-01-20*
+*Document Version: 2.7 (Added ER-0010 - AI Assistant)*

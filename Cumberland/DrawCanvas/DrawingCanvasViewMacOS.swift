@@ -156,7 +156,7 @@ class MacOSDrawingView: NSView {
             stroke.color.getRed(&r, green: &g, blue: &b, alpha: &a)
 
             // DR-0031: Include brushID in stored stroke for advanced rendering
-            let codableStroke = DrawingStroke(
+            var codableStroke = DrawingStroke(
                 points: finalPoints.map { CGPointCodable(x: $0.x, y: $0.y) },
                 colorRed: r,
                 colorGreen: g,
@@ -164,8 +164,30 @@ class MacOSDrawingView: NSView {
                 colorAlpha: a,
                 lineWidth: stroke.lineWidth,
                 toolType: stroke.toolType.rawValue,
-                brushID: stroke.brushID
+                brushID: stroke.brushID,
+                cachedImageData: nil,
+                cachedImageOrigin: nil
             )
+
+            // ER-0007: Generate cached image for advanced brushes (PERFORMANCE FIX)
+            if let brushID = stroke.brushID,
+               let brush = BrushRegistry.shared.findBrush(id: brushID),
+               BrushEngine.recommendedRenderingMethod(for: brush) == .advanced {
+
+                let swiftUIColor = Color(red: Double(r), green: Double(g), blue: Double(b), opacity: Double(a))
+                let terrainMetadata = model.layerManager?.baseLayer?.layerFill?.terrainMetadata
+
+                if let (imageData, origin) = BrushEngine.renderAndCacheStroke(
+                    brush: brush,
+                    points: finalPoints,
+                    color: swiftUIColor,
+                    width: stroke.lineWidth,
+                    terrainMetadata: terrainMetadata
+                ) {
+                    codableStroke.cachedImageData = imageData
+                    codableStroke.cachedImageOrigin = CGPointCodable(x: origin.x, y: origin.y)
+                }
+            }
 
             // DR-0023 / ER-0002: Store stroke in appropriate layer
             // Base layer (order == 0) should never receive strokes
@@ -381,14 +403,26 @@ class MacOSDrawingView: NSView {
         if let brushID = stroke.brushID,
            let brush = BrushRegistry.shared.findBrush(id: brushID),
            BrushEngine.recommendedRenderingMethod(for: brush) == .advanced {
-            // Use BrushEngine for advanced rendering
+
+            // ER-0007: Check for cached image data first (PERFORMANCE FIX)
+            if let imageData = stroke.cachedImageData,
+               let origin = stroke.cachedImageOrigin {
+                // Use cached rendering - dramatically faster
+                BrushEngine.drawCachedStroke(
+                    imageData: imageData,
+                    origin: CGPoint(x: origin.x, y: origin.y),
+                    context: context
+                )
+                return
+            }
+
+            // No cache available - render normally (for old strokes)
             let swiftUIColor = Color(
                 red: Double(stroke.colorRed),
                 green: Double(stroke.colorGreen),
                 blue: Double(stroke.colorBlue),
                 opacity: Double(stroke.colorAlpha)
             )
-            // DR-0032: Pass terrain metadata for scale-aware beach rendering
             let terrainMetadata = canvasModel?.layerManager?.baseLayer?.layerFill?.terrainMetadata
 
             BrushEngine.renderAdvancedStroke(

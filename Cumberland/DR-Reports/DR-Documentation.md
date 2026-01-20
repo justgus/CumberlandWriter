@@ -17,13 +17,15 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **3 unverified DRs** (2 Open, 1 Resolved - Not Verified)
+Currently: **5 unverified DRs** (All Open)
 
 | DR | Title | Component | Status |
 |----|-------|-----------|--------|
+| DR-0042 | Apple Pencil Not Working with Gesture-Based Brushes on iOS | DrawingCanvasView / UIPanGestureRecognizer | 🔴 Open |
+| DR-0041 | Vegetation and Terrain Brushes Should Render as Area Fills | BrushEngine / ExteriorMapBrushSet | 🔴 Open |
+| DR-0040 | Brush Set Picker Text Overflow on iOS | BrushGridView / Tool Palette | 🔴 Open |
 | DR-0039 | Saved Strokes/Settings Failed to Restore During Drawing Canvas Restoration | DrawCanvas / Draft Persistence / LayerManager | 🔴 Open |
 | DR-0038 | Draft Interior Drawing Settings Not Remembered Between View Loads | MapWizardView / Draft Persistence | 🔴 Open |
-| DR-0031 | Advanced Brush Rendering Not Executed on Any Platform (Critical Architecture Issue) | DrawCanvas/BrushEngine Integration | 🟡 Resolved - Not Verified (macOS) |
 
 See: [DR-unverified.md](./DR-unverified.md)
 
@@ -36,7 +38,7 @@ Currently: **37 verified DRs** | Next available DR: **DR-0038**
 | Batch 1 | DR-0001 to DR-0010 | [DR-verified-0001-0010.md](./DR-verified-0001-0010.md) | ✅ All Verified |
 | Batch 2 | DR-0011 to DR-0020 | [DR-verified-0011-0020.md](./DR-verified-0011-0020.md) | ✅ All Verified |
 | Batch 3 | DR-0021 to DR-0030 | [DR-verified-0021-0030.md](./DR-verified-0021-0030.md) | ✅ All Verified |
-| Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | 🚧 In Progress (7/10 verified) |
+| Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | 🚧 In Progress (8/10 verified) |
 
 ## DR Summary
 
@@ -130,13 +132,13 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 40
-- **Verified:** 37 (93%) ✅
-- **Resolved - Not Verified:** 1 (2%) 🟡
-- **Open:** 2 (5%) 🔴
-- **Latest DR:** DR-0039 (2026-01-11 - Saved Strokes/Settings Failed to Restore)
+- **Total DRs:** 43
+- **Verified:** 38 (88%) ✅
+- **Resolved - Not Verified:** 0 (0%) 🟡
+- **Open:** 5 (12%) 🔴
+- **Latest DR:** DR-0042 (2026-01-19 - Apple Pencil Not Working with Gesture-Based Brushes on iOS)
 
 ---
 
-*Last Updated: 2026-01-11*
-*Document Version: 4.4 (Opened DR-0039 - Stroke restoration failure)*
+*Last Updated: 2026-01-19*
+*Document Version: 4.7 (Opened DR-0041 and DR-0042)*

@@ -344,17 +344,24 @@ struct DrawingStroke: Codable {
     // DR-0031: Store brush metadata for advanced rendering
     var brushID: UUID?  // Optional for backward compatibility
 
+    // ER-0007: Store cached rendered image for performance (advanced brushes only)
+    // Stores PNG data of the pre-rendered stroke to avoid recalculating elevation maps
+    var cachedImageData: Data?
+
+    // ER-0007: Bounding box for cached image placement
+    var cachedImageOrigin: CGPointCodable?
+
     #if os(macOS)
     /// Convert to NSColor for rendering
     var color: NSColor {
         NSColor(red: colorRed, green: colorGreen, blue: colorBlue, alpha: colorAlpha)
     }
+    #endif
 
-    /// Convert points to CGPoint array
+    /// Convert points to CGPoint array (cross-platform)
     var cgPoints: [CGPoint] {
         points.map { CGPoint(x: $0.x, y: $0.y) }
     }
-    #endif
 }
 
 struct CGPointCodable: Codable {

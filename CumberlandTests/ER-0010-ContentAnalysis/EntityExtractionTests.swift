@@ -1,0 +1,151 @@
+import Testing
+@testable import Cumberland
+
+/// Tests for Entity Extraction and NER functionality
+/// Part of ER-0010: AI Content Analysis
+@Suite("Entity Extraction Tests")
+struct EntityExtractionTests {
+
+    // MARK: - Basic Entity Extraction Tests
+
+    @Test("Extract character entities from description")
+    async func extractCharacters() async throws {
+        let description = """
+        Sir Aldric the Bold rode into the village of Thornhaven, \
+        accompanied by his squire Marcus. They sought an audience \
+        with Lady Elara, the town's ruler.
+        """
+
+        // TODO: Implement EntityExtractor
+        // let extractor = EntityExtractor()
+        // let entities = try await extractor.extract(from: description)
+        //
+        // let characters = entities.filter { $0.type == .character }
+        // #expect(characters.count == 3)
+        // #expect(characters.contains { $0.name == "Sir Aldric" })
+        // #expect(characters.contains { $0.name == "Marcus" })
+        // #expect(characters.contains { $0.name == "Lady Elara" })
+    }
+
+    @Test("Extract location entities from description")
+    async func extractLocations() async throws {
+        let description = """
+        The caravan traveled from Westport through the Whispering Woods \
+        to reach the ancient ruins of Kael'thas.
+        """
+
+        // TODO: Implement location extraction
+        // let extractor = EntityExtractor()
+        // let entities = try await extractor.extract(from: description)
+        //
+        // let locations = entities.filter { $0.type == .location }
+        // #expect(locations.count == 3)
+        // #expect(locations.contains { $0.name == "Westport" })
+        // #expect(locations.contains { $0.name == "Whispering Woods" })
+        // #expect(locations.contains { $0.name == "Kael'thas" })
+    }
+
+    @Test("Extract artifact entities from description")
+    async func extractArtifacts() async throws {
+        let description = """
+        The hero wielded the Sword of Dawn and carried the Shield of Ancients.
+        """
+
+        // TODO: Implement artifact extraction
+    }
+
+    // MARK: - Entity Type Inference Tests
+
+    @Test("Infer entity types correctly")
+    async func inferEntityTypes() async throws {
+        let description = """
+        Captain Reynolds commands the starship Enterprise from the bridge.
+        """
+
+        // TODO: Test entity type inference
+        // Captain Reynolds -> Character
+        // Enterprise -> Vehicle (or Location in context)
+        // bridge -> Building/Location (part of ship)
+    }
+
+    // MARK: - Confidence Scoring Tests
+
+    @Test("Assign confidence scores to entities")
+    async func confidenceScoring() async throws {
+        let description = """
+        Dr. Smith and someone traveled to the place.
+        """
+
+        // TODO: Test confidence scoring
+        // "Dr. Smith" -> High confidence (proper noun with title)
+        // "someone" -> Low confidence (vague reference)
+        // "the place" -> Low confidence (vague reference)
+    }
+
+    // MARK: - Context Extraction Tests
+
+    @Test("Extract context surrounding entities")
+    async func contextExtraction() async throws {
+        let description = """
+        The ancient wizard Merlin, keeper of the sacred flame, \
+        dwelt in the Crystal Tower overlooking the misty valley.
+        """
+
+        // TODO: Test context extraction
+        // "Merlin" should have context: "ancient wizard, keeper of the sacred flame"
+        // "Crystal Tower" should have context: "overlooking the misty valley"
+    }
+
+    // MARK: - Deduplication Tests
+
+    @Test("Deduplicate similar entity names")
+    async func deduplication() async throws {
+        // TODO: Test fuzzy matching for deduplication
+        // "Sir Aldric" vs "Aldric" -> Same entity
+        // "Dr. Smith" vs "Doctor Smith" -> Same entity
+        // Case-insensitive matching
+    }
+
+    @Test("Detect existing entities to prevent duplicates")
+    async func detectExistingEntities() async throws {
+        // TODO: Test matching against existing cards
+        // If "Captain Reynolds" card already exists,
+        // suggest linking instead of creating duplicate
+    }
+
+    // MARK: - Filtering Tests
+
+    @Test("Filter out non-entity proper nouns")
+    async func filterNonEntities() async throws {
+        let description = """
+        On Monday, Captain Reynolds said "Hello" and left for New York.
+        """
+
+        // TODO: Test filtering
+        // "Monday" -> Not an entity (day of week)
+        // "Captain Reynolds" -> Entity (Character)
+        // "Hello" -> Not an entity (dialogue)
+        // "New York" -> Could be entity if in fantasy setting, otherwise filter
+    }
+
+    // MARK: - Error Handling Tests
+
+    @Test("Handle empty description")
+    async func emptyDescription() async throws {
+        // TODO: Test with empty string
+        // Should return empty entity list, not error
+    }
+
+    @Test("Handle description below minimum length")
+    async func shortDescription() async throws {
+        let description = "Test"
+
+        // TODO: Test minimum length requirement (25 words)
+        // Should either return empty or throw appropriate error
+    }
+
+    @Test("Handle API errors gracefully")
+    async func apiError() async throws {
+        // TODO: Test error handling when AI provider fails
+    }
+}

@@ -2,7 +2,123 @@
 
 This file contains verified discrepancy reports DR-0031 through DR-0040.
 
-**Batch Status:** 🚧 In Progress (7/10 verified)
+**Batch Status:** 🚧 In Progress (8/10 verified)
+
+---
+
+## DR-0031: Advanced Brush Rendering Not Executed on Any Platform (Critical Architecture Issue)
+
+**Status:** ✅ Resolved - Verified
+**Verification Date:** 2026-01-19
+**Resolution Date:** 2026-01-08 (macOS), 2026-01-19 (iOS)
+**Platform:** All platforms (macOS, iOS, iPadOS)
+**Component:** DrawCanvas/BrushEngine Integration
+**Severity:** Critical
+**Date Identified:** 2026-01-08
+
+**Description:**
+When drawing with advanced brushes (River, terrain brushes, vegetation brushes, interior brushes), only simple bezier curves or PencilKit strokes were rendered instead of the expected procedurally-generated patterns with meandering curves, variable width, and special effects. The BrushEngine contained fully-implemented advanced rendering algorithms but was completely disconnected from the actual drawing code on all platforms.
+
+**Root Cause:**
+The BrushEngine system was never integrated with the platform drawing canvases:
+- **iOS/iPadOS**: PencilKit was used directly with no custom rendering hooks
+- **macOS**: Custom NSView drawing only rendered simple NSBezierPath curves
+- Brush metadata (ID, category, pattern) was not stored with strokes
+- BrushEngine.renderAdvancedStroke() was never called on any platform
+
+**macOS Implementation (2026-01-08):**
+
+**Changes Made:**
+1. Extended DrawingStroke model to store `brushID: UUID?` for backward compatibility
+2. Captured brushID in mouseDown/mouseUp handlers
+3. Added BrushRegistry.findBrush(id:) helper method
+4. Updated drawStroke() to call BrushEngine.renderAdvancedStroke() for advanced brushes
+5. Implemented deferred rendering (simple preview during drag, full rendering on mouseUp)
+
+**Performance Fix:**
+Initial implementation was too slow for real-time preview, so adopted deferred strategy:
+- During drawing: Simple bezier path at 50% opacity (smooth 60 FPS)
+- After mouseUp: Full BrushEngine rendering with all procedural features
+- Result: Smooth drawing experience with beautiful final rendering
+
+**Files Modified (macOS):**
+- `Cumberland/DrawCanvas/DrawingLayer.swift` - Added brushID to DrawingStroke (line 335)
+- `Cumberland/DrawCanvas/DrawingCanvasViewMacOS.swift` - Integrated BrushEngine rendering
+- `Cumberland/DrawCanvas/BrushRegistry.swift` - Added findBrush() helper (lines 57-65)
+- `Cumberland/DrawCanvas/BrushEngine.swift` - Enhanced river rendering intensity (line 687)
+- `Cumberland/DrawCanvas/BrushEngine+Patterns.swift` - Added synthetic pressure generation (lines 534-563)
+
+**iOS Implementation (2026-01-19):**
+
+**Architecture: Direct Gesture Control + Post-Processing**
+
+Since PencilKit doesn't support custom rendering, implemented a hybrid approach:
+- **Gesture-based brushes** (walls, stamps/furniture): Bypass PencilKit entirely, use custom gesture recognizer
+- **Path-based brushes** (area fills like Carpet, Water Feature): Use PencilKit path, convert to advanced rendering
+- **Simple brushes** (pencil, marker): Use PencilKit normally
+
+**Changes Made:**
+
+1. **Gesture-Based Rendering** (Walls & Furniture):
+   - Disable PencilKit for advanced brushes (set to eraser tool)
+   - Custom UIPanGestureRecognizer captures touch events
+   - Show dotted preview during drag (straight line for walls, rectangle for stamps)
+   - On touch end, create DrawingStroke directly with minimal points:
+     - Walls: 2 points (start → end)
+     - Stamps: 2 points (BrushEngine calculates bounding box from first/last)
+   - No PencilKit conversion needed
+
+2. **PencilKit-Based Rendering** (Area Fills):
+   - User draws freeform path with PencilKit
+   - Detect stroke completion in canvasViewDrawingDidChange
+   - Extract points from PKStroke.path
+   - Convert to DrawingStroke with brushID
+   - Store in layer.macosStrokes (cross-platform compatible)
+   - Remove PencilKit stroke, render via BrushEngine
+
+3. **Advanced Brush Overlay**:
+   - AdvancedBrushOverlayView sits on top of PencilKit canvas
+   - Renders all strokes with brushID using BrushEngine
+   - Uses same rendering code as macOS for visual consistency
+
+**Files Modified (iOS):**
+- `Cumberland/DrawCanvas/DrawingCanvasView.swift`:
+  - Added selectedBrush tracking and gesture-based rendering (lines 1210-1419)
+  - shouldBypassPencilKit() determines brush handling strategy (lines 1262-1279)
+  - handleDrawingGesture() creates strokes directly for walls/stamps (lines 1296-1401)
+  - processNewStrokes() converts PencilKit strokes for area fills (lines 1520-1607)
+  - DrawingPreviewOverlayView shows dotted previews (lines 1600-1700)
+  - AdvancedBrushOverlayView renders advanced strokes (lines 1707-1766)
+- `Cumberland/DrawCanvas/DrawingLayer.swift` - Made cgPoints cross-platform (lines 354-357)
+
+**Cross-Platform Compatibility:**
+- ✅ Both platforms use same DrawingStroke format with brushID
+- ✅ Both platforms use same BrushEngine for rendering
+- ✅ Strokes created on macOS render correctly on iOS
+- ✅ Strokes created on iOS render correctly on macOS
+- ✅ CloudKit sync preserves brush metadata
+
+**Verification (macOS):**
+- ✅ River brush renders with meandering, width variation, tapered ends
+- ✅ Terrain brushes render with procedural patterns
+- ✅ Smooth drawing preview, advanced rendering on mouseUp
+- ✅ Performance excellent (60 FPS preview)
+
+**Verification (iOS):**
+- ✅ Walls render as straight lines (not curved paths)
+- ✅ Furniture renders at correct size (drag defines bounding box)
+- ✅ Water Feature, Carpet, Rubble render as filled areas
+- ✅ Preview shows dotted lines/rectangles during drawing
+- ✅ No PencilKit path visible for gesture-based brushes
+- ✅ All advanced brushes work as expected
+
+**Impact Resolution:**
+- ✅ All advanced brush features now functional on both platforms
+- ✅ Water brushes render with procedural effects
+- ✅ Terrain brushes render with natural variations
+- ✅ Interior brushes (walls, furniture, area fills) work correctly on iOS
+- ✅ Users can create maps with intended artistic effects
+- ✅ Cross-platform rendering consistency achieved
 
 ---
 

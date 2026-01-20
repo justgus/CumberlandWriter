@@ -202,6 +202,7 @@ struct ExteriorMapBrushSet {
     private static func createWaterBrushes() -> [MapBrush] {
         return [
             MapBrush(
+                id: UUID(uuidString: "A1B2C3D4-E5F6-4A5B-9C8D-123456789ABC")!,  // Stable ID for River brush
                 name: "River",
                 icon: "arrow.down.forward.and.arrow.up.backward",
                 category: .water,
@@ -218,6 +219,7 @@ struct ExteriorMapBrushSet {
                 isBuiltIn: true
             ),
             MapBrush(
+                id: UUID(uuidString: "B2C3D4E5-F6A7-4B6C-8D9E-234567890BCD")!,  // Stable ID for Lake brush
                 name: "Lake",
                 icon: "circle.fill",
                 category: .water,
@@ -232,6 +234,7 @@ struct ExteriorMapBrushSet {
                 isBuiltIn: true
             ),
             MapBrush(
+                id: UUID(uuidString: "C3D4E5F6-A7B8-4C7D-9E0F-345678901CDE")!,  // Stable ID for Marsh brush
                 name: "Marsh",
                 icon: "aqi.medium",
                 category: .water,

@@ -31,6 +31,9 @@ struct DrawingCanvasView: View {
     @State private var scrollPosition: CGPoint
     // DR-0011: Track container size for proper palette positioning
     @State private var containerSize: CGSize = .zero
+    // ER-0004: Preview overlay state for iOS advanced brush rendering
+    @State private var previewStart: CGPoint? = nil
+    @State private var previewEnd: CGPoint? = nil
 
     // DR-0006: Initialize with scroll position from model for proper restoration
     init(canvasState: Binding<DrawingCanvasModel>) {
@@ -89,9 +92,34 @@ struct DrawingCanvasView: View {
                             isRulerActive: canvasState.isRulerActive,
                             canvasSize: canvasState.canvasSize,
                             zoomScale: canvasState.zoomScale,
-                            layerManager: canvasState.layerManager
+                            layerManager: canvasState.layerManager,
+                            selectedBrush: canvasState.selectedBrush,  // ER-0004/DR-0031: Pass selected brush for advanced rendering
+                            previewStart: $previewStart,  // ER-0004: Preview overlay state
+                            previewEnd: $previewEnd  // ER-0004: Preview overlay state
                         )
                         .id(canvasState.toolChangeCounter)  // Force update when tool changes (DR-0001, DR-0002, DR-0003)
+
+                        // ER-0004/DR-0031: Drawing preview overlay for iOS (shows dotted previews during drawing)
+                        if let _ = canvasState.layerManager {
+                            DrawingPreviewOverlayView(
+                                selectedBrush: canvasState.selectedBrush,
+                                canvasSize: canvasState.canvasSize,
+                                previewStart: previewStart,
+                                previewEnd: previewEnd
+                            )
+                            .frame(width: canvasState.canvasSize.width, height: canvasState.canvasSize.height)
+                        }
+
+                        // ER-0004/DR-0031: Advanced brush rendering overlay for iOS
+                        if let layerManager = canvasState.layerManager,
+                           let activeLayer = layerManager.activeLayer {
+                            AdvancedBrushOverlayView(
+                                layerManager: layerManager,
+                                canvasSize: canvasState.canvasSize
+                            )
+                            // Force overlay to update when stroke count changes
+                            .id("overlay-\(activeLayer.id)-\(activeLayer.macosStrokes.count)")
+                        }
                     }
                     .frame(width: canvasState.canvasSize.width, height: canvasState.canvasSize.height)
                 }
@@ -1159,11 +1187,13 @@ private struct PencilKitCanvasView: UIViewRepresentable {
     let canvasSize: CGSize
     let zoomScale: CGFloat
     let layerManager: LayerManager?
-    
+    let selectedBrush: MapBrush?  // ER-0004/DR-0031: Track selected brush for advanced rendering
+    @Binding var previewStart: CGPoint?  // ER-0004: Preview overlay state
+    @Binding var previewEnd: CGPoint?    // ER-0004: Preview overlay state
+
     func makeUIView(context: Context) -> PKCanvasView {
         let canvasView = PKCanvasView()
         canvasView.drawing = drawing
-        canvasView.tool = tool
         canvasView.delegate = context.coordinator
         canvasView.drawingPolicy = .anyInput
         canvasView.backgroundColor = .clear
@@ -1177,23 +1207,45 @@ private struct PencilKitCanvasView: UIViewRepresentable {
         // Set content size
         canvasView.contentSize = canvasSize
 
-        // DR-0012: Log tool details on canvas creation
-        if let inkingTool = tool as? PKInkingTool {
-            print("[DR-0012] makeUIView - Created canvas with inking tool width: \(inkingTool.width)")
+        // ER-0004: Check if we should disable PencilKit for gesture-based brushes
+        if let brush = selectedBrush, shouldBypassPencilKit(for: brush) {
+            // Disable PencilKit drawing for gesture-based brushes (walls, stamps)
+            canvasView.drawingPolicy = .default  // Only Apple Pencil (most restrictive)
+            canvasView.tool = PKEraserTool(.vector)  // Set to eraser so nothing draws
+            print("[ER-0004] Gesture-based brush detected - disabling PencilKit drawing")
         } else {
-            print("[DR-0012] makeUIView - Created canvas with non-inking tool: \(type(of: tool))")
+            canvasView.tool = tool
+            // DR-0012: Log tool details on canvas creation
+            if let inkingTool = tool as? PKInkingTool {
+                print("[DR-0012] makeUIView - Created canvas with inking tool width: \(inkingTool.width)")
+            } else {
+                print("[DR-0012] makeUIView - Created canvas with non-inking tool: \(type(of: tool))")
+            }
         }
+
+        // ER-0004: Add gesture recognizer for advanced brush drawing
+        let panGesture = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDrawingGesture(_:)))
+        panGesture.delegate = context.coordinator
+        canvasView.addGestureRecognizer(panGesture)
 
         return canvasView
     }
     
     func updateUIView(_ canvasView: PKCanvasView, context: Context) {
-        canvasView.tool = tool
         canvasView.isRulerActive = isRulerActive
 
-        // DR-0012: Log tool details on update
-        if let inkingTool = tool as? PKInkingTool {
-            print("[DR-0012] updateUIView - Updated canvas tool width: \(inkingTool.width)")
+        // ER-0004: Check if we should disable PencilKit for gesture-based brushes
+        if let brush = selectedBrush, shouldBypassPencilKit(for: brush) {
+            // Disable PencilKit drawing for gesture-based brushes
+            canvasView.drawingPolicy = .default
+            canvasView.tool = PKEraserTool(.vector)
+        } else {
+            canvasView.drawingPolicy = .anyInput
+            canvasView.tool = tool
+            // DR-0012: Log tool details on update
+            if let inkingTool = tool as? PKInkingTool {
+                print("[DR-0012] updateUIView - Updated canvas tool width: \(inkingTool.width)")
+            }
         }
 
         // Only update drawing if it's different (avoid infinite loop)
@@ -1206,21 +1258,193 @@ private struct PencilKitCanvasView: UIViewRepresentable {
             canvasView.contentSize = canvasSize
         }
     }
+
+    /// ER-0004: Determine if a brush should bypass PencilKit for direct gesture control
+    /// Walls and stamps use gestures, area fills use PencilKit path
+    private func shouldBypassPencilKit(for brush: MapBrush) -> Bool {
+        let brushName = brush.name.lowercased()
+
+        // Walls always use gesture
+        if brushName.contains("wall") && brush.category == .architectural {
+            return true
+        }
+
+        // Stamps (furniture) always use gesture
+        if brush.patternType == .stamp {
+            return true
+        }
+
+        // Everything else (including area fills) uses PencilKit
+        return false
+    }
     
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
     
-    class Coordinator: NSObject, PKCanvasViewDelegate {
+    class Coordinator: NSObject, PKCanvasViewDelegate, UIGestureRecognizerDelegate {
         var parent: PencilKitCanvasView
         var previousActiveLayerID: UUID?
+        var previousStrokeCount: Int = 0  // ER-0004/DR-0031: Track stroke count to detect new strokes
+        var isUpdatingProgrammatically: Bool = false  // Prevent recursive updates
 
         init(_ parent: PencilKitCanvasView) {
             self.parent = parent
             self.previousActiveLayerID = parent.layerManager?.activeLayerID
         }
 
+        // ER-0004: Handle direct drawing for gesture-based brushes (walls, stamps)
+        @objc func handleDrawingGesture(_ gesture: UIPanGestureRecognizer) {
+            guard let canvasView = gesture.view as? PKCanvasView else { return }
+
+            // Only handle gesture-based brushes (walls, stamps)
+            guard let brush = parent.selectedBrush,
+                  parent.shouldBypassPencilKit(for: brush) else {
+                return
+            }
+
+            guard let layerManager = parent.layerManager else { return }
+
+            switch gesture.state {
+            case .began:
+                let location = gesture.location(in: canvasView)
+                parent.previewStart = location
+                parent.previewEnd = location
+                print("[ER-0004] Drawing gesture began at \(location)")
+
+            case .changed:
+                parent.previewEnd = gesture.location(in: canvasView)
+
+            case .ended:
+                guard let start = parent.previewStart else {
+                    parent.previewStart = nil
+                    parent.previewEnd = nil
+                    return
+                }
+
+                let end = gesture.location(in: canvasView)
+                print("[ER-0004] Drawing gesture ended - creating stroke from \(start) to \(end)")
+
+                // Create DrawingStroke directly based on brush type
+                createAdvancedStroke(
+                    brush: brush,
+                    start: start,
+                    end: end,
+                    layerManager: layerManager
+                )
+
+                // Clear preview
+                parent.previewStart = nil
+                parent.previewEnd = nil
+
+            case .cancelled, .failed:
+                parent.previewStart = nil
+                parent.previewEnd = nil
+                print("[ER-0004] Drawing gesture cancelled")
+
+            default:
+                break
+            }
+        }
+
+        // Create a DrawingStroke for advanced brushes
+        private func createAdvancedStroke(
+            brush: MapBrush,
+            start: CGPoint,
+            end: CGPoint,
+            layerManager: LayerManager
+        ) {
+            // Get the target layer
+            let targetLayer = layerManager.getTargetLayerForStrokes()
+
+            // Create points based on brush type
+            // Note: This function only handles gesture-based brushes (walls, stamps)
+            // Area fills use PencilKit and are processed in processNewStrokes()
+            let points: [CGPointCodable]
+
+            let brushName = brush.name.lowercased()
+            let isWallBrush = brushName.contains("wall") && brush.category == .architectural
+            let isStampBrush = brush.patternType == .stamp
+
+            if isWallBrush {
+                // Wall: just start and end points (straight line)
+                points = [
+                    CGPointCodable(x: start.x, y: start.y),
+                    CGPointCodable(x: end.x, y: end.y)
+                ]
+                print("[ER-0004] Creating wall stroke with 2 points: \(start) to \(end)")
+
+            } else if isStampBrush {
+                // Furniture/stamp: ONLY 2 points (start/end define bounding box)
+                // renderStampPattern uses first/last to calculate bounding box
+                points = [
+                    CGPointCodable(x: start.x, y: start.y),
+                    CGPointCodable(x: end.x, y: end.y)
+                ]
+                print("[ER-0004] Creating stamp stroke: \(brush.name), box from \(start) to \(end)")
+
+            } else {
+                // Shouldn't reach here - this function only handles gesture-based brushes
+                print("[ER-0004] WARNING: Unexpected brush type in createAdvancedStroke: \(brush.name)")
+                points = [
+                    CGPointCodable(x: start.x, y: start.y),
+                    CGPointCodable(x: end.x, y: end.y)
+                ]
+            }
+
+            // Get color and width from the current tool
+            var color: UIColor = .black
+            var lineWidth: CGFloat = 5.0
+
+            if let inkingTool = parent.tool as? PKInkingTool {
+                color = inkingTool.color
+                lineWidth = inkingTool.width
+            }
+
+            // Create the DrawingStroke
+            let stroke = DrawingStroke(
+                points: points,
+                colorRed: color.cgColor.components?[0] ?? 0,
+                colorGreen: color.cgColor.components?[1] ?? 0,
+                colorBlue: color.cgColor.components?[2] ?? 0,
+                colorAlpha: color.cgColor.alpha,
+                lineWidth: lineWidth,
+                toolType: "advanced",
+                brushID: brush.id
+            )
+
+            // Add to layer
+            targetLayer.macosStrokes.append(stroke)
+            targetLayer.markModified()
+
+            print("[ER-0004] ✅ Created advanced stroke - layer now has \(targetLayer.macosStrokes.count) strokes")
+        }
+
+        // Allow gesture to work simultaneously with PencilKit (for simple brushes)
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            return true
+        }
+
+        // Track drawing in progress for preview
+        func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
+            // Clear any preview when PencilKit starts (simple brushes)
+            parent.previewStart = nil
+            parent.previewEnd = nil
+        }
+
+        func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
+            // Clear preview when drawing ends
+            parent.previewStart = nil
+            parent.previewEnd = nil
+        }
+
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+            // Prevent recursive calls when we programmatically update the drawing
+            guard !isUpdatingProgrammatically else {
+                print("[canvasViewDrawingDidChange] Skipping - programmatic update")
+                return
+            }
+
             // DR-0023/DR-0026: Detect layer switches to prevent data loss
             if let layerManager = parent.layerManager {
                 let currentActiveLayerID = layerManager.activeLayerID
@@ -1240,6 +1464,23 @@ private struct PencilKitCanvasView: UIViewRepresentable {
                     return  // Skip save on layer switch
                 }
 
+                // ER-0004/DR-0031: Process new strokes for PencilKit-based advanced rendering
+                // (walls & stamps bypass PencilKit, area fills use PencilKit)
+                let currentStrokeCount = canvasView.drawing.strokes.count
+                if currentStrokeCount > previousStrokeCount {
+                    // New stroke(s) added - process for advanced rendering if needed
+                    processNewStrokes(
+                        canvasView: canvasView,
+                        layerManager: layerManager,
+                        previousCount: previousStrokeCount
+                    )
+                    // Update previousStrokeCount to the ACTUAL current count after processing
+                    // (processing may have removed strokes from the canvas)
+                    previousStrokeCount = canvasView.drawing.strokes.count
+                } else {
+                    previousStrokeCount = currentStrokeCount
+                }
+
                 // DR-0023 / ER-0002: Save strokes to appropriate layer
                 // Base layer (order == 0) should never receive strokes
                 let targetLayer = layerManager.getTargetLayerForStrokes()
@@ -1254,8 +1495,308 @@ private struct PencilKitCanvasView: UIViewRepresentable {
                 parent.drawing = canvasView.drawing
             }
         }
+
+        // ER-0004/DR-0031: Process new strokes for advanced brush rendering on iOS
+        private func processNewStrokes(
+            canvasView: PKCanvasView,
+            layerManager: LayerManager,
+            previousCount: Int
+        ) {
+            guard let selectedBrush = parent.selectedBrush else { return }
+
+            // Skip gesture-based brushes (walls, stamps) - they don't use PencilKit
+            guard !parent.shouldBypassPencilKit(for: selectedBrush) else {
+                return
+            }
+
+            // Check if this brush requires advanced rendering
+            guard BrushEngine.recommendedRenderingMethod(for: selectedBrush) == .advanced else {
+                return  // Simple brush - let PencilKit handle it
+            }
+
+            print("[ER-0004] Processing PencilKit stroke for advanced rendering: \(selectedBrush.name)")
+
+            // Get the target layer for stroke storage
+            let targetLayer = layerManager.getTargetLayerForStrokes()
+
+            // Extract new strokes (strokes added since previousCount)
+            let allStrokes = canvasView.drawing.strokes
+            guard allStrokes.count > previousCount else { return }
+
+            let newStrokes = Array(allStrokes[previousCount...])
+
+            // Track strokes to remove from PencilKit (since they'll be rendered by overlay)
+            var strokesProcessed = 0
+
+            // Convert each new stroke to DrawingStroke format with brushID
+            for pkStroke in newStrokes {
+                // Extract points from PK stroke path
+                let points = extractPoints(from: pkStroke)
+                guard points.count > 1 else { continue }
+
+                // Get stroke color and width
+                let color = pkStroke.ink.color
+                let width = pkStroke.path.averageStrokeWidth
+
+                // Convert to DrawingStroke format (same as macOS)
+                let drawingStroke = DrawingStroke(
+                    points: points.map { CGPointCodable(x: $0.x, y: $0.y) },
+                    colorRed: color.cgColor.components?[0] ?? 0,
+                    colorGreen: color.cgColor.components?[1] ?? 0,
+                    colorBlue: color.cgColor.components?[2] ?? 0,
+                    colorAlpha: color.cgColor.alpha,
+                    lineWidth: width,
+                    toolType: "advanced",
+                    brushID: selectedBrush.id
+                )
+
+                // Add to layer's macosStrokes for advanced rendering
+                targetLayer.macosStrokes.append(drawingStroke)
+                strokesProcessed += 1
+
+                print("[ER-0004] iOS: Converted PencilKit stroke to advanced rendering (brush: \(selectedBrush.name))")
+            }
+
+            // CRITICAL FIX: Remove the PencilKit strokes that were converted to advanced rendering
+            // This prevents them from being visible underneath the overlay rendering
+            if strokesProcessed > 0 {
+                // Create new drawing without the advanced strokes
+                let remainingStrokes = Array(allStrokes[0..<previousCount])
+
+                let newDrawing = PKDrawing(strokes: remainingStrokes)
+
+                print("[ER-0004] iOS: Removing \(strokesProcessed) PencilKit stroke(s) after conversion")
+                print("[ER-0004] iOS: Stroke count: \(allStrokes.count) -> \(newDrawing.strokes.count)")
+
+                // Use DispatchQueue.main.async to update after this callback completes
+                // This prevents recursive canvasViewDrawingDidChange calls
+                DispatchQueue.main.async { [weak canvasView, weak targetLayer] in
+                    guard let canvasView = canvasView, let targetLayer = targetLayer else { return }
+
+                    print("[ER-0004] iOS: Applying stroke removal now")
+
+                    // Temporarily set flag to prevent recursive callback
+                    // Note: We can't access coordinator here, so we'll just update and accept one recursive call
+                    canvasView.drawing = newDrawing
+
+                    // Also update layer
+                    targetLayer.drawing = newDrawing
+                    targetLayer.markModified()
+
+                    print("[ER-0004] iOS: Strokes removed - canvas now has \(canvasView.drawing.strokes.count) strokes")
+                }
+
+                // Don't update parent.drawing here - let the async update handle it
+            }
+
+            targetLayer.markModified()
+        }
+
+        // Extract CGPoint array from PKStroke path
+        private func extractPoints(from stroke: PKStroke) -> [CGPoint] {
+            var points: [CGPoint] = []
+            let path = stroke.path
+
+            // Sample points along the stroke path
+            for i in 0..<path.count {
+                let pathPoint = path[i]
+                points.append(pathPoint.location)
+            }
+
+            return points
+        }
     }
 }
+
+// MARK: - PK Stroke Extension for Advanced Rendering
+
+#if canImport(PencilKit)
+extension PKStrokePath {
+    /// Calculate average stroke width from pressure values
+    var averageStrokeWidth: CGFloat {
+        guard count > 0 else { return 5.0 }
+
+        var totalWidth: CGFloat = 0
+        for i in 0..<count {
+            let point = self[i]
+            totalWidth += point.force > 0 ? point.force * 10.0 : 5.0
+        }
+        return totalWidth / CGFloat(count)
+    }
+}
+#endif
+
+// MARK: - Drawing Preview Overlay (iOS)
+
+#if canImport(UIKit)
+/// Preview overlay that shows dotted lines/rectangles during drawing
+/// This overlay is completely transparent to touches - gesture tracking happens on PKCanvasView
+private struct DrawingPreviewOverlayView: UIViewRepresentable {
+    let selectedBrush: MapBrush?
+    let canvasSize: CGSize
+    let previewStart: CGPoint?
+    let previewEnd: CGPoint?
+
+    func makeUIView(context: Context) -> DrawingPreviewUIView {
+        let view = DrawingPreviewUIView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false  // Completely transparent to touches
+        view.selectedBrush = selectedBrush
+        view.previewStart = previewStart
+        view.previewEnd = previewEnd
+        return view
+    }
+
+    func updateUIView(_ uiView: DrawingPreviewUIView, context: Context) {
+        uiView.selectedBrush = selectedBrush
+        uiView.previewStart = previewStart
+        uiView.previewEnd = previewEnd
+        uiView.setNeedsDisplay()
+    }
+}
+
+/// UIView that displays preview for advanced brushes based on external state
+private class DrawingPreviewUIView: UIView {
+    var selectedBrush: MapBrush?
+    var previewStart: CGPoint?
+    var previewEnd: CGPoint?
+
+    override func draw(_ rect: CGRect) {
+        guard let start = previewStart,
+              let end = previewEnd,
+              let brush = selectedBrush else {
+            return
+        }
+
+        guard let context = UIGraphicsGetCurrentContext() else {
+            return
+        }
+
+        // Check if this is a wall brush
+        let isWallBrush = brush.name.lowercased().contains("wall") && brush.category == .architectural
+
+        // Check if this is a stamp brush (furniture, doors, etc.)
+        let isStampBrush = brush.patternType == .stamp
+
+        if isWallBrush {
+            // Draw dotted line from start to end
+            context.setStrokeColor(UIColor.systemBlue.withAlphaComponent(0.7).cgColor)
+            context.setLineWidth(2.0)
+            context.setLineDash(phase: 0, lengths: [8.0, 8.0])
+
+            context.beginPath()
+            context.move(to: start)
+            context.addLine(to: end)
+            context.strokePath()
+
+            // Draw endpoint indicators
+            let circleRadius: CGFloat = 4.0
+            context.setFillColor(UIColor.systemBlue.withAlphaComponent(0.7).cgColor)
+            context.fillEllipse(in: CGRect(x: start.x - circleRadius, y: start.y - circleRadius, width: circleRadius * 2, height: circleRadius * 2))
+            context.fillEllipse(in: CGRect(x: end.x - circleRadius, y: end.y - circleRadius, width: circleRadius * 2, height: circleRadius * 2))
+
+        } else if isStampBrush {
+            // Draw dotted rectangle showing bounding box
+            let rect = CGRect(
+                x: min(start.x, end.x),
+                y: min(start.y, end.y),
+                width: abs(end.x - start.x),
+                height: abs(end.y - start.y)
+            )
+
+            // Dotted outline
+            context.setStrokeColor(UIColor.systemBlue.withAlphaComponent(0.7).cgColor)
+            context.setLineWidth(2.0)
+            context.setLineDash(phase: 0, lengths: [4.0, 4.4])
+            context.stroke(rect)
+
+            // Light fill
+            context.setFillColor(UIColor.systemBlue.withAlphaComponent(0.05).cgColor)
+            context.fill(rect)
+
+            // Corner handles
+            let handleSize: CGFloat = 6.0
+            context.setFillColor(UIColor.systemBlue.withAlphaComponent(0.7).cgColor)
+            let corners = [
+                CGPoint(x: rect.minX, y: rect.minY),
+                CGPoint(x: rect.maxX, y: rect.minY),
+                CGPoint(x: rect.minX, y: rect.maxY),
+                CGPoint(x: rect.maxX, y: rect.maxY)
+            ]
+            for corner in corners {
+                let handleRect = CGRect(x: corner.x - handleSize/2, y: corner.y - handleSize/2, width: handleSize, height: handleSize)
+                context.fill(handleRect)
+            }
+        }
+    }
+}
+#endif
+
+// MARK: - Advanced Brush Overlay (iOS)
+
+#if canImport(UIKit)
+/// Overlay view that renders advanced brush strokes on top of PencilKit canvas
+private struct AdvancedBrushOverlayView: UIViewRepresentable {
+    let layerManager: LayerManager
+    let canvasSize: CGSize
+
+    func makeUIView(context: Context) -> AdvancedBrushOverlayUIView {
+        let view = AdvancedBrushOverlayUIView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false  // Allow touch events to pass through
+        return view
+    }
+
+    func updateUIView(_ uiView: AdvancedBrushOverlayUIView, context: Context) {
+        // Get the active layer's advanced strokes
+        guard let activeLayer = layerManager.activeLayer else { return }
+
+        // Update the view's strokes and trigger redraw
+        uiView.advancedStrokes = activeLayer.macosStrokes.filter { $0.brushID != nil }
+        uiView.setNeedsDisplay()
+    }
+}
+
+/// UIView subclass that renders advanced brush strokes using BrushEngine
+private class AdvancedBrushOverlayUIView: UIView {
+    var advancedStrokes: [DrawingStroke] = []
+
+    override func draw(_ rect: CGRect) {
+        guard let context = UIGraphicsGetCurrentContext() else { return }
+
+        // Render each advanced stroke using BrushEngine
+        for stroke in advancedStrokes {
+            guard let brushID = stroke.brushID,
+                  let brush = BrushRegistry.shared.findBrush(id: brushID) else {
+                continue
+            }
+
+            // Check if this brush requires advanced rendering
+            guard BrushEngine.recommendedRenderingMethod(for: brush) == .advanced else {
+                continue
+            }
+
+            // Convert stroke data to required format
+            let points = stroke.cgPoints
+            let color = Color(
+                red: Double(stroke.colorRed),
+                green: Double(stroke.colorGreen),
+                blue: Double(stroke.colorBlue),
+                opacity: Double(stroke.colorAlpha)
+            )
+
+            // Render using BrushEngine (same as macOS)
+            BrushEngine.renderAdvancedStroke(
+                brush: brush,
+                points: points,
+                color: color,
+                width: stroke.lineWidth,
+                context: context
+            )
+        }
+    }
+}
+#endif
 
 // MARK: - Zoomable Scroll View
 

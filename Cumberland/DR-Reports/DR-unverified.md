@@ -2,7 +2,224 @@
 
 This document tracks discrepancy reports that have been resolved but are awaiting user verification.
 
-**Status:** Currently **3 unverified DRs** (2 Open, 1 Resolved - Not Verified)
+**Status:** Currently **5 unverified DRs** (All Open)
+
+---
+
+## DR-0042: Apple Pencil Not Working with Gesture-Based Brushes on iOS
+
+**Status:** 🔴 Open
+**Platform:** iOS/iPadOS only
+**Component:** DrawingCanvasView / UIPanGestureRecognizer
+**Severity:** High
+**Date Identified:** 2026-01-19
+
+**Description:**
+
+When using gesture-based brushes (Walls, Furniture/Stamps) on iOS, the Apple Pencil does not trigger the drawing gesture. Only finger touch works. This is inconsistent with the rest of the app where the Apple Pencil works perfectly for all other interactions (tapping to create maps, setting display parameters, moving the tool palette, changing brushes, etc.).
+
+**Current Behavior:**
+- **With Finger Touch**: Walls and furniture draw correctly with dotted preview and final rendering
+- **With Apple Pencil**:
+  - All UI interactions work (tap buttons, move palette, select brushes, etc.)
+  - Drawing gestures do NOT work - nothing happens when dragging with Pencil
+  - User must switch to finger to draw walls/furniture
+  - Area fill brushes (Carpet, Water Feature, Rubble) work fine with Pencil (they use PencilKit)
+
+**Expected Behavior:**
+- Apple Pencil should work identically to finger for gesture-based brushes
+- When dragging with Pencil over canvas with Wall/Furniture brush selected:
+  - Dotted preview should appear
+  - Final wall/furniture should render on touch end
+- Consistent behavior: if Pencil works for UI, it should work for drawing
+
+**Root Cause:**
+
+The `UIPanGestureRecognizer` added for gesture-based brushes (DR-0031/ER-0004 implementation) is not configured to recognize Apple Pencil touches. By default, `UIPanGestureRecognizer` only recognizes finger touches unless explicitly configured to allow stylus input.
+
+**Affected Code:**
+
+`Cumberland/DrawCanvas/DrawingCanvasView.swift:1226-1229`
+```swift
+// ER-0004: Add gesture recognizer for advanced brush drawing
+let panGesture = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDrawingGesture(_:)))
+panGesture.delegate = context.coordinator
+canvasView.addGestureRecognizer(panGesture)
+```
+
+**Solution:**
+
+Configure the gesture recognizer to accept stylus input:
+
+```swift
+let panGesture = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDrawingGesture(_:)))
+panGesture.delegate = context.coordinator
+panGesture.allowedTouchTypes = [UITouch.TouchType.direct.rawValue as NSNumber, UITouch.TouchType.stylus.rawValue as NSNumber]
+canvasView.addGestureRecognizer(panGesture)
+```
+
+**Steps to Reproduce:**
+1. Launch app on iPad with Apple Pencil
+2. Create interior map
+3. Select Wall brush from tool palette
+4. Try to draw wall with Apple Pencil
+5. **Observe**: Nothing happens - no preview, no wall
+6. Try drawing same wall with finger
+7. **Observe**: Preview appears, wall draws correctly
+
+**Workaround:**
+- Use finger instead of Apple Pencil for walls and furniture
+- Area fill brushes (which use PencilKit) work fine with Pencil
+
+**Impact:**
+- **High** - Breaks expected workflow for iPad + Apple Pencil users
+- Users must constantly switch between Pencil (for UI) and finger (for drawing)
+- Inconsistent user experience
+- Particularly problematic for architectural work (walls, furniture) where precision is important
+
+**Priority:** High - This significantly degrades the iPad drawing experience
+
+---
+
+## DR-0041: Vegetation and Terrain Brushes Should Render as Area Fills
+
+**Status:** 🔴 Open
+**Platform:** All platforms (macOS, iOS, iPadOS)
+**Component:** BrushEngine / ExteriorMapBrushSet
+**Severity:** Medium
+**Date Identified:** 2026-01-19
+
+**Description:**
+
+Several exterior vegetation and terrain brushes currently render as line strokes but should render as area fills (similar to how the Marsh brush works). These brushes represent terrain features that naturally cover areas rather than follow linear paths.
+
+**Affected Brushes:**
+
+**Vegetation Category:**
+- Forest
+- Single Tree
+- Grassland
+- Plains
+- Jungle
+
+**Terrain Category:**
+- Desert
+- Tundra
+
+**Special Case:**
+- **Farmland** - Should render as area fill with rectangular "fields" pattern
+
+**Current Behavior:**
+- These brushes follow the drawn path as a line
+- Vegetation/terrain texture applied along the stroke
+- No area fill - only renders where the path was drawn
+- Inconsistent with Marsh brush which fills enclosed areas
+
+**Expected Behavior:**
+- User draws a freeform closed or open path
+- Brush fills the enclosed area (or area around path) with appropriate pattern:
+  - **Forest**: Dense tree pattern scattered throughout area
+  - **Single Tree**: Sparse individual trees
+  - **Grassland**: Grass texture fill
+  - **Plains**: Open grass/prairie texture
+  - **Jungle**: Dense vegetation with variety
+  - **Desert**: Sandy texture with occasional dunes
+  - **Tundra**: Cold, sparse ground cover
+  - **Farmland**: Rectangular field pattern (plowed rows in grid layout)
+
+**Reference Implementation:**
+- **Marsh brush** already works this way - fills areas with marsh/wetland texture
+- Same rendering approach should apply to vegetation/terrain brushes
+
+**Design Notes:**
+
+1. **Area Detection:**
+   - For closed paths: Fill interior
+   - For open paths: Could fill area with some buffer distance, or require closed paths
+
+2. **Pattern Distribution:**
+   - Trees: Scattered with random spacing (avoid grid appearance)
+   - Grassland/Plains: Organic texture fill
+   - Desert: Sandy base with dune shapes
+   - Farmland: Grid of rectangular fields at consistent angles
+
+3. **Density Control:**
+   - Could use brush width parameter to control density
+   - Forest: Dense (many trees)
+   - Single Tree: Sparse (few trees)
+   - Grassland: Medium coverage
+
+**Steps to Reproduce Current Issue:**
+1. Create exterior map
+2. Select Forest brush
+3. Draw closed loop to define forest area
+4. **Observe**: Only the path line has forest texture, interior is empty
+5. Compare to Marsh brush which fills the interior
+
+**Impact:**
+- Users cannot create realistic area-based terrain features
+- Have to draw many overlapping strokes to simulate area coverage (tedious)
+- Maps look less professional with line-based vegetation
+- Inconsistent with realistic map-making (forests are areas, not lines)
+
+**Affected Files:**
+- `Cumberland/DrawCanvas/BrushEngine.swift` - May need new area fill rendering for vegetation
+- `Cumberland/DrawCanvas/ExteriorMapBrushSet.swift` - Brush definitions
+- Possibly need new pattern generators in `Cumberland/DrawCanvas/ProceduralPatternGenerator.swift`
+
+**Related:**
+- Marsh brush already demonstrates the desired behavior
+- Interior area fill brushes (Carpet, Water Feature, Rubble) work correctly
+- This is about extending area fill to exterior terrain brushes
+
+**Priority:** Medium - Affects map quality and user workflow, but has workaround (draw many strokes)
+
+---
+
+## DR-0040: Brush Set Picker Text Overflow on iOS
+
+**Status:** 🔴 Open
+**Platform:** iOS/iPadOS only
+**Component:** BrushGridView / Tool Palette
+**Severity:** Medium
+**Date Identified:** 2026-01-19
+
+**Description:**
+
+In the "Brushes for Generic" section of the tool palette on iOS, when a brush set is selected, the UI layout breaks with text overflowing into the section below.
+
+**Current Behavior:**
+- Before selection: "Brush Set:" label and count visible with picker arrows (correct)
+- After selecting a brush set (e.g., "Basic Tools", "Exterior Brushes"):
+  - Picker text has insufficient width
+  - Selected brush set name wraps/overflows vertically
+  - "Brush Set:" label overflows into next section
+  - Brush count (e.g., "42") overflows into next section
+
+**Expected Behavior:**
+- Picker should have sufficient horizontal width for full brush set name
+- No text should overflow into adjacent sections
+- Layout should remain clean and readable
+
+**Steps to Reproduce:**
+1. Open iOS app
+2. Create any map (interior or exterior)
+3. Open tool palette
+4. Navigate to "Brushes for Generic" section
+5. Tap picker and select a brush set
+6. Observe text overflow into section below
+
+**Root Cause:**
+Likely insufficient frame width or missing layout constraints for the Picker view on iOS.
+
+**Affected Files:**
+- `Cumberland/DrawCanvas/BrushGridView.swift` - Brush selection UI
+- Wherever "Brushes for Generic" picker is implemented
+
+**Impact:**
+- Poor UX on iOS - UI appears broken
+- Difficult to read selected brush set name
+- Overlapping text reduces usability
 
 ---
 
@@ -132,320 +349,6 @@ var interiorSettings: InteriorMapSettings?
 - May be same issue for exterior maps (need to verify if exterior settings persist)
 - Grid overlay rendering may also need to respect persisted settings
 
----
-
-## DR-0031: Advanced Brush Rendering Not Executed on Any Platform (Critical Architecture Issue)
-
-**Status:** 🟡 Resolved - Not Verified (macOS complete, iOS pending)
-**Platform:** All platforms (macOS, iOS, iPadOS)
-**Component:** DrawCanvas/BrushEngine Integration
-**Severity:** Critical
-**Date Identified:** 2026-01-08
-**Date Resolved:** 2026-01-08 (macOS implementation)
-
-**Description:**
-When drawing with advanced brushes (River, terrain brushes, vegetation brushes, etc.), only simple bezier curves are rendered instead of the expected procedurally-generated patterns with meandering curves, variable width, and special effects. Setting a breakpoint at `BrushEngine.swift:694` (where advanced river rendering begins) confirms the code is never reached on ANY platform.
-
-**Root Cause Analysis:**
-
-### The Core Problem: BrushEngine is Completely Disconnected
-
-The BrushEngine system exists and contains fully-implemented advanced rendering algorithms for water, terrain, and vegetation brushes. However, **the BrushEngine is never called by the actual drawing code on any platform**. The integration was planned but never completed.
-
-### iOS/iPadOS Drawing Path:
-1. **Uses Apple's PencilKit directly** (`DrawingCanvasView.swift:1150-1250`)
-   - `PencilKitCanvasView` wraps `PKCanvasView`
-   - All drawing handled by Apple's framework
-   - Only supports basic `PKInkingTool` with color and width
-   - No custom rendering hooks available
-   - **BrushEngine never called**
-
-2. **Integration Guide Exists But Not Implemented:**
-   - `DrawingCanvasIntegration.swift` contains integration checklist
-   - Step 5: "Handle PencilKit integration - Process drawings with custom patterns"
-   - **This step was never completed**
-
-### macOS Drawing Path:
-1. **Custom NSView drawing** (`DrawingCanvasViewMacOS.swift:362-426`)
-   - `drawStroke()` and `drawCurrentStroke()` methods
-   - Renders strokes as simple `NSBezierPath` curves with basic color and width
-   - No brush category checking, no pattern generation, no procedural effects
-   - **BrushEngine never called**
-
-2. **Brush Information Lost:**
-   - When a stroke is saved (line 146-154), only basic properties stored: points, color, lineWidth, toolType
-   - `selectedBrush` referenced at mouseDown (line 100) but only to get color and width
-   - Brush ID, category, and pattern information NOT stored with stroke
-
-### Evidence of Incomplete Implementation:
-
-**File: `DrawingCanvasIntegration.swift`**
-- This is an integration GUIDE, not active code
-- Contains helper methods showing HOW to integrate BrushEngine
-- Includes checklist with step 5: "Process drawings with custom patterns" (NOT DONE)
-- Methods like `completeStroke()` (line 52-82) show proper integration pattern
-- These methods are **never called** by actual drawing views
-
-**BrushEngine Methods That Should Be Called But Aren't:**
-- `BrushEngine.renderAdvancedStroke()` (line 582)
-- `BrushEngine.renderWaterBrush()` (line 668)
-- `BrushEngine.renderTerrainBrush()` (line 628)
-- `BrushEngine.renderVegetationBrush()` (line 752)
-
-**Affected Code:**
-- `Cumberland/DrawCanvas/DrawingCanvasView.swift:1150-1250` - iOS PencilKit canvas (no BrushEngine calls)
-- `Cumberland/DrawCanvas/DrawingCanvasViewMacOS.swift:362-426` - macOS drawing (no BrushEngine calls)
-- `Cumberland/DrawCanvas/DrawingCanvasViewMacOS.swift:136-169` - macOS stroke finalization (no BrushEngine calls)
-- `Cumberland/DrawCanvas/DrawingCanvasIntegration.swift` - Integration guide NOT connected to views
-- `Cumberland/DrawCanvas/BrushEngine.swift:582-800` - Advanced rendering code exists but never called
-
-**Expected Behavior:**
-Drawing with the River brush should produce:
-- Natural meandering curves using sinusoidal displacement
-- Variable width along the path with tapered ends
-- Filled polygon between left/right banks
-- Semi-transparent water effect with subtle center line detail
-(Per BrushEngine.renderWaterBrush implementation at lines 668-749)
-
-**Actual Behavior:**
-- **iOS**: Simple blue line with constant width (PencilKit's basic PKInkingTool rendering)
-- **macOS**: Simple blue line with constant width (NSBezierPath basic rendering)
-- **Both**: BrushEngine advanced rendering never executed
-
-**Impact:**
-- All advanced brush features are non-functional
-- Water brushes (River, Stream, Lake Shore, Ocean) render as simple lines
-- Terrain brushes render as simple lines
-- Vegetation brushes render as simple lines
-- The entire procedural brush system is effectively disabled
-- Users cannot create maps with the intended artistic effects
-
-**Proposed Solution Architecture:**
-
-### Option 1: Post-Processing Approach (Recommended for iOS)
-Since PencilKit doesn't support custom rendering during drawing, process strokes after completion:
-
-1. **Detect Advanced Brush Strokes:**
-   - Store brush metadata with each stroke (extend DrawingLayer.CustomStroke to include brushID)
-   - When PencilKit stroke completes, check if it was made with an advanced brush
-
-2. **Post-Process with BrushEngine:**
-   - Extract stroke path from PKDrawing
-   - Call `BrushEngine.renderAdvancedStroke()` to generate procedural pattern
-   - Store rendered image in layer alongside original PKDrawing
-
-3. **Composite Rendering:**
-   - When displaying: render base layers, then advanced brush renders, then simple strokes
-
-### Option 2: Custom Drawing Layer (Recommended for macOS)
-Since macOS uses custom NSView drawing, integrate BrushEngine directly:
-
-1. **Store Brush Metadata:**
-   - Update `CustomStroke` to store full brush reference (not just color/width)
-   - Preserve brushID, category, and pattern settings
-
-2. **Render in drawStroke():**
-   - Check stroke's brush category
-   - If advanced brush: call `BrushEngine.renderAdvancedStroke()`
-   - If basic brush: use current NSBezierPath rendering
-
-3. **Real-Time Preview:**
-   - In `drawCurrentStroke()`: call BrushEngine for live preview
-   - Cache rendered segments to avoid re-rendering entire stroke on each mouse move
-
-### Implementation Priority:
-1. ✅ macOS first (easier - custom drawing already exists) - COMPLETED
-2. ⏳ iOS second (requires post-processing architecture) - PENDING
-3. ⏳ Cross-platform stroke format (ensure macOS advanced strokes can sync to iOS and vice versa) - PENDING
-
----
-
-## macOS Implementation Complete (2026-01-08)
-
-### Changes Made:
-
-**1. Extended DrawingStroke model to store brush metadata** (`DrawingLayer.swift:335`)
-- Added optional `brushID: UUID?` field for backward compatibility
-- Allows strokes to reference their original brush for advanced rendering
-
-**2. Extended temporary MacOSDrawingStroke** (`DrawingCanvasViewMacOS.swift:675`)
-- Added `brushID: UUID?` field to capture brush during active drawing
-
-**3. Updated mouseDown handler** (`DrawingCanvasViewMacOS.swift:82-123`)
-- Captures `brush.id` when a brush is selected
-- Stores brushID in the temporary stroke structure
-
-**4. Updated mouseUp handler** (`DrawingCanvasViewMacOS.swift:140-178`)
-- Includes `brushID` when converting temporary stroke to codable DrawingStroke
-- Persists brush metadata with the stroke
-
-**5. Added BrushRegistry helper method** (`BrushRegistry.swift:57-65`)
-- New `findBrush(id: UUID)` method searches all installed brush sets
-- Enables lookup of brush by ID for rendering previously-saved strokes
-
-**6. Updated drawStroke() method** (`DrawingCanvasViewMacOS.swift:368-455`)
-- Checks if stroke has `brushID`
-- Looks up brush from BrushRegistry
-- If advanced brush: calls `BrushEngine.renderAdvancedStroke()`
-- Otherwise: uses standard bezier path rendering
-
-**7. Updated drawCurrentStroke() method** (`DrawingCanvasViewMacOS.swift:457-537`)
-- Real-time preview uses BrushEngine for advanced brushes
-- Provides immediate visual feedback during drawing
-
-### Technical Details:
-
-**Color Conversion:**
-- DrawingStroke stores RGBA as separate CGFloat values
-- Converted to SwiftUI Color for BrushEngine: `Color(red: Double, green: Double, blue: Double, opacity: Double)`
-
-**Advanced Brush Detection:**
-- Uses `BrushEngine.recommendedRenderingMethod(for: brush) == .advanced`
-- Returns `.advanced` for: water, terrain, vegetation categories, or stamp/textured pattern types
-
-**Backward Compatibility:**
-- `brushID` is optional - existing strokes without brushID render using standard path
-- No migration needed for existing saved drawings
-
-### Files Modified:
-- `Cumberland/DrawCanvas/DrawingLayer.swift` - Added brushID to DrawingStroke
-- `Cumberland/DrawCanvas/DrawingCanvasViewMacOS.swift` - Capture brushID, integrate BrushEngine rendering
-- `Cumberland/DrawCanvas/BrushRegistry.swift` - Added findBrush() helper method
-
-### Build Status:
-✅ Build succeeded with no errors
-
-### Testing Required:
-1. Launch Cumberland on macOS
-2. Open Map Wizard → Draw tab
-3. Select River brush from Water Features palette
-4. Create a Water Feature layer
-5. Draw a curved stroke
-6. Verify the River brush renders with:
-   - Meandering sinusoidal curves
-   - Variable width with tapered ends
-   - Filled polygon between banks
-   - Semi-transparent water effect
-7. Set breakpoint at `BrushEngine.swift:694` to confirm code is now reached
-
-### iOS Implementation (Pending):
-iOS requires a different approach since PencilKit doesn't support custom rendering hooks:
-- Option A: Post-process PKDrawing strokes after completion
-- Option B: Overlay custom-rendered layer on top of PencilKit canvas
-- Option C: Hybrid approach - use PencilKit for simple brushes, custom rendering for advanced brushes
-
----
-
-## Enhanced River Rendering (2026-01-08 - Second Iteration)
-
-### Problem Identified During Testing:
-Initial implementation successfully called BrushEngine, but visual effects were too subtle:
-- Meandering barely visible (displacement only ~1x stroke width)
-- No width variation (constant pressure = 1.0)
-- No tapered ends
-- Only "spikes" visible from random variation
-
-### Root Causes:
-1. **No pressure values passed** - `generateRiverStrokeWithPressure()` called without pressure parameter
-2. **Subtle meander intensity** - 0.7 multiplier created minimal displacement
-3. **Missing tapering** - No pressure variation meant constant width throughout
-
-### Enhancements Made:
-
-**1. Increased meander intensity** (`BrushEngine.swift:687`)
-- Rivers: 0.7 → 1.5 (2.14x more visible)
-- Streams: 0.5 → 1.0 (2x more visible)
-- Displacement now ~1.5x stroke width instead of ~0.7x
-
-**2. Added synthetic pressure generation** (`BrushEngine+Patterns.swift:534-563`)
-- New `generateRiverPressureProfile()` function
-- Generates tapered ends (ramps up first 20%, down last 20%)
-- Natural width variation using 3 sine wave frequencies
-- Pressure ranges from 0.3 to 1.0 (70% width variation)
-- Variation profile: slow + medium + fast sine waves
-
-**3. Integrated pressure into rendering** (`BrushEngine.swift:695-701`)
-- Generates pressure values for meanderedPath point count
-- Passes pressure to `generateRiverStrokeWithPressure()`
-- Width now varies naturally along the river path
-
-### Expected Visual Improvements:
-- **Meandering**: 2.14x more pronounced curved paths
-- **Width variation**: Up to 70% variation (0.3-1.0 pressure)
-- **Tapered ends**: Smooth taper over first/last 20% of stroke
-- **Natural appearance**: Sine wave variation creates organic look
-
-### Files Modified (Second Iteration):
-- `Cumberland/DrawCanvas/BrushEngine.swift` - Increased intensity, added pressure call
-- `Cumberland/DrawCanvas/BrushEngine+Patterns.swift` - Added generateRiverPressureProfile()
-
-### Build Status:
-✅ Build succeeded with no errors
-
-### Re-Testing Required:
-1. Launch Cumberland on macOS
-2. Draw new River brush stroke
-3. Verify enhanced effects:
-   - ✅ More obvious curved/meandering path
-   - ✅ Visible width variation along the stroke
-   - ✅ Tapered narrow ends at start and finish
-   - ✅ Natural organic appearance
-
----
-
-## Real-Time Performance Fix (2026-01-08 - Third Iteration)
-
-### Problem Identified During Testing:
-User reported timing issue:
-- Drawing directly: thick blue line with no features
-- Drawing with breakpoint at line 695: correct rendering with all features
-- Indicates expensive procedural generation can't keep up with real-time drawing
-
-### Root Cause:
-`mouseDragged` is called many times per second (30-60+ Hz), each triggering `needsDisplay`, which calls `drawCurrentStroke` with full BrushEngine procedural generation:
-- Sinusoidal meander calculation across all points
-- Synthetic pressure generation
-- Variable-width bank calculation
-- This is far too slow for real-time preview
-
-### Solution Implemented:
-
-**Deferred Advanced Rendering Strategy** (`DrawingCanvasViewMacOS.swift:457-505`)
-
-1. **During Active Drawing (mouseDragged):**
-   - `drawCurrentStroke()` uses simple bezier path rendering
-   - Renders at 50% opacity for advanced brushes (visual hint it's temporary)
-   - Fast enough for smooth 60 FPS preview
-   - No procedural generation
-
-2. **After Stroke Complete (mouseUp):**
-   - Stroke saved with `brushID` metadata
-   - `currentStroke = nil` clears the preview
-   - `needsDisplay = true` triggers full redraw
-   - `drawStroke()` applies full BrushEngine advanced rendering
-   - All procedural features appear in final render
-
-### Why This Works:
-- **Preview**: Simple path is fast, provides immediate visual feedback
-- **Final**: Full advanced rendering only happens once after stroke complete
-- **Performance**: 60 FPS preview + beautiful final result
-
-### User Experience:
-1. While drawing: Smooth simple path (50% opacity if advanced brush)
-2. On release: Path instantly transforms to advanced rendering with all features
-
-### Files Modified (Third Iteration):
-- `Cumberland/DrawCanvas/DrawingCanvasViewMacOS.swift` - Simplified drawCurrentStroke()
-
-### Build Status:
-✅ Build succeeded with no errors
-
-### Testing Now:
-1. Draw River brush stroke normally (no breakpoint needed!)
-2. While drawing: Should see smooth simple preview line
-3. On release: Line should instantly show meandering, width variation, tapered ends
-
----
 
 ## DR-0039: Saved Strokes/Settings Failed to Restore During Drawing Canvas Restoration
 
