@@ -11,6 +11,34 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		861EA1D12F2014D6003B4897 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 866A3A352E8DC16D006D3723;
+			remoteInfo = Cumberland;
+		};
+		861EA1E02F20150A003B4897 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 866A3A352E8DC16D006D3723;
+			remoteInfo = Cumberland;
+		};
+		861EA1E52F201553003B4897 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 86544A8A2EBE946F0083F9CC;
+			remoteInfo = Cumberland_visionOS;
+		};
+		861EA1E72F20155B003B4897 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 86544A8A2EBE946F0083F9CC;
+			remoteInfo = Cumberland_visionOS;
+		};
 		8663005D2E9DA49D005F471B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
@@ -42,6 +70,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		861EA1CD2F2014D6003B4897 /* CumberlandVisionOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandVisionOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		861EA1DA2F20150A003B4897 /* CumberlandVisionOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandVisionOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8646BE022E99A1CE0056F575 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		86544A8B2EBE946F0083F9CC /* Cumberland_visionOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cumberland_visionOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		865B61DA2EB5148E009CDEF4 /* TestApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -55,6 +85,20 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		861EA1EC2F2015C4003B4897 /* Exceptions for "CumberlandTests" folder in "CumberlandVisionOSTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				CumberlandTests.swift,
+				"ER-0008-Timeline/CalendarSystemTests.swift",
+				"ER-0009-ImageGeneration/AIProviderTests.swift",
+				"ER-0010-ContentAnalysis/EntityExtractionTests.swift",
+				Existing/CitationTests.swift,
+				Existing/SpecHeaderGuardTests.swift,
+				Existing/StoryStructureTests.swift,
+				Existing/WipeStoreTests.swift,
+			);
+			target = 861EA1CC2F2014D6003B4897 /* CumberlandVisionOSTests */;
+		};
 		86544A9A2EBE94710083F9CC /* Exceptions for "Cumberland_visionOS" folder in "Cumberland_visionOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -416,6 +460,16 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		861EA1CE2F2014D6003B4897 /* CumberlandVisionOSTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CumberlandVisionOSTests;
+			sourceTree = "<group>";
+		};
+		861EA1DB2F20150A003B4897 /* CumberlandVisionOSUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CumberlandVisionOSUITests;
+			sourceTree = "<group>";
+		};
 		8646BE152E99A1D00056F575 /* CumberlandTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = CumberlandTests;
@@ -468,6 +522,9 @@
 		};
 		866A3A4A2E8DC16F006D3723 /* CumberlandTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				861EA1EC2F2015C4003B4897 /* Exceptions for "CumberlandTests" folder in "CumberlandVisionOSTests" target */,
+			);
 			path = CumberlandTests;
 			sourceTree = "<group>";
 		};
@@ -479,6 +536,20 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		861EA1CA2F2014D6003B4897 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		861EA1D72F20150A003B4897 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		86544A882EBE946F0083F9CC /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -560,6 +631,8 @@
 				866300692E9DA49D005F471B /* Cumberland IOSUITests */,
 				865B61DB2EB5148E009CDEF4 /* TestApp */,
 				86544A8C2EBE946F0083F9CC /* Cumberland_visionOS */,
+				861EA1CE2F2014D6003B4897 /* CumberlandVisionOSTests */,
+				861EA1DB2F20150A003B4897 /* CumberlandVisionOSUITests */,
 				866A3A372E8DC16D006D3723 /* Products */,
 				8646BE012E99A1CE0056F575 /* Packages */,
 			);
@@ -576,6 +649,8 @@
 				866300662E9DA49D005F471B /* Cumberland IOSUITests.xctest */,
 				865B61DA2EB5148E009CDEF4 /* TestApp.app */,
 				86544A8B2EBE946F0083F9CC /* Cumberland_visionOS.app */,
+				861EA1CD2F2014D6003B4897 /* CumberlandVisionOSTests.xctest */,
+				861EA1DA2F20150A003B4897 /* CumberlandVisionOSUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -583,6 +658,54 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		861EA1CC2F2014D6003B4897 /* CumberlandVisionOSTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 861EA1D32F2014D6003B4897 /* Build configuration list for PBXNativeTarget "CumberlandVisionOSTests" */;
+			buildPhases = (
+				861EA1C92F2014D6003B4897 /* Sources */,
+				861EA1CA2F2014D6003B4897 /* Frameworks */,
+				861EA1CB2F2014D6003B4897 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				861EA1D22F2014D6003B4897 /* PBXTargetDependency */,
+				861EA1E62F201553003B4897 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				861EA1CE2F2014D6003B4897 /* CumberlandVisionOSTests */,
+			);
+			name = CumberlandVisionOSTests;
+			packageProductDependencies = (
+			);
+			productName = CumberlandVisionOSTests;
+			productReference = 861EA1CD2F2014D6003B4897 /* CumberlandVisionOSTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		861EA1D92F20150A003B4897 /* CumberlandVisionOSUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 861EA1E22F20150A003B4897 /* Build configuration list for PBXNativeTarget "CumberlandVisionOSUITests" */;
+			buildPhases = (
+				861EA1D62F20150A003B4897 /* Sources */,
+				861EA1D72F20150A003B4897 /* Frameworks */,
+				861EA1D82F20150A003B4897 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				861EA1E12F20150A003B4897 /* PBXTargetDependency */,
+				861EA1E82F20155B003B4897 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				861EA1DB2F20150A003B4897 /* CumberlandVisionOSUITests */,
+			);
+			name = CumberlandVisionOSUITests;
+			packageProductDependencies = (
+			);
+			productName = CumberlandVisionOSUITests;
+			productReference = 861EA1DA2F20150A003B4897 /* CumberlandVisionOSUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		86544A8A2EBE946F0083F9CC /* Cumberland_visionOS */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 86544A9B2EBE94710083F9CC /* Build configuration list for PBXNativeTarget "Cumberland_visionOS" */;
@@ -771,9 +894,17 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2600;
+				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
+					861EA1CC2F2014D6003B4897 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 86544A8A2EBE946F0083F9CC;
+					};
+					861EA1D92F20150A003B4897 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 86544A8A2EBE946F0083F9CC;
+					};
 					86544A8A2EBE946F0083F9CC = {
 						CreatedOnToolsVersion = 26.0;
 					};
@@ -826,11 +957,27 @@
 				8663005B2E9DA49D005F471B /* Cumberland IOSTests */,
 				866300652E9DA49D005F471B /* Cumberland IOSUITests */,
 				865B61D92EB5148E009CDEF4 /* TestApp */,
+				861EA1CC2F2014D6003B4897 /* CumberlandVisionOSTests */,
+				861EA1D92F20150A003B4897 /* CumberlandVisionOSUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		861EA1CB2F2014D6003B4897 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		861EA1D82F20150A003B4897 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		86544A892EBE946F0083F9CC /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -890,6 +1037,20 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		861EA1C92F2014D6003B4897 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		861EA1D62F20150A003B4897 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		86544A872EBE946F0083F9CC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -949,6 +1110,26 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		861EA1D22F2014D6003B4897 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 866A3A352E8DC16D006D3723 /* Cumberland */;
+			targetProxy = 861EA1D12F2014D6003B4897 /* PBXContainerItemProxy */;
+		};
+		861EA1E12F20150A003B4897 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 866A3A352E8DC16D006D3723 /* Cumberland */;
+			targetProxy = 861EA1E02F20150A003B4897 /* PBXContainerItemProxy */;
+		};
+		861EA1E62F201553003B4897 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 86544A8A2EBE946F0083F9CC /* Cumberland_visionOS */;
+			targetProxy = 861EA1E52F201553003B4897 /* PBXContainerItemProxy */;
+		};
+		861EA1E82F20155B003B4897 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 86544A8A2EBE946F0083F9CC /* Cumberland_visionOS */;
+			targetProxy = 861EA1E72F20155B003B4897 /* PBXContainerItemProxy */;
+		};
 		8663005E2E9DA49D005F471B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 8663004B2E9DA49C005F471B /* Cumberland IOS */;
@@ -972,6 +1153,107 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		861EA1D42F2014D6003B4897 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.caposoft.JustBeat.CumberlandVisionOSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cumberland_visionOS.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Cumberland_visionOS";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		861EA1D52F2014D6003B4897 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.caposoft.JustBeat.CumberlandVisionOSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cumberland_visionOS.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Cumberland_visionOS";
+				VALIDATE_PRODUCT = YES;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+		861EA1E32F20150A003B4897 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.caposoft.JustBeat.CumberlandVisionOSUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				TEST_TARGET_NAME = Cumberland_visionOS;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		861EA1E42F20150A003B4897 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.caposoft.JustBeat.CumberlandVisionOSUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				TEST_TARGET_NAME = Cumberland_visionOS;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
 		86544A982EBE94710083F9CC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1628,6 +1910,24 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		861EA1D32F2014D6003B4897 /* Build configuration list for PBXNativeTarget "CumberlandVisionOSTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				861EA1D42F2014D6003B4897 /* Debug */,
+				861EA1D52F2014D6003B4897 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		861EA1E22F20150A003B4897 /* Build configuration list for PBXNativeTarget "CumberlandVisionOSUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				861EA1E32F20150A003B4897 /* Debug */,
+				861EA1E42F20150A003B4897 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		86544A9B2EBE94710083F9CC /* Build configuration list for PBXNativeTarget "Cumberland_visionOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

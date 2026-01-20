@@ -41,6 +41,28 @@
                ReferencedContainer = "container:Cumberland.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "861EA1CC2F2014D6003B4897"
+               BuildableName = "CumberlandVisionOSTests.xctest"
+               BlueprintName = "CumberlandVisionOSTests"
+               ReferencedContainer = "container:Cumberland.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "861EA1D92F20150A003B4897"
+               BuildableName = "CumberlandVisionOSUITests.xctest"
+               BlueprintName = "CumberlandVisionOSUITests"
+               ReferencedContainer = "container:Cumberland.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
