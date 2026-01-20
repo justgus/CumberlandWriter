@@ -1,0 +1,37 @@
+yaml
+   name: Run Tests
+
+   on:
+     push:
+       branches: [ main, develop ]
+     pull_request:
+       branches: [ main, develop ]
+
+   jobs:
+     test-macos:
+       runs-on: macos-14
+       steps:
+         - uses: actions/checkout@v4
+         - name: Select Xcode version
+           run: sudo xcode-select -s /Applications/Xcode_15.2.app
+         - name: Run macOS tests
+           run: xcodebuild test -scheme Cumberland-macOS -destination 'platform=macOS'
+
+     test-ios:
+       runs-on: macos-14
+       steps:
+         - uses: actions/checkout@v4
+         - name: Select Xcode version
+           run: sudo xcode-select -s /Applications/Xcode_15.2.app
+         - name: Run iOS tests
+           run: xcodebuild test -scheme "Cumberland IOS" -destination 'platform=iOS Simulator,name=iPhone 15 Pro'
+
+     test-visionos:
+       runs-on: macos-14
+       steps:
+         - uses: actions/checkout@v4
+         - name: Select Xcode version
+           run: sudo xcode-select -s /Applications/Xcode_15.2.app
+         - name: Run visionOS tests
+           run: xcodebuild test -scheme Cumberland_visionOS -destination 'platform=visionOS Simulator,name=Apple Vision Pro'
+   
