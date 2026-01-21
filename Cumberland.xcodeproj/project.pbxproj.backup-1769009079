@@ -11,20 +11,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		861EA1D12F2014D6003B4897 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 866A3A352E8DC16D006D3723;
-			remoteInfo = Cumberland;
-		};
-		861EA1E02F20150A003B4897 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 866A3A352E8DC16D006D3723;
-			remoteInfo = Cumberland;
-		};
 		861EA1E52F201553003B4897 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
@@ -38,6 +24,48 @@
 			proxyType = 1;
 			remoteGlobalIDString = 86544A8A2EBE946F0083F9CC;
 			remoteInfo = Cumberland_visionOS;
+		};
+		861EA2652F203D17003B4897 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8663004B2E9DA49C005F471B;
+			remoteInfo = "Cumberland IOS";
+		};
+		861EA2672F203D1C003B4897 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 86544A8A2EBE946F0083F9CC;
+			remoteInfo = Cumberland_visionOS;
+		};
+		861EA2692F203D39003B4897 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 866A3A352E8DC16D006D3723;
+			remoteInfo = Cumberland;
+		};
+		861EA26B2F203D3D003B4897 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 86544A8A2EBE946F0083F9CC;
+			remoteInfo = Cumberland_visionOS;
+		};
+		861EA26D2F203D46003B4897 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 866A3A352E8DC16D006D3723;
+			remoteInfo = Cumberland;
+		};
+		861EA26F2F203D49003B4897 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 866A3A2E2E8DC16D006D3723 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8663004B2E9DA49C005F471B;
+			remoteInfo = "Cumberland IOS";
 		};
 		8663005D2E9DA49D005F471B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -75,7 +103,6 @@
 		8646BE022E99A1CE0056F575 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		86544A8B2EBE946F0083F9CC /* Cumberland_visionOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cumberland_visionOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		865B61DA2EB5148E009CDEF4 /* TestApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		865E6EA02F212D1500610F27 /* Cumberland-macOS.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Cumberland-macOS.xctestplan"; sourceTree = "<group>"; };
 		8663004C2E9DA49C005F471B /* Cumberland IOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cumberland IOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8663005C2E9DA49D005F471B /* Cumberland IOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Cumberland IOSTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		866300662E9DA49D005F471B /* Cumberland IOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Cumberland IOSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -89,9 +116,86 @@
 		861EA1EC2F2015C4003B4897 /* Exceptions for "CumberlandTests" folder in "CumberlandVisionOSTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				CumberlandTests.swift,
+				Existing/CitationTests.swift,
 				Existing/SpecHeaderGuardTests.swift,
+				Existing/StoryStructureTests.swift,
+				Existing/WipeStoreTests.swift,
+				TestFixtures.swift,
 			);
 			target = 861EA1CC2F2014D6003B4897 /* CumberlandVisionOSTests */;
+		};
+		861EA2152F2021C7003B4897 /* Exceptions for "CumberlandTests" folder in "Cumberland IOSTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				CumberlandTests.swift,
+				Existing/CitationTests.swift,
+				Existing/SpecHeaderGuardTests.swift,
+				Existing/StoryStructureTests.swift,
+				Existing/WipeStoreTests.swift,
+				TestFixtures.swift,
+			);
+			target = 8663005B2E9DA49D005F471B /* Cumberland IOSTests */;
+		};
+		861EA2622F203463003B4897 /* Exceptions for "Cumberland" folder in "CumberlandTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Model/AppSettings.swift,
+				Model/Board.swift,
+				Model/CalendarSystem.swift,
+				Model/Card.swift,
+				"Model/Card+ERExtensions.swift",
+				Model/CardEdge.swift,
+				Model/Citation.swift,
+				Model/CitationKind.swift,
+				Model/Kinds.swift,
+				Model/Migrations.swift,
+				Model/RelationType.swift,
+				Model/Source.swift,
+				Model/StoryStructure.swift,
+				Model/SuggestionFeedback.swift,
+			);
+			target = 866A3A462E8DC16F006D3723 /* CumberlandTests */;
+		};
+		861EA2632F203463003B4897 /* Exceptions for "Cumberland" folder in "Cumberland IOSTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Model/AppSettings.swift,
+				Model/Board.swift,
+				Model/CalendarSystem.swift,
+				Model/Card.swift,
+				"Model/Card+ERExtensions.swift",
+				Model/CardEdge.swift,
+				Model/Citation.swift,
+				Model/CitationKind.swift,
+				Model/Kinds.swift,
+				Model/Migrations.swift,
+				Model/RelationType.swift,
+				Model/Source.swift,
+				Model/StoryStructure.swift,
+				Model/SuggestionFeedback.swift,
+			);
+			target = 8663005B2E9DA49D005F471B /* Cumberland IOSTests */;
+		};
+		861EA2642F203463003B4897 /* Exceptions for "Cumberland" folder in "Cumberland IOSUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Model/AppSettings.swift,
+				Model/Board.swift,
+				Model/CalendarSystem.swift,
+				Model/Card.swift,
+				"Model/Card+ERExtensions.swift",
+				Model/CardEdge.swift,
+				Model/Citation.swift,
+				Model/CitationKind.swift,
+				Model/Kinds.swift,
+				Model/Migrations.swift,
+				Model/RelationType.swift,
+				Model/Source.swift,
+				Model/StoryStructure.swift,
+				Model/SuggestionFeedback.swift,
+			);
+			target = 866300652E9DA49D005F471B /* Cumberland IOSUITests */;
 		};
 		86544A9A2EBE94710083F9CC /* Exceptions for "Cumberland_visionOS" folder in "Cumberland_visionOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -106,6 +210,13 @@
 			membershipExceptions = (
 				AboutView.swift,
 				AggregateTextView.swift,
+				AI/AIProviderError.swift,
+				AI/AIProviderProtocol.swift,
+				AI/AIProviderRegistry.swift,
+				AI/AISettings.swift,
+				AI/AISettingsView.swift,
+				AI/AppleIntelligenceProvider.swift,
+				AI/KeychainHelper.swift,
 				AppModel.swift,
 				Assets.xcassets,
 				BackgroundDownloadHandler.swift,
@@ -138,6 +249,7 @@
 				DrawCanvas/BaseLayerImageCache.swift,
 				DrawCanvas/BaseLayerPatterns.swift,
 				DrawCanvas/BrushEngine.swift,
+				DrawCanvas/BrushEngine.swift.bak,
 				"DrawCanvas/BrushEngine+macOS.swift",
 				"DrawCanvas/BrushEngine+Patterns.swift",
 				"DrawCanvas/BrushEngine+PencilKit.swift",
@@ -178,7 +290,9 @@
 				MapWizardView.swift,
 				Model/AppSettings.swift,
 				Model/Board.swift,
+				Model/CalendarSystem.swift,
 				Model/Card.swift,
+				"Model/Card+ERExtensions.swift",
 				Model/CardEdge.swift,
 				Model/Citation.swift,
 				Model/CitationKind.swift,
@@ -187,6 +301,7 @@
 				Model/RelationType.swift,
 				Model/Source.swift,
 				Model/StoryStructure.swift,
+				Model/SuggestionFeedback.swift,
 				MultiGestureHandler.swift,
 				Murderboard/BacklogSidebarPanel.swift,
 				Murderboard/EdgesLayer.swift,
@@ -226,29 +341,6 @@
 			);
 			target = 865B61D92EB5148E009CDEF4 /* TestApp */;
 		};
-		865E6EA12F21311400610F27 /* Exceptions for "CumberlandTests" folder in "CumberlandTests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				CumberlandTests.swift,
-				"ER-0008-Timeline/CalendarSystemTests.swift.skip",
-				"ER-0009-ImageGeneration/AIProviderTests.swift.skip",
-				"ER-0009-ImageGeneration/AISettingsTests.swift.skip",
-				"ER-0009-ImageGeneration/KeychainHelperTests.swift.skip",
-				"ER-0010-ContentAnalysis/EntityExtractionTests.swift.skip",
-				Existing/CitationTests.swift.skip,
-				Existing/StoryStructureTests.swift.skip,
-				Existing/WipeStoreTests.swift.skip,
-				Integration/CrossERWorkflowTests.swift.skip,
-			);
-			target = 866A3A462E8DC16F006D3723 /* CumberlandTests */;
-		};
-		865E6EA32F2131EC00610F27 /* Exceptions for "CumberlandTests" folder in "CumberlandTests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				CumberlandTests.swift,
-			);
-			target = 866A3A462E8DC16F006D3723 /* CumberlandTests */;
-		};
 		866300742E9DA49D005F471B /* Exceptions for "Cumberland IOS" folder in "Cumberland IOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -262,6 +354,13 @@
 			membershipExceptions = (
 				AboutView.swift,
 				AggregateTextView.swift,
+				AI/AIProviderError.swift,
+				AI/AIProviderProtocol.swift,
+				AI/AIProviderRegistry.swift,
+				AI/AISettings.swift,
+				AI/AISettingsView.swift,
+				AI/AppleIntelligenceProvider.swift,
+				AI/KeychainHelper.swift,
 				AppModel.swift,
 				Assets.xcassets,
 				BackgroundDownloadHandler.swift,
@@ -294,6 +393,7 @@
 				DrawCanvas/BaseLayerImageCache.swift,
 				DrawCanvas/BaseLayerPatterns.swift,
 				DrawCanvas/BrushEngine.swift,
+				DrawCanvas/BrushEngine.swift.bak,
 				"DrawCanvas/BrushEngine+macOS.swift",
 				"DrawCanvas/BrushEngine+Patterns.swift",
 				"DrawCanvas/BrushEngine+PencilKit.swift",
@@ -334,7 +434,9 @@
 				MapWizardView.swift,
 				Model/AppSettings.swift,
 				Model/Board.swift,
+				Model/CalendarSystem.swift,
 				Model/Card.swift,
+				"Model/Card+ERExtensions.swift",
 				Model/CardEdge.swift,
 				Model/Citation.swift,
 				Model/CitationKind.swift,
@@ -343,6 +445,7 @@
 				Model/RelationType.swift,
 				Model/Source.swift,
 				Model/StoryStructure.swift,
+				Model/SuggestionFeedback.swift,
 				MultiGestureHandler.swift,
 				Murderboard/BacklogSidebarPanel.swift,
 				Murderboard/EdgesLayer.swift,
@@ -415,10 +518,28 @@
 				"Documentation/visionOS-Phase4-Testing-Guide.md",
 				"Documentation/visionOS-Phase4-Visual-Reference.md",
 				"Documentation/visionOS-Quick-Testing-Guide.md",
+				"DR-Reports/ADR-ER-0008-0009-0010.md",
 				"DR-Reports/DR-Documentation.md",
 				"DR-Reports/DR-GUIDELINES.md",
 				"DR-Reports/DR-unverified.md",
 				"DR-Reports/DR-verified-0001-0010.md",
+				"DR-Reports/DR-verified-0011-0020.md",
+				"DR-Reports/DR-verified-0021-0030.md",
+				"DR-Reports/DR-verified-0031-0040.md",
+				"DR-Reports/ER-0007-IMPLEMENTATION-PLAN.md",
+				"DR-Reports/ER-Documentation.md",
+				"DR-Reports/ER-Guidelines.md",
+				"DR-Reports/ER-unverified.md",
+				"DR-Reports/ER-verified-0001.md",
+				"DR-Reports/ER-verified-0002.md",
+				"DR-Reports/ER-verified-0004.md",
+				"DR-Reports/ER-verified-0007.md",
+				"DR-Reports/IMPLEMENTATION-PLAN-ER-0008-0009-0010.md",
+				"DR-Reports/PHASE-0-COMPLETION-SUMMARY.md",
+				"DR-Reports/PHASE-1-STATUS.md",
+				"DR-Reports/README.md",
+				"DR-Reports/TEST-PLAN-ANALYSIS-AND-RECOMMENDATIONS.md",
+				"DR-Reports/TEST-PLAN-ER-0008-0009-0010.md",
 				"DrawCanvas/Guides/BRUSH-ENGINE-DOCUMENTATION-INDEX.md",
 				"DrawCanvas/Guides/BRUSH-ENGINE-QUICK-REFERENCE.md",
 				"DrawCanvas/Guides/BRUSH-SYSTEM-ARCHITECTURE.md",
@@ -429,6 +550,7 @@
 				"DrawCanvas/Guides/EXTERIOR-BRUSH-INDEX.md",
 				"DrawCanvas/Guides/EXTERIOR-BRUSH-QUICK-REFERENCE.md",
 				"DrawCanvas/Guides/EXTERIOR-BRUSH-VISUAL-REFERENCE.md",
+				"DrawCanvas/Guides/LayerManager-Initialization-Guide.md",
 				"DrawCanvas/Guides/macOS-Drawing-Implementation-Guide.md",
 				DrawCanvas/Guides/MAP_DRAFT_PNG_PERSISTENCE_ENHANCEMENT.md,
 				DrawCanvas/Guides/MAP_DRAWING_PERSISTENCE_QUICK_REFERENCE.md,
@@ -489,9 +611,6 @@
 		};
 		8646BE152E99A1D00056F575 /* CumberlandTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				865E6EA32F2131EC00610F27 /* Exceptions for "CumberlandTests" folder in "CumberlandTests" target */,
-			);
 			path = CumberlandTests;
 			sourceTree = "<group>";
 		};
@@ -535,6 +654,9 @@
 				866A3A592E8DC16F006D3723 /* Exceptions for "Cumberland" folder in "Cumberland" target */,
 				866300952E9DA638005F471B /* Exceptions for "Cumberland" folder in "Cumberland IOS" target */,
 				86544AA52EBE99D00083F9CC /* Exceptions for "Cumberland" folder in "Cumberland_visionOS" target */,
+				861EA2622F203463003B4897 /* Exceptions for "Cumberland" folder in "CumberlandTests" target */,
+				861EA2632F203463003B4897 /* Exceptions for "Cumberland" folder in "Cumberland IOSTests" target */,
+				861EA2642F203463003B4897 /* Exceptions for "Cumberland" folder in "Cumberland IOSUITests" target */,
 				865B61E62EB514CD009CDEF4 /* Exceptions for "Cumberland" folder in "TestApp" target */,
 			);
 			path = Cumberland;
@@ -543,7 +665,7 @@
 		866A3A4A2E8DC16F006D3723 /* CumberlandTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				865E6EA12F21311400610F27 /* Exceptions for "CumberlandTests" folder in "CumberlandTests" target */,
+				861EA2152F2021C7003B4897 /* Exceptions for "CumberlandTests" folder in "Cumberland IOSTests" target */,
 				861EA1EC2F2015C4003B4897 /* Exceptions for "CumberlandTests" folder in "CumberlandVisionOSTests" target */,
 			);
 			path = CumberlandTests;
@@ -642,7 +764,6 @@
 		866A3A2D2E8DC16D006D3723 = {
 			isa = PBXGroup;
 			children = (
-				865E6EA02F212D1500610F27 /* Cumberland-macOS.xctestplan */,
 				86F035052F0EFBF300D79640 /* CLAUDE.md */,
 				866A3A382E8DC16D006D3723 /* Cumberland */,
 				866A3A4A2E8DC16F006D3723 /* CumberlandTests */,
@@ -691,7 +812,8 @@
 			buildRules = (
 			);
 			dependencies = (
-				861EA1D22F2014D6003B4897 /* PBXTargetDependency */,
+				861EA2702F203D49003B4897 /* PBXTargetDependency */,
+				861EA26E2F203D46003B4897 /* PBXTargetDependency */,
 				861EA1E62F201553003B4897 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -715,7 +837,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				861EA1E12F20150A003B4897 /* PBXTargetDependency */,
 				861EA1E82F20155B003B4897 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -806,6 +927,8 @@
 			buildRules = (
 			);
 			dependencies = (
+				861EA26C2F203D3D003B4897 /* PBXTargetDependency */,
+				861EA26A2F203D39003B4897 /* PBXTargetDependency */,
 				8663005E2E9DA49D005F471B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -874,6 +997,8 @@
 			buildRules = (
 			);
 			dependencies = (
+				861EA2682F203D1C003B4897 /* PBXTargetDependency */,
+				861EA2662F203D17003B4897 /* PBXTargetDependency */,
 				866A3A492E8DC16F006D3723 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -1132,16 +1257,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		861EA1D22F2014D6003B4897 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 866A3A352E8DC16D006D3723 /* Cumberland */;
-			targetProxy = 861EA1D12F2014D6003B4897 /* PBXContainerItemProxy */;
-		};
-		861EA1E12F20150A003B4897 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 866A3A352E8DC16D006D3723 /* Cumberland */;
-			targetProxy = 861EA1E02F20150A003B4897 /* PBXContainerItemProxy */;
-		};
 		861EA1E62F201553003B4897 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 86544A8A2EBE946F0083F9CC /* Cumberland_visionOS */;
@@ -1151,6 +1266,36 @@
 			isa = PBXTargetDependency;
 			target = 86544A8A2EBE946F0083F9CC /* Cumberland_visionOS */;
 			targetProxy = 861EA1E72F20155B003B4897 /* PBXContainerItemProxy */;
+		};
+		861EA2662F203D17003B4897 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8663004B2E9DA49C005F471B /* Cumberland IOS */;
+			targetProxy = 861EA2652F203D17003B4897 /* PBXContainerItemProxy */;
+		};
+		861EA2682F203D1C003B4897 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 86544A8A2EBE946F0083F9CC /* Cumberland_visionOS */;
+			targetProxy = 861EA2672F203D1C003B4897 /* PBXContainerItemProxy */;
+		};
+		861EA26A2F203D39003B4897 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 866A3A352E8DC16D006D3723 /* Cumberland */;
+			targetProxy = 861EA2692F203D39003B4897 /* PBXContainerItemProxy */;
+		};
+		861EA26C2F203D3D003B4897 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 86544A8A2EBE946F0083F9CC /* Cumberland_visionOS */;
+			targetProxy = 861EA26B2F203D3D003B4897 /* PBXContainerItemProxy */;
+		};
+		861EA26E2F203D46003B4897 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 866A3A352E8DC16D006D3723 /* Cumberland */;
+			targetProxy = 861EA26D2F203D46003B4897 /* PBXContainerItemProxy */;
+		};
+		861EA2702F203D49003B4897 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8663004B2E9DA49C005F471B /* Cumberland IOS */;
+			targetProxy = 861EA26F2F203D49003B4897 /* PBXContainerItemProxy */;
 		};
 		8663005E2E9DA49D005F471B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;

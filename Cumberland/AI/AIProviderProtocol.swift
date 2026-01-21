@@ -147,8 +147,14 @@ struct Entity: Codable, Identifiable {
     /// Context snippet from surrounding text
     var context: String?
 
-    /// Original text span (for highlighting)
+    /// Original text span (for highlighting) - not persisted
+    /// This property is excluded from Codable conformance
     var textRange: Range<String.Index>?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, type, confidence, context
+        // textRange is intentionally excluded from coding
+    }
 }
 
 /// Types of entities that can be extracted

@@ -22,7 +22,7 @@
 		<key>CumberlandTests.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
-			<integer>3</integer>
+			<integer>7</integer>
 		</dict>
 		<key>CumberlandUITests.xcscheme_^#shared#^_</key>
 		<dict>
@@ -64,6 +64,11 @@
 			<true/>
 		</dict>
 		<key>866A3A352E8DC16D006D3723</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>866A3A462E8DC16F006D3723</key>
 		<dict>
 			<key>primary</key>
 			<true/>

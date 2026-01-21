@@ -9,7 +9,7 @@ struct EntityExtractionTests {
     // MARK: - Basic Entity Extraction Tests
 
     @Test("Extract character entities from description")
-    async func extractCharacters() async throws {
+    func extractCharacters() async throws {
         let description = """
         Sir Aldric the Bold rode into the village of Thornhaven, \
         accompanied by his squire Marcus. They sought an audience \
@@ -28,7 +28,7 @@ struct EntityExtractionTests {
     }
 
     @Test("Extract location entities from description")
-    async func extractLocations() async throws {
+    func extractLocations() async throws {
         let description = """
         The caravan traveled from Westport through the Whispering Woods \
         to reach the ancient ruins of Kael'thas.
@@ -46,7 +46,7 @@ struct EntityExtractionTests {
     }
 
     @Test("Extract artifact entities from description")
-    async func extractArtifacts() async throws {
+    func extractArtifacts() async throws {
         let description = """
         The hero wielded the Sword of Dawn and carried the Shield of Ancients.
         """
@@ -57,7 +57,7 @@ struct EntityExtractionTests {
     // MARK: - Entity Type Inference Tests
 
     @Test("Infer entity types correctly")
-    async func inferEntityTypes() async throws {
+    func inferEntityTypes() async throws {
         let description = """
         Captain Reynolds commands the starship Enterprise from the bridge.
         """
@@ -71,7 +71,7 @@ struct EntityExtractionTests {
     // MARK: - Confidence Scoring Tests
 
     @Test("Assign confidence scores to entities")
-    async func confidenceScoring() async throws {
+    func confidenceScoring() async throws {
         let description = """
         Dr. Smith and someone traveled to the place.
         """
@@ -85,7 +85,7 @@ struct EntityExtractionTests {
     // MARK: - Context Extraction Tests
 
     @Test("Extract context surrounding entities")
-    async func contextExtraction() async throws {
+    func contextExtraction() async throws {
         let description = """
         The ancient wizard Merlin, keeper of the sacred flame, \
         dwelt in the Crystal Tower overlooking the misty valley.
@@ -99,7 +99,7 @@ struct EntityExtractionTests {
     // MARK: - Deduplication Tests
 
     @Test("Deduplicate similar entity names")
-    async func deduplication() async throws {
+    func deduplication() async throws {
         // TODO: Test fuzzy matching for deduplication
         // "Sir Aldric" vs "Aldric" -> Same entity
         // "Dr. Smith" vs "Doctor Smith" -> Same entity
@@ -107,7 +107,7 @@ struct EntityExtractionTests {
     }
 
     @Test("Detect existing entities to prevent duplicates")
-    async func detectExistingEntities() async throws {
+    func detectExistingEntities() async throws {
         // TODO: Test matching against existing cards
         // If "Captain Reynolds" card already exists,
         // suggest linking instead of creating duplicate
@@ -116,7 +116,7 @@ struct EntityExtractionTests {
     // MARK: - Filtering Tests
 
     @Test("Filter out non-entity proper nouns")
-    async func filterNonEntities() async throws {
+    func filterNonEntities() async throws {
         let description = """
         On Monday, Captain Reynolds said "Hello" and left for New York.
         """
@@ -131,13 +131,13 @@ struct EntityExtractionTests {
     // MARK: - Error Handling Tests
 
     @Test("Handle empty description")
-    async func emptyDescription() async throws {
+    func emptyDescription() async throws {
         // TODO: Test with empty string
         // Should return empty entity list, not error
     }
 
     @Test("Handle description below minimum length")
-    async func shortDescription() async throws {
+    func shortDescription() async throws {
         let description = "Test"
 
         // TODO: Test minimum length requirement (25 words)
@@ -145,7 +145,7 @@ struct EntityExtractionTests {
     }
 
     @Test("Handle API errors gracefully")
-    async func apiError() async throws {
+    func apiError() async throws {
         // TODO: Test error handling when AI provider fails
     }
 }

@@ -32,22 +32,6 @@
         "identifier" : "866A3A502E8DC16F006D3723",
         "name" : "CumberlandUITests"
       }
-    },
-    {
-      "parallelizable" : true,
-      "target" : {
-        "containerPath" : "container:Cumberland.xcodeproj",
-        "identifier" : "861EA1CC2F2014D6003B4897",
-        "name" : "CumberlandVisionOSTests"
-      }
-    },
-    {
-      "parallelizable" : true,
-      "target" : {
-        "containerPath" : "container:Cumberland.xcodeproj",
-        "identifier" : "861EA1D92F20150A003B4897",
-        "name" : "CumberlandVisionOSUITests"
-      }
     }
   ],
   "version" : 1

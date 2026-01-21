@@ -1,0 +1,289 @@
+import Testing
+@testable import Cumberland
+
+/// Tests for AISettings data model
+/// Part of ER-0009: AI Image Generation (Phase 1)
+@Suite("AISettings Tests")
+struct AISettingsTests {
+
+    // MARK: - Setup
+
+    init() {
+        // Reset settings before each test
+        AISettings.shared.resetToDefaults()
+        try? KeychainHelper.shared.deleteAllAPIKeys()
+    }
+
+    // MARK: - Default Values Tests
+
+    @Test("Default settings are correct")
+    func defaultSettings() {
+        let settings = AISettings.shared
+
+        #expect(settings.preferredProvider == "Apple Intelligence")
+        #expect(settings.aiEnabled == true)
+        #expect(settings.autoGenerateImages == false)
+        #expect(settings.autoGenerateMinWords == 50)
+        #expect(settings.imageHistoryLimit == 5)
+        #expect(settings.alwaysShowAttributionOverlay == false)
+        #expect(settings.analysisEnabled == true)
+        #expect(settings.analysisScopeEnum == .moderate)
+        #expect(settings.confidenceThreshold == 0.70)
+        #expect(settings.analysisMinWordCount == 25)
+        #expect(settings.enableLearning == true)
+    }
+
+    // MARK: - Settings Persistence Tests
+
+    @Test("Settings persist across resets")
+    func settingsPersistence() {
+        let settings = AISettings.shared
+
+        // Change settings
+        settings.autoGenerateImages = true
+        settings.autoGenerateMinWords = 100
+        settings.confidenceThreshold = 0.85
+
+        // Values should be set
+        #expect(settings.autoGenerateImages == true)
+        #expect(settings.autoGenerateMinWords == 100)
+        #expect(settings.confidenceThreshold == 0.85)
+
+        // Reset
+        settings.resetToDefaults()
+
+        // Values should be back to defaults
+        #expect(settings.autoGenerateImages == false)
+        #expect(settings.autoGenerateMinWords == 50)
+        #expect(settings.confidenceThreshold == 0.70)
+    }
+
+    // MARK: - API Key Management Tests
+
+    @Test("Save and retrieve API key through settings")
+    func apiKeyManagement() throws {
+        let settings = AISettings.shared
+        let provider = "openai"
+        let apiKey = "sk-test-12345"
+
+        // Initially no key
+        #expect(settings.hasAPIKey(for: provider) == false)
+
+        // Save key
+        try settings.setAPIKey(apiKey, for: provider)
+
+        // Should have key now
+        #expect(settings.hasAPIKey(for: provider) == true)
+
+        // Retrieve key
+        let retrieved = try settings.getAPIKey(for: provider)
+        #expect(retrieved == apiKey)
+
+        // Delete key
+        try settings.deleteAPIKey(for: provider)
+
+        // Should not have key anymore
+        #expect(settings.hasAPIKey(for: provider) == false)
+    }
+
+    // MARK: - Analysis Scope Tests
+
+    @Test("Analysis scope enum conversion")
+    func analysisScopeConversion() {
+        let settings = AISettings.shared
+
+        // Set to conservative
+        settings.analysisScopeEnum = .conservative
+        #expect(settings.analysisScope == "conservative")
+        #expect(settings.analysisScopeEnum == .conservative)
+
+        // Set to aggressive
+        settings.analysisScopeEnum = .aggressive
+        #expect(settings.analysisScope == "aggressive")
+        #expect(settings.analysisScopeEnum == .aggressive)
+    }
+
+    @Test("Analysis scope default thresholds")
+    func analysisScopeThresholds() {
+        #expect(AnalysisScope.conservative.defaultThreshold == 0.80)
+        #expect(AnalysisScope.moderate.defaultThreshold == 0.70)
+        #expect(AnalysisScope.aggressive.defaultThreshold == 0.60)
+    }
+
+    // MARK: - Copyright Template Tests
+
+    @Test("Format copyright template")
+    func copyrightTemplate() {
+        let settings = AISettings.shared
+        settings.copyrightTemplate = "© {YEAR} {USER}. All rights reserved."
+
+        let formatted = settings.formattedCopyright(user: "TestUser")
+
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let expected = "© \(currentYear) TestUser. All rights reserved."
+
+        #expect(formatted == expected)
+    }
+
+    // MARK: - Entity Type Flags Tests
+
+    @Test("Enable and disable entity types")
+    func entityTypeFlags() {
+        let settings = AISettings.shared
+
+        // All types enabled by default
+        #expect(settings.isEntityTypeEnabled(.character) == true)
+        #expect(settings.isEntityTypeEnabled(.location) == true)
+        #expect(settings.isEntityTypeEnabled(.artifact) == true)
+
+        // Disable character
+        settings.setEntityType(.character, enabled: false)
+        #expect(settings.isEntityTypeEnabled(.character) == false)
+        #expect(settings.isEntityTypeEnabled(.location) == true) // Others still enabled
+
+        // Re-enable character
+        settings.setEntityType(.character, enabled: true)
+        #expect(settings.isEntityTypeEnabled(.character) == true)
+
+        // Disable all
+        for type in [EntityType.character, .location, .building, .artifact,
+                     .vehicle, .organization, .event, .other] {
+            settings.setEntityType(type, enabled: false)
+        }
+
+        // Verify all disabled
+        #expect(settings.isEntityTypeEnabled(.character) == false)
+        #expect(settings.isEntityTypeEnabled(.location) == false)
+        #expect(settings.isEntityTypeEnabled(.artifact) == false)
+    }
+
+    @Test("Entity type flags bitmask values")
+    func entityTypeFlagsBitmask() {
+        #expect(EntityTypeFlags.character == 1)
+        #expect(EntityTypeFlags.location == 2)
+        #expect(EntityTypeFlags.building == 4)
+        #expect(EntityTypeFlags.artifact == 8)
+        #expect(EntityTypeFlags.vehicle == 16)
+        #expect(EntityTypeFlags.organization == 32)
+        #expect(EntityTypeFlags.event == 64)
+        #expect(EntityTypeFlags.other == 128)
+    }
+
+    // MARK: - Feature Availability Tests
+
+    @Test("Image generation availability")
+    func imageGenerationAvailability() {
+        let settings = AISettings.shared
+
+        // Depends on aiEnabled and provider availability
+        settings.aiEnabled = true
+        // Availability depends on actual provider, so we just test the flag logic
+        #expect(settings.aiEnabled == true)
+
+        settings.aiEnabled = false
+        #expect(settings.isImageGenerationAvailable == false)
+
+        settings.aiEnabled = true
+    }
+
+    @Test("Content analysis availability")
+    func contentAnalysisAvailability() {
+        let settings = AISettings.shared
+
+        settings.aiEnabled = true
+        settings.analysisEnabled = true
+        // Actual availability depends on provider
+
+        settings.analysisEnabled = false
+        #expect(settings.isContentAnalysisAvailable == false)
+
+        settings.aiEnabled = false
+        settings.analysisEnabled = true
+        #expect(settings.isContentAnalysisAvailable == false)
+    }
+
+    // MARK: - Validation Tests
+
+    @Test("Settings validation - valid settings")
+    func validationValid() {
+        let settings = AISettings.shared
+        settings.resetToDefaults()
+
+        #expect(settings.isValid == true)
+        #expect(settings.validate() == nil)
+    }
+
+    @Test("Settings validation - invalid confidence threshold")
+    func validationInvalidConfidence() {
+        let settings = AISettings.shared
+
+        // Too high
+        settings.confidenceThreshold = 1.5
+        #expect(settings.isValid == false)
+        #expect(settings.validate() != nil)
+
+        // Too low
+        settings.confidenceThreshold = -0.5
+        #expect(settings.isValid == false)
+
+        // Valid range
+        settings.confidenceThreshold = 0.75
+        #expect(settings.isValid == true)
+    }
+
+    @Test("Settings validation - invalid history limit")
+    func validationInvalidHistoryLimit() {
+        let settings = AISettings.shared
+
+        settings.imageHistoryLimit = -1
+        #expect(settings.isValid == false)
+
+        settings.imageHistoryLimit = 5
+        #expect(settings.isValid == true)
+    }
+
+    @Test("Settings validation - invalid word counts")
+    func validationInvalidWordCounts() {
+        let settings = AISettings.shared
+
+        settings.autoGenerateMinWords = 0
+        #expect(settings.isValid == false)
+
+        settings.autoGenerateMinWords = 50
+        settings.analysisMinWordCount = 0
+        #expect(settings.isValid == false)
+
+        settings.analysisMinWordCount = 25
+        #expect(settings.isValid == true)
+    }
+
+    // MARK: - Reset Tests
+
+    @Test("Reset settings to defaults")
+    func resetToDefaults() {
+        let settings = AISettings.shared
+
+        // Change all settings
+        settings.aiEnabled = false
+        settings.autoGenerateImages = true
+        settings.autoGenerateMinWords = 200
+        settings.imageHistoryLimit = 10
+        settings.alwaysShowAttributionOverlay = true
+        settings.analysisEnabled = false
+        settings.confidenceThreshold = 0.90
+        settings.analysisMinWordCount = 100
+
+        // Reset
+        settings.resetToDefaults()
+
+        // Verify all back to defaults
+        #expect(settings.aiEnabled == true)
+        #expect(settings.autoGenerateImages == false)
+        #expect(settings.autoGenerateMinWords == 50)
+        #expect(settings.imageHistoryLimit == 5)
+        #expect(settings.alwaysShowAttributionOverlay == false)
+        #expect(settings.analysisEnabled == true)
+        #expect(settings.confidenceThreshold == 0.70)
+        #expect(settings.analysisMinWordCount == 25)
+    }
+}

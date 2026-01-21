@@ -134,7 +134,9 @@ extension CardEdge {
 }
 
 // MARK: - Helper Methods for AI Image Generation
+// NOTE: These will be uncommented when AppSchemaV7 migration adds the properties
 
+/*
 extension Card {
 
     /// Check if this card should auto-generate an image
@@ -181,9 +183,12 @@ extension Card {
         imageHistoryMetadata?.count ?? 0
     }
 }
+*/
 
 // MARK: - Helper Methods for Timeline System
+// NOTE: These will be uncommented when AppSchemaV6 migration adds the properties
 
+/*
 extension Card {
 
     /// Check if this card is a timeline with a calendar system
@@ -232,9 +237,12 @@ extension Card {
         return nil // Valid
     }
 }
+*/
 
 // MARK: - Helper Methods for Scene Temporal Positioning
+// NOTE: These will be uncommented when AppSchemaV6 migration adds the properties
 
+/*
 extension CardEdge {
 
     /// Get display position for a scene on a timeline
@@ -286,6 +294,7 @@ extension CardEdge {
         return formatter.string(from: duration)
     }
 }
+*/
 
 // MARK: - Schema Migration Notes
 

@@ -227,7 +227,8 @@ struct SettingsView: View {
     private func saveAndSyncUserDefaults() {
         Task { @MainActor in
             if let s = settings {
-                colorSchemeRaw = s.colorSchemePreference.rawValue
+                // Write directly to UserDefaults to avoid mutation issues
+                UserDefaults.standard.set(s.colorSchemePreference.rawValue, forKey: "AppSettings.colorSchemePreferenceRaw")
             }
             try? modelContext.save()
         }

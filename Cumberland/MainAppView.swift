@@ -127,8 +127,9 @@ struct MainAppView: View {
         return filteredCards.first(where: { $0.id == id }) ?? cards.first(where: { $0.id == id })
     }
 
-    var body: some View {
-        // Use NavigationSplitView with column visibility persistence per card kind
+    // MARK: - Main Navigation
+
+    private var mainNavigationView: some View {
         NavigationSplitView(
             columnVisibility: $columnVisibility
         ) {
@@ -138,11 +139,67 @@ struct MainAppView: View {
         } detail: {
             detailColumn
         }
-        .environment(navigationCoordinator) // inject coordinator for all children
-        .navigationSplitViewStyle(.balanced)
-        .searchable(text: $searchText, prompt: "Search cards…")
-        // Create sheet
-        .sheet(isPresented: $showingCardEditor) {
+    }
+
+    var body: some View {
+        navigationWithLifecycle
+    }
+
+    private var navigationWithLifecycle: some View {
+        navigationWithToolbars
+            .onAppear {
+                onAppearHandler()
+            }
+            .onChange(of: sidebarSelection) { _, newValue in
+                onSidebarSelectionChange(newValue)
+            }
+            .onChange(of: searchText) { _, newText in
+                onSearchTextChange(newText)
+            }
+            .onChange(of: selectedCardID) { _, _ in
+                onSelectedCardIDChange()
+            }
+            .onChange(of: navigationCoordinator.forceCardSheetView) { _, _ in
+                onForceCardSheetViewChange()
+            }
+            .onChange(of: selectedDetailTab) { _, newValue in
+                onSelectedDetailTabChange(newValue)
+            }
+            .onChange(of: isFocusModeEnabled) { _, _ in
+                updateSplitVisibilityForSelection()
+            }
+            .onChange(of: focusModeCardIDRaw) { _, _ in
+                updateSplitVisibilityForSelection()
+            }
+            .onChange(of: columnVisibility) { _, newVisibility in
+                saveColumnVisibility(newVisibility, for: currentColumnVisibilityContext())
+            }
+    }
+
+    private var navigationWithToolbars: some View {
+        navigationWithSheets
+            #if os(visionOS)
+            .ornament(attachmentAnchor: .scene(.bottom)) {
+                primaryActionsOrnament
+            }
+            .ornament(attachmentAnchor: .scene(.leading)) {
+                settingsOrnament
+            }
+            #endif
+            .modifier(ToolbarViewModifier(mainView: self))
+    }
+
+    private var navigationWithEnvironment: some View {
+        mainNavigationView
+            .environment(navigationCoordinator)
+            .navigationSplitViewStyle(.balanced)
+            .searchable(text: $searchText, prompt: "Search cards…")
+    }
+
+    private var navigationWithSheets: some View {
+        navigationWithEnvironment
+            // Create sheet
+            .sheet(isPresented: $showingCardEditor) {
             #if os(iOS)
             NavigationStack {
                 CardEditorView(mode: .create(kind: currentCreationKind) { _ in
@@ -248,191 +305,166 @@ struct MainAppView: View {
             #endif
         }
         #endif
-        #if os(visionOS)
-        // visionOS: Use ornaments for spatial UI
-        .ornament(attachmentAnchor: .scene(.bottom)) {
-            primaryActionsOrnament
-        }
-        .ornament(attachmentAnchor: .scene(.leading)) {
-            settingsOrnament
-        }
-        #endif
-        #if !os(visionOS)
-        // macOS and iOS: Use traditional toolbar
-        // DR-0030: Settings button removed - now accessed via Cumberland > Preferences...
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button {
-                    showingCardEditor = true
-                } label: {
-                    Label("New Card", systemImage: "plus")
-                }
-                .disabled(isStructureSelected) // New Card doesn’t apply to Structure directly
+    }
 
-                Button {
-                    showingEditCardEditor = true
-                } label: {
-                    Label("Edit", systemImage: "pencil")
-                }
-                .disabled(selectedCard == nil)
+    // MARK: - Lifecycle Handlers (extracted to fix compiler timeout)
 
-                #if DEBUG
-                Button {
-                    showingDeveloperBoards = true
-                } label: {
-                    Label("Developer Boards", systemImage: "wrench.and.screwdriver")
-                }
-                .help("Inspect and repair Boards and BoardNodes")
-                #endif
-            }
+    private func onAppearHandler() {
+        // One-time data repair
+        DataRepair.repairForeignBoardNodes(in: modelContext)
 
-            // macOS segmented picker can remain at outer level
-            #if !os(iOS)
-            ToolbarItemGroup(placement: .automatic) {
-                if let card = selectedCard, !navigationCoordinator.forceCardSheetView {
-                    let tabs = availableTabs(for: card)
-                    if !tabs.isEmpty {
-                        Picker("Card View", selection: $selectedDetailTab) {
-                            ForEach(tabs) { tab in
-                                Label(tab.title, systemImage: tab.systemImage)
-                                    .tag(tab)
-                                    .help(tab.helpText)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(maxWidth: 420)
-                    }
-                }
-            }
-            #endif
-        }
-        #endif
-        .onAppear {
-            // One-time data repair to purge any foreign BoardNodes from other contexts (e.g., previews)
-            DataRepair.repairForeignBoardNodes(in: modelContext)
+        // Keep all columns visible when the window allows
+        columnVisibility = .all
 
-            // Keep all columns visible when the window allows
-            columnVisibility = .all
-
-            // Restore last selection; default to Projects on first launch.
-            if sidebarSelection == nil {
-                if let restored = deserializeSidebarSelection(from: sidebarSelectionRaw) {
-                    sidebarSelection = restored
-                } else {
-                    sidebarSelection = .kind(.projects)
-                    sidebarSelectionRaw = serializeSidebarSelection(sidebarSelection)
-                }
-            }
-
-            // Load split position for current context
-            loadColumnVisibility(for: currentColumnVisibilityContext())
-
-            // Initialize the detail tab based on current context
-            if let card = selectedCard {
-                selectedDetailTab = loadRememberedTab(for: card.kind)
-                coerceSelectedTabIfNeeded(for: card)
+        // Restore last selection
+        if sidebarSelection == nil {
+            if let restored = deserializeSidebarSelection(from: sidebarSelectionRaw) {
+                sidebarSelection = restored
             } else {
-                // No card selected; if we’re scoped to a kind, use that kind’s remembered tab.
-                switch sidebarSelection {
-                case .kind(let k):
-                    selectedDetailTab = loadRememberedTab(for: k)
-                default:
-                    // Default app-wide startup to Projects’ default (Details)
-                    selectedDetailTab = loadRememberedTab(for: .projects)
-                }
+                sidebarSelection = .kind(.projects)
+                UserDefaults.standard.set(serializeSidebarSelection(sidebarSelection), forKey: "MainSidebarSelection")
             }
-
-            // Ensure initial split visibility reflects current selection/focus on iPad
-            updateSplitVisibilityForSelection()
         }
-        // Persist selection when it changes
-        .onChange(of: sidebarSelection) { _, newValue in
-            // Save current column visibility before changing context
-            let oldContext = currentColumnVisibilityContext()
-            saveColumnVisibility(columnVisibility, for: oldContext)
-            
-            sidebarSelectionRaw = serializeSidebarSelection(newValue)
-            // Reset card selection when changing context
-            selectedCardID = nil
-            // Reset structure selection when leaving structure context
-            if case .structure = newValue {
-                // Entering structure mode - keep/restore structure selection
-            } else {
-                // Leaving structure mode - clear structure selection
-                selectedStructureID = nil
-            }
-            
-            // Load column visibility for new context
-            loadColumnVisibility(for: currentColumnVisibilityContext())
-            
-            // Load remembered tab for the newly selected kind (or default)
-            switch newValue {
+
+        // Load split position for current context
+        loadColumnVisibility(for: currentColumnVisibilityContext())
+
+        // Initialize the detail tab
+        if let card = selectedCard {
+            selectedDetailTab = loadRememberedTab(for: card.kind)
+            coerceSelectedTabIfNeeded(for: card)
+        } else {
+            switch sidebarSelection {
             case .kind(let k):
                 selectedDetailTab = loadRememberedTab(for: k)
             default:
-                // For All/Structure use the Projects default as a sensible baseline
                 selectedDetailTab = loadRememberedTab(for: .projects)
             }
         }
-        // Keep the force flag in sync with search mode:
-        // When entering search mode, force CardSheetView; when leaving, clear it.
-        .onChange(of: searchText) { _, newText in
-            if newText.isEmpty {
-                navigationCoordinator.clearForce()
-            } else {
-                navigationCoordinator.forceCardSheetView = true
-            }
-            // Clear selection when search text changes to avoid stale detail
-            selectedCardID = nil
-        }
-        // Reset/validate the selected tab when the selected card changes
-        .onChange(of: selectedCardID) { _, _ in
-            // Update split visibility for iPadOS only
-            updateSplitVisibilityForSelection()
 
-            guard let card = selectedCard else {
-                // If no card selected, base on current kind context (or projects default)
-                switch sidebarSelection {
-                case .kind(let k):
-                    selectedDetailTab = loadRememberedTab(for: k)
-                default:
-                    selectedDetailTab = loadRememberedTab(for: .projects)
-                }
-                return
+        updateSplitVisibilityForSelection()
+    }
+
+    private func onSidebarSelectionChange(_ newValue: SidebarItem?) {
+        let oldContext = currentColumnVisibilityContext()
+        saveColumnVisibility(columnVisibility, for: oldContext)
+
+        UserDefaults.standard.set(serializeSidebarSelection(newValue), forKey: "MainSidebarSelection")
+        selectedCardID = nil
+
+        if case .structure = newValue {
+            // Entering structure mode
+        } else {
+            selectedStructureID = nil
+        }
+
+        loadColumnVisibility(for: currentColumnVisibilityContext())
+
+        switch newValue {
+        case .kind(let k):
+            selectedDetailTab = loadRememberedTab(for: k)
+        default:
+            selectedDetailTab = loadRememberedTab(for: .projects)
+        }
+    }
+
+    private func onSearchTextChange(_ newText: String) {
+        if newText.isEmpty {
+            navigationCoordinator.clearForce()
+        } else {
+            navigationCoordinator.forceCardSheetView = true
+        }
+        selectedCardID = nil
+    }
+
+    private func onSelectedCardIDChange() {
+        updateSplitVisibilityForSelection()
+
+        guard let card = selectedCard else {
+            switch sidebarSelection {
+            case .kind(let k):
+                selectedDetailTab = loadRememberedTab(for: k)
+            default:
+                selectedDetailTab = loadRememberedTab(for: .projects)
             }
-            // Load remembered tab for this card’s kind and validate
-            selectedDetailTab = loadRememberedTab(for: card.kind)
+            return
+        }
+
+        selectedDetailTab = loadRememberedTab(for: card.kind)
+        coerceSelectedTabIfNeeded(for: card)
+    }
+
+    private func onForceCardSheetViewChange() {
+        if let card = selectedCard {
             coerceSelectedTabIfNeeded(for: card)
         }
-        // Also revalidate when force mode changes (e.g., leaving search)
-        .onChange(of: navigationCoordinator.forceCardSheetView) { _, _ in
-            if let card = selectedCard {
-                coerceSelectedTabIfNeeded(for: card)
+    }
+
+    private func onSelectedDetailTabChange(_ newValue: CardDetailTab) {
+        if let card = selectedCard {
+            rememberTab(newValue, for: card.kind)
+        } else {
+            switch sidebarSelection {
+            case .kind(let k): rememberTab(newValue, for: k)
+            default: rememberTab(newValue, for: .projects)
             }
         }
-        // Persist any user-initiated tab changes per Kind
-        .onChange(of: selectedDetailTab) { _, newValue in
-            // Persist the selection for the active Kind context
-            if let card = selectedCard {
-                rememberTab(newValue, for: card.kind)
-            } else {
-                // No card selected: remember against the sidebar’s Kind if present; else Projects
-                switch sidebarSelection {
-                case .kind(let k): rememberTab(newValue, for: k)
-                default: rememberTab(newValue, for: .projects)
+    }
+
+    // MARK: - Toolbar ViewModifier
+
+    struct ToolbarViewModifier: ViewModifier {
+        let mainView: MainAppView
+
+        func body(content: Content) -> some View {
+            content
+                #if !os(visionOS)
+                .toolbar {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button {
+                            mainView.showingCardEditor = true
+                        } label: {
+                            Label("New Card", systemImage: "plus")
+                        }
+                        .disabled(mainView.isStructureSelected)
+
+                        Button {
+                            mainView.showingEditCardEditor = true
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        .disabled(mainView.selectedCard == nil)
+
+                        #if DEBUG
+                        Button {
+                            mainView.showingDeveloperBoards = true
+                        } label: {
+                            Label("Developer Boards", systemImage: "wrench.and.screwdriver")
+                        }
+                        .help("Inspect and repair Boards and BoardNodes")
+                        #endif
+                    }
+
+                    #if !os(iOS)
+                    ToolbarItemGroup(placement: .automatic) {
+                        if let card = mainView.selectedCard, !mainView.navigationCoordinator.forceCardSheetView {
+                            let tabs = mainView.availableTabs(for: card)
+                            if !tabs.isEmpty {
+                                Picker("Card View", selection: mainView.$selectedDetailTab) {
+                                    ForEach(tabs) { tab in
+                                        Label(tab.title, systemImage: tab.systemImage)
+                                            .tag(tab)
+                                            .help(tab.helpText)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                                .frame(maxWidth: 420)
+                            }
+                        }
+                    }
+                    #endif
                 }
-            }
-        }
-        // React to Focus Mode toggles (from CardSheetView) to hide/show the content list on iPadOS.
-        .onChange(of: isFocusModeEnabled) { _, _ in
-            updateSplitVisibilityForSelection()
-        }
-        .onChange(of: focusModeCardIDRaw) { _, _ in
-            updateSplitVisibilityForSelection()
-        }
-        // Save column visibility when user adjusts it
-        .onChange(of: columnVisibility) { _, newVisibility in
-            saveColumnVisibility(newVisibility, for: currentColumnVisibilityContext())
+                #endif
         }
     }
 
@@ -1098,37 +1130,37 @@ struct MainAppView: View {
         let visibilityString = serializeColumnVisibility(visibility)
         switch context {
         case .kind(.projects):
-            projectsColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.projects")
         case .kind(.characters):
-            charactersColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.characters")
         case .kind(.scenes):
-            scenesColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.scenes")
         case .kind(.worlds):
-            worldsColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.worlds")
         case .kind(.timelines):
-            timelinesColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.timelines")
         case .kind(.chapters):
-            chaptersColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.chapters")
         case .all:
-            allColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.all")
         case .structure:
-            structureColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.structure")
         case .kind(.maps):
-            mapsColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.maps")
         case .kind(.locations):
-            locationsColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.locations")
         case .kind(.buildings):
-            buildingsColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.buildings")
         case .kind(.vehicles):
-            vehiclesColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.vehicles")
         case .kind(.artifacts):
-            artifactsColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.artifacts")
         case .kind(.rules):
-            rulesColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.rules")
         case .kind(.sources):
-            sourcesColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.sources")
         case .kind(.structure):
-            structureColumnVisibility = visibilityString
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.structure")
         }
     }
     

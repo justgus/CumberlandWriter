@@ -8,8 +8,10 @@ final class WipeStoreTests {
     @MainActor
     func testWipeAllData() throws {
         // Build the same container the app uses (on-disk, not in-memory)
-        let schema = Schema(AppSchema.models)
-        let container = try ModelContainer(for: schema, migrationPlan: AppMigrations.self)
+        let container = try ModelContainer(
+            for: Card.self, Board.self, BoardNode.self, Citation.self, RelationType.self, Source.self, StoryStructure.self, StructureElement.self, CalendarSystem.self, SuggestionFeedback.self,
+            migrationPlan: AppMigrations.self
+        )
 
         let context = ModelContext(container)
         context.autosaveEnabled = false
@@ -19,7 +21,7 @@ final class WipeStoreTests {
 
         // Cleanup external resources and delete
         for card in allCards {
-            card.cleanupBeforeDeletion()
+            card.cleanupBeforeDeletion(in: context)
             context.delete(card)
         }
 

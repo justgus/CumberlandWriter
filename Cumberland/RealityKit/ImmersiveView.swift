@@ -16,27 +16,17 @@ struct ImmersiveView: View {
         RealityView { content in
             let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "RealityKit")
             
-            // Create content programmatically to avoid asset loading issues
-            let rootEntity = Entity()
+            // Since Model3D can load "Scene", we know the asset exists
+            // For now, create a simple placeholder entity
+            // TODO: Figure out the correct way to load USDA scenes in RealityView
+            let sphere = ModelEntity(
+                mesh: .generateSphere(radius: 0.05),
+                materials: [SimpleMaterial(color: .red, isMetallic: false)]
+            )
+            sphere.position = [0, 1.5, -2]
+            content.add(sphere)
             
-            // Try to load the Scene asset first
-            do {
-                let sceneEntity = try await Entity(named: "Scene", in: realityKitContentBundle)
-                logger.info("Successfully loaded Scene entity")
-                rootEntity.addChild(sceneEntity)
-            } catch {
-                logger.error("Failed to load Scene entity: \(error.localizedDescription)")
-                // Create fallback content
-                let sphereEntity = Entity()
-                sphereEntity.components[ModelComponent.self] = ModelComponent(
-                    mesh: .generateSphere(radius: 0.05),
-                    materials: [SimpleMaterial(color: .red, isMetallic: false)]
-                )
-                sphereEntity.position = [0, 1.5, -2]
-                rootEntity.addChild(sphereEntity)
-            }
-            
-            content.add(rootEntity)
+            logger.info("Added placeholder sphere - Scene loading to be implemented")
 
             // Put skybox here.  See example in World project available at
             // https://developer.apple.com/

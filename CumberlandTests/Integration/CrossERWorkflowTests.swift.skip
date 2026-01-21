@@ -1,5 +1,6 @@
 import Testing
 import SwiftData
+import Foundation
 @testable import Cumberland
 
 /// Integration tests for workflows spanning multiple ERs
@@ -24,20 +25,21 @@ struct CrossERWorkflowTests {
 
     @Test("Extract calendar from description and associate with timeline")
     @MainActor
-    async func extractCalendarForTimeline() async throws {
+    func extractCalendarForTimeline() async throws {
         let (_, context) = try makeInMemoryContainer()
 
         // Create timeline with fantasy calendar description
-        let timeline = Card(
-            kind: .timelines,
-            name: "Eldarian History",
-            createdAt: Date()
-        )
-        timeline.detailedText = """
+        let detailedText = """
         The Eldarian year consists of 13 moons, each moon having 28 days. \
         Each day is divided into 10 cycles, and each cycle into 100 moments. \
         The current era is the Age of Starlight, which began 1000 years ago.
         """
+        let timeline = Card(
+            kind: .timelines,
+            name: "Eldarian History",
+            subtitle: "",
+            detailedText: detailedText
+        )
         context.insert(timeline)
         try context.save()
 
@@ -62,21 +64,22 @@ struct CrossERWorkflowTests {
 
     @Test("Analyze description, create cards, generate images")
     @MainActor
-    async func analyzeAndGenerateImages() async throws {
+    func analyzeAndGenerateImages() async throws {
         let (_, context) = try makeInMemoryContainer()
 
         // Create scene with rich description
-        let scene = Card(
-            kind: .scenes,
-            name: "The Council Meeting",
-            createdAt: Date()
-        )
-        scene.detailedText = """
+        let detailedText = """
         Captain Sarah Reynolds stood at the helm of the USS Voyager, \
         a sleek starship designed for deep space exploration. \
         Behind her, the holographic AI assistant Aether materialized, \
         displaying star charts of the Andromeda sector.
         """
+        let scene = Card(
+            kind: .scenes,
+            name: "The Council Meeting",
+            subtitle: "",
+            detailedText: detailedText
+        )
         context.insert(scene)
         try context.save()
 
@@ -110,7 +113,7 @@ struct CrossERWorkflowTests {
 
     @Test("Complete worldbuilding workflow")
     @MainActor
-    async func completeWorkflow() async throws {
+    func completeWorkflow() async throws {
         let (_, context) = try makeInMemoryContainer()
 
         // TODO: Implement end-to-end test
@@ -129,7 +132,7 @@ struct CrossERWorkflowTests {
 
     @Test("Timeline visualization with AI-generated base layer")
     @MainActor
-    async func timelineWithAIGeneratedMap() async throws {
+    func timelineWithAIGeneratedMap() async throws {
         // TODO: Test if timeline cards can have AI-generated map images
         // Not a direct integration, but useful to verify compatibility
     }

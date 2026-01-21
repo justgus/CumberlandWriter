@@ -230,6 +230,11 @@ struct CardSheetView: View {
 
     @ViewBuilder
     private func applyLifecycleHandlers<V: View>(to base: V) -> some View {
+        applyOnChangeHandlers(to: base)
+    }
+
+    @ViewBuilder
+    private func applyOnChangeHandlers<V: View>(to base: V) -> some View {
         base
             .onChange(of: card.id) { _, _ in
                 // Reset local editor state to reflect the newly selected card
@@ -251,8 +256,8 @@ struct CardSheetView: View {
 
                 // If focus mode was active for another card, disable it for this card.
                 if isFocusModeEnabled, focusModeCardIDRaw != card.id.uuidString {
-                    isFocusModeEnabled = false
-                    focusModeCardIDRaw = ""
+                    UserDefaults.standard.set(false, forKey: "CardDetailFocusModeEnabled")
+                    UserDefaults.standard.set("", forKey: "CardDetailFocusModeCardID")
                 }
             }
             .onChange(of: card.detailedText) { _, _ in
@@ -306,8 +311,8 @@ struct CardSheetView: View {
                         selection: $detailsSelection,
                         toolbar: adaptiveFormattingToolbar,
                         onExit: {
-                            isFocusModeEnabled = false
-                            focusModeCardIDRaw = ""
+                            UserDefaults.standard.set(false, forKey: "CardDetailFocusModeEnabled")
+                            UserDefaults.standard.set("", forKey: "CardDetailFocusModeCardID")
                         }
                     )
                     #endif
@@ -316,8 +321,8 @@ struct CardSheetView: View {
             #if os(macOS)
             .onExitCommand {
                 if isFocusModeEnabled {
-                    isFocusModeEnabled = false
-                    focusModeCardIDRaw = ""
+                    UserDefaults.standard.set(false, forKey: "CardDetailFocusModeEnabled")
+                    UserDefaults.standard.set("", forKey: "CardDetailFocusModeCardID")
                 }
             }
             #endif
@@ -332,8 +337,8 @@ struct CardSheetView: View {
                         selection: $detailsSelection,
                         toolbar: adaptiveFormattingToolbar,
                         onExit: {
-                            isFocusModeEnabled = false
-                            focusModeCardIDRaw = ""
+                            UserDefaults.standard.set(false, forKey: "CardDetailFocusModeEnabled")
+                            UserDefaults.standard.set("", forKey: "CardDetailFocusModeCardID")
                         }
                     )
                 } else {
@@ -355,8 +360,8 @@ struct CardSheetView: View {
                     selection: $detailsSelection,
                     toolbar: adaptiveFormattingToolbar,
                     onExit: {
-                        isFocusModeEnabled = false
-                        focusModeCardIDRaw = ""
+                        self._isFocusModeEnabled.wrappedValue = false
+                        self._focusModeCardIDRaw.wrappedValue = ""
                     }
                 )
                 .onAppear {
@@ -497,12 +502,12 @@ struct CardSheetView: View {
     private func toggleFocusForThisCard() {
         if isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString {
             // Turn off
-            isFocusModeEnabled = false
-            focusModeCardIDRaw = ""
+            UserDefaults.standard.set(false, forKey: "CardDetailFocusModeEnabled")
+            UserDefaults.standard.set("", forKey: "CardDetailFocusModeCardID")
         } else {
             // Turn on for this card
-            focusModeCardIDRaw = card.id.uuidString
-            isFocusModeEnabled = true
+            UserDefaults.standard.set(card.id.uuidString, forKey: "CardDetailFocusModeCardID")
+            UserDefaults.standard.set(true, forKey: "CardDetailFocusModeEnabled")
         }
     }
 
@@ -516,8 +521,8 @@ struct CardSheetView: View {
                 HStack {
                     Button {
                         // Toggle off; overlay disappears
-                        isFocusModeEnabled = false
-                        focusModeCardIDRaw = ""
+                        UserDefaults.standard.set(false, forKey: "CardDetailFocusModeEnabled")
+                        UserDefaults.standard.set("", forKey: "CardDetailFocusModeCardID")
                     } label: {
                         Label("Exit Focus", systemImage: "xmark.circle.fill")
                     }
@@ -580,16 +585,16 @@ struct CardSheetView: View {
             set: { newValue in
                 if newValue {
                     // Engage focus for this card
-                    focusModeCardIDRaw = card.id.uuidString
-                    isFocusModeEnabled = true
+                    self._focusModeCardIDRaw.wrappedValue = card.id.uuidString
+                    self._isFocusModeEnabled.wrappedValue = true
                     // Prepare editor state
-                    prepareEditorForFocus()
+                    self.prepareEditorForFocus()
                 } else {
                     // Dismiss focus
-                    isFocusModeEnabled = false
-                    focusModeCardIDRaw = ""
+                    self._isFocusModeEnabled.wrappedValue = false
+                    self._focusModeCardIDRaw.wrappedValue = ""
                     // Persist any edits made in focus
-                    exitFocusMode(save: true)
+                    self.exitFocusMode(save: true)
                 }
             }
         )

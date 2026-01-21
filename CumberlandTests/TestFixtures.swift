@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 @testable import Cumberland
 
 /// Test fixtures for ER-0008, ER-0009, ER-0010 testing
@@ -26,7 +27,7 @@ enum TestFixtures {
     }
 
     /// Fantasy calendar for testing custom time systems
-    static var eldarian Calendar: CalendarSystem {
+    static var eldarianCalendar: CalendarSystem {
         CalendarSystem(
             name: "Eldarian Calendar",
             divisions: [
@@ -157,10 +158,9 @@ enum TestFixtures {
         let card = Card(
             kind: .characters,
             name: name,
-            createdAt: Date()
+            subtitle: "Knight-Commander",
+            detailedText: richCharacterDescription
         )
-        card.subtitle = "Knight-Commander"
-        card.detailedText = richCharacterDescription
 
         if let context = context {
             context.insert(card)
@@ -174,10 +174,9 @@ enum TestFixtures {
         let card = Card(
             kind: .locations,
             name: name,
-            createdAt: Date()
+            subtitle: "Port City",
+            detailedText: "A bustling port city on the western coast, known for its shipyards and markets."
         )
-        card.subtitle = "Port City"
-        card.detailedText = "A bustling port city on the western coast, known for its shipyards and markets."
 
         if let context = context {
             context.insert(card)
@@ -187,15 +186,22 @@ enum TestFixtures {
     }
 
     /// Create a sample timeline card
+    /// Note: calendarSystem, epochDate, and epochDescription properties will be added in AppSchemaV6
+    /// For now, this creates a basic timeline card with the calendar info in detailedText
     static func createSampleTimeline(name: String = "Main Timeline", calendar: CalendarSystem? = nil, context: ModelContext? = nil) -> Card {
+        var detailedText = "The beginning of the Age of Starlight"
+        
+        if let calendar = calendar {
+            detailedText += "\n\nCalendar System: \(calendar.name)"
+            detailedText += "\nEpoch: January 1, 1970"
+        }
+        
         let card = Card(
             kind: .timelines,
             name: name,
-            createdAt: Date()
+            subtitle: calendar?.name ?? "",
+            detailedText: detailedText
         )
-        card.calendarSystem = calendar
-        card.epochDate = Date(timeIntervalSince1970: 0) // Jan 1, 1970
-        card.epochDescription = "The beginning of the Age of Starlight"
 
         if let context = context {
             context.insert(card)
@@ -209,9 +215,9 @@ enum TestFixtures {
         let card = Card(
             kind: .scenes,
             name: name,
-            createdAt: Date()
+            subtitle: "",
+            detailedText: temporalSceneDescription
         )
-        card.detailedText = temporalSceneDescription
 
         if let context = context {
             context.insert(card)

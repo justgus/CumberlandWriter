@@ -38,8 +38,9 @@ final class CalendarSystem {
     // MARK: - Relationships
 
     /// Timelines using this calendar system
-    @Relationship(inverse: \Card.calendarSystem)
-    var timelines: [Card]?
+    /// NOTE: This relationship will be activated when AppSchemaV6 adds Card.calendarSystem
+    /// @Relationship(inverse: \Card.calendarSystem)
+    /// var timelines: [Card]?
 
     // MARK: - Initialization
 
