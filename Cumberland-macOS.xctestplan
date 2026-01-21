@@ -1,0 +1,54 @@
+{
+  "configurations" : [
+    {
+      "id" : "E745CB71-0C1D-4303-AAFD-5F3C27C93B56",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Cumberland.xcodeproj",
+      "identifier" : "866A3A352E8DC16D006D3723",
+      "name" : "Cumberland"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Cumberland.xcodeproj",
+        "identifier" : "866A3A462E8DC16F006D3723",
+        "name" : "CumberlandTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Cumberland.xcodeproj",
+        "identifier" : "866A3A502E8DC16F006D3723",
+        "name" : "CumberlandUITests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Cumberland.xcodeproj",
+        "identifier" : "861EA1CC2F2014D6003B4897",
+        "name" : "CumberlandVisionOSTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Cumberland.xcodeproj",
+        "identifier" : "861EA1D92F20150A003B4897",
+        "name" : "CumberlandVisionOSUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
