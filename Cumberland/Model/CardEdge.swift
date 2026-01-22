@@ -17,6 +17,18 @@ final class CardEdge {
     // Persistent ordering within a swimlane (Double allows easy mid-insertion)
     var sortIndex: Double = 0
 
+    // MARK: - Temporal Positioning (ER-0008)
+    // Optional properties - CloudKit auto-migrates without explicit schema migration
+
+    /// Temporal position of a scene on a timeline
+    /// Used when timeline has a calendar system (temporal mode)
+    /// If nil, fallback to sortIndex for ordinal positioning
+    var temporalPosition: Date? = nil
+
+    /// Duration of the scene (in seconds)
+    /// Used for visualizing scene length on timeline
+    var duration: TimeInterval? = nil
+
     init(from: Card, to: Card, type: RelationType, note: String? = nil, createdAt: Date = Date(), sortIndex: Double? = nil) {
         self.from = from
         self.to = to

@@ -30,7 +30,8 @@ struct CumberlandApp: App {
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "SwiftData")
 
         // Build a concrete Schema from the latest versioned schema's models.
-        // Latest is V5 (skipping V4 which was structurally identical to V3 and caused CloudKit sync issues).
+        // Latest is V5 (includes Board/BoardNode and AI image metadata).
+        // CloudKit handles schema migrations automatically for optional properties and new models.
         let schema = Schema(AppSchemaV5.models)
 
         // TEMPORARY: Nuclear option for development - delete ALL SwiftData stores
@@ -176,6 +177,7 @@ struct CumberlandApp: App {
                     // Ensure Scene→Project "stories" edges exist by backfilling from current part-of chains
                     await CumberlandApp.backfillSceneProjectStoriesEdgesIfNeeded(container: modelContainer)
                     await CumberlandApp.seedStoryStructuresIfNeeded(container: modelContainer)
+                    await CumberlandApp.seedCalendarSystemsIfNeeded(container: modelContainer)
                 }
                 // Developer-triggered destructive reset (macOS menu posts a notification)
                 .onReceive(NotificationCenter.default.publisher(for: .eraseAndReseed)) { _ in
@@ -390,7 +392,7 @@ extension CumberlandApp {
 //            .init(code: "includes/part-of", forward: "includes", inverse: "part of", source: nil, target: nil),
 //            .init(code: "depends-on/required-by", forward: "depends on", inverse: "required by", source: nil, target: nil),
 //            .init(code: "precedes/follows", forward: "precedes", inverse: "follows", source: nil, target: nil),
-//            .init(code: "uses/used-by", forward: "uses", inverse: "used by", source: nil, target: nil),
+            .init(code: "uses/used-by", forward: "uses", inverse: "used by", source: nil, target: nil),  // ER-0008: Timeline → Calendar
 //            .init(code: "inspired-by/inspires", forward: "inspired by", inverse: "inspires", source: nil, target: nil),
 //            .init(code: "derived-from/basis-for", forward: "derived from", inverse: "basis for", source: nil, target: nil),
 
@@ -676,6 +678,40 @@ extension CumberlandApp {
             }
         } else {
             logger.debug("All templates already present, no seeding needed.")
+        }
+    }
+
+    // ER-0008: Seed Gregorian calendar template if needed
+    @MainActor
+    static func seedCalendarSystemsIfNeeded(container: ModelContainer) async {
+        let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Seeding")
+        let ctx = container.mainContext
+        ctx.autosaveEnabled = true
+
+        // Check if Gregorian calendar already exists
+        let gregorianName = "Gregorian"
+        var fetchByName = FetchDescriptor<CalendarSystem>(
+            predicate: #Predicate<CalendarSystem> { calendar in
+                calendar.name == gregorianName
+            }
+        )
+        fetchByName.fetchLimit = 1
+
+        if let existing = try? ctx.fetch(fetchByName), !existing.isEmpty {
+            logger.debug("Gregorian calendar already exists, skipping seed")
+            return
+        }
+
+        // Create Gregorian calendar template
+        let gregorian = CalendarSystem.gregorian()
+        gregorian.calendarDescription = "Standard Gregorian calendar with seconds, minutes, hours, days, weeks, months, years, decades, centuries, and millennia"
+        ctx.insert(gregorian)
+
+        do {
+            try ctx.save()
+            logger.info("Seeded Gregorian calendar system")
+        } catch {
+            logger.error("Failed to seed Gregorian calendar: \(String(describing: error))")
         }
     }
 

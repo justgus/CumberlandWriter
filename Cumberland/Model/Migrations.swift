@@ -69,7 +69,10 @@ enum AppSchemaV3: VersionedSchema {
 // V4: REMOVED - was structurally identical to V3, causing CloudKit sync issues
 // Jumping directly to V5 to avoid "current and next model reference cannot be equal" error
 
-// V5: Current schema (same models as V3, but with distinct version to avoid CloudKit confusion)
+// V5: Current schema
+// Includes all models: Board/BoardNode
+// Optional properties added to Card (AI image metadata from ER-0009)
+// CloudKit auto-migrates all optional properties and new models
 enum AppSchemaV5: VersionedSchema {
     static var versionIdentifier = Schema.Version(5, 0, 0)
 
@@ -150,12 +153,14 @@ enum AppMigrations: SchemaMigrationPlan {
             fromVersion: AppSchemaV3.self,
             toVersion: AppSchemaV5.self
         )
+        // NOTE: No migration stage for V5 -> V6
+        // CloudKit handles schema migrations automatically for new optional properties and models
     ]
 
     static var schemas: [any VersionedSchema.Type] = [
         AppSchemaV1.self,
         AppSchemaV2.self,
         AppSchemaV3.self,
-        AppSchemaV5.self // Skip V4 entirely
+        AppSchemaV5.self  // Skip V4 entirely. CloudKit auto-migrates optional properties (ER-0008, ER-0009)
     ]
 }

@@ -8,7 +8,12 @@ struct CardView: View {
     // Optional bottom-trailing decoration tab (e.g., relation type name)
     var decorationText: String? = nil
 
+    // Control whether AI badge is shown (ER-0009)
+    // Set to false in small card contexts (Murderboard, Relationship graphs)
+    var showAIBadge: Bool = true
+
     @State private var thumbnail: Image?
+    @State private var showAIImageInfo: Bool = false
     @Environment(\.colorScheme) private var scheme
 
     // MARK: - Tunable constants (adjust here later if needed)
@@ -156,6 +161,10 @@ struct CardView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(card.name))
         .accessibilityHint(Text(subtitleAuthorHint))
+        // Present AI Image Info panel (ER-0009)
+        .sheet(isPresented: $showAIImageInfo) {
+            AIImageInfoView(card: card)
+        }
     } //end var body
 
     // MARK: - Subviews
@@ -167,6 +176,12 @@ struct CardView: View {
                 .resizable()
                 .scaledToFit() // Preserve aspect ratio; no cropping
                 .fullSizeImageGesture(for: card)
+                .overlay(alignment: .topTrailing) {
+                    // AI attribution badge (ER-0009)
+                    if showAIBadge && card.imageGeneratedByAI == true {
+                        aiAttributionBadge
+                    }
+                }
         } else {
             ZStack {
                 Rectangle().fill(.ultraThinMaterial)
@@ -189,6 +204,51 @@ struct CardView: View {
         }
         .pickerStyle(.menu) // drop-down style on macOS and iOS
         .accessibilityLabel("Card size")
+    }
+
+    /// AI attribution badge for AI-generated images (ER-0009)
+    private var aiAttributionBadge: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "wand.and.stars")
+                .font(.system(size: 8))
+            Text("AI")
+                .font(.system(size: 9, weight: .bold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .background(
+            Capsule()
+                .fill(Color.purple.gradient)
+        )
+        .shadow(radius: 1)
+        .padding(3)
+        .help(aiAttributionTooltip)
+        .onTapGesture {
+            showAIImageInfo = true
+        }
+    }
+
+    /// Tooltip text for AI attribution
+    private var aiAttributionTooltip: String {
+        var parts: [String] = ["AI Generated"]
+
+        if let provider = card.imageAIProvider {
+            parts.append("Provider: \(provider)")
+        }
+
+        if let date = card.imageAIGeneratedAt {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            parts.append("Generated: \(formatter.string(from: date))")
+        }
+
+        if let prompt = card.imageAIPrompt, !prompt.isEmpty {
+            parts.append("Tap for details")
+        }
+
+        return parts.joined(separator: "\n")
     }
 
     // Manila folder-style tab showing the Kind, now colored by card.kind

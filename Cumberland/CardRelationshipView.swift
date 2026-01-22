@@ -573,7 +573,8 @@ struct CardRelationshipView: View {
                                 onSelect: { card in
                                     selectedRelatedCard = card
                                 },
-                                selectedCardID: selectedRelatedCard?.id
+                                selectedCardID: selectedRelatedCard?.id,
+                                showAIBadge: false
                             )
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         }

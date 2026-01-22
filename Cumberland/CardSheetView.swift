@@ -76,6 +76,9 @@ struct CardSheetView: View {
     // Full-size image viewer
     @State private var showFullSizeImage: Bool = false
 
+    // AI Image Info panel (ER-0009)
+    @State private var showAIImageInfo: Bool = false
+
     // MARK: - Quick Attribution Prompt State
 
     // Context for presenting the quick attribution dialog after a successful drop/import.
@@ -360,12 +363,15 @@ struct CardSheetView: View {
                     selection: $detailsSelection,
                     toolbar: adaptiveFormattingToolbar,
                     onExit: {
-                        self._isFocusModeEnabled.wrappedValue = false
-                        self._focusModeCardIDRaw.wrappedValue = ""
+                        // These assignments are fine - they're modifying @AppStorage through their projectedValue
+                        UserDefaults.standard.set(false, forKey: "CardDetailFocusModeEnabled")
+                        UserDefaults.standard.set("", forKey: "CardDetailFocusModeCardID")
                     }
                 )
-                .onAppear {
-                    // Ensure editor state is ready
+            }
+            .onChange(of: isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString) { _, isActive in
+                if isActive {
+                    // Prepare editor state when focus mode activates
                     prepareEditorForFocus()
                 }
             }
@@ -400,6 +406,10 @@ struct CardSheetView: View {
                 FullSizeImageViewer(card: card)
             }
             #endif
+            // Present AI Image Info panel (ER-0009)
+            .sheet(isPresented: $showAIImageInfo) {
+                AIImageInfoView(card: card)
+            }
     }
 
     @ViewBuilder
@@ -585,16 +595,12 @@ struct CardSheetView: View {
             set: { newValue in
                 if newValue {
                     // Engage focus for this card
-                    self._focusModeCardIDRaw.wrappedValue = card.id.uuidString
-                    self._isFocusModeEnabled.wrappedValue = true
-                    // Prepare editor state
-                    self.prepareEditorForFocus()
+                    UserDefaults.standard.set(card.id.uuidString, forKey: "CardDetailFocusModeCardID")
+                    UserDefaults.standard.set(true, forKey: "CardDetailFocusModeEnabled")
                 } else {
                     // Dismiss focus
-                    self._isFocusModeEnabled.wrappedValue = false
-                    self._focusModeCardIDRaw.wrappedValue = ""
-                    // Persist any edits made in focus
-                    self.exitFocusMode(save: true)
+                    UserDefaults.standard.set(false, forKey: "CardDetailFocusModeEnabled")
+                    UserDefaults.standard.set("", forKey: "CardDetailFocusModeCardID")
                 }
             }
         )
@@ -810,6 +816,12 @@ struct CardSheetView: View {
                                 .stroke(.quaternary, lineWidth: 0.8)
                                 .allowsHitTesting(false)
                         )
+                        .overlay(alignment: .topTrailing) {
+                            // AI attribution badge (ER-0009)
+                            if card.imageGeneratedByAI == true {
+                                aiAttributionBadge
+                            }
+                        }
                         .contentShape(Rectangle())
                         // IMPORTANT: Double-tap must come BEFORE single-tap
                         .onTapGesture(count: 2) {
@@ -1750,6 +1762,53 @@ struct CardSheetView: View {
         withAnimation(.easeInOut(duration: 0.15)) {
             self.fullImage = img
         }
+    }
+
+    // MARK: - AI Attribution Badge (ER-0009)
+
+    /// AI attribution badge for AI-generated images
+    private var aiAttributionBadge: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "wand.and.stars")
+                .font(.caption2)
+            Text("AI")
+                .font(.caption2.bold())
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(
+            Capsule()
+                .fill(Color.purple.gradient)
+        )
+        .shadow(radius: 2)
+        .padding(6)
+        .help(aiAttributionTooltip)
+        .onTapGesture {
+            showAIImageInfo = true
+        }
+    }
+
+    /// Tooltip text for AI attribution
+    private var aiAttributionTooltip: String {
+        var parts: [String] = ["AI Generated"]
+
+        if let provider = card.imageAIProvider {
+            parts.append("Provider: \(provider)")
+        }
+
+        if let date = card.imageAIGeneratedAt {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            parts.append("Generated: \(formatter.string(from: date))")
+        }
+
+        if let prompt = card.imageAIPrompt, !prompt.isEmpty {
+            parts.append("Tap for details")
+        }
+
+        return parts.joined(separator: "\n")
     }
 
     // MARK: - Undo helper

@@ -39,7 +39,7 @@ struct MurderBoardNodeView: View {
     var body: some View {
         let hitShape = RoundedRectangle(cornerRadius: 12, style: .continuous)
 
-        CardView(card: card)
+        CardView(card: card, showAIBadge: false)
             // Selection border overlay — make it non-interactive so it cannot steal gestures
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)

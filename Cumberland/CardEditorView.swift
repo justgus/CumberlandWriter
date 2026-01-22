@@ -90,6 +90,10 @@ struct CardEditorView: View {
     // Full-size image viewer
     @State private var showFullSizeImage: Bool = false
 
+    // AI Image Generation (ER-0009)
+    @State private var showAIImageGeneration: Bool = false
+    @State private var showAIImageInfo: Bool = false
+
     // MARK: - Quick Attribution Prompt State (for dropped text/images)
     private struct PendingAttribution: Identifiable, Equatable {
         let id = UUID()
@@ -132,6 +136,13 @@ struct CardEditorView: View {
         var colorHue: Double? = nil
     }
 
+    // MARK: - Timeline System Properties (ER-0008)
+
+    // Calendar system selection for timelines
+    @State private var selectedCalendar: CalendarSystem?
+    @State private var epochDate: Date?
+    @State private var epochDescription: String = ""
+
     // MARK: - Tunable constants (match CardView where sensible)
     #if os(visionOS)
     private let thumbnailSide: CGFloat = 96
@@ -171,6 +182,12 @@ struct CardEditorView: View {
                 _structureName = State(initialValue: initialTemplate.name)
                 _editableElements = State(initialValue: initialTemplate.elements.map { EditableElement(name: $0) })
             }
+
+            // Timeline properties default to nil/empty for create mode
+            _selectedCalendar = State(initialValue: nil)
+            _epochDate = State(initialValue: nil)
+            _epochDescription = State(initialValue: "")
+
         case .edit(let card, _):
             _name = State(initialValue: card.name)
             _subtitle = State(initialValue: card.subtitle)
@@ -178,6 +195,11 @@ struct CardEditorView: View {
             _detailedText = State(initialValue: card.detailedText)
             _sizeCategory = State(initialValue: card.sizeCategory)
             _imageData = State(initialValue: nil) // only set when user selects/replaces
+
+            // Initialize timeline properties from card (ER-0008)
+            _selectedCalendar = State(initialValue: card.calendarSystem)
+            _epochDate = State(initialValue: card.epochDate)
+            _epochDescription = State(initialValue: card.epochDescription ?? "")
         }
     }
 
@@ -217,6 +239,12 @@ struct CardEditorView: View {
                     isImportingImage = true
                 } label: {
                     Label("Choose Image…", systemImage: "photo.on.rectangle")
+                }
+
+                Button {
+                    showAIImageGeneration = true
+                } label: {
+                    Label("Generate Image…", systemImage: "wand.and.stars")
                 }
 
                 Button(role: .destructive) {
@@ -356,6 +384,56 @@ struct CardEditorView: View {
             }
         }
         #endif
+        // Present AI Image Generation sheet (ER-0009)
+        .sheet(isPresented: $showAIImageGeneration) {
+            AIImageGenerationView(
+                cardName: name,
+                initialPrompt: {
+                    // Pre-fill with existing prompt if regenerating AI image
+                    if case .edit(let card, _) = mode,
+                       card.imageGeneratedByAI == true,
+                       let existingPrompt = card.imageAIPrompt {
+                        return existingPrompt
+                    }
+                    return nil
+                }(),
+                onImageGenerated: { generatedData in
+                    // Embed EXIF/IPTC metadata into image
+                    let imageDataWithMetadata = ImageMetadataWriter.embedMetadataForCard(
+                        imageData: generatedData.imageData,
+                        prompt: generatedData.prompt,
+                        provider: generatedData.provider,
+                        generatedAt: generatedData.generatedAt,
+                        userCopyright: nil // Could get from app settings in future
+                    )
+
+                    // Store the image with embedded metadata
+                    imageData = imageDataWithMetadata
+
+                    // Update AI metadata in Card model if in edit mode
+                    if case .edit(let card, _) = mode {
+                        card.imageGeneratedByAI = true
+                        card.imageAIProvider = generatedData.provider
+                        card.imageAIPrompt = generatedData.prompt
+                        card.imageAIGeneratedAt = generatedData.generatedAt
+
+                        // Auto-create image attribution citation
+                        createAIImageCitation(
+                            for: card,
+                            provider: generatedData.provider,
+                            prompt: generatedData.prompt,
+                            generatedAt: generatedData.generatedAt
+                        )
+                    }
+                }
+            )
+        }
+        // Present AI Image Info panel (ER-0009)
+        .sheet(isPresented: $showAIImageInfo) {
+            if case .edit(let card, _) = mode {
+                AIImageInfoView(card: card)
+            }
+        }
     }
 
     // MARK: - Derived
@@ -380,8 +458,8 @@ struct CardEditorView: View {
 
     // Kinds that have additional controls on the back face
     private var hasKindExtras: Bool {
-        // Show the flip button for Projects in both create and edit modes.
-        return mode.kind == .projects
+        // Show the flip button for Projects and Timelines in both create and edit modes.
+        return mode.kind == .projects || mode.kind == .timelines
     }
 
     // MARK: - Front/Back content
@@ -476,6 +554,19 @@ struct CardEditorView: View {
             // Also load existing structure if we're editing and this back face appears early.
             .task {
                 await loadStructureStateForEditIfNeeded()
+            }
+        } else if mode.kind == .timelines {
+            // Timeline system configuration (ER-0008)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: Kinds.timelines.systemImage)
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    Text("Timeline Options")
+                        .font(.headline)
+                    Spacer()
+                }
+                timelineConfigurationPanel
             }
         } else {
             VStack(alignment: .center, spacing: 8) {
@@ -729,6 +820,35 @@ struct CardEditorView: View {
         }
     }
 
+    // MARK: - Timeline Configuration Panel (ER-0008)
+
+    @ViewBuilder
+    private var timelineConfigurationPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider().padding(.vertical, 2)
+
+            // Calendar system selection
+            CalendarSystemPicker(selection: $selectedCalendar)
+
+            // Epoch date configuration (only show if calendar is selected)
+            if selectedCalendar != nil {
+                DatePicker("Epoch Date", selection: Binding(
+                    get: { epochDate ?? Date() },
+                    set: { epochDate = $0 }
+                ), displayedComponents: [.date, .hourAndMinute])
+                    .datePickerStyle(.compact)
+
+                TextField("Epoch Description (optional)", text: $epochDescription, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(2...4)
+
+                Text("The epoch is the starting point/zero-date for this timeline.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private func bindingForElement(_ el: EditableElement) -> (name: Binding<String>, description: Binding<String>) {
         guard let idx = editableElements.firstIndex(of: el) else {
             return (Binding.constant(""), Binding.constant(""))
@@ -763,6 +883,12 @@ struct CardEditorView: View {
                     .scaledToFit() // Preserve aspect ratio; no cropping
                     .accessibilityLabel("Cover Image")
                     .accessibilityHint(hasFullSizeImage ? "Double-click to view full size" : "")
+                    .overlay(alignment: .topTrailing) {
+                        // AI attribution badge (ER-0009)
+                        if case .edit(let card, _) = mode, card.imageGeneratedByAI == true {
+                            aiAttributionBadge(for: card)
+                        }
+                    }
                     #if os(macOS)
                     .onTapGesture(count: 2) {
                         if case .edit(let card, _) = mode,
@@ -986,6 +1112,14 @@ struct CardEditorView: View {
                 persistStructureForNewProject(projectCard: card)
             }
 
+            // If creating a Timeline, persist calendar system and epoch (ER-0008)
+            if kind == .timelines {
+                card.calendarSystem = selectedCalendar
+                card.epochDate = epochDate
+                let trimmedEpochDesc = epochDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+                card.epochDescription = trimmedEpochDesc.isEmpty ? nil : trimmedEpochDesc
+            }
+
             try? modelContext.save()
             onComplete(card)
             dismiss()
@@ -1005,6 +1139,14 @@ struct CardEditorView: View {
             // If editing a Project, sync the StoryStructure based on the back-face UI.
             if mode.kind == .projects {
                 updateStructureForExistingProject(projectCard: card)
+            }
+
+            // If editing a Timeline, update calendar system and epoch (ER-0008)
+            if mode.kind == .timelines {
+                card.calendarSystem = selectedCalendar
+                card.epochDate = epochDate
+                let trimmedEpochDesc = epochDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+                card.epochDescription = trimmedEpochDesc.isEmpty ? nil : trimmedEpochDesc
             }
 
             try? modelContext.save()
@@ -1347,6 +1489,113 @@ struct CardEditorView: View {
 
     // MARK: - Image helpers
 
+    /// AI attribution badge overlay for AI-generated images (ER-0009)
+    // MARK: - AI Attribution (ER-0009)
+
+    @ViewBuilder
+    private func aiAttributionBadge(for card: Card) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "wand.and.stars")
+                .font(.caption2)
+            Text("AI")
+                .font(.caption2.bold())
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(
+            Capsule()
+                .fill(Color.purple.gradient)
+        )
+        .shadow(radius: 2)
+        .padding(6)
+        .help(aiAttributionTooltip(for: card))
+        .onTapGesture {
+            showAIImageInfo = true
+        }
+    }
+
+    /// Tooltip text for AI attribution
+    private func aiAttributionTooltip(for card: Card) -> String {
+        var parts: [String] = ["AI Generated"]
+
+        if let provider = card.imageAIProvider {
+            parts.append("Provider: \(provider)")
+        }
+
+        if let date = card.imageAIGeneratedAt {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            parts.append("Generated: \(formatter.string(from: date))")
+        }
+
+        if let prompt = card.imageAIPrompt, !prompt.isEmpty {
+            parts.append("Prompt: \(prompt)")
+        }
+
+        return parts.joined(separator: "\n")
+    }
+
+    /// Auto-create image attribution citation for AI-generated images (ER-0009)
+    private func createAIImageCitation(
+        for card: Card,
+        provider: String,
+        prompt: String,
+        generatedAt: Date
+    ) {
+        // Check if citation already exists for this AI image
+        let cardIDOpt: UUID? = card.id
+        let imageKindRaw = CitationKind.image.rawValue
+        let fetch = FetchDescriptor<Citation>(
+            predicate: #Predicate {
+                $0.card?.id == cardIDOpt && $0.kindRaw == imageKindRaw
+            }
+        )
+        let existing = (try? modelContext.fetch(fetch)) ?? []
+
+        // If there's already a citation with "AI Generated" or provider name, don't create duplicate
+        if existing.contains(where: { $0.source?.title.contains(provider) == true || $0.source?.title.contains("AI Generated") == true }) {
+            return
+        }
+
+        // Create or find AI provider source
+        let sourceTitle = "AI Generated (\(provider))"
+        let sourceFetch = FetchDescriptor<Source>(
+            predicate: #Predicate { $0.title == sourceTitle }
+        )
+        let source: Source
+        if let existingSource = try? modelContext.fetch(sourceFetch).first {
+            source = existingSource
+        } else {
+            source = Source(
+                title: sourceTitle,
+                authors: provider,
+                year: Calendar.current.component(.year, from: generatedAt),
+                url: provider.lowercased().contains("openai") ? "https://openai.com" : nil
+            )
+            modelContext.insert(source)
+        }
+
+        // Create citation
+        let citation = Citation(
+            card: card,
+            source: source,
+            kind: .image,
+            locator: DateFormatter.localizedString(from: generatedAt, dateStyle: .short, timeStyle: .short),
+            excerpt: prompt.prefix(100).description, // First 100 chars of prompt
+            contextNote: "AI-generated image",
+            createdAt: generatedAt
+        )
+        modelContext.insert(citation)
+
+        try? modelContext.save()
+
+        #if DEBUG
+        print("✓ [CardEditor] Auto-created image citation for AI-generated image")
+        #endif
+    }
+
     private static func isSupportedImageURL(_ url: URL) -> Bool {
         guard let type = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType else {
             return false
@@ -1667,6 +1916,55 @@ private extension View {
         // macOS: no-op
         self
         #endif
+    }
+}
+
+// MARK: - Calendar System Picker (ER-0008)
+
+/// Picker view for selecting a CalendarSystem from available options
+private struct CalendarSystemPicker: View {
+    @Binding var selection: CalendarSystem?
+    @Environment(\.modelContext) private var modelContext
+
+    @Query(sort: \CalendarSystem.name, order: .forward)
+    private var calendars: [CalendarSystem]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Calendar System", systemImage: "calendar")
+                .font(.subheadline.bold())
+
+            if calendars.isEmpty {
+                Text("No calendar systems available. Create one first.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Picker("Calendar", selection: $selection) {
+                    Text("None (Ordinal Timeline)")
+                        .tag(nil as CalendarSystem?)
+
+                    ForEach(calendars) { calendar in
+                        Text(calendar.name)
+                            .tag(calendar as CalendarSystem?)
+                    }
+                }
+                #if os(macOS)
+                .pickerStyle(.menu)
+                #else
+                .pickerStyle(.navigationLink)
+                #endif
+
+                if let selected = selection {
+                    HStack(spacing: 4) {
+                        Image(systemName: "info.circle")
+                            .font(.caption2)
+                        Text(selected.calendarDescription ?? "No description")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 }
 

@@ -14,13 +14,13 @@ struct SpecHeaderGuardTests {
         var dir = URL(fileURLWithPath: fm.currentDirectoryPath)
         // Walk up until we find the file (works in CI and local)
         for _ in 0..<6 {
-            let candidate = dir.appendingPathComponent("Cumberland/MurderboardView.swift")
+            let candidate = dir.appendingPathComponent("Cumberland/Murderboard/MurderboardView.swift")
             if fm.fileExists(atPath: candidate.path) {
                 return candidate
             }
             dir.deleteLastPathComponent()
         }
-        return URL(fileURLWithPath: "Cumberland/MurderboardView.swift")
+        return URL(fileURLWithPath: "Cumberland/Murderboard/MurderboardView.swift")
     }
 
     private func sectionBulletCount(_ text: String, header: String) -> Int {
@@ -64,13 +64,13 @@ final class SpecHeaderGuardTests: XCTestCase {
         var dir = URL(fileURLWithPath: fm.currentDirectoryPath)
         // Walk up until we find the file (works in CI and local)
         for _ in 0..<6 {
-            let candidate = dir.appendingPathComponent("Cumberland/MurderboardView.swift")
+            let candidate = dir.appendingPathComponent("Cumberland/Murderboard/MurderboardView.swift")
             if fm.fileExists(atPath: candidate.path) {
                 return candidate
             }
             dir.deleteLastPathComponent()
         }
-        return URL(fileURLWithPath: "Cumberland/MurderboardView.swift")
+        return URL(fileURLWithPath: "Cumberland/Murderboard/MurderboardView.swift")
     }
 
     private func sectionBulletCount(_ text: String, header: String) -> Int {

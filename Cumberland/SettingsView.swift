@@ -7,6 +7,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case views = "Views"
     case relations = "Relations"
     case images = "Images"
+    case ai = "AI & Providers"
     case author = "Author"
 
     var id: String { rawValue }
@@ -20,6 +21,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .views:    return "rectangle.3.offgrid"
         case .relations:return "link"
         case .images:   return "photo.on.rectangle"
+        case .ai:       return "wand.and.stars"
         case .author:   return "person.text.rectangle"
         }
     }
@@ -150,6 +152,9 @@ struct SettingsView: View {
             case .images:
                 ImagesSettingsPane()
                     .navigationTitle("Images")
+            case .ai:
+                AISettingsPane()
+                    .navigationTitle("AI & Providers")
             case .author:
                 AuthorSettingsPane(
                     settings: settingsBinding(for: \.self),
@@ -836,6 +841,294 @@ private struct BatchAttributionSheet: View {
         newSourceTitle = ""
         newSourceAuthors = ""
         isCreatingSource = false
+    }
+}
+
+// MARK: - AI Settings Pane
+
+private struct AISettingsPane: View {
+    @State private var preferredProvider: String = AIProviderRegistry.shared.getPreferredProviderName()
+    @State private var apiKeys: [String: String] = [:] // providerKey -> entered text
+    @State private var showAPIKey: [String: Bool] = [:] // providerKey -> show/hide
+    @State private var savedMessage: String?
+    @State private var savedMessageTimer: Timer?
+
+    private var providers: [AIProviderProtocol] {
+        AIProviderRegistry.shared.allProviders()
+    }
+
+    var body: some View {
+        Form {
+            // Preferred provider section
+            Section {
+                Picker("Preferred Provider", selection: $preferredProvider) {
+                    ForEach(providers, id: \.name) { provider in
+                        HStack {
+                            Text(provider.name)
+                            if !provider.isAvailable {
+                                Text("(Unavailable)")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .tag(provider.name)
+                    }
+                }
+                .onChange(of: preferredProvider) { _, newValue in
+                    AIProviderRegistry.shared.setPreferredProvider(name: newValue)
+                    showSavedMessage("Preferred provider updated")
+                }
+            } header: {
+                Text("Default Provider")
+            } footer: {
+                Text("This provider will be selected by default when generating AI images.")
+            }
+
+            // Provider list with API key management
+            Section {
+                ForEach(providers, id: \.name) { provider in
+                    providerRow(for: provider)
+                }
+            } header: {
+                Text("AI Providers")
+            } footer: {
+                Text("Configure API keys for third-party AI providers. Keys are stored securely in the system keychain.")
+            }
+
+            // Saved message
+            if let message = savedMessage {
+                Section {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text(message)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    @ViewBuilder
+    private func providerRow(for provider: AIProviderProtocol) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Provider header
+            HStack {
+                Image(systemName: provider.requiresAPIKey ? "key.fill" : "sparkles")
+                    .foregroundStyle(provider.isAvailable ? .blue : .secondary)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(provider.name)
+                        .font(.headline)
+
+                    if let metadata = provider.metadata, let modelVersion = metadata.modelVersion {
+                        Text(modelVersion)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                // Availability status
+                if provider.isAvailable {
+                    Label("Available", systemImage: "checkmark.circle.fill")
+                        .labelStyle(.iconOnly)
+                        .foregroundStyle(.green)
+                        .help("This provider is available for use")
+                } else {
+                    Label("Unavailable", systemImage: "exclamationmark.triangle")
+                        .labelStyle(.iconOnly)
+                        .foregroundStyle(.orange)
+                        .help("This provider is not available on this platform")
+                }
+            }
+
+            // API key configuration
+            if provider.requiresAPIKey {
+                apiKeySection(for: provider)
+            }
+
+            // Provider metadata
+            if let metadata = provider.metadata {
+                metadataSection(for: metadata)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private func apiKeySection(for provider: AIProviderProtocol) -> some View {
+        let providerKey = providerKey(for: provider)
+        let hasKey = KeychainHelper.shared.hasAPIKey(for: providerKey)
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("API Key")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if hasKey {
+                    Label("Configured", systemImage: "checkmark.seal.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                } else {
+                    Label("Not Configured", systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+
+            HStack(spacing: 8) {
+                Group {
+                    if showAPIKey[providerKey] == true {
+                        TextField("Enter API Key", text: binding(for: providerKey))
+                            .textFieldStyle(.roundedBorder)
+                    } else {
+                        SecureField("Enter API Key", text: binding(for: providerKey))
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+                .font(.system(.body, design: .monospaced))
+
+                Button {
+                    let currentValue = showAPIKey[providerKey] ?? false
+                    showAPIKey[providerKey] = !currentValue
+                } label: {
+                    Image(systemName: showAPIKey[providerKey] == true ? "eye.slash" : "eye")
+                }
+                .buttonStyle(.bordered)
+                .help(showAPIKey[providerKey] == true ? "Hide API key" : "Show API key")
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    saveAPIKey(for: provider, providerKey: providerKey)
+                } label: {
+                    Label("Save", systemImage: "checkmark.circle")
+                }
+                .disabled(apiKeys[providerKey]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+
+                if hasKey {
+                    Button(role: .destructive) {
+                        deleteAPIKey(for: providerKey)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(12)
+        .background(Color.secondary.opacity(0.08))
+        .cornerRadius(8)
+    }
+
+    @ViewBuilder
+    private func metadataSection(for metadata: AIProviderMetadata) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let modelVersion = metadata.modelVersion {
+                metadataRow(label: "Model", value: modelVersion)
+            }
+            if let maxPromptLength = metadata.maxPromptLength {
+                metadataRow(label: "Max Prompt Length", value: "\(maxPromptLength) characters")
+            }
+            if let formats = metadata.supportedImageFormats {
+                metadataRow(label: "Supported Formats", value: formats.joined(separator: ", "))
+            }
+
+            if let rateLimit = metadata.rateLimit {
+                metadataRow(label: "Rate Limit", value: "\(rateLimit.requestsPerMinute) requests/minute")
+                if let rpd = rateLimit.requestsPerDay {
+                    metadataRow(label: "Daily Limit", value: "\(rpd) requests/day")
+                }
+            }
+
+            if let license = metadata.licenseInfo {
+                metadataRow(label: "License", value: license.licenseType)
+                metadataRow(label: "Commercial Use", value: license.commercialUseAllowed ? "Allowed" : "Not Allowed")
+                metadataRow(label: "Attribution", value: license.attributionRequired ? "Required" : "Optional")
+            }
+        }
+        .font(.caption)
+        .padding(12)
+        .background(Color.secondary.opacity(0.05))
+        .cornerRadius(8)
+    }
+
+    private func metadataRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label + ":")
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func providerKey(for provider: AIProviderProtocol) -> String {
+        // Use first word of provider name, lowercased
+        // "OpenAI DALL-E 3" -> "openai"
+        // "Apple Intelligence" -> "apple"
+        let firstWord = provider.name.split(separator: " ").first.map(String.init) ?? provider.name
+        return firstWord.lowercased()
+    }
+
+    private func binding(for providerKey: String) -> Binding<String> {
+        Binding(
+            get: {
+                // Only use cached value if it's non-empty
+                if let existing = apiKeys[providerKey], !existing.isEmpty {
+                    return existing
+                }
+                // Try to load from keychain
+                // Note: try? on a function that returns String? gives us String?? which Swift flattens to String?
+                let stored = (try? KeychainHelper.shared.retrieveAPIKey(for: providerKey)) ?? nil
+                return stored ?? ""
+            },
+            set: { newValue in
+                apiKeys[providerKey] = newValue
+            }
+        )
+    }
+
+    private func saveAPIKey(for provider: AIProviderProtocol, providerKey: String) {
+        guard let key = apiKeys[providerKey]?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !key.isEmpty else {
+            return
+        }
+
+        do {
+            try KeychainHelper.shared.saveAPIKey(key, for: providerKey)
+            showSavedMessage("API key saved for \(provider.name)")
+            // Clear the text field after successful save
+            apiKeys[providerKey] = ""
+        } catch {
+            showSavedMessage("Failed to save API key: \(error.localizedDescription)")
+        }
+    }
+
+    private func deleteAPIKey(for providerKey: String) {
+        do {
+            try KeychainHelper.shared.deleteAPIKey(for: providerKey)
+            apiKeys[providerKey] = ""
+            showSavedMessage("API key deleted")
+        } catch {
+            showSavedMessage("Failed to delete API key: \(error.localizedDescription)")
+        }
+    }
+
+    private func showSavedMessage(_ message: String) {
+        savedMessage = message
+        savedMessageTimer?.invalidate()
+        savedMessageTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+            savedMessage = nil
+        }
     }
 }
 

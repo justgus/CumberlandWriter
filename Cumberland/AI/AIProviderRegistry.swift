@@ -22,17 +22,19 @@ class AIProviderRegistry {
     private init() {
         // Register all available providers
         self.providers = [
-            AppleIntelligenceProvider()
-            // OpenAIProvider() will be added in Phase 9
+            AppleIntelligenceProvider(),
+            OpenAIProvider()
             // ClaudeProvider() - future
             // GeminiProvider() - future
+            // StabilityAIProvider() - future
         ]
 
         #if DEBUG
         print("📋 [AIProviderRegistry] Registered \(providers.count) provider(s)")
         for provider in providers {
             let status = provider.isAvailable ? "✓ Available" : "✗ Unavailable"
-            print("   - \(provider.name): \(status)")
+            let apiKeyStatus = provider.requiresAPIKey ? " (requires API key)" : ""
+            print("   - \(provider.name): \(status)\(apiKeyStatus)")
         }
         #endif
     }

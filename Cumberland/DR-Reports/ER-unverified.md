@@ -2,7 +2,7 @@
 
 This document tracks enhancement requests that are proposed, in progress, or implemented but awaiting user verification.
 
-**Status:** Currently **1 active ER**
+**Status:** Currently **5 active ERs**
 
 ---
 
@@ -1332,6 +1332,215 @@ AI Analysis suggests:
 
 ---
 ```
+
+## ER-0011: Image Sharing and Linking Between Cards
+
+**Status:** 🔵 Proposed
+**Component:** Card Model, CardEditorView, Image Management
+**Priority:** Medium
+**Date Requested:** 2026-01-22
+
+**Rationale:**
+
+Writers often need the same image to appear on multiple cards. For example:
+- Multiple scenes taking place in the same location
+- Character cards for the same person at different life stages
+- Multiple cards referencing the same artifact or building
+- Location cards showing the same map at different zoom levels
+
+Currently, each card stores its own copy of image data. To use the same image on multiple cards, users must:
+1. Export the image from the first card
+2. Import it into each subsequent card
+
+This is tedious and inefficient, resulting in:
+- **Storage waste**: Same image data duplicated across multiple cards
+- **Workflow friction**: Extra steps to share images between cards
+- **Update difficulty**: To change the image, must update each card individually
+- **Sync issues**: Easy to accidentally use different versions of "the same" image
+
+**Current Behavior:**
+
+- Each Card stores its own `originalImageData` and `thumbnailData`
+- No mechanism to reference another card's image
+- No "Copy Image" or "Paste Image" functionality
+- Images must be manually re-imported for each card
+
+**Requested Behavior:**
+
+### Option 1: Copy/Paste Image (Simple)
+
+Add clipboard-based image sharing:
+
+**Copy Image:**
+- Context menu or button on card images: "Copy Image"
+- Copies image data to system clipboard
+- Works across cards in the same session
+
+**Paste Image:**
+- "Paste Image" button/menu when editing a card
+- Pastes image from clipboard
+- Still creates independent copies (no linking)
+
+**Benefits:**
+- Simple to implement
+- Familiar UX pattern
+- Works within app session
+
+**Limitations:**
+- Still duplicates image data
+- No cross-session persistence
+- If source image changes, copies don't update
+
+### Option 2: Image Linking (Advanced)
+
+Multiple cards reference the same stored image:
+
+**Shared Image Storage:**
+- New `SharedImage` model with `id`, `originalImageData`, `thumbnailData`
+- Card has optional `sharedImage: SharedImage?` relationship
+- Falls back to local `originalImageData` if no shared image
+
+**Use Cases:**
+- "Use image from card..." picker shows all cards with images
+- Selecting a card links to that card's image
+- Or: "Share this image" makes it available to other cards
+- Changing the shared image updates all linked cards
+
+**Benefits:**
+- Storage efficient (one copy of image data)
+- Update once, changes everywhere
+- Clear visual indication when images are linked
+
+**Limitations:**
+- More complex data model changes
+- Schema migration required
+- Need UI to show/manage links
+- What happens if source card is deleted?
+
+### Option 3: Hybrid Approach (Recommended)
+
+Implement both features with progressive disclosure:
+
+**Phase 1: Copy/Paste (Quick Win)**
+- Add "Copy Image" and "Paste Image" functionality
+- Immediate user value with minimal changes
+- No data model changes required
+
+**Phase 2: Image Linking (Future Enhancement)**
+- Add `SharedImage` model and relationships
+- Offer "Link to image from..." when pasting
+- User chooses: Copy (independent) vs Link (shared)
+- Provides efficiency benefits for power users
+
+**Design Decisions:**
+
+1. **Deletion Behavior (for linked images):**
+   - **Option A**: Delete shared image when last card is deleted
+   - **Option B**: Keep orphaned shared images (with cleanup tool)
+   - **Option C**: Convert to local image on last card
+
+2. **Attribution Tracking:**
+   - For AI-generated images with citations, should copies/links preserve attribution?
+   - Recommendation: Yes, preserve AI metadata and citations
+
+3. **Edit Behavior:**
+   - Should editing a linked image affect all cards? (probably no)
+   - Provide "Make Unique" option to break the link
+
+**Proposed Implementation:**
+
+### Phase 1: Copy/Paste (ER-0011-A)
+
+**Files to Modify:**
+- `CardEditorView.swift` - Add copy/paste buttons
+- `CardSheetView.swift` - Add copy/paste to image context menu
+- New: `ImageClipboardManager.swift` - Handle clipboard operations
+
+**UI Changes:**
+- "Copy Image" button/menu item on card images
+- "Paste Image" button appears when clipboard has image
+- Visual feedback (toast/alert) confirming copy/paste
+
+**Keyboard Shortcuts:**
+- Cmd+C when image is focused: Copy image
+- Cmd+V when editing card: Paste image
+
+### Phase 2: Image Linking (ER-0011-B) - Future
+
+**Files to Modify:**
+- `Model/Card.swift` - Add optional `sharedImage` relationship
+- New: `Model/SharedImage.swift` - Shared image model
+- `Model/Migrations.swift` - Add AppSchemaV7 migration
+- `CardEditorView.swift` - "Link to image from card..." picker
+- Visual indicator showing when image is linked
+
+**Migration Strategy:**
+- All existing cards keep local `originalImageData`
+- New `sharedImage?` relationship is optional
+- Backward compatible with existing cards
+
+**Expected Benefits:**
+
+**User Experience:**
+- **Faster workflow**: Copy/paste eliminates export/import steps
+- **Consistency**: Same image guaranteed to be identical across cards
+- **Flexibility**: Choose between independent copies or linked images
+
+**Performance:**
+- **Storage savings**: Linked images stored once (for Option 2)
+- **Sync efficiency**: Less data to sync to CloudKit (for Option 2)
+- **Memory efficiency**: Single image cache for linked images
+
+**Use Cases:**
+
+1. **Location Scenes**: Multiple scenes in "The Dragon's Lair" all show the same map
+2. **Character Development**: Same character at different story points shares core appearance
+3. **Reference Images**: Architectural details shared across multiple building cards
+4. **Map Hierarchy**: Parent location and child locations share overview map
+
+**Testing Scenarios:**
+
+1. **Copy/Paste Within Session:**
+   - Copy image from Card A
+   - Paste into Card B
+   - Verify image appears correctly
+   - Verify AI metadata preserved (if applicable)
+
+2. **Cross-Device (future):**
+   - Copy image on Mac
+   - Universal clipboard to iPad
+   - Paste into card on iPad
+
+3. **Large Images:**
+   - Copy/paste high-resolution image
+   - Verify performance acceptable
+   - Verify thumbnail regeneration works
+
+4. **Attribution Preservation:**
+   - Copy AI-generated image with citation
+   - Paste into new card
+   - Verify citation/attribution appears in Image Attribution panel
+
+**Related Issues:**
+
+- ER-0009: AI Image Generation (attribution should be preserved)
+- Image storage and caching system
+- CloudKit sync considerations for large images
+
+**Priority Justification:**
+
+**Medium Priority** because:
+- **Pain point identified**: User requested this specific feature
+- **Common use case**: Location scenes especially benefit
+- **Quick win**: Phase 1 (copy/paste) is relatively simple
+- **Not blocking**: Workarounds exist (export/import)
+- **Lower than ER-8/9/10**: Timeline and AI features higher priority
+
+**Recommendation:**
+
+Implement **Phase 1 (Copy/Paste)** first as part of ER-0009 completion or as standalone ER-0011. This provides immediate user value with minimal complexity. Consider Phase 2 (Image Linking) as a future enhancement if users request it after experiencing copy/paste.
+
+---
 
 ## Status Indicators
 

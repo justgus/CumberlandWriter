@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		863014692F22AFDE00F3953B /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 863014682F22AFDE00F3953B /* ImagePlayground.framework */; };
+		8630146A2F22AFEE00F3953B /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 863014682F22AFDE00F3953B /* ImagePlayground.framework */; };
+		8630146C2F22AFFD00F3953B /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8630146B2F22AFFD00F3953B /* ImagePlayground.framework */; };
+		8630146D2F22B00F00F3953B /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 863014682F22AFDE00F3953B /* ImagePlayground.framework */; };
 		86544A8E2EBE946F0083F9CC /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86544A8D2EBE946F0083F9CC /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
@@ -72,6 +76,8 @@
 /* Begin PBXFileReference section */
 		861EA1CD2F2014D6003B4897 /* CumberlandVisionOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandVisionOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		861EA1DA2F20150A003B4897 /* CumberlandVisionOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandVisionOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		863014682F22AFDE00F3953B /* ImagePlayground.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ImagePlayground.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/ImagePlayground.framework; sourceTree = DEVELOPER_DIR; };
+		8630146B2F22AFFD00F3953B /* ImagePlayground.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ImagePlayground.framework; path = Platforms/XROS.platform/Developer/SDKs/XROS26.2.sdk/System/Library/Frameworks/ImagePlayground.framework; sourceTree = DEVELOPER_DIR; };
 		8646BE022E99A1CE0056F575 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		86544A8B2EBE946F0083F9CC /* Cumberland_visionOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cumberland_visionOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		865B61DA2EB5148E009CDEF4 /* TestApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -106,6 +112,16 @@
 			membershipExceptions = (
 				AboutView.swift,
 				AggregateTextView.swift,
+				AI/AIImageGenerationView.swift,
+				AI/AIImageGenerator.swift,
+				AI/AIProviderError.swift,
+				AI/AIProviderProtocol.swift,
+				AI/AIProviderRegistry.swift,
+				AI/AISettings.swift,
+				AI/AISettingsView.swift,
+				AI/AppleIntelligenceProvider.swift,
+				AI/KeychainHelper.swift,
+				AI/OpenAIProvider.swift,
 				AppModel.swift,
 				Assets.xcassets,
 				BackgroundDownloadHandler.swift,
@@ -138,7 +154,6 @@
 				DrawCanvas/BaseLayerImageCache.swift,
 				DrawCanvas/BaseLayerPatterns.swift,
 				DrawCanvas/BrushEngine.swift,
-				"DrawCanvas/BrushEngine+macOS.swift",
 				"DrawCanvas/BrushEngine+Patterns.swift",
 				"DrawCanvas/BrushEngine+PencilKit.swift",
 				DrawCanvas/BrushEngineDemo.swift,
@@ -147,7 +162,6 @@
 				DrawCanvas/BrushSet.swift,
 				DrawCanvas/DrawingCanvasIntegration.swift,
 				DrawCanvas/DrawingCanvasView.swift,
-				DrawCanvas/DrawingCanvasViewMacOS.swift,
 				DrawCanvas/DrawingLayer.swift,
 				DrawCanvas/ElevationMap.swift,
 				DrawCanvas/ExteriorMapBrushSet.swift,
@@ -178,7 +192,9 @@
 				MapWizardView.swift,
 				Model/AppSettings.swift,
 				Model/Board.swift,
+				Model/CalendarSystem.swift,
 				Model/Card.swift,
+				"Model/Card+ERExtensions.swift",
 				Model/CardEdge.swift,
 				Model/Citation.swift,
 				Model/CitationKind.swift,
@@ -231,21 +247,11 @@
 			membershipExceptions = (
 				CumberlandTests.swift,
 				"ER-0008-Timeline/CalendarSystemTests.swift.skip",
-				"ER-0009-ImageGeneration/AIProviderTests.swift.skip",
-				"ER-0009-ImageGeneration/AISettingsTests.swift.skip",
-				"ER-0009-ImageGeneration/KeychainHelperTests.swift.skip",
 				"ER-0010-ContentAnalysis/EntityExtractionTests.swift.skip",
 				Existing/CitationTests.swift.skip,
 				Existing/StoryStructureTests.swift.skip,
 				Existing/WipeStoreTests.swift.skip,
 				Integration/CrossERWorkflowTests.swift.skip,
-			);
-			target = 866A3A462E8DC16F006D3723 /* CumberlandTests */;
-		};
-		865E6EA32F2131EC00610F27 /* Exceptions for "CumberlandTests" folder in "CumberlandTests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				CumberlandTests.swift,
 			);
 			target = 866A3A462E8DC16F006D3723 /* CumberlandTests */;
 		};
@@ -262,6 +268,16 @@
 			membershipExceptions = (
 				AboutView.swift,
 				AggregateTextView.swift,
+				AI/AIImageGenerationView.swift,
+				AI/AIImageGenerator.swift,
+				AI/AIProviderError.swift,
+				AI/AIProviderProtocol.swift,
+				AI/AIProviderRegistry.swift,
+				AI/AISettings.swift,
+				AI/AISettingsView.swift,
+				AI/AppleIntelligenceProvider.swift,
+				AI/KeychainHelper.swift,
+				AI/OpenAIProvider.swift,
 				AppModel.swift,
 				Assets.xcassets,
 				BackgroundDownloadHandler.swift,
@@ -294,7 +310,6 @@
 				DrawCanvas/BaseLayerImageCache.swift,
 				DrawCanvas/BaseLayerPatterns.swift,
 				DrawCanvas/BrushEngine.swift,
-				"DrawCanvas/BrushEngine+macOS.swift",
 				"DrawCanvas/BrushEngine+Patterns.swift",
 				"DrawCanvas/BrushEngine+PencilKit.swift",
 				DrawCanvas/BrushEngineDemo.swift,
@@ -303,7 +318,6 @@
 				DrawCanvas/BrushSet.swift,
 				DrawCanvas/DrawingCanvasIntegration.swift,
 				DrawCanvas/DrawingCanvasView.swift,
-				DrawCanvas/DrawingCanvasViewMacOS.swift,
 				DrawCanvas/DrawingLayer.swift,
 				DrawCanvas/ElevationMap.swift,
 				DrawCanvas/ExteriorMapBrushSet.swift,
@@ -334,7 +348,9 @@
 				MapWizardView.swift,
 				Model/AppSettings.swift,
 				Model/Board.swift,
+				Model/CalendarSystem.swift,
 				Model/Card.swift,
+				"Model/Card+ERExtensions.swift",
 				Model/CardEdge.swift,
 				Model/Citation.swift,
 				Model/CitationKind.swift,
@@ -419,6 +435,7 @@
 				"DR-Reports/DR-GUIDELINES.md",
 				"DR-Reports/DR-unverified.md",
 				"DR-Reports/DR-verified-0001-0010.md",
+				DrawCanvas/BrushEngine.swift.bak,
 				"DrawCanvas/Guides/BRUSH-ENGINE-DOCUMENTATION-INDEX.md",
 				"DrawCanvas/Guides/BRUSH-ENGINE-QUICK-REFERENCE.md",
 				"DrawCanvas/Guides/BRUSH-SYSTEM-ARCHITECTURE.md",
@@ -485,14 +502,6 @@
 		861EA1DB2F20150A003B4897 /* CumberlandVisionOSUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = CumberlandVisionOSUITests;
-			sourceTree = "<group>";
-		};
-		8646BE152E99A1D00056F575 /* CumberlandTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				865E6EA32F2131EC00610F27 /* Exceptions for "CumberlandTests" folder in "CumberlandTests" target */,
-			);
-			path = CumberlandTests;
 			sourceTree = "<group>";
 		};
 		86544A8C2EBE946F0083F9CC /* Cumberland_visionOS */ = {
@@ -576,6 +585,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				86544A8E2EBE946F0083F9CC /* RealityKitContent in Frameworks */,
+				8630146C2F22AFFD00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -590,6 +600,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8630146A2F22AFEE00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -611,6 +622,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				863014692F22AFDE00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -618,6 +630,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8630146D2F22B00F00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -631,6 +644,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		863014672F22AFDE00F3953B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				8630146B2F22AFFD00F3953B /* ImagePlayground.framework */,
+				863014682F22AFDE00F3953B /* ImagePlayground.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		8646BE012E99A1CE0056F575 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
@@ -647,7 +669,6 @@
 				866A3A382E8DC16D006D3723 /* Cumberland */,
 				866A3A4A2E8DC16F006D3723 /* CumberlandTests */,
 				866A3A542E8DC16F006D3723 /* CumberlandUITests */,
-				8646BE152E99A1D00056F575 /* CumberlandTests */,
 				8663004D2E9DA49C005F471B /* Cumberland IOS */,
 				8663005F2E9DA49D005F471B /* Cumberland IOSTests */,
 				866300692E9DA49D005F471B /* Cumberland IOSUITests */,
@@ -657,6 +678,7 @@
 				861EA1DB2F20150A003B4897 /* CumberlandVisionOSUITests */,
 				866A3A372E8DC16D006D3723 /* Products */,
 				8646BE012E99A1CE0056F575 /* Packages */,
+				863014672F22AFDE00F3953B /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1609,7 +1631,17 @@
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = YES;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Cumberland/Info.plist;
@@ -1664,7 +1696,17 @@
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = YES;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Cumberland/Info.plist;

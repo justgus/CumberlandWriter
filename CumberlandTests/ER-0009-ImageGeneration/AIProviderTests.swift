@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 @testable import Cumberland
 
 /// Tests for AI Provider Protocol and implementations

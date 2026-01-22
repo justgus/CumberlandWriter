@@ -11,6 +11,9 @@ struct CardViewer: View {
     var onSelect: ((Card) -> Void)? = nil
     var selectedCardID: UUID? = nil
 
+    // Control whether AI badges are shown on cards (ER-0009)
+    var showAIBadge: Bool = true
+
     // MARK: - Tunable layout constants
     private let columnWidth: CGFloat = 420       // match your desired max card width
     private let columnSpacing: CGFloat = 16
@@ -71,7 +74,7 @@ struct CardViewer: View {
                     VStack(alignment: .leading, spacing: itemSpacing) {
                         ForEach(columns[colIndex]) { card in
                             let isSelected = (selectedCardID == card.id)
-                            CardView(card: card, decorationText: decorationProvider?(card))
+                            CardView(card: card, decorationText: decorationProvider?(card), showAIBadge: showAIBadge)
                                 .frame(width: columnWidth, alignment: .topLeading)
                                 .overlay(
                                     // Subtle selection ring
@@ -95,7 +98,7 @@ struct CardViewer: View {
         .overlay(alignment: .topLeading) {
             VStack(spacing: itemSpacing) {
                 ForEach(sortedCards) { card in
-                    CardView(card: card, decorationText: decorationProvider?(card))
+                    CardView(card: card, decorationText: decorationProvider?(card), showAIBadge: showAIBadge)
                         .frame(width: columnWidth, alignment: .topLeading)
                         .background(
                             GeometryReader { geo in
