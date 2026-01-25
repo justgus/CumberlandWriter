@@ -1,4 +1,10 @@
 import Foundation
+import SwiftUI
+import NaturalLanguage
+#if canImport(ImagePlayground)
+import ImagePlayground
+#endif
+
 #if canImport(AppIntents)
 import AppIntents
 #endif
@@ -10,8 +16,8 @@ import UIKit
 #endif
 
 /// Apple Intelligence provider (default, on-device AI)
-/// Uses Apple's Image Playground API and on-device language models
-/// Available on iOS 18.2+, macOS 15.2+, iPadOS 18.2+, visionOS 2.2+
+/// Uses Apple's ImagePlayground framework for image generation
+/// Available on iOS 18.1+, macOS 15.1+, iPadOS 18.1+, visionOS 2.1+
 class AppleIntelligenceProvider: AIProviderProtocol {
 
     // MARK: - AIProviderProtocol Conformance
@@ -28,13 +34,17 @@ class AppleIntelligenceProvider: AIProviderProtocol {
         false // Apple Intelligence uses device authentication
     }
 
+    var usesSheetBasedUI: Bool {
+        true // Apple Intelligence uses .imagePlaygroundSheet() modifier
+    }
+
     var metadata: AIProviderMetadata? {
         AIProviderMetadata(
-            modelVersion: "Apple Intelligence 1.0",
-            maxPromptLength: 1000, // Conservative estimate
+            modelVersion: "ImagePlayground",
+            maxPromptLength: nil, // Handled by Image Playground UI
             supportedImageFormats: ["PNG", "JPEG"],
             rateLimit: RateLimit(
-                requestsPerMinute: 10,
+                requestsPerMinute: 10, // Estimated
                 requestsPerDay: nil // No hard limit, device-dependent
             ),
             licenseInfo: LicenseInfo(
@@ -51,268 +61,27 @@ class AppleIntelligenceProvider: AIProviderProtocol {
     init() {
         // Check availability on initialization
         if !isAvailable {
-            print("⚠️ Apple Intelligence is not available on this device")
-            print("   Requires: iOS 18.2+, macOS 15.2+, iPadOS 18.2+, or visionOS 2.2+")
+            print("⚠️ Image Playground is not available on this device")
+            print("   Requires: iOS 18.1+, macOS 15.1+, iPadOS 18.1+, or visionOS 2.1+")
         }
     }
 
     // MARK: - Image Generation (ER-0009)
 
     func generateImage(prompt: String) async throws -> Data {
-        guard isAvailable else {
-            throw AIProviderError.providerUnavailable(reason: "Apple Intelligence requires iOS 18.2+ or macOS 15.2+")
-        }
-
-        guard !prompt.isEmpty else {
-            throw AIProviderError.invalidInput(reason: "Prompt cannot be empty")
-        }
-
-        guard prompt.count <= 1000 else {
-            throw AIProviderError.promptTooLong(maxLength: 1000, actual: prompt.count)
-        }
-
-        #if DEBUG
-        print("🎨 [Apple Intelligence] Generating image with prompt: \(prompt)")
-        #endif
-
-        // Phase 2B: Functional image generation
-        // NOTE: Apple's Image Playground API is not yet publicly available for third-party apps.
-        // This implementation generates a stylized placeholder image until the official API is available.
-        // The structure is designed for easy integration with the real API when it becomes available.
-
-        // Simulate API processing time
-        try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
-
-        // Generate a stylized image based on the prompt
-        guard let imageData = await generateStylizedImage(for: prompt) else {
-            throw AIProviderError.invalidResponse(reason: "Failed to generate image data")
-        }
-
-        return imageData
-    }
-
-    /// Generates a stylized placeholder image
-    /// This will be replaced with actual Image Playground API call when available
-    private func generateStylizedImage(for prompt: String) async -> Data? {
-        await MainActor.run {
-            // Create a 1024x1024 image (standard AI generation size)
-            let size = CGSize(width: 1024, height: 1024)
-
-            #if os(macOS)
-            let image = NSImage(size: size, flipped: false, drawingHandler: { rect in
-                self.drawImageContent(in: rect, prompt: prompt)
-                return true
-            })
-
-            // Convert to PNG data
-            guard let tiffData = image.tiffRepresentation,
-                  let bitmap = NSBitmapImageRep(data: tiffData),
-                  let pngData = bitmap.representation(using: .png, properties: [:]) else {
-                return nil
-            }
-
-            return pngData
-
-            #elseif os(iOS) || os(visionOS)
-            let renderer = UIGraphicsImageRenderer(size: size)
-            let image = renderer.image { context in
-                self.drawImageContent(in: context.format.bounds, prompt: prompt)
-            }
-
-            return image.pngData()
-            #else
-            return nil
-            #endif
-        }
-    }
-
-    /// Draws the image content (cross-platform)
-    private func drawImageContent(in rect: CGRect, prompt: String) {
-        #if os(macOS)
-        guard let context = NSGraphicsContext.current?.cgContext else { return }
-        #else
-        guard let context = UIGraphicsGetCurrentContext() else { return }
-        #endif
-
-        // Create gradient background based on prompt hash
-        let colors = selectColors(for: prompt)
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-
-        guard let gradient = CGGradient(
-            colorsSpace: colorSpace,
-            colors: [colors.0, colors.1] as CFArray,
-            locations: [0.0, 1.0]
-        ) else {
-            return
-        }
-
-        // Draw gradient
-        context.drawLinearGradient(
-            gradient,
-            start: CGPoint(x: rect.minX, y: rect.minY),
-            end: CGPoint(x: rect.maxX, y: rect.maxY),
-            options: []
+        // Apple Intelligence uses sheet-based UI via ImagePlayground framework
+        // This method should not be called directly. Use .imagePlaygroundSheet() modifier in SwiftUI instead.
+        throw AIProviderError.featureNotSupported(
+            feature: "Direct API call. Apple Intelligence uses .imagePlaygroundSheet() modifier for image generation."
         )
-
-        // Add subtle texture
-        addTexture(to: rect, context: context)
-
-        // Draw prompt text at bottom
-        drawPromptLabel(prompt, in: rect)
-
-        // Add AI attribution watermark
-        drawWatermark(in: rect)
     }
 
-    /// Select gradient colors based on prompt content
-    private func selectColors(for prompt: String) -> (CGColor, CGColor) {
-        let hash = abs(prompt.hashValue)
-        let hue1 = CGFloat(hash % 360) / 360.0
-        let hue2 = CGFloat((hash / 360) % 360) / 360.0
-
-        #if os(macOS)
-        let color1 = NSColor(hue: hue1, saturation: 0.6, brightness: 0.8, alpha: 1.0).cgColor
-        let color2 = NSColor(hue: hue2, saturation: 0.7, brightness: 0.5, alpha: 1.0).cgColor
-        #else
-        let color1 = UIColor(hue: hue1, saturation: 0.6, brightness: 0.8, alpha: 1.0).cgColor
-        let color2 = UIColor(hue: hue2, saturation: 0.7, brightness: 0.5, alpha: 1.0).cgColor
-        #endif
-
-        return (color1, color2)
-    }
-
-    /// Add subtle noise texture
-    private func addTexture(to rect: CGRect, context: CGContext) {
-        context.setBlendMode(.overlay)
-        context.setAlpha(0.1)
-
-        // Draw small random rectangles for texture
-        for _ in 0..<200 {
-            let x = CGFloat.random(in: 0...rect.width)
-            let y = CGFloat.random(in: 0...rect.height)
-            let size = CGFloat.random(in: 2...8)
-
-            #if os(macOS)
-            NSColor.white.setFill()
-            #else
-            UIColor.white.setFill()
-            #endif
-
-            context.fill(CGRect(x: x, y: y, width: size, height: size))
-        }
-
-        context.setAlpha(1.0)
-        context.setBlendMode(.normal)
-    }
-
-    /// Draw prompt text at bottom of image
-    private func drawPromptLabel(_ prompt: String, in rect: CGRect) {
-        let truncated = String(prompt.prefix(100))
-
-        #if os(macOS)
-        let font = NSFont.systemFont(ofSize: 24, weight: .medium)
-        let textColor = NSColor.white
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.8)
-        shadow.shadowOffset = CGSize(width: 0, height: -2)
-        shadow.shadowBlurRadius = 4
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: textColor,
-            .shadow: shadow
-        ]
-
-        let textSize = truncated.size(withAttributes: attributes)
-        let textRect = CGRect(
-            x: rect.minX + 40,
-            y: rect.maxY - 80,
-            width: rect.width - 80,
-            height: textSize.height
-        )
-
-        truncated.draw(in: textRect, withAttributes: attributes)
-
-        #else
-        let font = UIFont.systemFont(ofSize: 24, weight: .medium)
-        let textColor = UIColor.white
-
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineBreakMode = .byTruncatingTail
-
-        let shadow = NSShadow()
-        shadow.shadowColor = UIColor.black.withAlphaComponent(0.8)
-        shadow.shadowOffset = CGSize(width: 0, height: -2)
-        shadow.shadowBlurRadius = 4
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: textColor,
-            .shadow: shadow,
-            .paragraphStyle: paragraphStyle
-        ]
-
-        let textSize = truncated.size(withAttributes: attributes)
-        let textRect = CGRect(
-            x: rect.minX + 40,
-            y: rect.maxY - 80,
-            width: rect.width - 80,
-            height: textSize.height
-        )
-
-        truncated.draw(in: textRect, withAttributes: attributes)
-        #endif
-    }
-
-    /// Draw watermark
-    private func drawWatermark(in rect: CGRect) {
-        let watermark = "AI Generated"
-
-        #if os(macOS)
-        let font = NSFont.systemFont(ofSize: 14, weight: .regular)
-        let textColor = NSColor.white.withAlphaComponent(0.6)
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: textColor
-        ]
-
-        let textSize = watermark.size(withAttributes: attributes)
-        let textRect = CGRect(
-            x: rect.maxX - textSize.width - 20,
-            y: rect.minY + 20,
-            width: textSize.width,
-            height: textSize.height
-        )
-
-        watermark.draw(in: textRect, withAttributes: attributes)
-
-        #else
-        let font = UIFont.systemFont(ofSize: 14, weight: .regular)
-        let textColor = UIColor.white.withAlphaComponent(0.6)
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: textColor
-        ]
-
-        let textSize = watermark.size(withAttributes: attributes)
-        let textRect = CGRect(
-            x: rect.maxX - textSize.width - 20,
-            y: rect.minY + 20,
-            width: textSize.width,
-            height: textSize.height
-        )
-
-        watermark.draw(in: textRect, withAttributes: attributes)
-        #endif
-    }
 
     // MARK: - Content Analysis (ER-0010)
 
     func analyzeText(_ text: String, for task: AnalysisTask) async throws -> AnalysisResult {
         guard isAvailable else {
-            throw AIProviderError.providerUnavailable(reason: "Apple Intelligence requires iOS 18.2+ or macOS 15.2+")
+            throw AIProviderError.providerUnavailable(reason: "Apple Intelligence requires iOS 18.1+ or macOS 15.1+")
         }
 
         guard !text.isEmpty else {
@@ -326,49 +95,64 @@ class AppleIntelligenceProvider: AIProviderProtocol {
 
         #if DEBUG
         print("🧠 [Apple Intelligence] Analyzing text for task: \(task)")
+        print("   Text length: \(text.count) characters, \(wordCount) words")
         #endif
 
-        // Simulate API call delay
-        try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+        let startTime = Date()
 
-        // TODO: Implement actual analysis using Apple's on-device models
-        // This will be implemented in Phase 5 (ER-0010)
-        throw AIProviderError.featureNotSupported(feature: "Content analysis (Phase 5 implementation pending)")
+        // Perform analysis based on task type
+        var result: AnalysisResult
 
-        // FUTURE IMPLEMENTATION:
-        // switch task {
-        // case .entityExtraction:
-        //     return try await extractEntities(from: text)
-        // case .relationshipInference:
-        //     return try await inferRelationships(from: text)
-        // case .calendarExtraction:
-        //     return try await extractCalendar(from: text)
-        // case .comprehensive:
-        //     return try await performComprehensiveAnalysis(of: text)
-        // }
+        switch task {
+        case .entityExtraction:
+            result = try await extractEntities(from: text)
+        case .relationshipInference:
+            result = try await inferRelationships(from: text)
+        case .calendarExtraction:
+            result = try await extractCalendar(from: text)
+        case .comprehensive:
+            result = try await performComprehensiveAnalysis(of: text)
+        }
+
+        // Add metadata
+        let processingTime = Date().timeIntervalSince(startTime)
+        result.metadata = AnalysisMetadata(
+            processingTime: processingTime,
+            modelVersion: "NaturalLanguage Framework",
+            tokensProcessed: wordCount
+        )
+
+        #if DEBUG
+        print("✅ [Apple Intelligence] Analysis complete in \(String(format: "%.2f", processingTime))s")
+        print("   Entities: \(result.entities?.count ?? 0)")
+        print("   Relationships: \(result.relationships?.count ?? 0)")
+        #endif
+
+        return result
     }
 
     // MARK: - Private Helpers
 
-    /// Check if Apple Intelligence is available on this device
+    /// Check if Image Playground is available on this device
     private func checkAvailability() -> Bool {
+        #if canImport(ImagePlayground)
         #if os(iOS)
-        // Requires iOS 18.2+
-        if #available(iOS 18.2, *) {
+        // ImagePlayground requires iOS 18.1+
+        if #available(iOS 18.1, *) {
             return true
         }
         return false
 
         #elseif os(macOS)
-        // Requires macOS 15.2+
-        if #available(macOS 15.2, *) {
+        // ImagePlayground requires macOS 15.1+
+        if #available(macOS 15.1, *) {
             return true
         }
         return false
 
         #elseif os(visionOS)
-        // Requires visionOS 2.2+
-        if #available(visionOS 2.2, *) {
+        // ImagePlayground requires visionOS 2.1+ (estimated)
+        if #available(visionOS 2.1, *) {
             return true
         }
         return false
@@ -377,35 +161,212 @@ class AppleIntelligenceProvider: AIProviderProtocol {
         // Unsupported platform
         return false
         #endif
+        #else
+        // ImagePlayground framework not available
+        return false
+        #endif
     }
 
-    // MARK: - Future Private Methods (Placeholders)
+    // MARK: - Private Analysis Methods
 
-    // TODO: Implement these in Phase 1 and Phase 5
-
-    /*
+    /// Extract entities using NaturalLanguage framework
     private func extractEntities(from text: String) async throws -> AnalysisResult {
-        // Use Natural Language framework + on-device ML
-        // Return AnalysisResult with entities
+        var entities: [Entity] = []
+
+        // Use NLTagger for named entity recognition
+        let tagger = NLTagger(tagSchemes: [.nameType])
+        tagger.string = text
+
+        let options: NLTagger.Options = [.omitPunctuation, .omitWhitespace, .joinNames]
+        let tags: [NLTag] = [.personalName, .placeName, .organizationName]
+
+        // Extract named entities
+        tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: options) { tag, tokenRange in
+            guard let tag = tag, tags.contains(tag) else { return true }
+
+            let entityName = String(text[tokenRange])
+
+            // Determine entity type
+            let entityType: EntityType
+            switch tag {
+            case .personalName:
+                entityType = .character
+            case .placeName:
+                entityType = .location
+            case .organizationName:
+                entityType = .organization
+            default:
+                entityType = .other
+            }
+
+            // Extract context (surrounding text)
+            let contextRange = extractContext(for: tokenRange, in: text)
+            let context = String(text[contextRange])
+
+            // Create entity with confidence
+            let entity = Entity(
+                name: entityName,
+                type: entityType,
+                confidence: 0.75, // NL framework doesn't provide confidence scores, use default
+                context: context,
+                textRange: tokenRange
+            )
+
+            entities.append(entity)
+            return true
+        }
+
+        // Use pattern matching to find potential artifacts, vehicles, buildings
+        entities.append(contentsOf: extractCustomEntities(from: text))
+
+        // Remove duplicates (case-insensitive)
+        entities = removeDuplicateEntities(entities)
+
+        #if DEBUG
+        print("   Found \(entities.count) entities via NaturalLanguage framework")
+        #endif
+
+        return AnalysisResult(entities: entities, relationships: nil, calendar: nil, metadata: nil)
     }
 
+    /// Extract custom entities using pattern matching (artifacts, vehicles, buildings)
+    private func extractCustomEntities(from text: String) -> [Entity] {
+        var entities: [Entity] = []
+
+        // Patterns for identifying artifacts, vehicles, and buildings
+        let artifactPatterns = [
+            "\\bthe\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)(?:\\s+sword|\\s+blade|\\s+weapon|\\s+amulet|\\s+ring|\\s+staff|\\s+book|\\s+crown|\\s+shield)",
+            "\\b([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)\\s+of\\s+(?:Power|Light|Darkness|Shadow|Fire|Ice|Magic)"
+        ]
+
+        let vehiclePatterns = [
+            "\\bthe\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)(?:\\s+ship|\\s+vessel|\\s+boat|\\s+airship|\\s+dragon)",
+            "\\baboard\\s+the\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)"
+        ]
+
+        let buildingPatterns = [
+            "\\bthe\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)(?:\\s+Temple|\\s+Tower|\\s+Castle|\\s+Palace|\\s+Hall|\\s+Cathedral|\\s+Fortress|\\s+Academy)",
+            "\\b(?:Temple|Tower|Castle|Palace|Hall|Cathedral|Fortress|Academy)\\s+of\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)"
+        ]
+
+        // Extract artifacts
+        for pattern in artifactPatterns {
+            entities.append(contentsOf: extractWithPattern(pattern, type: .artifact, in: text))
+        }
+
+        // Extract vehicles
+        for pattern in vehiclePatterns {
+            entities.append(contentsOf: extractWithPattern(pattern, type: .vehicle, in: text))
+        }
+
+        // Extract buildings
+        for pattern in buildingPatterns {
+            entities.append(contentsOf: extractWithPattern(pattern, type: .building, in: text))
+        }
+
+        return entities
+    }
+
+    /// Extract entities using regex pattern
+    private func extractWithPattern(_ pattern: String, type: EntityType, in text: String) -> [Entity] {
+        var entities: [Entity] = []
+
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return entities
+        }
+
+        let nsText = text as NSString
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
+
+        for match in matches {
+            guard match.numberOfRanges > 1 else { continue }
+            let entityRange = match.range(at: 1)
+            guard entityRange.location != NSNotFound else { continue }
+
+            let entityName = nsText.substring(with: entityRange)
+
+            // Extract context
+            let fullMatchRange = match.range
+            let startIndex = text.index(text.startIndex, offsetBy: fullMatchRange.location)
+            let endIndex = text.index(startIndex, offsetBy: fullMatchRange.length)
+            let tokenRange = startIndex..<endIndex
+            let contextRange = extractContext(for: tokenRange, in: text)
+            let context = String(text[contextRange])
+
+            let entity = Entity(
+                name: entityName,
+                type: type,
+                confidence: 0.70, // Lower confidence for pattern matching
+                context: context,
+                textRange: tokenRange
+            )
+
+            entities.append(entity)
+        }
+
+        return entities
+    }
+
+    /// Extract context around a token range
+    private func extractContext(for range: Range<String.Index>, in text: String) -> Range<String.Index> {
+        let contextRadius = 50 // characters before and after
+
+        let startOffset = text.distance(from: text.startIndex, to: range.lowerBound)
+        let endOffset = text.distance(from: text.startIndex, to: range.upperBound)
+
+        let contextStart = max(0, startOffset - contextRadius)
+        let contextEnd = min(text.count, endOffset + contextRadius)
+
+        let contextStartIndex = text.index(text.startIndex, offsetBy: contextStart)
+        let contextEndIndex = text.index(text.startIndex, offsetBy: contextEnd)
+
+        return contextStartIndex..<contextEndIndex
+    }
+
+    /// Remove duplicate entities (case-insensitive)
+    private func removeDuplicateEntities(_ entities: [Entity]) -> [Entity] {
+        var seen = Set<String>()
+        var unique: [Entity] = []
+
+        for entity in entities {
+            let key = entity.name.lowercased()
+            if !seen.contains(key) {
+                seen.insert(key)
+                unique.append(entity)
+            }
+        }
+
+        return unique
+    }
+
+    /// Infer relationships using sentence parsing (Phase 6 - placeholder for now)
     private func inferRelationships(from text: String) async throws -> AnalysisResult {
-        // Parse sentence structure
-        // Identify relationship patterns
-        // Return AnalysisResult with relationships
+        // Phase 6 implementation - relationship inference
+        // For now, return empty relationships
+        return AnalysisResult(entities: nil, relationships: [], calendar: nil, metadata: nil)
     }
 
+    /// Extract calendar structure (Phase 7 - placeholder for now)
     private func extractCalendar(from text: String) async throws -> AnalysisResult {
-        // Look for temporal vocabulary
-        // Build calendar structure
-        // Return AnalysisResult with calendar
+        // Phase 7 implementation - calendar extraction
+        // For now, return nil calendar
+        return AnalysisResult(entities: nil, relationships: nil, calendar: nil, metadata: nil)
     }
 
+    /// Perform comprehensive analysis (all tasks combined)
     private func performComprehensiveAnalysis(of text: String) async throws -> AnalysisResult {
         // Combine all analysis types
-        // Return complete AnalysisResult
+        let entitiesResult = try await extractEntities(from: text)
+        let relationshipsResult = try await inferRelationships(from: text)
+        let calendarResult = try await extractCalendar(from: text)
+
+        return AnalysisResult(
+            entities: entitiesResult.entities,
+            relationships: relationshipsResult.relationships,
+            calendar: calendarResult.calendar,
+            metadata: nil
+        )
     }
-    */
 }
 
 // MARK: - Availability Helpers
@@ -413,14 +374,20 @@ class AppleIntelligenceProvider: AIProviderProtocol {
 extension AppleIntelligenceProvider {
     /// Check if Image Playground is available
     static var isImagePlaygroundAvailable: Bool {
+        #if canImport(ImagePlayground)
         #if os(iOS)
-        if #available(iOS 18.2, *) {
+        if #available(iOS 18.1, *) {
             return true
         }
         #elseif os(macOS)
-        if #available(macOS 15.2, *) {
+        if #available(macOS 15.1, *) {
             return true
         }
+        #elseif os(visionOS)
+        if #available(visionOS 2.1, *) {
+            return true
+        }
+        #endif
         #endif
         return false
     }

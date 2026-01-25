@@ -8,6 +8,9 @@
 
 import SwiftUI
 import OSLog
+#if canImport(ImagePlayground)
+import ImagePlayground
+#endif
 
 /// Sheet view for generating AI images with prompts
 /// Part of ER-0009: AI Image Generation MVP
@@ -18,6 +21,12 @@ struct AIImageGenerationView: View {
     /// Card name to help generate better prompts
     let cardName: String
 
+    /// Card description for smart prompt extraction (Phase 3A)
+    let cardDescription: String
+
+    /// Card kind for contextual prompt generation (Phase 3A)
+    let cardKind: Kinds
+
     /// Optional initial prompt (for regenerating existing AI images)
     let initialPrompt: String?
 
@@ -26,7 +35,12 @@ struct AIImageGenerationView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    /// The AI image generator
+    /// Check if ImagePlayground is supported (iOS 18.1+, macOS 15.1+)
+    #if canImport(ImagePlayground)
+    @Environment(\.supportsImagePlayground) private var supportsImagePlayground
+    #endif
+
+    /// The AI image generator (for programmatic APIs like OpenAI)
     @State private var generator = AIImageGenerator()
 
     /// User's prompt input
@@ -35,8 +49,14 @@ struct AIImageGenerationView: View {
     /// Suggested prompts based on card name
     @State private var suggestedPrompts: [String] = []
 
-    /// Selected provider name
-    @State private var selectedProvider: String = ""
+    /// Selected provider name - initialized with preferred provider to avoid Picker warning
+    @State private var selectedProvider: String = AIProviderRegistry.shared.getPreferredProviderName()
+
+    /// Show ImagePlayground sheet (for Apple Intelligence)
+    @State private var showImagePlaygroundSheet: Bool = false
+
+    /// Generated image URL from ImagePlayground
+    @State private var imagePlaygroundURL: URL?
 
     /// Available providers
     private var availableProviders: [String] {
@@ -247,8 +267,14 @@ struct AIImageGenerationView: View {
                         Spacer()
 
                         Button {
-                            Task {
-                                await generate()
+                            if usesSheetBasedUI {
+                                // Show ImagePlayground sheet
+                                showImagePlaygroundSheet = true
+                            } else {
+                                // Use programmatic API
+                                Task {
+                                    await generate()
+                                }
                             }
                         } label: {
                             Label("Generate", systemImage: "wand.and.stars")
@@ -271,20 +297,39 @@ struct AIImageGenerationView: View {
             }
         }
         .onAppear {
-            // Pre-fill prompt if regenerating existing AI image
-            if let initial = initialPrompt, !initial.isEmpty {
-                prompt = initial
-            }
-
+            // Generate smart suggestions based on card description
             generateSuggestedPrompts()
-            // Set default provider
-            if selectedProvider.isEmpty {
-                selectedProvider = AIProviderRegistry.shared.getPreferredProviderName()
+
+            // Pre-fill prompt
+            if let initial = initialPrompt, !initial.isEmpty {
+                // Use existing prompt if regenerating
+                prompt = initial
+            } else if !suggestedPrompts.isEmpty {
+                // Auto-fill with first (best) suggestion for new generation
+                prompt = suggestedPrompts[0]
             }
         }
+        #if canImport(ImagePlayground)
+        .imagePlaygroundSheet(
+            isPresented: $showImagePlaygroundSheet,
+            concepts: [
+                ImagePlaygroundConcept.text(prompt)
+            ]
+        ) { url in
+            handleImagePlaygroundResult(url)
+        }
+        #endif
     }
 
     // MARK: - Computed Properties
+
+    /// Whether the selected provider uses sheet-based UI (like ImagePlayground)
+    private var usesSheetBasedUI: Bool {
+        guard let provider = AIProviderRegistry.shared.provider(named: selectedProvider) else {
+            return false
+        }
+        return provider.usesSheetBasedUI
+    }
 
     /// Whether generation can proceed (valid provider with API key if needed)
     private var canGenerate: Bool {
@@ -341,14 +386,53 @@ struct AIImageGenerationView: View {
         dismiss()
     }
 
-    /// Generate suggested prompts based on card name
+    /// Handle image URL from ImagePlayground
+    @MainActor
+    private func handleImagePlaygroundResult(_ url: URL) {
+        logger.info("ImagePlayground generated image at URL: \(url.path)")
+
+        do {
+            // Load image data from the temporary URL
+            let imageData = try Data(contentsOf: url)
+
+            // Create generated image data
+            let data = GeneratedImageData(
+                imageData: imageData,
+                prompt: prompt,
+                provider: selectedProvider,
+                generatedAt: Date()
+            )
+
+            logger.info("ImagePlayground image loaded, closing sheet")
+            onImageGenerated(data)
+            dismiss()
+
+        } catch {
+            logger.error("Failed to load image from ImagePlayground URL: \(error.localizedDescription)")
+            // ImagePlayground has already shown its UI, so just log and dismiss
+            dismiss()
+        }
+    }
+
+    /// Generate suggested prompts based on card description and type (Phase 3A)
     private func generateSuggestedPrompts() {
-        // Simple prompt suggestions - in the future, this could use AI
-        suggestedPrompts = [
-            "A detailed illustration of \(cardName)",
-            "Concept art for \(cardName)",
-            "A portrait of \(cardName)"
-        ]
+        // Use PromptExtractor to generate smart prompts from description
+        let variations = PromptExtractor.extractPromptVariations(
+            from: cardDescription,
+            cardName: cardName,
+            cardKind: cardKind
+        )
+
+        if !variations.isEmpty {
+            suggestedPrompts = variations
+        } else {
+            // Fallback to simple prompts if description is insufficient
+            suggestedPrompts = [
+                "A detailed illustration of \(cardName)",
+                "Concept art for \(cardName)",
+                PromptExtractor.kindToPromptPrefix(cardKind) + " \(cardName)"
+            ]
+        }
     }
 }
 
@@ -368,6 +452,8 @@ struct GeneratedImageData {
 #Preview {
     AIImageGenerationView(
         cardName: "Aria Blackwood",
+        cardDescription: "A tall woman with piercing green eyes and flowing crimson hair. She wears an ornate leather coat adorned with silver buttons. Her face bears a mysterious scar across her left cheek.",
+        cardKind: .characters,
         initialPrompt: nil,
         onImageGenerated: { data in
             print("Generated: \(data.prompt)")

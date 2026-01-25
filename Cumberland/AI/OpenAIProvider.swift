@@ -43,6 +43,16 @@ class OpenAIProvider: AIProviderProtocol {
     private let defaultImageSize = "1024x1024" // DALL-E 3 default
     private let model = "dall-e-3"
 
+    // MARK: - URLSession Configuration
+
+    /// Custom URLSession with longer timeout for AI operations
+    private lazy var urlSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 120 // 2 minutes for text analysis
+        config.timeoutIntervalForResource = 180 // 3 minutes total
+        return URLSession(configuration: config)
+    }()
+
     // MARK: - Image Generation
 
     func generateImage(prompt: String) async throws -> Data {
@@ -85,8 +95,8 @@ class OpenAIProvider: AIProviderProtocol {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-        // Make request
-        let (data, response) = try await URLSession.shared.data(for: request)
+        // Make request with custom timeout
+        let (data, response) = try await urlSession.data(for: request)
 
         // Check response
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -136,9 +146,264 @@ class OpenAIProvider: AIProviderProtocol {
     // MARK: - Content Analysis
 
     func analyzeText(_ text: String, for task: AnalysisTask) async throws -> AnalysisResult {
-        // OpenAI could do this with GPT-4, but not implementing for MVP
-        throw AIProviderError.featureNotSupported(feature: "Content analysis not yet implemented for OpenAI")
+        guard !text.isEmpty else {
+            throw AIProviderError.invalidInput(reason: "Text cannot be empty")
+        }
+
+        let wordCount = text.split(separator: " ").count
+        guard wordCount >= 25 else {
+            throw AIProviderError.textTooShort(minLength: 25, actual: wordCount)
+        }
+
+        // Get API key from keychain
+        guard let apiKey = try? KeychainHelper.shared.retrieveAPIKey(for: "openai"), !apiKey.isEmpty else {
+            throw AIProviderError.invalidAPIKey
+        }
+
+        #if DEBUG
+        print("🧠 [OpenAI] Analyzing text for task: \(task)")
+        print("   Text length: \(text.count) characters, \(wordCount) words")
+        #endif
+
+        let startTime = Date()
+
+        // Perform analysis based on task type
+        let result: AnalysisResult
+
+        switch task {
+        case .entityExtraction:
+            result = try await extractEntities(from: text, apiKey: apiKey)
+        case .relationshipInference:
+            result = try await inferRelationships(from: text, apiKey: apiKey)
+        case .calendarExtraction:
+            result = try await extractCalendar(from: text, apiKey: apiKey)
+        case .comprehensive:
+            result = try await performComprehensiveAnalysis(of: text, apiKey: apiKey)
+        }
+
+        #if DEBUG
+        let processingTime = Date().timeIntervalSince(startTime)
+        print("✅ [OpenAI] Analysis complete in \(String(format: "%.2f", processingTime))s")
+        print("   Entities: \(result.entities?.count ?? 0)")
+        print("   Relationships: \(result.relationships?.count ?? 0)")
+        #endif
+
+        return result
     }
+
+    // MARK: - Private Analysis Methods
+
+    /// Extract entities using GPT-4
+    private func extractEntities(from text: String, apiKey: String) async throws -> AnalysisResult {
+        let systemPrompt = """
+        You are an expert at analyzing fantasy and sci-fi narrative text to identify key entities.
+        Extract characters, locations, buildings, artifacts, vehicles, organizations, and events.
+        Return results as a JSON object with an "entities" array:
+        {
+          "entities": [
+            {
+              "name": "Entity Name",
+              "type": "character|location|building|artifact|vehicle|organization|event",
+              "confidence": 0.0-1.0,
+              "context": "Brief surrounding text"
+            }
+          ]
+        }
+        Only include entities that are proper nouns or specific named things.
+        """
+
+        let userPrompt = """
+        Analyze this text and extract all entities:
+
+        \(text)
+        """
+
+        let entities = try await callGPT4(systemPrompt: systemPrompt, userPrompt: userPrompt, apiKey: apiKey)
+
+        return AnalysisResult(entities: parseEntities(from: entities), relationships: nil, calendar: nil, metadata: nil)
+    }
+
+    /// Infer relationships using GPT-4 (Phase 6 - placeholder)
+    private func inferRelationships(from text: String, apiKey: String) async throws -> AnalysisResult {
+        // Phase 6 implementation
+        return AnalysisResult(entities: nil, relationships: [], calendar: nil, metadata: nil)
+    }
+
+    /// Extract calendar structure using GPT-4 (Phase 7 - placeholder)
+    private func extractCalendar(from text: String, apiKey: String) async throws -> AnalysisResult {
+        // Phase 7 implementation
+        return AnalysisResult(entities: nil, relationships: nil, calendar: nil, metadata: nil)
+    }
+
+    /// Perform comprehensive analysis
+    private func performComprehensiveAnalysis(of text: String, apiKey: String) async throws -> AnalysisResult {
+        let entitiesResult = try await extractEntities(from: text, apiKey: apiKey)
+        let relationshipsResult = try await inferRelationships(from: text, apiKey: apiKey)
+        let calendarResult = try await extractCalendar(from: text, apiKey: apiKey)
+
+        return AnalysisResult(
+            entities: entitiesResult.entities,
+            relationships: relationshipsResult.relationships,
+            calendar: calendarResult.calendar,
+            metadata: nil
+        )
+    }
+
+    /// Call GPT-4 API for text analysis
+    private func callGPT4(systemPrompt: String, userPrompt: String, apiKey: String) async throws -> String {
+        let endpoint = "https://api.openai.com/v1/chat/completions"
+
+        guard let url = URL(string: endpoint) else {
+            throw AIProviderError.invalidResponse(reason: "Invalid API endpoint")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let requestBody: [String: Any] = [
+            "model": "gpt-4-turbo-preview",
+            "messages": [
+                ["role": "system", "content": systemPrompt],
+                ["role": "user", "content": userPrompt]
+            ],
+            "temperature": 0.3, // Lower temperature for more consistent analysis
+            "response_format": ["type": "json_object"] // Request JSON response
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        // Make request with custom timeout and better error handling
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await urlSession.data(for: request)
+        } catch let error as NSError {
+            // Handle timeout and network errors specifically
+            if error.domain == NSURLErrorDomain {
+                if error.code == NSURLErrorTimedOut {
+                    throw AIProviderError.networkError(
+                        underlying: NSError(
+                            domain: "OpenAI",
+                            code: -1001,
+                            userInfo: [
+                                NSLocalizedDescriptionKey: "Request timed out. GPT-4 analysis can take 30-60 seconds. Please try again or use Apple Intelligence for faster results."
+                            ]
+                        )
+                    )
+                } else if error.code == NSURLErrorNotConnectedToInternet {
+                    throw AIProviderError.networkError(
+                        underlying: NSError(
+                            domain: "OpenAI",
+                            code: error.code,
+                            userInfo: [NSLocalizedDescriptionKey: "No internet connection. Please check your network and try again."]
+                        )
+                    )
+                }
+            }
+            throw AIProviderError.networkError(underlying: error)
+        }
+
+        // Check response
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AIProviderError.networkError(underlying: NSError(domain: "OpenAI", code: -1))
+        }
+
+        // Handle errors
+        if httpResponse.statusCode == 429 {
+            throw AIProviderError.rateLimitExceeded(retryAfter: nil)
+        }
+
+        if httpResponse.statusCode == 401 {
+            throw AIProviderError.invalidAPIKey
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if let errorResponse = try? JSONDecoder().decode(OpenAIErrorResponse.self, from: data) {
+                throw AIProviderError.invalidResponse(reason: errorResponse.error.message)
+            }
+            throw AIProviderError.invalidResponse(reason: "HTTP \(httpResponse.statusCode)")
+        }
+
+        // Parse response
+        guard let json = try? JSONDecoder().decode(OpenAIChatResponse.self, from: data),
+              let content = json.choices.first?.message.content else {
+            throw AIProviderError.invalidResponse(reason: "Failed to decode GPT-4 response")
+        }
+
+        return content
+    }
+
+    /// Parse entities from JSON string
+    private func parseEntities(from jsonString: String) -> [Entity] {
+        guard let jsonData = jsonString.data(using: .utf8) else {
+            #if DEBUG
+            print("⚠️ [OpenAI] Failed to convert JSON string to data")
+            #endif
+            return []
+        }
+
+        // Try parsing as wrapped object first (GPT-4 with response_format: json_object)
+        if let wrappedResponse = try? JSONDecoder().decode(EntityResponse.self, from: jsonData) {
+            #if DEBUG
+            print("✅ [OpenAI] Parsed \(wrappedResponse.entities.count) entities from wrapped JSON")
+            #endif
+            return wrappedResponse.entities.map { json in
+                Entity(
+                    name: json.name,
+                    type: EntityType(rawValue: json.type) ?? .other,
+                    confidence: json.confidence,
+                    context: json.context
+                )
+            }
+        }
+
+        // Fallback: try parsing as direct array
+        if let jsonArray = try? JSONDecoder().decode([EntityJSON].self, from: jsonData) {
+            #if DEBUG
+            print("✅ [OpenAI] Parsed \(jsonArray.count) entities from array JSON")
+            #endif
+            return jsonArray.map { json in
+                Entity(
+                    name: json.name,
+                    type: EntityType(rawValue: json.type) ?? .other,
+                    confidence: json.confidence,
+                    context: json.context
+                )
+            }
+        }
+
+        #if DEBUG
+        print("⚠️ [OpenAI] Failed to parse entities JSON")
+        print("   Raw JSON (first 500 chars): \(String(jsonString.prefix(500)))")
+        #endif
+        return []
+    }
+}
+
+// MARK: - GPT-4 Response Types
+
+private struct OpenAIChatResponse: Codable {
+    let choices: [Choice]
+
+    struct Choice: Codable {
+        let message: Message
+    }
+
+    struct Message: Codable {
+        let content: String
+    }
+}
+
+private struct EntityJSON: Codable {
+    let name: String
+    let type: String
+    let confidence: Double
+    let context: String?
+}
+
+private struct EntityResponse: Codable {
+    let entities: [EntityJSON]
 }
 
 // MARK: - API Response Types

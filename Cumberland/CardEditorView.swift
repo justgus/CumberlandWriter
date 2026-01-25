@@ -94,6 +94,16 @@ struct CardEditorView: View {
     @State private var showAIImageGeneration: Bool = false
     @State private var showAIImageInfo: Bool = false
 
+    // Description analysis for smart prompts (ER-0009 Phase 3A)
+    @State private var descriptionAnalysis: DescriptionAnalyzer.AnalysisResult?
+
+    // Content Analysis (ER-0010)
+    @State private var showAnalysisSuggestions: Bool = false
+    @State private var isAnalyzing: Bool = false
+    @State private var analysisSuggestions: SuggestionEngine.Suggestions?
+    @State private var analysisError: String?
+    @State private var showAnalysisError: Bool = false
+
     // MARK: - Quick Attribution Prompt State (for dropped text/images)
     private struct PendingAttribution: Identifiable, Equatable {
         let id = UUID()
@@ -246,6 +256,8 @@ struct CardEditorView: View {
                 } label: {
                     Label("Generate Image…", systemImage: "wand.and.stars")
                 }
+                .disabled(!(descriptionAnalysis?.isSufficient ?? true))
+                .help(descriptionAnalysis?.recommendation ?? "Generate an AI image from the card description")
 
                 Button(role: .destructive) {
                     removeImage()
@@ -351,6 +363,14 @@ struct CardEditorView: View {
             structureName = t.name
             editableElements = t.elements.map { EditableElement(name: $0) }
         }
+        // Analyze description quality for smart AI image generation (ER-0009 Phase 3A)
+        .onChange(of: detailedText) { _, newText in
+            descriptionAnalysis = DescriptionAnalyzer.analyze(newText)
+        }
+        .onAppear {
+            // Analyze on initial load
+            descriptionAnalysis = DescriptionAnalyzer.analyze(detailedText)
+        }
         // Present the quick attribution sheet right after text/image drop succeeds (edit mode only)
         .sheet(item: $pendingAttribution) { ctx in
             if case .edit(let card, _) = mode {
@@ -388,6 +408,8 @@ struct CardEditorView: View {
         .sheet(isPresented: $showAIImageGeneration) {
             AIImageGenerationView(
                 cardName: name,
+                cardDescription: detailedText,
+                cardKind: mode.kind,
                 initialPrompt: {
                     // Pre-fill with existing prompt if regenerating AI image
                     if case .edit(let card, _) = mode,
@@ -432,6 +454,18 @@ struct CardEditorView: View {
         .sheet(isPresented: $showAIImageInfo) {
             if case .edit(let card, _) = mode {
                 AIImageInfoView(card: card)
+            }
+        }
+        // Present Suggestion Review panel (ER-0010)
+        .sheet(isPresented: $showAnalysisSuggestions) {
+            suggestionReviewSheet
+        }
+        // Show analysis error alert (ER-0010)
+        .alert("Analysis Complete", isPresented: $showAnalysisError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if let error = analysisError {
+                Text(error)
             }
         }
     }
@@ -510,9 +544,16 @@ struct CardEditorView: View {
                     .focused($focusedField, equals: .author)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Details (Markdown supported)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    HStack {
+                        Text("Details (Markdown supported)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        // Analyze button (ER-0010)
+                        analyzeButton
+                    }
                     TextEditor(text: $detailedText)
                         .focused($focusedField, equals: .details)
                         .frame(minHeight: 160)
@@ -997,7 +1038,170 @@ struct CardEditorView: View {
         .pickerStyle(.menu)
         .accessibilityLabel("Card size")
     }
-    
+
+    // MARK: - Content Analysis (ER-0010)
+
+    private var analyzeButton: some View {
+        Button {
+            analyzeContent()
+        } label: {
+            HStack(spacing: 4) {
+                if isAnalyzing {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: "brain")
+                        .font(.caption)
+                }
+                Text("Analyze")
+                    .font(.caption)
+            }
+        }
+        .disabled(isAnalyzing || !canAnalyze)
+        .help(analyzeButtonTooltip)
+    }
+
+    private var canAnalyze: Bool {
+        guard AISettings.shared.isContentAnalysisAvailable else { return false }
+        let wordCount = detailedText.split(separator: " ").count
+        return wordCount >= AISettings.shared.analysisMinWordCount
+    }
+
+    private var analyzeButtonTooltip: String {
+        if !AISettings.shared.aiEnabled {
+            return "AI features disabled in settings"
+        }
+        if !AISettings.shared.analysisEnabled {
+            return "Content analysis disabled in settings"
+        }
+        if !AISettings.shared.isProviderAvailable {
+            return "No AI provider available"
+        }
+        let wordCount = detailedText.split(separator: " ").count
+        let minWords = AISettings.shared.analysisMinWordCount
+        if wordCount < minWords {
+            return "Add more details (\(wordCount)/\(minWords) words)"
+        }
+
+        // Show preprocessing info for long text
+        if wordCount > 500 {
+            return "Analyze \(wordCount) word description (will extract key sentences for faster analysis)"
+        }
+
+        return "Analyze description to find entities and suggest cards (\(wordCount) words)"
+    }
+
+    private func analyzeContent() {
+        isAnalyzing = true
+        analysisSuggestions = nil
+        analysisError = nil
+
+        Task {
+            do {
+                // Get AI provider
+                guard let provider = AISettings.shared.currentProvider else {
+                    throw AIProviderError.providerUnavailable(reason: "No AI provider available")
+                }
+
+                // Get current card (for edit mode) or create a temporary one (for create mode)
+                let currentCard: Card
+                switch mode {
+                case .edit(let card, _):
+                    currentCard = card
+                case .create(let kind, _):
+                    // Create temporary card for analysis
+                    currentCard = Card(kind: kind, name: name.isEmpty ? "Untitled" : name, subtitle: "", detailedText: detailedText)
+                }
+
+                // Get all existing cards for deduplication
+                let existingCards = try modelContext.fetch(FetchDescriptor<Card>())
+
+                // Extract entities
+                let extractor = EntityExtractor(provider: provider)
+                let entities = try await extractor.extractEntities(from: detailedText, existingCards: existingCards)
+
+                // Generate suggestions
+                let suggestionEngine = SuggestionEngine()
+                let suggestions = suggestionEngine.generateCardSuggestions(from: entities, sourceCard: currentCard)
+
+                await MainActor.run {
+                    self.analysisSuggestions = SuggestionEngine.Suggestions(cards: suggestions, relationships: [])
+                    self.isAnalyzing = false
+
+                    if !suggestions.isEmpty {
+                        self.showAnalysisSuggestions = true
+                    } else {
+                        // Provide helpful message based on text length
+                        let wordCount = self.detailedText.split(separator: " ").count
+                        if wordCount > 1000 {
+                            self.analysisError = "No entities found in the \(wordCount) word description.\n\nFor long prose, AI analyzes key sentences containing proper nouns. Try ensuring character names, locations, and artifacts are capitalized (e.g., 'Aria' not 'aria', 'Blackrock City' not 'the city')."
+                        } else {
+                            self.analysisError = "No entities found in the description.\n\nTry adding more specific details:\n• Character names (capitalized)\n• Location names (e.g., 'Blackrock City')\n• Artifacts (e.g., 'the Sword of Light')\n• Organizations or buildings"
+                        }
+                        self.showAnalysisError = true
+                    }
+                }
+
+            } catch {
+                await MainActor.run {
+                    // Provide helpful error messages based on error type
+                    let errorMessage: String
+                    if let aiError = error as? AIProviderError {
+                        switch aiError {
+                        case .invalidAPIKey:
+                            errorMessage = "OpenAI API key is missing or invalid. Please add your API key in Settings → AI, or switch to Apple Intelligence."
+                        case .providerUnavailable(let reason):
+                            errorMessage = "AI provider unavailable: \(reason)\n\nTry switching to Apple Intelligence in Settings → AI."
+                        case .networkError(let underlying):
+                            if (underlying as NSError).code == -1001 {
+                                errorMessage = "Request timed out. This can happen with cloud-based AI providers.\n\nTry:\n• Using Apple Intelligence (faster, on-device)\n• Shorter descriptions\n• Checking your network connection"
+                            } else {
+                                errorMessage = "Network error: \(underlying.localizedDescription)"
+                            }
+                        case .textTooShort(let minLength, let actual):
+                            errorMessage = "Description too short (\(actual) words). Please add at least \(minLength) words."
+                        default:
+                            errorMessage = error.localizedDescription
+                        }
+                    } else {
+                        errorMessage = error.localizedDescription
+                    }
+
+                    self.analysisError = errorMessage
+                    self.showAnalysisError = true
+                    self.isAnalyzing = false
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var suggestionReviewSheet: some View {
+        if let suggestions = analysisSuggestions {
+            SuggestionReviewView(
+                suggestions: suggestions,
+                sourceCard: currentCardForAnalysis,
+                existingCards: allCards
+            )
+        } else {
+            EmptyView()
+        }
+    }
+
+    private var currentCardForAnalysis: Card {
+        switch mode {
+        case .edit(let card, _):
+            return card
+        case .create(let kind, _):
+            // Create temporary card for display
+            return Card(kind: kind, name: name.isEmpty ? "Untitled" : name, subtitle: "", detailedText: detailedText)
+        }
+    }
+
+    private var allCards: [Card] {
+        (try? modelContext.fetch(FetchDescriptor<Card>())) ?? []
+    }
+
     #if os(visionOS)
     /// visionOS ornament view for the size category picker
     @ViewBuilder
@@ -1121,6 +1325,10 @@ struct CardEditorView: View {
             }
 
             try? modelContext.save()
+
+            // Phase 9.3: Auto-generate image if enabled and conditions met
+            tryAutoGenerateImage(for: card)
+
             onComplete(card)
             dismiss()
 
@@ -1150,8 +1358,91 @@ struct CardEditorView: View {
             }
 
             try? modelContext.save()
+
+            // Phase 9.3: Auto-generate image if enabled and conditions met
+            tryAutoGenerateImage(for: card)
+
             onComplete()
             dismiss()
+        }
+    }
+
+    // MARK: - Phase 9.3: Auto-Generation
+
+    /// Attempt to auto-generate an image if all conditions are met
+    @MainActor
+    private func tryAutoGenerateImage(for card: Card) {
+        let settings = AISettings.shared
+
+        // Check if auto-generation is enabled
+        guard settings.autoGenerateImages else { return }
+
+        // Check if AI is available
+        guard settings.isImageGenerationAvailable else { return }
+
+        // Check if card doesn't already have an image
+        guard card.originalImageData == nil else { return }
+
+        // Check if description meets minimum word count
+        let words = card.detailedText.split(separator: " ").count
+        guard words >= settings.autoGenerateMinWords else { return }
+
+        // All conditions met - trigger async image generation
+        Task { @MainActor in
+            await generateImageForCard(card)
+        }
+    }
+
+    /// Generate image for a card in the background
+    @MainActor
+    private func generateImageForCard(_ card: Card) async {
+        // Extract prompt from card description (Phase 3A)
+        let prompts = PromptExtractor.extractPromptVariations(
+            from: card.detailedText,
+            cardName: card.name,
+            cardKind: card.kind
+        )
+
+        guard let prompt = prompts.first, !prompt.isEmpty else {
+            print("⚠️ [Auto-Generation] Failed to extract prompt from description")
+            return
+        }
+
+        // Get AI provider
+        guard let provider = AISettings.shared.currentProvider else {
+            print("⚠️ [Auto-Generation] No AI provider available")
+            return
+        }
+
+        print("✓ [Auto-Generation] Starting image generation for card: \(card.name)")
+
+        do {
+            // Generate image
+            let imageData = try await provider.generateImage(prompt: prompt)
+
+            // Embed metadata (Phase 4A)
+            let metadataEmbedded = ImageMetadataWriter.embedAIMetadata(
+                in: imageData,
+                prompt: prompt,
+                provider: provider.name,
+                generatedAt: Date()
+            )
+
+            // Save to card
+            try? card.setOriginalImageData(metadataEmbedded, preferredFileExtension: "png")
+
+            // Set AI metadata on card
+            card.imageGeneratedByAI = true
+            card.imageAIProvider = provider.name
+            card.imageAIPrompt = prompt
+            card.imageAIGeneratedAt = Date()
+
+            // Save context
+            try? modelContext.save()
+
+            print("✓ [Auto-Generation] Successfully generated image for card: \(card.name)")
+        } catch {
+            print("⚠️ [Auto-Generation] Failed to generate image: \(error.localizedDescription)")
         }
     }
 
@@ -1929,15 +2220,44 @@ private struct CalendarSystemPicker: View {
     @Query(sort: \CalendarSystem.name, order: .forward)
     private var calendars: [CalendarSystem]
 
+    @State private var showCalendarEditor = false
+    @State private var calendarToEdit: CalendarSystem?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label("Calendar System", systemImage: "calendar")
-                .font(.subheadline.bold())
+            HStack {
+                Label("Calendar System", systemImage: "calendar")
+                    .font(.subheadline.bold())
+
+                Spacer()
+
+                // Create new calendar button
+                Button {
+                    calendarToEdit = nil
+                    showCalendarEditor = true
+                } label: {
+                    Label("New", systemImage: "plus.circle")
+                        .labelStyle(.iconOnly)
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .help("Create a new calendar system")
+            }
 
             if calendars.isEmpty {
-                Text("No calendar systems available. Create one first.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("No calendar systems available.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        calendarToEdit = nil
+                        showCalendarEditor = true
+                    } label: {
+                        Label("Create Calendar", systemImage: "plus.circle.fill")
+                            .font(.caption)
+                    }
+                }
             } else {
                 Picker("Calendar", selection: $selection) {
                     Text("None (Ordinal Timeline)")
@@ -1955,15 +2275,41 @@ private struct CalendarSystemPicker: View {
                 #endif
 
                 if let selected = selection {
-                    HStack(spacing: 4) {
-                        Image(systemName: "info.circle")
-                            .font(.caption2)
-                        Text(selected.calendarDescription ?? "No description")
-                            .font(.caption)
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            if let description = selected.calendarDescription {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "info.circle")
+                                        .font(.caption2)
+                                    Text(description)
+                                        .font(.caption)
+                                }
+                                .foregroundStyle(.secondary)
+                            }
+
+                            Text("\(selected.divisions.count) divisions")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+
+                        Spacer()
+
+                        Button {
+                            calendarToEdit = selected
+                            showCalendarEditor = true
+                        } label: {
+                            Label("Edit", systemImage: "pencil.circle")
+                                .labelStyle(.iconOnly)
+                                .font(.caption)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Edit this calendar system")
                     }
-                    .foregroundStyle(.secondary)
                 }
             }
+        }
+        .sheet(isPresented: $showCalendarEditor) {
+            CalendarSystemEditor(calendar: calendarToEdit)
         }
     }
 }

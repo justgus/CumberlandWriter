@@ -114,14 +114,21 @@
 				AggregateTextView.swift,
 				AI/AIImageGenerationView.swift,
 				AI/AIImageGenerator.swift,
+				AI/AIImageInfoView.swift,
 				AI/AIProviderError.swift,
 				AI/AIProviderProtocol.swift,
 				AI/AIProviderRegistry.swift,
 				AI/AISettings.swift,
 				AI/AISettingsView.swift,
 				AI/AppleIntelligenceProvider.swift,
+				AI/DescriptionAnalyzer.swift,
+				AI/EntityExtractor.swift,
+				AI/ImageMetadataWriter.swift,
 				AI/KeychainHelper.swift,
 				AI/OpenAIProvider.swift,
+				AI/PromptExtractor.swift,
+				AI/SuggestionEngine.swift,
+				AI/SuggestionReviewView.swift,
 				AppModel.swift,
 				Assets.xcassets,
 				BackgroundDownloadHandler.swift,
@@ -270,14 +277,21 @@
 				AggregateTextView.swift,
 				AI/AIImageGenerationView.swift,
 				AI/AIImageGenerator.swift,
+				AI/AIImageInfoView.swift,
 				AI/AIProviderError.swift,
 				AI/AIProviderProtocol.swift,
 				AI/AIProviderRegistry.swift,
 				AI/AISettings.swift,
 				AI/AISettingsView.swift,
 				AI/AppleIntelligenceProvider.swift,
+				AI/DescriptionAnalyzer.swift,
+				AI/EntityExtractor.swift,
+				AI/ImageMetadataWriter.swift,
 				AI/KeychainHelper.swift,
 				AI/OpenAIProvider.swift,
+				AI/PromptExtractor.swift,
+				AI/SuggestionEngine.swift,
+				AI/SuggestionReviewView.swift,
 				AppModel.swift,
 				Assets.xcassets,
 				BackgroundDownloadHandler.swift,
@@ -939,7 +953,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2620;
-				LastUpgradeCheck = 2610;
+				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					861EA1CC2F2014D6003B4897 = {
 						CreatedOnToolsVersion = 26.2;
@@ -1632,7 +1646,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
-				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
 				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
@@ -1697,7 +1711,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
-				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
 				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;

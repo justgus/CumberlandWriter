@@ -1226,6 +1226,8 @@ private struct PencilKitCanvasView: UIViewRepresentable {
         // ER-0004: Add gesture recognizer for advanced brush drawing
         let panGesture = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDrawingGesture(_:)))
         panGesture.delegate = context.coordinator
+        // DR-0042: Allow Apple Pencil input for gesture-based brushes
+        panGesture.allowedTouchTypes = [UITouch.TouchType.direct.rawValue as NSNumber, UITouch.TouchType.stylus.rawValue as NSNumber]
         canvasView.addGestureRecognizer(panGesture)
 
         return canvasView

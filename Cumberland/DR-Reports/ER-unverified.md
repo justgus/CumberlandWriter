@@ -2,7 +2,7 @@
 
 This document tracks enhancement requests that are proposed, in progress, or implemented but awaiting user verification.
 
-**Status:** Currently **5 active ERs**
+**Status:** Currently **7 active ERs**
 
 ---
 
@@ -1539,6 +1539,274 @@ Implement both features with progressive disclosure:
 **Recommendation:**
 
 Implement **Phase 1 (Copy/Paste)** first as part of ER-0009 completion or as standalone ER-0011. This provides immediate user value with minimal complexity. Consider Phase 2 (Image Linking) as a future enhancement if users request it after experiencing copy/paste.
+
+---
+
+## ER-0012: Chronicles Card Type for Historical Events and Time Periods
+
+**Status:** 🔵 Proposed
+**Component:** Card Model (Kinds.swift), MainAppView, UI
+**Priority:** Medium
+**Date Requested:** 2026-01-24
+
+**User Request:**
+
+User asked: "What would you call a named time period, such as The Age of Ascendance, The Fall of Stormwatch, or the Shadow War or the Treaty of Argenthall? I don't think they warrant classification as Scenes because they will not form part of the narrative of the story. They are vital background information and warrant the description of important Historical Events."
+
+User decided on the name: **Chronicles**
+
+**Problem Statement:**
+
+Currently, worldbuilding elements like historical events, time periods, and background lore don't have an appropriate card type:
+- **Not Scenes**: These aren't part of the narrative story being written
+- **Not Rules**: Too important to be relegated to generic "Rules" category
+- **Not Timelines**: Timeline cards are for temporal positioning, not event descriptions
+- **Historical significance**: Events like "The Shadow War" or "The Fall of Stormwatch" are crucial worldbuilding
+
+**Proposed Solution:**
+
+Add a new card type: **Chronicles**
+
+**What Chronicles Are:**
+- Historical events: "The Battle of Five Peaks", "The Great Rebellion"
+- Time periods/eras: "The Age of Ascendance", "The Second Dynasty"
+- Treaties and agreements: "The Treaty of Argenthall"
+- Wars and conflicts: "The Shadow War"
+- Major transitions: "The Fall of Stormwatch"
+- Background lore that shapes the world but isn't directly narrated
+
+**Implementation Plan:**
+
+**Phase 1: Add Chronicles to Kinds Enum**
+- [ ] Add `.chronicles = "Chronicles"` case to `Kinds.swift`
+- [ ] Add to `orderedCases` (position: after Artifacts, before Rules)
+- [ ] Add singular title: "Chronicle"
+- [ ] Choose SF Symbol icon: `"book.pages"` or `"scroll"` or `"text.book.closed"`
+- [ ] Define light/dark color palette (suggest: gold/amber tones for historical feel)
+
+**Phase 2: UI Integration**
+- [ ] Add Chronicles to sidebar in `MainAppView.swift`
+- [ ] Add visibility toggle to column settings (`@AppStorage`)
+- [ ] Add Chronicles filter to sidebar
+- [ ] Update "Add Card" button to include Chronicles option
+
+**Phase 3: Entity Extraction Integration (ER-0010)**
+- [ ] Add "historical_event" or "era" entity type to `EntityType` enum
+- [ ] Map to `.chronicles` card kind in `toCardKind()`
+- [ ] Update AI prompts to extract historical events/time periods
+- [ ] Update `SuggestionEngine` to suggest Chronicles cards
+
+**Visual Design Suggestions:**
+
+**SF Symbol:** `"scroll"` (most evocative of historical records)
+- Alternative: `"book.pages"` (multiple pages = chronicles)
+- Alternative: `"text.book.closed"` (formal history book)
+
+**Color Palette:**
+- **Light mode**: Warm gold/amber pastel (h: 40/360, s: 0.20, b: 0.97)
+- **Dark mode**: Rich amber (h: 40/360, s: 0.58, b: 0.32)
+- Rationale: Gold/amber suggests age, importance, historical records
+
+**User Scenarios:**
+
+1. **Fantasy Epic:**
+   - Chronicles: "The First Age", "The Dragon Wars", "The Sundering"
+   - Provides timeline context without being part of current narrative
+
+2. **Sci-Fi Universe:**
+   - Chronicles: "The Mars Rebellion", "The AI Awakening", "The Treaty of Europa"
+   - Background history referenced in story
+
+3. **Historical Fiction:**
+   - Chronicles: "The Victorian Era", "The Industrial Revolution"
+   - Real historical periods affecting characters
+
+**Testing Checklist:**
+
+- [ ] Create Chronicles card via "+ Add Card" button
+- [ ] Chronicles appears in sidebar with correct icon/color
+- [ ] Chronicles cards filterable and sortable
+- [ ] Chronicles cards appear in search results
+- [ ] Chronicles cards can be cited as Sources
+- [ ] AI entity extraction suggests Chronicles for historical events
+- [ ] CloudKit sync works for Chronicles cards
+
+**Related:**
+- ER-0010: AI Content Analysis (should extract historical events)
+- ER-0008: Timeline System (Chronicles provide context for timeline events)
+
+**Priority Justification:**
+
+**Medium Priority** because:
+- **User-requested**: Specific pain point identified
+- **Common use case**: Most worldbuilding projects have historical background
+- **Low complexity**: Primarily enum expansion and UI updates
+- **Nice-to-have**: Workaround exists (using Rules or Scenes)
+- **Synergy**: Integrates well with ER-0010 entity extraction
+
+---
+
+## ER-0013: Separate AI Provider Settings for Analysis and Image Generation
+
+**Status:** 🔵 Proposed
+**Component:** AISettings, Settings UI, AI Provider Selection
+**Priority:** Medium
+**Date Requested:** 2026-01-24
+
+**User Request:**
+
+User said: "I think we should allow the writer to use different AI providers for Analysis and Image Generation. For example she might opt to use Apple Intelligence for analysis and Open AI for image generation. This should be selectable in preferences."
+
+**Problem Statement:**
+
+Currently, `AISettings` has a single `selectedProvider` setting that applies to both:
+1. **Content Analysis** (entity extraction, relationship inference)
+2. **Image Generation** (creating artwork for cards and maps)
+
+Users may want different providers for different tasks:
+- **Apple Intelligence for analysis**: Fast, on-device, private, no API costs
+- **OpenAI for image generation**: Better quality images with DALL-E 3
+- **Cost optimization**: Use free Apple Intelligence when possible, paid APIs only when needed
+- **Performance**: Use fastest provider for each specific task
+
+**Current Behavior:**
+
+```swift
+// AISettings.swift
+@Observable class AISettings {
+    var selectedProvider: String = "apple" // Single provider for everything
+}
+```
+
+Both `analyzeText()` and `generateImage()` use the same provider.
+
+**Proposed Solution:**
+
+Split into two separate provider settings:
+
+```swift
+@Observable class AISettings {
+    // Separate providers
+    var analysisProvider: String = "apple"        // For entity extraction, analysis
+    var imageGenerationProvider: String = "openai" // For DALL-E, image gen
+
+    // Legacy property for migration (deprecated)
+    @available(*, deprecated, message: "Use analysisProvider or imageGenerationProvider")
+    var selectedProvider: String {
+        get { analysisProvider }
+        set { analysisProvider = newValue; imageGenerationProvider = newValue }
+    }
+}
+```
+
+**Implementation Plan:**
+
+**Phase 1: Update AISettings Model**
+- [ ] Add `analysisProvider: String` property to `AISettings`
+- [ ] Add `imageGenerationProvider: String` property to `AISettings`
+- [ ] Add migration logic from old `selectedProvider`
+- [ ] Update `currentProvider` computed property to return appropriate provider based on context
+- [ ] Add helper methods: `providerForAnalysis()`, `providerForImageGeneration()`
+
+**Phase 2: Update Settings UI**
+- [ ] Split provider picker into two sections in Settings view
+- [ ] Section 1: "Analysis Provider" with picker (Apple Intelligence, OpenAI)
+- [ ] Section 2: "Image Generation Provider" with picker (Apple Intelligence, OpenAI)
+- [ ] Add explanatory text for each section
+- [ ] Show API key status for each provider separately
+
+**Phase 3: Update Provider Selection Logic**
+- [ ] `CardEditorView`: Use `analysisProvider` for "Analyze" button
+- [ ] `AIImageGenerationView`: Use `imageGenerationProvider` for image generation
+- [ ] `MapWizardView`: Use `imageGenerationProvider` for AI Generate option
+- [ ] `EntityExtractor`: Use `analysisProvider` for entity extraction
+
+**Phase 4: Update Provider Initialization**
+- [ ] Update provider factory methods to accept task type parameter
+- [ ] `getProvider(for: .analysis)` → returns analysis provider
+- [ ] `getProvider(for: .imageGeneration)` → returns image generation provider
+
+**UI Mockup:**
+
+```
+Settings → AI
+
+┌─────────────────────────────────────┐
+│ Content Analysis                    │
+├─────────────────────────────────────┤
+│ Provider: [Apple Intelligence ▾]    │
+│                                     │
+│ ℹ️ Used for entity extraction,      │
+│   relationship inference, and       │
+│   content analysis. Apple           │
+│   Intelligence is faster and free.  │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│ Image Generation                    │
+├─────────────────────────────────────┤
+│ Provider: [OpenAI (DALL-E 3) ▾]     │
+│                                     │
+│ ℹ️ Used for generating images and   │
+│   maps. DALL-E 3 produces higher    │
+│   quality results but requires API  │
+│   key and has usage costs.          │
+│                                     │
+│ OpenAI API Key: [Configured ✓]      │
+└─────────────────────────────────────┘
+```
+
+**Migration Strategy:**
+
+1. Check if user has existing `selectedProvider` preference
+2. On first launch after update:
+   - Set `analysisProvider = selectedProvider`
+   - Set `imageGenerationProvider = selectedProvider`
+3. Clear old `selectedProvider` preference
+4. User can then customize each provider independently
+
+**Testing Checklist:**
+
+- [ ] **Fresh Install**: Default providers set correctly
+- [ ] **Existing User**: Migration preserves existing provider choice
+- [ ] **Analysis**: CardEditorView "Analyze" uses `analysisProvider`
+- [ ] **Image Gen**: AI Image Generation uses `imageGenerationProvider`
+- [ ] **Map Gen**: Map Wizard uses `imageGenerationProvider`
+- [ ] **Mixed Setup**: Apple for analysis + OpenAI for images works correctly
+- [ ] **Settings UI**: Both pickers work independently
+- [ ] **API Keys**: Correct API key validation for each provider
+
+**Use Case Examples:**
+
+**Example 1: Privacy-Conscious User**
+- Analysis Provider: Apple Intelligence (on-device, private)
+- Image Generation Provider: Apple Intelligence (on-device, private)
+- Result: Everything stays on device, no cloud APIs
+
+**Example 2: Quality-Focused User**
+- Analysis Provider: Apple Intelligence (fast, free)
+- Image Generation Provider: OpenAI (better image quality)
+- Result: Fast analysis, beautiful images, optimized cost
+
+**Example 3: Power User**
+- Analysis Provider: OpenAI (GPT-4 for complex analysis)
+- Image Generation Provider: OpenAI (DALL-E 3 for images)
+- Result: Maximum quality, accepts API costs
+
+**Related:**
+- ER-0009: AI Image Generation
+- ER-0010: AI Content Analysis
+- DR-0050: Timeout issues (relates to provider performance)
+- DR-0052: Entity extraction bugs (provider-specific)
+
+**Priority Justification:**
+
+**Medium Priority** because:
+- **User-requested**: Specific feature request
+- **Flexibility**: Allows users to optimize for speed, quality, or cost
+- **Common pattern**: Many AI tools offer per-task provider selection
+- **Not urgent**: Current single-provider system works
+- **Nice enhancement**: Improves user experience and control
 
 ---
 

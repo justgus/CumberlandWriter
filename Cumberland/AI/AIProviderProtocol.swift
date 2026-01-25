@@ -19,6 +19,11 @@ protocol AIProviderProtocol {
     /// Apple Intelligence returns false, third-party providers return true
     var requiresAPIKey: Bool { get }
 
+    /// Whether this provider uses SwiftUI sheet-based UI (like ImagePlayground)
+    /// If true, the UI should use the provider's sheet directly instead of calling generateImage()
+    /// Apple Intelligence returns true (uses .imagePlaygroundSheet), third-party providers return false
+    var usesSheetBasedUI: Bool { get }
+
     /// Optional provider-specific metadata (model version, capabilities, etc.)
     var metadata: AIProviderMetadata? { get }
 
@@ -159,14 +164,14 @@ struct Entity: Codable, Identifiable {
 
 /// Types of entities that can be extracted
 enum EntityType: String, Codable {
-    case character = "Character"
-    case location = "Location"
-    case building = "Building"
-    case artifact = "Artifact"
-    case vehicle = "Vehicle"
-    case organization = "Organization"
-    case event = "Event"
-    case other = "Other"
+    case character = "character"
+    case location = "location"
+    case building = "building"
+    case artifact = "artifact"
+    case vehicle = "vehicle"
+    case organization = "organization"
+    case event = "event"
+    case other = "other"
 
     /// Map to Card kind
     func toCardKind() -> Kinds {
@@ -266,4 +271,7 @@ struct Festival: Codable {
 extension AIProviderProtocol {
     /// Default implementation for metadata (providers can override)
     var metadata: AIProviderMetadata? { nil }
+
+    /// Default implementation: most providers use programmatic API
+    var usesSheetBasedUI: Bool { false }
 }

@@ -78,6 +78,7 @@ struct MapWizardView: View {
     @State private var generationPrompt: String = ""
     @State private var isGenerating = false
     @State private var generationError: String?
+    @State private var showAIMapGeneration = false
 
     // MARK: - Draft Restoration State
     @State private var showDraftRestorationPrompt = false
@@ -159,6 +160,26 @@ struct MapWizardView: View {
                 }
             } message: {
                 Text("Going back will discard your unsaved map work. This cannot be undone.")
+            }
+            // AI Map Generation sheet (ER-0009 Phase 9.4)
+            .sheet(isPresented: $showAIMapGeneration) {
+                AIImageGenerationView(
+                    cardName: card.name.isEmpty ? "Map" : card.name,
+                    cardDescription: generationPrompt,
+                    cardKind: .maps,
+                    initialPrompt: generationPrompt.isEmpty ? nil : generationPrompt,
+                    onImageGenerated: { generatedData in
+                        // Store generated map image
+                        importedImageData = generatedData.imageData
+
+                        // Clear any error state
+                        generationError = nil
+
+                        #if DEBUG
+                        print("✅ [MapWizard] AI-generated map ready (\(generatedData.imageData.count) bytes)")
+                        #endif
+                    }
+                )
             }
     }
     
@@ -1177,10 +1198,37 @@ struct MapWizardView: View {
                         .fill(.orange.opacity(0.1))
                 )
             }
-            
-            Text("⚠️ AI generation not yet implemented")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+
+            // Show generated map preview if available
+            if let imageData = importedImageData {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Generated Map Preview")
+                        .font(.headline)
+
+                    #if os(macOS)
+                    if let nsImage = NSImage(data: imageData) {
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 300)
+                            .cornerRadius(8)
+                    }
+                    #else
+                    if let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 300)
+                            .cornerRadius(8)
+                    }
+                    #endif
+
+                    Button("Generate New Map") {
+                        showAIMapGeneration = true
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
         }
         .frame(maxWidth: 600)
     }
@@ -1335,7 +1383,8 @@ struct MapWizardView: View {
             case .captureFromMaps:
                 return capturedMapData != nil
             case .aiGenerate:
-                return !generationPrompt.isEmpty && importedImageData != nil
+                // Can proceed if prompt is filled (Continue button triggers generation)
+                return !generationPrompt.isEmpty
             case .interior:
                 return !drawingCanvasModel.isEmpty
             }
@@ -1385,19 +1434,28 @@ struct MapWizardView: View {
     
     private func nextStep() {
         print("➡️ nextStep called - current: \(currentStep.rawValue)")
-        
+
+        // ER-0009 Phase 9.4: Trigger AI map generation before advancing
+        if currentStep == .configure, selectedMethod == .aiGenerate, importedImageData == nil {
+            #if DEBUG
+            print("🎨 [MapWizard] Triggering AI map generation")
+            #endif
+            showAIMapGeneration = true
+            return // Don't advance yet - user will return after generation
+        }
+
         guard let currentIndex = WizardStep.allCases.firstIndex(of: currentStep),
               currentIndex < WizardStep.allCases.count - 1 else {
             print("⚠️ Cannot advance - already at last step or invalid index")
             return
         }
-        
+
         let nextStepValue = WizardStep.allCases[currentIndex + 1]
         print("➡️ Advancing from \(currentStep.rawValue) to \(nextStepValue.rawValue)")
-        
+
         // Save draft work before moving to next step
         saveDraftWork()
-        
+
         withAnimation {
             currentStep = nextStepValue
             // Exit focus mode when navigating steps

@@ -2,17 +2,541 @@
 
 This document tracks discrepancy reports that have been resolved but are awaiting user verification.
 
-**Status:** Currently **5 unverified DRs** (All Open)
+**Status:** Currently **9 unverified DRs** (2 Resolved, 7 Open)
+
+---
+
+## DR-0051: CardEditorView Fixed to Narrow Width on macOS Sheet - Doesn't Fill Available Space
+
+**Status:** 🔴 Open
+**Platform:** macOS
+**Component:** CardEditorView
+**Severity:** Medium
+**Date Identified:** 2026-01-24
+
+**Description:**
+
+On macOS, CardEditorView is displayed in a resizable sheet but appears artificially narrow (~430 points width) even when the sheet is resized larger. The editor doesn't respond to sheet resizing and remains fixed at a narrow width, making it look scrunched up on macOS displays where more horizontal space is available.
+
+**Current Behavior:**
+- CardEditorView displayed in a sheet on macOS
+- Sheet is resizable by user (can be made larger or smaller)
+- CardEditorView content remains fixed at ~430 points width
+- Content does not grow when sheet is expanded
+- Content does not shrink when sheet is reduced
+- Looks cramped and doesn't utilize available screen real estate
+
+**Expected Behavior:**
+- CardEditorView should fill the available width of the sheet
+- When user resizes sheet larger, content should grow to fill
+- When user resizes sheet smaller, content should shrink accordingly
+- Should feel native to macOS with proper use of available space
+- Should maintain minimum width for usability (520 points currently)
+
+**Root Cause:**
+
+**File:** `Cumberland/CardEditorView.swift:164`
+```swift
+#if os(visionOS)
+private let maxCardWidth: CGFloat = 640
+#else
+private let thumbnailSide: CGFloat = 72
+private let thumbnailTopPadding: CGFloat = 8
+private let maxCardWidth: CGFloat = 430  // ← TOO NARROW FOR MACOS
+#endif
+```
+
+All content sections use `.frame(maxWidth: maxCardWidth)`:
+- Line 240: FlipCardContainer
+- Line 275: Image action buttons
+- Line 289: Citation viewer
+- Line 308: Save/Cancel buttons
+- Line 727: Card surface
+
+This hard limit prevents the view from expanding beyond 430 points, even though:
+1. The containing VStack has `.frame(minWidth: 520)` (line 311)
+2. The sheet can be resized much larger on macOS
+3. macOS displays have plenty of horizontal space
+
+**Proposed Solution:**
+
+**Option 1: Use .infinity for maxWidth on macOS**
+```swift
+#if os(macOS)
+private let maxCardWidth: CGFloat = .infinity
+#elseif os(visionOS)
+private let maxCardWidth: CGFloat = 640
+#else
+private let maxCardWidth: CGFloat = 430  // iOS/iPadOS
+#endif
+```
+
+**Option 2: Use GeometryReader to adapt to container**
+- Remove fixed maxCardWidth
+- Use GeometryReader to get available width
+- Calculate appropriate max width based on available space
+
+**Option 3: Platform-specific maxWidth that's reasonable but larger**
+```swift
+#if os(macOS)
+private let maxCardWidth: CGFloat = 800  // Allow wider on macOS
+#elseif os(visionOS)
+private let maxCardWidth: CGFloat = 640
+#else
+private let maxCardWidth: CGFloat = 430  // iOS/iPadOS
+#endif
+```
+
+**Affected Code:**
+- `Cumberland/CardEditorView.swift:164` - maxCardWidth constant
+- `Cumberland/CardEditorView.swift:240,275,289,308,727` - All .frame(maxWidth:) calls
+
+**Test Steps:**
+
+1. Open Cumberland on macOS
+2. Edit or create a card (opens CardEditorView sheet)
+3. Observe initial width (narrow, ~430 points)
+4. Resize sheet by dragging corner to make it wider
+5. **Current**: Content remains narrow, doesn't fill sheet
+6. **Expected**: Content grows to fill available width (up to reasonable max like 800)
+
+**Verification Criteria:**
+
+- [ ] CardEditorView expands to fill wider sheets
+- [ ] CardEditorView shrinks when sheet is made smaller
+- [ ] Minimum width preserved (520 points)
+- [ ] Maximum width reasonable for macOS (suggest 800-1000 points)
+- [ ] Content is readable and well-spaced at all sizes
+- [ ] Works correctly on iOS/iPadOS (should not affect those platforms)
+
+**User Impact:** Medium - Affects macOS usability and aesthetics, makes editor feel cramped
+
+**Priority:** Medium - UI/UX improvement for macOS
+
+**Workaround:** Users can work with narrow editor, but it's not optimal for macOS
+
+---
+
+## DR-0052: OpenAI Entity Extraction Has Two Critical Bugs (0 Entities + Wrong Card Types)
+
+**Status:** 🟡 Resolved - Not Verified
+**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
+**Component:** OpenAIProvider / Content Analysis (ER-0010)
+**Severity:** High
+**Date Identified:** 2026-01-24
+**Date Resolved:** 2026-01-24
+
+**Description:**
+
+When using OpenAI provider for entity extraction (Phase 5, ER-0010), there were two critical bugs:
+
+**Bug 1:** Analysis completes successfully but returns 0 entities due to JSON parsing failure
+**Bug 2:** After Bug 1 fix, entities are extracted but all cards created are "rules" instead of proper types (character, location, building, etc.)
+
+**Observed Behavior:**
+
+Console output during testing:
+```
+🔍 [EntityExtractor] Extracting entities from text
+   Provider: OpenAI DALL-E 3
+   Word count: 2235
+   Confidence threshold: 0.7
+📝 [TextPreprocessor] Preprocessing long text (2235 words)
+✅ [TextPreprocessor] Condensed 2235 → 740 words (33.1%) in 0.07s
+   Extracted 26 key entities
+   Found 45 relevant sentences
+🧠 [OpenAI] Analyzing text for task: entityExtraction
+   Text length: 4501 characters, 740 words
+⚠️ [OpenAI] Failed to parse entities JSON  ← ISSUE HERE
+✅ [OpenAI] Analysis complete in 88.75s
+   Entities: 0  ← RESULT: 0 ENTITIES
+   Relationships: 0
+```
+
+**Expected Behavior:**
+- GPT-4 returns entity JSON
+- JSON is parsed successfully
+- Entities are extracted and displayed in suggestion sheet
+
+**Root Cause:**
+
+**Mismatch between response format and parsing logic:**
+
+1. **OpenAIProvider.swift:270** - Request configuration:
+   ```swift
+   "response_format": ["type": "json_object"]  // Requests JSON OBJECT
+   ```
+
+2. **OpenAIProvider.swift:201** - System prompt (BEFORE fix):
+   ```swift
+   Return results as a JSON array with this structure:
+   [  // ← Asking for ARRAY
+     {
+       "name": "Entity Name",
+       ...
+     }
+   ]
+   ```
+
+3. **OpenAIProvider.swift:338** - Parsing code (BEFORE fix):
+   ```swift
+   let jsonArray = try? JSONDecoder().decode([EntityJSON].self, from: jsonData)
+   // ← Trying to parse as ARRAY
+   ```
+
+**Issue:** When `response_format: json_object` is specified, GPT-4 wraps responses in an object like:
+```json
+{
+  "entities": [...]
+}
+```
+
+But we were asking for an array and trying to parse as an array, causing parsing failure.
+
+**Resolution:**
+
+**File:** `Cumberland/AI/OpenAIProvider.swift`
+
+**Change 1:** Updated system prompt (lines 198-211):
+```swift
+Return results as a JSON object with an "entities" array:
+{
+  "entities": [
+    {
+      "name": "Entity Name",
+      "type": "character|location|building|artifact|vehicle|organization|event",
+      "confidence": 0.0-1.0,
+      "context": "Brief surrounding text"
+    }
+  ]
+}
+```
+
+**Change 2:** Added wrapper struct (after line 370):
+```swift
+private struct EntityResponse: Codable {
+    let entities: [EntityJSON]
+}
+```
+
+**Change 3:** Updated parsing logic (lines 336-368) to try both formats:
+```swift
+// Try parsing as wrapped object first (GPT-4 with response_format: json_object)
+if let wrappedResponse = try? JSONDecoder().decode(EntityResponse.self, from: jsonData) {
+    return wrappedResponse.entities.map { ... }
+}
+
+// Fallback: try parsing as direct array
+if let jsonArray = try? JSONDecoder().decode([EntityJSON].self, from: jsonData) {
+    return jsonArray.map { ... }
+}
+```
+
+**Change 4:** Added better debug logging to show first 500 chars of raw JSON on failure
+
+---
+
+### Bug 2: All Entities Created as "Rules" Cards (Case-Sensitivity Issue)
+
+After fixing Bug 1, entities were successfully extracted but all cards created were of kind "rules" instead of their proper types (character, location, building, etc.).
+
+**Root Cause:**
+
+**Case mismatch between GPT-4 response and EntityType rawValues:**
+
+1. **OpenAIProvider.swift:206** - GPT-4 prompt asks for lowercase types:
+   ```swift
+   "type": "character|location|building|artifact|vehicle|organization|event"
+   ```
+
+2. **AIProviderProtocol.swift:167-174** - EntityType rawValues were CAPITALIZED (BEFORE fix):
+   ```swift
+   enum EntityType: String, Codable {
+       case character = "Character"  // ← Capital C
+       case location = "Location"    // ← Capital L
+       case building = "Building"    // ← Capital B
+       // etc.
+   ```
+
+3. **OpenAIProvider.swift:348** - Parsing with fallback to .other:
+   ```swift
+   type: EntityType(rawValue: json.type) ?? .other
+   // GPT returns "character", tries to match "Character", fails → defaults to .other
+   ```
+
+4. **AIProviderProtocol.swift:186** - .other maps to .rules:
+   ```swift
+   case .other: return .rules  // All entities became rules!
+   ```
+
+**Resolution for Bug 2:**
+
+**File:** `Cumberland/AI/AIProviderProtocol.swift`
+
+**Change 5:** Updated EntityType rawValues to lowercase (lines 167-174):
+```swift
+enum EntityType: String, Codable {
+    case character = "character"      // Changed from "Character"
+    case location = "location"        // Changed from "Location"
+    case building = "building"        // Changed from "Building"
+    case artifact = "artifact"        // Changed from "Artifact"
+    case vehicle = "vehicle"          // Changed from "Vehicle"
+    case organization = "organization" // Changed from "Organization"
+    case event = "event"              // Changed from "Event"
+    case other = "other"              // Changed from "Other"
+```
+
+Now the rawValues match what GPT-4 returns, so parsing works correctly and entities map to their proper card kinds.
+
+---
+
+**Affected Code:**
+- `Cumberland/AI/OpenAIProvider.swift:198-211` - System prompt (Bug 1)
+- `Cumberland/AI/OpenAIProvider.swift:336-368` - Parsing logic (Bug 1)
+- `Cumberland/AI/OpenAIProvider.swift:370-373` - EntityResponse struct (Bug 1)
+- `Cumberland/AI/AIProviderProtocol.swift:167-174` - EntityType rawValues (Bug 2)
+
+**Test Steps:**
+
+1. Build and run Cumberland on macOS
+2. Create a Scene card
+3. Paste chapter-length prose from `TEST-SCENE-CHAPTER-LENGTH.md`
+4. Set Settings → AI → Provider to "OpenAI"
+5. Click "Analyze" button
+6. **Before Bug 1 fix**: Console shows "Failed to parse entities JSON", 0 entities returned
+7. **After Bug 1 fix**: Console shows "Parsed N entities from wrapped JSON", entities appear in suggestion sheet
+8. **Before Bug 2 fix**: Select entities and create cards → all cards are kind "rules"
+9. **After Bug 2 fix**: Select entities and create cards → cards have correct kinds (characters, locations, buildings, artifacts, vehicles, etc.)
+
+**Verification Criteria:**
+
+- [ ] OpenAI entity extraction returns entities (not 0) — Bug 1 fixed
+- [ ] Console shows "✅ Parsed N entities from wrapped JSON" — Bug 1 fixed
+- [ ] Suggestion sheet displays extracted entities — Bug 1 fixed
+- [ ] Entities have proper names, types, and confidence scores — Both bugs fixed
+- [ ] At least 15+ entities extracted from test scene (expected ~30-37)
+- [ ] Cards created with CORRECT kinds (not all "rules") — Bug 2 fixed
+  - Characters → .characters kind
+  - Locations → .locations kind
+  - Buildings → .buildings kind
+  - Artifacts → .artifacts kind
+  - Vehicles → .vehicles kind
+  - Organizations → .characters kind (acceptable mapping)
+  - Events → .scenes kind (acceptable mapping)
+
+**User Impact:** High - OpenAI entity extraction completely non-functional (Bug 1), then created wrong card types (Bug 2)
+
+**Priority:** High - Critical bugs in Phase 5 implementation
+
+**Workaround:** Use Apple Intelligence provider instead (not affected by these bugs)
+
+**Related:**
+- ER-0010 Phase 5 (Content Analysis MVP)
+- DR-0050 (Timeout issue - resolved separately)
+
+---
+
+## DR-0050: OpenAI Content Analysis Timeout with Default URLSession Settings
+
+**Status:** 🟡 Resolved - Not Verified
+**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
+**Component:** OpenAIProvider / Content Analysis (ER-0010)
+**Severity:** High
+**Date Identified:** 2026-01-24
+**Date Resolved:** 2026-01-24
+
+**Description:**
+
+When using OpenAI as the AI provider for content analysis (ER-0010 Phase 5), GPT-4 API calls to `/v1/chat/completions` timeout after ~60 seconds with error code -1001. This occurs because:
+1. GPT-4 text analysis can take 30-120 seconds for complex entity extraction
+2. Default URLSession timeout (60s) is too short for AI operations
+3. Error messages were not user-friendly (showed raw NSURLError)
+
+**Error Observed:**
+```
+Task <UUID>.<N> finished with error [-1001]
+Error Domain=NSURLErrorDomain Code=-1001 "The request timed out."
+https://api.openai.com/v1/chat/completions
+```
+
+**Current Behavior (Before Fix):**
+- OpenAI content analysis times out after 60 seconds
+- Generic error message: "The request timed out."
+- No guidance for users on how to resolve
+- Apple Intelligence works fine (on-device, fast)
+
+**Expected Behavior:**
+- OpenAI requests should have sufficient timeout for AI operations
+- Clear error messages with actionable guidance
+- Suggest fallback to Apple Intelligence if timeout occurs
+
+**Root Cause:**
+
+OpenAIProvider used `URLSession.shared` with default configuration:
+- `timeoutIntervalForRequest`: 60 seconds (too short)
+- `timeoutIntervalForResource`: 7 days (fine)
+
+**Resolution:**
+
+**Files Modified:**
+- `Cumberland/AI/OpenAIProvider.swift:48-54` - Added custom URLSession with longer timeout
+- `Cumberland/AI/OpenAIProvider.swift:276-303` - Improved timeout error handling
+- `Cumberland/CardEditorView.swift:1133-1160` - User-friendly error messages in UI
+
+**Changes:**
+
+1. **Custom URLSession Configuration (OpenAIProvider.swift:48-54):**
+   ```swift
+   private lazy var urlSession: URLSession = {
+       let config = URLSessionConfiguration.default
+       config.timeoutIntervalForRequest = 120  // 2 minutes
+       config.timeoutIntervalForResource = 180 // 3 minutes
+       return URLSession(configuration: config)
+   }()
+   ```
+
+2. **Better Error Handling (OpenAIProvider.swift:276-303):**
+   - Catch NSURLErrorTimedOut specifically
+   - Provide helpful message suggesting Apple Intelligence
+   - Detect network connectivity issues
+
+3. **User-Friendly UI Messages (CardEditorView.swift:1133-1160):**
+   - Timeout: "Try using Apple Intelligence (faster, on-device)"
+   - Missing API Key: "Add your API key in Settings → AI"
+   - Network errors: Specific troubleshooting steps
+
+**Test Steps:**
+
+1. Set AI provider to OpenAI in Settings → AI
+2. Ensure OpenAI API key is configured (or intentionally leave blank to test error)
+3. Create/edit a card with 100+ word description
+4. Click "Analyze" button
+5. **Expected (with API key)**: Analysis completes within 2 minutes or times out with helpful message
+6. **Expected (without API key)**: Clear error: "OpenAI API key is missing or invalid"
+
+**Verification Criteria:**
+
+- [ ] OpenAI analysis completes successfully with valid API key (or times out with helpful message)
+- [ ] Timeout errors show actionable guidance
+- [ ] Missing API key error is clear and helpful
+- [ ] Apple Intelligence continues to work fast (~1-3 seconds)
+
+**User Impact:** High - Blocks content analysis for users preferring OpenAI over Apple Intelligence
+
+**Priority:** High - Core ER-0010 functionality
+
+**Related:** ER-0010 Phase 5 (Content Analysis MVP)
+
+---
+
+## DR-0043: Duplicate RelationType Entries Created Despite Deduplication Logic
+
+**Status:** 🔴 Open
+**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
+**Component:** RelationType / CumberlandApp seeding
+**Severity:** Medium
+**Date Identified:** 2026-01-24
+
+**Description:**
+
+Duplicate RelationType entries are appearing in the database despite the presence of deduplication logic in the seeding code (`seedRelationTypesIfNeeded`). Users observe multiple RelationType entries with identical or very similar labels when viewing relationship type pickers or in the RelationTypes diagnostics view.
+
+**Current Behavior:**
+- Duplicate RelationType entries exist in the database
+- Same relationship types appear multiple times in UI pickers
+- Affects user experience when selecting relationship types
+- May cause confusion about which type to use
+
+**Expected Behavior:**
+- Each unique RelationType code should exist only once in the database
+- Seeding logic should prevent duplicate creation
+- No duplicate entries should appear in UI pickers
+
+**Possible Root Causes:**
+
+1. **Race Condition During App Launch:**
+   - Multiple simultaneous calls to `seedRelationTypesIfNeeded` on different devices
+   - CloudKit sync merging duplicate entries created before sync completes
+
+2. **Code Mismatch:**
+   - Different codes with same labels (e.g., "part-of/has-member" vs "part-of/has-member-2")
+   - Automatic mirror type creation generating duplicates
+
+3. **Manual Creation:**
+   - User or diagnostic tools creating duplicate entries manually
+   - Fix Incomplete Relationships tool creating mirror types that duplicate existing ones
+
+4. **CloudKit Sync Issues:**
+   - Conflict resolution creating duplicate objects
+   - Same RelationType created on multiple devices before initial sync
+
+**Affected Code:**
+
+`Cumberland/CumberlandApp.swift:517-554` - `seedRelationTypesIfNeeded` function
+```swift
+static func seedRelationTypesIfNeeded(container: ModelContainer) async {
+    let existing = (try? context.fetch(fetch)) ?? []
+    var existingCodes = Set(existing.map { $0.code })
+
+    for s in relationTypeSeeds {
+        if existingCodes.contains(s.code) {
+            continue  // Should prevent duplicates by code
+        }
+        // ... insert new type
+    }
+}
+```
+
+`Cumberland/CumberlandApp.swift:1299-1334` - `ensureMirrorType` function (Fix Incomplete Relationships)
+- Creates mirror types dynamically
+- May create duplicates if multiple devices run fix simultaneously
+
+**Steps to Reproduce:**
+1. Use app across multiple devices with CloudKit sync enabled
+2. Observe RelationType picker or diagnostics view
+3. **Note**: Exact reproduction steps unclear - may be timing-dependent
+
+**Potential Solutions:**
+
+1. **Add Unique Constraint Check:**
+   - Before inserting, query for existing type with same code
+   - Use @MainActor to ensure serial execution
+
+2. **Batch Fetch and Merge:**
+   - Fetch all RelationTypes at startup
+   - Merge duplicates by code, keeping oldest
+   - Delete merged duplicates
+
+3. **CloudKit Deduplication:**
+   - Add server-side unique constraint on `code` field
+   - Handle merge conflicts by preferring existing record
+
+4. **Diagnostic Tool Enhancement:**
+   - Add "Find and Merge Duplicates" function to RelationTypesDiagnosticsView
+   - Allow user to manually clean up duplicates
+
+**Workaround:**
+- Manually delete duplicate RelationType entries via RelationTypesDiagnosticsView
+- Note: May require reassigning relationships to non-duplicate type first
+
+**Impact:**
+- **Medium** - Affects UX but doesn't break core functionality
+- Confusing for users selecting relationship types
+- Database bloat with duplicate entries
+- May cause unexpected behavior if different duplicates are used for same logical relationship
+
+**Priority:** Medium - Should be fixed to maintain data integrity
 
 ---
 
 ## DR-0042: Apple Pencil Not Working with Gesture-Based Brushes on iOS
 
-**Status:** 🔴 Open
+**Status:** ✅ Resolved - Not Verified
 **Platform:** iOS/iPadOS only
 **Component:** DrawingCanvasView / UIPanGestureRecognizer
 **Severity:** High
 **Date Identified:** 2026-01-19
+**Date Resolved:** 2026-01-24
 
 **Description:**
 
@@ -78,6 +602,27 @@ canvasView.addGestureRecognizer(panGesture)
 - Particularly problematic for architectural work (walls, furniture) where precision is important
 
 **Priority:** High - This significantly degrades the iPad drawing experience
+
+**Resolution:**
+
+Applied the documented solution by configuring the gesture recognizer to accept both direct touch (finger) and stylus (Apple Pencil) input:
+
+`Cumberland/DrawCanvas/DrawingCanvasView.swift:1229-1231`
+```swift
+// DR-0042: Allow Apple Pencil input for gesture-based brushes
+panGesture.allowedTouchTypes = [UITouch.TouchType.direct.rawValue as NSNumber, UITouch.TouchType.stylus.rawValue as NSNumber]
+```
+
+The fix is a single line added after creating the `UIPanGestureRecognizer`. This configures the gesture recognizer to accept both finger touches (`.direct`) and Apple Pencil input (`.stylus`), ensuring consistent behavior across input methods.
+
+**Verification Steps:**
+1. Launch app on iPad with Apple Pencil
+2. Create interior map
+3. Select Wall brush from tool palette
+4. Draw wall with Apple Pencil
+5. **Expected**: Preview appears, wall draws correctly (same as finger)
+6. Test Furniture/Stamps brush with Pencil
+7. **Expected**: Works identically to finger input
 
 ---
 

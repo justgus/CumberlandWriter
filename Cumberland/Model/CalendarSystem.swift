@@ -11,11 +11,12 @@ final class CalendarSystem {
 
     // MARK: - Identity
 
-    /// Unique identifier
-    var id: UUID
+    /// Unique identifier (CloudKit: provide default)
+    var id: UUID = UUID()
 
     /// Calendar name (e.g., "Gregorian", "Eldarian Calendar")
-    var name: String
+    /// CloudKit: provide default
+    var name: String = ""
 
     /// Optional description of the calendar system
     var calendarDescription: String?
@@ -25,31 +26,32 @@ final class CalendarSystem {
     /// Hierarchical time divisions (ordered from smallest to largest)
     /// Examples: [second, minute, hour, day, week, month, year]
     /// or [moment, cycle, day, moon, year, age]
-    var divisions: [TimeDivision]
+    /// CloudKit: provide default (empty array)
+    var divisions: [TimeDivision] = []
 
     // MARK: - Metadata
 
-    /// When this calendar was created
-    var createdAt: Date
+    /// When this calendar was created (CloudKit: provide default)
+    var createdAt: Date = Date()
 
-    /// Last modification date
-    var modifiedAt: Date
+    /// Last modification date (CloudKit: provide default)
+    var modifiedAt: Date = Date()
 
     // MARK: - Relationships
 
     /// Timelines using this calendar system
-    /// NOTE: This relationship will be activated when AppSchemaV6 adds Card.calendarSystem
-    /// @Relationship(inverse: \Card.calendarSystem)
-    /// var timelines: [Card]?
+    /// CloudKit: relationships must have inverses
+    @Relationship(inverse: \Card.calendarSystem)
+    var timelines: [Card]? = []
 
     // MARK: - Initialization
 
-    init(id: UUID = UUID(), name: String, divisions: [TimeDivision]) {
+    init(id: UUID = UUID(), name: String = "", divisions: [TimeDivision] = [], createdAt: Date = Date(), modifiedAt: Date = Date()) {
         self.id = id
         self.name = name
         self.divisions = divisions
-        self.createdAt = Date()
-        self.modifiedAt = Date()
+        self.createdAt = createdAt
+        self.modifiedAt = modifiedAt
     }
 
     // MARK: - Validation

@@ -14,6 +14,16 @@ struct TimelineChartView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
 
+    // Timeline mode: ordinal (sortIndex-based) or temporal (date-based)
+    private enum TimelineMode {
+        case ordinal  // Traditional ordinal positioning (1, 2, 3...)
+        case temporal // Date-based positioning with calendar
+
+        var usesCalendar: Bool {
+            self == .temporal
+        }
+    }
+
     // Lane mode: which secondary lanes to show alongside "All"
     private enum LaneMode: String, CaseIterable, Identifiable {
         case characters
@@ -40,6 +50,44 @@ struct TimelineChartView: View {
         }
     }
 
+    // Temporal zoom levels for date-based timelines
+    private enum TemporalZoomLevel: CaseIterable {
+        case hour
+        case day
+        case week
+        case month
+        case year
+        case decade
+        case century
+
+        var timeInterval: TimeInterval {
+            switch self {
+            case .hour:    return 3600
+            case .day:     return 86400
+            case .week:    return 604800
+            case .month:   return 2592000  // ~30 days
+            case .year:    return 31536000 // ~365 days
+            case .decade:  return 315360000
+            case .century: return 3153600000
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .hour:    return "Hour"
+            case .day:     return "Day"
+            case .week:    return "Week"
+            case .month:   return "Month"
+            case .year:    return "Year"
+            case .decade:  return "Decade"
+            case .century: return "Century"
+            }
+        }
+    }
+
+    // Timeline mode (detected from calendar association)
+    @State private var timelineMode: TimelineMode = .ordinal
+
     // Data snapshot
     @State private var scenes: [SceneRow] = []
 
@@ -58,6 +106,8 @@ struct TimelineChartView: View {
     // Which secondary lanes to render
     @State private var laneMode: LaneMode = .characters
 
+    // MARK: - Ordinal Mode State (traditional)
+
     // X-axis zoom (ordinal domain)
     @State private var visibleStart: Int = 1
     @State private var visibleEnd: Int = 20
@@ -65,6 +115,25 @@ struct TimelineChartView: View {
     // Visible window width (in "scene units") and scroll position
     @State private var visibleLength: Int = 20
     @State private var scrollX: Int? = nil
+
+    // MARK: - Temporal Mode State (date-based)
+
+    // Current zoom level for temporal timelines
+    @State private var temporalZoomLevel: TemporalZoomLevel = .month
+
+    // Visible time range for temporal mode
+    @State private var temporalVisibleStart: Date? = nil
+    @State private var temporalVisibleEnd: Date? = nil
+
+    // Scroll position for temporal mode (Date)
+    @State private var temporalScrollPosition: Date? = nil
+
+    // MARK: - Scene Temporal Position Editing
+
+    // Selected scene for temporal position editing (temporal mode only)
+    @State private var selectedSceneForEdit: SceneRow? = nil
+    @State private var isPresentingTemporalEditor: Bool = false
+    @State private var selectedTemporalItemID: UUID? = nil
 
     // Plot area width for min-points-per-scene enforcement
     @State private var plotWidth: CGFloat = 0
@@ -129,6 +198,34 @@ struct TimelineChartView: View {
             .frame(minWidth: 420, minHeight: 420)
             #endif
         }
+        .sheet(isPresented: $isPresentingTemporalEditor) {
+            if let sceneRow = selectedSceneForEdit,
+               let edge = findEdge(from: sceneRow.scene, to: timeline) {
+                SceneTemporalPositionEditor(
+                    scene: sceneRow.scene,
+                    timeline: timeline,
+                    edge: edge
+                )
+                .onDisappear {
+                    // Reload data to reflect changes
+                    Task { @MainActor in
+                        await loadData()
+                    }
+                }
+            }
+        }
+    }
+
+    // Find the CardEdge between a scene and this timeline
+    private func findEdge(from scene: Card, to timeline: Card) -> CardEdge? {
+        let sceneID: UUID? = scene.id
+        let timelineID: UUID? = timeline.id
+        let fetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { edge in
+                edge.from?.id == sceneID && edge.to?.id == timelineID
+            }
+        )
+        return try? modelContext.fetch(fetch).first
     }
 
     // MARK: - Header
@@ -139,6 +236,25 @@ struct TimelineChartView: View {
             HStack(spacing: 12) {
                 Label("Timeline", systemImage: Kinds.timelines.systemImage)
                     .font(.title3.bold())
+
+                // Mode indicator
+                if timelineMode == .temporal {
+                    Label("Temporal", systemImage: "calendar")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.blue.opacity(0.2), in: RoundedRectangle(cornerRadius: 6))
+                        .foregroundStyle(.blue)
+                        .help("Timeline uses calendar dates")
+                } else {
+                    Label("Ordinal", systemImage: "number")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.secondary.opacity(0.2), in: RoundedRectangle(cornerRadius: 6))
+                        .foregroundStyle(.secondary)
+                        .help("Timeline uses sequential ordering")
+                }
 
                 Spacer(minLength: 8)
 
@@ -192,6 +308,15 @@ struct TimelineChartView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.left.and.right.righttriangle.left.righttriangle.right")
                         .foregroundStyle(.secondary)
+
+                    // Show current zoom level for temporal mode
+                    if timelineMode == .temporal {
+                        Text(temporalZoomLevel.label)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(minWidth: 50)
+                    }
+
                     Button {
                         zoomOut()
                     } label: {
@@ -211,15 +336,41 @@ struct TimelineChartView: View {
 
                 Divider().frame(height: 18)
 
-                // Reorder scenes
-                Button {
-                    isPresentingReorder = true
-                } label: {
-                    Label("Reorder…", systemImage: "arrow.up.arrow.down")
-                        .lineLimit(1)
+                // Temporal mode: Edit scene positions
+                if timelineMode == .temporal {
+                    Menu {
+                        ForEach(scenes, id: \.id) { sceneRow in
+                            Button {
+                                selectedSceneForEdit = sceneRow
+                                isPresentingTemporalEditor = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: Kinds.scenes.systemImage)
+                                    Text(sceneRow.scene.name.isEmpty ? "Untitled Scene" : sceneRow.scene.name)
+                                    if sceneRow.temporalPosition == nil {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .foregroundStyle(.orange)
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Label("Edit Positions…", systemImage: "calendar.badge.clock")
+                            .lineLimit(1)
+                    }
+                    .help("Set temporal positions and durations for scenes")
+                    .disabled(scenes.isEmpty)
+                } else {
+                    // Ordinal mode: Reorder scenes
+                    Button {
+                        isPresentingReorder = true
+                    } label: {
+                        Label("Reorder…", systemImage: "arrow.up.arrow.down")
+                            .lineLimit(1)
+                    }
+                    .help("Drag to reorder scenes in this timeline")
+                    .disabled(scenes.count < 2)
                 }
-                .help("Drag to reorder scenes in this timeline")
-                .disabled(scenes.count < 2)
             }
             .frame(height: headerHeight)
             .padding(.horizontal, 2)
@@ -300,6 +451,18 @@ struct TimelineChartView: View {
     // MARK: - Chart
 
     private var chartArea: some View {
+        Group {
+            if timelineMode == .temporal {
+                temporalChartArea
+            } else {
+                ordinalChartArea
+            }
+        }
+    }
+
+    // MARK: - Ordinal Chart (existing implementation)
+
+    private var ordinalChartArea: some View {
         // Move heavy inference out of the Chart builder
         let lanes = effectiveLanes()
 
@@ -547,6 +710,230 @@ struct TimelineChartView: View {
         }
     }
 
+    // MARK: - Temporal Chart (Date-based Gantt-style)
+
+    private var temporalChartArea: some View {
+        let lanes = effectiveLanes()
+
+        // Lane keys for Y domain
+        let allKey = laneKeyAll()
+        let itemKeys: [String] = lanes.items.map { laneKey(for: $0) }
+
+        let yDomainKeys: [String] = {
+            var domain: [String] = []
+            if lanes.all { domain.append(allKey) }
+            domain.append(contentsOf: itemKeys)
+            return domain
+        }()
+
+        // For temporal mode, we need Date domain for X-axis
+        // Get min/max temporal positions from scenes
+        let scenesWithDates = scenes.filter { $0.temporalPosition != nil }
+
+        guard !scenesWithDates.isEmpty else {
+            // No temporal data yet - show empty state with helpful message
+            return AnyView(
+                VStack(spacing: 8) {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.system(size: 32))
+                        .foregroundStyle(.secondary)
+                    Text("No temporal scenes yet")
+                        .font(.headline)
+                    Text("Scenes need temporal positions to display on a calendar timeline.")
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(.thinMaterial)
+                )
+                .padding()
+            )
+        }
+
+        let minDate = scenesWithDates.compactMap(\.temporalPosition).min() ?? Date()
+        let maxDate = scenesWithDates.compactMap { scene -> Date? in
+            if let end = scene.temporalEnd {
+                return end
+            } else if let start = scene.temporalPosition {
+                // Default 1-hour duration if not specified
+                return start.addingTimeInterval(3600)
+            }
+            return nil
+        }.max() ?? Date()
+
+        // Apply epoch offset if timeline has one
+        let epochDate = timeline.epochDate ?? minDate
+        let displayMinDate = min(epochDate, minDate)
+        let displayMaxDate = max(epochDate.addingTimeInterval(86400), maxDate) // At least 1 day range
+
+        // Build temporal scene items for "All" lane
+        let allLaneTemporalItems: [TemporalSceneItem] = scenesWithDates.compactMap { row in
+            guard let start = row.temporalPosition else { return nil }
+            let end = row.temporalEnd ?? start.addingTimeInterval(3600) // Default 1-hour duration
+            return TemporalSceneItem(
+                id: row.id,
+                start: start,
+                end: end,
+                sceneName: row.scene.name,
+                laneKey: allKey
+            )
+        }
+
+        // Build temporal items for character/chapter lanes
+        let participationMap: [UUID: [UUID]] = (lanes.kind == .characters) ? participationCharacters : participationChapters
+        let sceneIDtoRow = Dictionary(uniqueKeysWithValues: scenes.map { ($0.id, $0) })
+
+        var laneTemporalItems: [TemporalSceneItem] = []
+        for card in lanes.items {
+            let key = laneKey(for: card)
+            let sceneIDs = participationMap[card.id] ?? []
+
+            for sceneID in sceneIDs {
+                if let row = sceneIDtoRow[sceneID],
+                   let start = row.temporalPosition {
+                    let end = row.temporalEnd ?? start.addingTimeInterval(3600)
+                    laneTemporalItems.append(TemporalSceneItem(
+                        id: UUID(), // Unique ID for each item
+                        start: start,
+                        end: end,
+                        sceneName: row.scene.name,
+                        laneKey: key
+                    ))
+                }
+            }
+        }
+
+        // Colors
+        let sceneColor = adjustedAccent(Kinds.scenes.accentColor(for: scheme))
+        let entityKind: Kinds = lanes.kind
+        let entityColor = adjustedAccent(entityKind.accentColor(for: scheme))
+        let shadowColor = scheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.10)
+
+        // Date formatter for X-axis
+        let dateFormatter = temporalDateFormatter()
+
+        // Calculate visible domain length based on zoom level
+        // We want to show a reasonable amount of time at each zoom level
+        let visibleTimeSpan: TimeInterval = {
+            switch temporalZoomLevel {
+            case .hour:    return 86400        // Show 24 hours (1 day)
+            case .day:     return 604800       // Show 7 days (1 week)
+            case .week:    return 2592000      // Show ~30 days (1 month)
+            case .month:   return 31536000     // Show ~365 days (1 year)
+            case .year:    return 315360000    // Show 10 years
+            case .decade:  return 3153600000   // Show 100 years
+            case .century: return 31536000000  // Show 1000 years
+            }
+        }()
+
+        // Current scroll position (default to midpoint if not set)
+        let scrollPos = temporalScrollPosition ?? {
+            let midInterval = (displayMinDate.timeIntervalSinceReferenceDate + displayMaxDate.timeIntervalSinceReferenceDate) / 2
+            return Date(timeIntervalSinceReferenceDate: midInterval)
+        }()
+
+        return AnyView(
+            Chart {
+                // All Scenes lane
+                ForEach(allLaneTemporalItems) { item in
+                    BarMark(
+                        xStart: .value("Start", item.start),
+                        xEnd: .value("End", item.end),
+                        y: .value("Lane", allKey)
+                    )
+                    .foregroundStyle(sceneColor)
+                    .cornerRadius(2)
+                    .shadow(color: shadowColor, radius: 1, x: 0, y: 1)
+                    .annotation(position: .overlay, alignment: .center) {
+                        if labelVisibility {
+                            LabelOverlay(text: item.sceneName, fontSize: 9)
+                        }
+                    }
+                    .accessibilityLabel(item.sceneName)
+                    .accessibilityValue("Temporal position: \(dateFormatter.string(from: item.start))")
+                }
+
+                // Character/Chapter lanes
+                ForEach(laneTemporalItems) { item in
+                    BarMark(
+                        xStart: .value("Start", item.start),
+                        xEnd: .value("End", item.end),
+                        y: .value("Lane", item.laneKey)
+                    )
+                    .foregroundStyle(entityColor)
+                    .cornerRadius(2)
+                    .shadow(color: shadowColor, radius: 1, x: 0, y: 1)
+                    .accessibilityLabel("\(item.sceneName) in lane")
+                    .accessibilityValue("From \(dateFormatter.string(from: item.start)) to \(dateFormatter.string(from: item.end))")
+                }
+            }
+            .chartYAxis(.hidden) // Hide default Y axis
+            .chartXAxis {
+                AxisMarks { value in
+                    AxisGridLine()
+                    AxisTick()
+                    if let date = value.as(Date.self) {
+                        AxisValueLabel(dateFormatter.string(from: date))
+                    }
+                }
+            }
+            .chartLegend(.hidden)
+            .chartScrollableAxes(.horizontal)
+            .chartScrollPosition(x: Binding(
+                get: { temporalScrollPosition ?? scrollPos },
+                set: { temporalScrollPosition = $0 }
+            ))
+            .chartXVisibleDomain(length: visibleTimeSpan)
+            .chartXScale(domain: displayMinDate...displayMaxDate)
+            .chartYScale(domain: yDomainKeys)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.thinMaterial)
+            )
+            .chartPlotStyle { plot in
+                plot.frame(minHeight: CGFloat((effectiveLaneCount() * Int(barHeight * 3))).clamped(to: CGFloat(160)...CGFloat(2000)))
+            }
+        )
+    }
+
+    // Create date formatter based on current zoom level
+    private func temporalDateFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+
+        switch temporalZoomLevel {
+        case .hour:
+            formatter.dateFormat = "HH:mm"
+        case .day:
+            formatter.dateFormat = "MMM d"
+        case .week:
+            formatter.dateFormat = "MMM d"
+        case .month:
+            formatter.dateFormat = "MMM yyyy"
+        case .year:
+            formatter.dateFormat = "yyyy"
+        case .decade:
+            formatter.dateFormat = "yyyy"
+        case .century:
+            formatter.dateFormat = "yyyy"
+        }
+
+        return formatter
+    }
+
+    // Temporal scene item for chart rendering
+    private struct TemporalSceneItem: Identifiable {
+        let id: UUID
+        let start: Date
+        let end: Date
+        let sceneName: String
+        let laneKey: String
+    }
+
     @ChartContentBuilder
     private func makeChartMarks(
         allLaneItems: [AllLaneItem],
@@ -599,7 +986,20 @@ struct TimelineChartView: View {
     private struct SceneRow: Identifiable, Hashable {
         let id: UUID
         let scene: Card
-        let order: Int
+        let order: Int // Ordinal position (1, 2, 3...)
+
+        // Temporal positioning (optional - only used in temporal mode)
+        let temporalPosition: Date? // When the scene occurs
+        let duration: TimeInterval? // How long the scene lasts (seconds)
+
+        // Computed end time for temporal positioning
+        var temporalEnd: Date? {
+            guard let start = temporalPosition,
+                  let dur = duration else {
+                return nil
+            }
+            return start.addingTimeInterval(dur)
+        }
     }
 
     // Flattened chart data for type-checker friendliness
@@ -703,35 +1103,70 @@ struct TimelineChartView: View {
     // MARK: - Zoom
 
     private func fitAll() {
-        // Show all scenes at once (still scrollable if longer than view)
-        visibleLength = max(1, scenes.count)
-        // Center the scroll on the data
-        if let minOrder = scenes.map(\.order).min(),
-           let maxOrder = scenes.map(\.order).max() {
-            scrollX = (minOrder + maxOrder) / 2
+        if timelineMode == .temporal {
+            // Temporal mode: auto-select zoom to fit all scenes
+            let temporalScenes = scenes.compactMap(\.temporalPosition)
+            guard !temporalScenes.isEmpty else { return }
+
+            let minDate = temporalScenes.min() ?? Date()
+            let maxDate = scenes.compactMap { $0.temporalEnd ?? $0.temporalPosition }.max() ?? Date()
+            let span = maxDate.timeIntervalSince(minDate)
+
+            temporalZoomLevel = autoSelectZoomLevel(for: span)
+
+            // Center scroll on midpoint
+            let midInterval = (minDate.timeIntervalSinceReferenceDate + maxDate.timeIntervalSinceReferenceDate) / 2
+            temporalScrollPosition = Date(timeIntervalSinceReferenceDate: midInterval)
+        } else {
+            // Ordinal mode: Show all scenes at once (still scrollable if longer than view)
+            visibleLength = max(1, scenes.count)
+            // Center the scroll on the data
+            if let minOrder = scenes.map(\.order).min(),
+               let maxOrder = scenes.map(\.order).max() {
+                scrollX = (minOrder + maxOrder) / 2
+            }
+            // Keep legacy fields synced (optional)
+            visibleStart = 1
+            visibleEnd = max(visibleLength, 1)
         }
-        // Keep legacy fields synced (optional)
-        visibleStart = 1
-        visibleEnd = max(visibleLength, 1)
     }
 
     private func zoomIn() {
-        // Halve visible window, with a floor
-        visibleLength = max(5, visibleLength / 2)
-        // Keep scroll position unchanged so user stays where they are
+        if timelineMode == .temporal {
+            // Temporal mode: go to more detailed zoom level
+            let currentIndex = TemporalZoomLevel.allCases.firstIndex(of: temporalZoomLevel) ?? 0
+            if currentIndex > 0 {
+                temporalZoomLevel = TemporalZoomLevel.allCases[currentIndex - 1]
+            }
+        } else {
+            // Ordinal mode: Halve visible window, with a floor
+            visibleLength = max(5, visibleLength / 2)
+            // Keep scroll position unchanged so user stays where they are
+        }
     }
 
     private func zoomOut() {
-        // Double visible window, bounded by total scenes (+ a little headroom)
-        let maxLen = max(10, scenes.count + 2)
-        visibleLength = min(maxLen, max(10, visibleLength * 2))
+        if timelineMode == .temporal {
+            // Temporal mode: go to less detailed zoom level
+            let currentIndex = TemporalZoomLevel.allCases.firstIndex(of: temporalZoomLevel) ?? TemporalZoomLevel.allCases.count - 1
+            if currentIndex < TemporalZoomLevel.allCases.count - 1 {
+                temporalZoomLevel = TemporalZoomLevel.allCases[currentIndex + 1]
+            }
+        } else {
+            // Ordinal mode: Double visible window, bounded by total scenes (+ a little headroom)
+            let maxLen = max(10, scenes.count + 2)
+            visibleLength = min(maxLen, max(10, visibleLength * 2))
+        }
     }
 
     // MARK: - Data loading
 
     @MainActor
     private func loadData() async {
-        // 1) Fetch Scene → Timeline edges (forward direction) regardless of specific type code.
+        // 1) Detect timeline mode: temporal if calendar is assigned, ordinal otherwise
+        timelineMode = (timeline.calendarSystem != nil) ? .temporal : .ordinal
+
+        // 2) Fetch Scene → Timeline edges (forward direction) regardless of specific type code.
         let tlIDOpt: UUID? = timeline.id
         let sceneEdgesFetch = FetchDescriptor<CardEdge>(
             predicate: #Predicate {
@@ -744,16 +1179,57 @@ struct TimelineChartView: View {
         )
         let edges = (try? modelContext.fetch(sceneEdgesFetch)) ?? []
 
-        // 2) Build ordered scene rows (ordinal index 1...N based on edge order)
+        // 3) Build scene rows
         var rows: [SceneRow] = []
         rows.reserveCapacity(edges.count)
         var idx = 1
-        for e in edges {
-            if let s = e.from, s.kind == .scenes {
-                rows.append(SceneRow(id: s.id, scene: s, order: idx))
-                idx += 1
+
+        if timelineMode == .temporal {
+            // Temporal mode: use temporalPosition from edges, sort by date
+            var temporalRows: [SceneRow] = []
+            for e in edges {
+                if let s = e.from, s.kind == .scenes {
+                    // Use temporal position if available, otherwise nil (will be filtered or handled)
+                    temporalRows.append(SceneRow(
+                        id: s.id,
+                        scene: s,
+                        order: idx, // Still maintain ordinal for fallback
+                        temporalPosition: e.temporalPosition,
+                        duration: e.duration
+                    ))
+                    idx += 1
+                }
+            }
+
+            // Sort by temporal position (scenes without temporal position go to end)
+            temporalRows.sort { a, b in
+                switch (a.temporalPosition, b.temporalPosition) {
+                case (let aDate?, let bDate?):
+                    return aDate < bDate
+                case (nil, _):
+                    return false // Scenes without temporal position go to end
+                case (_, nil):
+                    return true
+                }
+            }
+
+            rows = temporalRows
+        } else {
+            // Ordinal mode: use sortIndex order (existing behavior)
+            for e in edges {
+                if let s = e.from, s.kind == .scenes {
+                    rows.append(SceneRow(
+                        id: s.id,
+                        scene: s,
+                        order: idx,
+                        temporalPosition: nil,
+                        duration: nil
+                    ))
+                    idx += 1
+                }
             }
         }
+
         scenes = rows
 
         // 3) Fetch Characters → Scene participation edges; filter to our scenes
@@ -847,17 +1323,54 @@ struct TimelineChartView: View {
         }
 
         // 4) Initialize visible window and scroll position
-        let minOrder = scenes.map(\.order).min() ?? 1
-        let maxOrder = scenes.map(\.order).max() ?? 1
-        visibleLength = min(20, maxOrder - minOrder + 1)
-        scrollX = (minOrder + maxOrder) / 2
+        if timelineMode == .temporal {
+            // Temporal mode: initialize date range
+            let temporalScenes = scenes.compactMap(\.temporalPosition)
+            if let minDate = temporalScenes.min(),
+               let maxDate = temporalScenes.max() {
+                temporalVisibleStart = minDate
+                temporalVisibleEnd = maxDate
+                // Scroll to middle of timeline
+                let midInterval = (minDate.timeIntervalSinceReferenceDate + maxDate.timeIntervalSinceReferenceDate) / 2
+                temporalScrollPosition = Date(timeIntervalSinceReferenceDate: midInterval)
 
-        // Keep legacy fields synced (optional)
-        visibleStart = minOrder
-        visibleEnd = maxOrder
+                // Auto-select appropriate zoom level based on time span
+                let span = maxDate.timeIntervalSince(minDate)
+                temporalZoomLevel = autoSelectZoomLevel(for: span)
+            } else {
+                // No temporal positions yet, use defaults
+                temporalVisibleStart = Date()
+                temporalVisibleEnd = Date().addingTimeInterval(86400 * 30) // 30 days
+                temporalScrollPosition = Date()
+                temporalZoomLevel = .month
+            }
+        } else {
+            // Ordinal mode: existing behavior
+            let minOrder = scenes.map(\.order).min() ?? 1
+            let maxOrder = scenes.map(\.order).max() ?? 1
+            visibleLength = min(20, maxOrder - minOrder + 1)
+            scrollX = (minOrder + maxOrder) / 2
+
+            // Keep legacy fields synced (optional)
+            visibleStart = minOrder
+            visibleEnd = maxOrder
+        }
 
         // Allow initial adjustment to show names column once plot width is known
         didEnsureInitialNamesVisible = false
+    }
+
+    // Auto-select appropriate zoom level based on time span
+    private func autoSelectZoomLevel(for span: TimeInterval) -> TemporalZoomLevel {
+        switch span {
+        case 0..<3600 * 24:           return .hour    // < 1 day: hour
+        case 3600 * 24..<3600 * 24 * 7: return .day  // < 1 week: day
+        case 3600 * 24 * 7..<3600 * 24 * 60: return .week // < 2 months: week
+        case 3600 * 24 * 60..<3600 * 24 * 365: return .month // < 1 year: month
+        case 3600 * 24 * 365..<3600 * 24 * 3650: return .year // < 10 years: year
+        case 3600 * 24 * 3650..<3600 * 24 * 36500: return .decade // < 100 years: decade
+        default: return .century
+        }
     }
 
     // Persist a new ordering by updating CardEdge.sortIndex for Scene→Timeline edges.

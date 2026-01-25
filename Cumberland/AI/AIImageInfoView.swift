@@ -19,6 +19,9 @@ struct AIImageInfoView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    // Extract embedded metadata from image (Phase 4A)
+    @State private var embeddedMetadata: ImageMetadataExtractor.ImageMetadata?
+
     // MARK: - Body
 
     var body: some View {
@@ -80,6 +83,54 @@ struct AIImageInfoView: View {
                         }
                     }
 
+                    // MARK: - Embedded Metadata Section (Phase 4A)
+
+                    // Metadata Verification
+                    if let metadata = embeddedMetadata {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                Image(systemName: metadata.isAIGenerated ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                                    .foregroundStyle(metadata.isAIGenerated ? .green : .orange)
+                                Text("Metadata Status")
+                                    .font(.headline)
+                            }
+
+                            HStack {
+                                Image(systemName: metadata.isAIGenerated ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(metadata.isAIGenerated ? .green : .red)
+                                    .font(.caption)
+
+                                Text(metadata.isAIGenerated ? "Attribution metadata embedded" : "No metadata detected")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(metadata.isAIGenerated ? Color.green.opacity(0.05) : Color.orange.opacity(0.05))
+                            .cornerRadius(8)
+
+                            // Show embedded metadata fields
+                            if metadata.isAIGenerated {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    if let software = metadata.software {
+                                        metadataRow(icon: "gearshape", label: "Software", value: software)
+                                    }
+                                    if let copyright = metadata.copyright {
+                                        metadataRow(icon: "c.circle", label: "Copyright", value: copyright)
+                                    }
+                                    if let keywords = metadata.keywords, !keywords.isEmpty {
+                                        metadataRow(icon: "tag", label: "Keywords", value: keywords.joined(separator: ", "))
+                                    }
+                                }
+                                .font(.caption)
+                                .padding(8)
+                                .background(Color.secondary.opacity(0.05))
+                                .cornerRadius(6)
+                            }
+                        }
+                    }
+
                     // Legal Notice
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
@@ -115,9 +166,37 @@ struct AIImageInfoView: View {
             }
         }
         .frame(minWidth: 480, minHeight: 400)
+        .task {
+            // Extract embedded metadata from image (Phase 4A)
+            await loadEmbeddedMetadata()
+        }
     }
 
     // MARK: - Helpers
+
+    /// Load embedded metadata from card's image
+    @MainActor
+    private func loadEmbeddedMetadata() async {
+        // Try to get image data from the card
+        if let imageData = card.originalImageData {
+            embeddedMetadata = ImageMetadataExtractor.extract(from: imageData)
+        }
+    }
+
+    /// Helper view for metadata key-value pairs
+    @ViewBuilder
+    private func metadataRow(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .foregroundStyle(.secondary)
+                .font(.caption2)
+            Text("\(label):")
+                .foregroundStyle(.secondary)
+            Text(value)
+                .foregroundStyle(.primary)
+            Spacer()
+        }
+    }
 
     /// Format date for display
     private func formatDate(_ date: Date) -> String {
