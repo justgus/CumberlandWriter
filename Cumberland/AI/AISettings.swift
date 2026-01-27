@@ -17,7 +17,9 @@ class AISettings {
     // MARK: - UserDefaults Keys
 
     struct Keys {
-        static let preferredProvider = "ai_preferredProvider"
+        static let preferredProvider = "ai_preferredProvider" // Legacy key for migration
+        static let analysisProvider = "ai_analysisProvider"
+        static let imageGenerationProvider = "ai_imageGenerationProvider"
         static let aiEnabled = "ai_enabled"
         static let autoGenerateImages = "aiGeneration_autoGenerate"
         static let autoGenerateMinWords = "aiGeneration_autoGenerateMinWords"
@@ -35,7 +37,9 @@ class AISettings {
     // MARK: - Defaults
 
     struct Defaults {
-        static let preferredProvider = "Apple Intelligence"
+        static let preferredProvider = "Apple Intelligence" // Legacy default
+        static let analysisProvider = "Apple Intelligence"
+        static let imageGenerationProvider = "Apple Intelligence"
         static let aiEnabled = true
         static let autoGenerateImages = false
         static let autoGenerateMinWords = 50
@@ -52,10 +56,51 @@ class AISettings {
 
     // MARK: - Provider Settings
 
-    /// Preferred AI provider name
+    /// AI provider for content analysis (entity extraction, relationship inference)
+    var analysisProvider: String {
+        get {
+            // Check if already migrated
+            if let provider = UserDefaults.standard.string(forKey: Keys.analysisProvider) {
+                return provider
+            }
+            // Migration: use legacy preferredProvider if set
+            if let legacyProvider = UserDefaults.standard.string(forKey: Keys.preferredProvider) {
+                // Migrate the legacy value
+                UserDefaults.standard.set(legacyProvider, forKey: Keys.analysisProvider)
+                return legacyProvider
+            }
+            return Defaults.analysisProvider
+        }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.analysisProvider) }
+    }
+
+    /// AI provider for image generation
+    var imageGenerationProvider: String {
+        get {
+            // Check if already migrated
+            if let provider = UserDefaults.standard.string(forKey: Keys.imageGenerationProvider) {
+                return provider
+            }
+            // Migration: use legacy preferredProvider if set
+            if let legacyProvider = UserDefaults.standard.string(forKey: Keys.preferredProvider) {
+                // Migrate the legacy value
+                UserDefaults.standard.set(legacyProvider, forKey: Keys.imageGenerationProvider)
+                return legacyProvider
+            }
+            return Defaults.imageGenerationProvider
+        }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.imageGenerationProvider) }
+    }
+
+    /// Legacy property for backward compatibility
+    /// Reading returns analysisProvider, writing sets both providers
+    @available(*, deprecated, message: "Use analysisProvider or imageGenerationProvider instead")
     var preferredProvider: String {
-        get { UserDefaults.standard.string(forKey: Keys.preferredProvider) ?? Defaults.preferredProvider }
-        set { UserDefaults.standard.set(newValue, forKey: Keys.preferredProvider) }
+        get { analysisProvider }
+        set {
+            analysisProvider = newValue
+            imageGenerationProvider = newValue
+        }
     }
 
     /// Whether AI features are enabled at all
@@ -158,14 +203,39 @@ class AISettings {
 
     // MARK: - Provider Availability
 
-    /// Get current provider (or default if preferred unavailable)
+    /// Get provider for a specific task
+    /// - Parameter task: The task type (analysis or imageGeneration)
+    /// - Returns: The appropriate provider for the task
+    func provider(for task: AITask) -> String {
+        switch task {
+        case .analysis:
+            return analysisProvider
+        case .imageGeneration:
+            return imageGenerationProvider
+        }
+    }
+
+    /// Get current provider for analysis (or default if unavailable)
+    var currentAnalysisProvider: AIProviderProtocol? {
+        AIProviderRegistry.shared.provider(named: analysisProvider)
+            ?? AIProviderRegistry.shared.defaultProvider()
+    }
+
+    /// Get current provider for image generation (or default if unavailable)
+    var currentImageGenerationProvider: AIProviderProtocol? {
+        AIProviderRegistry.shared.provider(named: imageGenerationProvider)
+            ?? AIProviderRegistry.shared.defaultProvider()
+    }
+
+    /// Legacy: Get current provider (returns analysis provider)
+    @available(*, deprecated, message: "Use currentAnalysisProvider or currentImageGenerationProvider")
     var currentProvider: AIProviderProtocol? {
-        AIProviderRegistry.shared.defaultProvider()
+        currentAnalysisProvider
     }
 
     /// Check if current provider is available
     var isProviderAvailable: Bool {
-        currentProvider != nil
+        currentAnalysisProvider != nil || currentImageGenerationProvider != nil
     }
 
     /// Get list of available providers
@@ -177,19 +247,20 @@ class AISettings {
 
     /// Check if image generation is available
     var isImageGenerationAvailable: Bool {
-        aiEnabled && isProviderAvailable
+        aiEnabled && currentImageGenerationProvider != nil
     }
 
     /// Check if content analysis is available
     var isContentAnalysisAvailable: Bool {
-        aiEnabled && analysisEnabled && isProviderAvailable
+        aiEnabled && analysisEnabled && currentAnalysisProvider != nil
     }
 
     // MARK: - Reset Settings
 
     /// Reset all settings to defaults
     func resetToDefaults() {
-        preferredProvider = "Apple Intelligence"
+        analysisProvider = Defaults.analysisProvider
+        imageGenerationProvider = Defaults.imageGenerationProvider
         aiEnabled = true
 
         // Image generation
@@ -245,6 +316,14 @@ class AISettings {
     }
 }
 
+// MARK: - AI Task Type
+
+/// Type of AI task to perform
+enum AITask {
+    case analysis           // Content analysis, entity extraction
+    case imageGeneration    // Image generation for cards/maps
+}
+
 // MARK: - Analysis Scope
 
 enum AnalysisScope: String, CaseIterable {
@@ -284,17 +363,18 @@ enum AnalysisScope: String, CaseIterable {
 // MARK: - Entity Type Flags
 
 struct EntityTypeFlags {
-    static let character: Int = 1 << 0    // 1
-    static let location: Int = 1 << 1     // 2
-    static let building: Int = 1 << 2     // 4
-    static let artifact: Int = 1 << 3     // 8
-    static let vehicle: Int = 1 << 4      // 16
-    static let organization: Int = 1 << 5 // 32
-    static let event: Int = 1 << 6        // 64
-    static let other: Int = 1 << 7        // 128
+    static let character: Int = 1 << 0       // 1
+    static let location: Int = 1 << 1        // 2
+    static let building: Int = 1 << 2        // 4
+    static let artifact: Int = 1 << 3        // 8
+    static let vehicle: Int = 1 << 4         // 16
+    static let organization: Int = 1 << 5    // 32
+    static let event: Int = 1 << 6           // 64
+    static let historicalEvent: Int = 1 << 7 // 128
+    static let other: Int = 1 << 8           // 256
 
     static let all: Int = character | location | building | artifact |
-                          vehicle | organization | event | other
+                          vehicle | organization | event | historicalEvent | other
 
     static func flag(for type: EntityType) -> Int {
         switch type {
@@ -305,6 +385,7 @@ struct EntityTypeFlags {
         case .vehicle: return vehicle
         case .organization: return organization
         case .event: return event
+        case .historicalEvent: return historicalEvent
         case .other: return other
         }
     }
@@ -318,6 +399,7 @@ struct EntityTypeFlags {
         case vehicle: return .vehicle
         case organization: return .organization
         case event: return .event
+        case historicalEvent: return .historicalEvent
         case other: return .other
         default: return nil
         }
@@ -367,7 +449,8 @@ extension AISettings {
         print("""
 
         🔧 [AISettings] Current Settings:
-        Provider: \(preferredProvider)
+        Analysis Provider: \(analysisProvider)
+        Image Generation Provider: \(imageGenerationProvider)
         AI Enabled: \(aiEnabled)
 
         Image Generation:

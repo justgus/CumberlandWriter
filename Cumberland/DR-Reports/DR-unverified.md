@@ -2,430 +2,373 @@
 
 This document tracks discrepancy reports that have been resolved but are awaiting user verification.
 
-**Status:** Currently **9 unverified DRs** (2 Resolved, 7 Open)
+**Status:** Currently **8 unverified DRs** (1 Resolved, 6 Open, 1 Verified)
 
 ---
 
-## DR-0051: CardEditorView Fixed to Narrow Width on macOS Sheet - Doesn't Fill Available Space
+## DR-0056: SuggestionEngine Only Creating Forward Relationships (Missing Reverse Edges)
 
-**Status:** 🔴 Open
-**Platform:** macOS
-**Component:** CardEditorView
-**Severity:** Medium
-**Date Identified:** 2026-01-24
-
-**Description:**
-
-On macOS, CardEditorView is displayed in a resizable sheet but appears artificially narrow (~430 points width) even when the sheet is resized larger. The editor doesn't respond to sheet resizing and remains fixed at a narrow width, making it look scrunched up on macOS displays where more horizontal space is available.
-
-**Current Behavior:**
-- CardEditorView displayed in a sheet on macOS
-- Sheet is resizable by user (can be made larger or smaller)
-- CardEditorView content remains fixed at ~430 points width
-- Content does not grow when sheet is expanded
-- Content does not shrink when sheet is reduced
-- Looks cramped and doesn't utilize available screen real estate
-
-**Expected Behavior:**
-- CardEditorView should fill the available width of the sheet
-- When user resizes sheet larger, content should grow to fill
-- When user resizes sheet smaller, content should shrink accordingly
-- Should feel native to macOS with proper use of available space
-- Should maintain minimum width for usability (520 points currently)
-
-**Root Cause:**
-
-**File:** `Cumberland/CardEditorView.swift:164`
-```swift
-#if os(visionOS)
-private let maxCardWidth: CGFloat = 640
-#else
-private let thumbnailSide: CGFloat = 72
-private let thumbnailTopPadding: CGFloat = 8
-private let maxCardWidth: CGFloat = 430  // ← TOO NARROW FOR MACOS
-#endif
-```
-
-All content sections use `.frame(maxWidth: maxCardWidth)`:
-- Line 240: FlipCardContainer
-- Line 275: Image action buttons
-- Line 289: Citation viewer
-- Line 308: Save/Cancel buttons
-- Line 727: Card surface
-
-This hard limit prevents the view from expanding beyond 430 points, even though:
-1. The containing VStack has `.frame(minWidth: 520)` (line 311)
-2. The sheet can be resized much larger on macOS
-3. macOS displays have plenty of horizontal space
-
-**Proposed Solution:**
-
-**Option 1: Use .infinity for maxWidth on macOS**
-```swift
-#if os(macOS)
-private let maxCardWidth: CGFloat = .infinity
-#elseif os(visionOS)
-private let maxCardWidth: CGFloat = 640
-#else
-private let maxCardWidth: CGFloat = 430  // iOS/iPadOS
-#endif
-```
-
-**Option 2: Use GeometryReader to adapt to container**
-- Remove fixed maxCardWidth
-- Use GeometryReader to get available width
-- Calculate appropriate max width based on available space
-
-**Option 3: Platform-specific maxWidth that's reasonable but larger**
-```swift
-#if os(macOS)
-private let maxCardWidth: CGFloat = 800  // Allow wider on macOS
-#elseif os(visionOS)
-private let maxCardWidth: CGFloat = 640
-#else
-private let maxCardWidth: CGFloat = 430  // iOS/iPadOS
-#endif
-```
-
-**Affected Code:**
-- `Cumberland/CardEditorView.swift:164` - maxCardWidth constant
-- `Cumberland/CardEditorView.swift:240,275,289,308,727` - All .frame(maxWidth:) calls
-
-**Test Steps:**
-
-1. Open Cumberland on macOS
-2. Edit or create a card (opens CardEditorView sheet)
-3. Observe initial width (narrow, ~430 points)
-4. Resize sheet by dragging corner to make it wider
-5. **Current**: Content remains narrow, doesn't fill sheet
-6. **Expected**: Content grows to fill available width (up to reasonable max like 800)
-
-**Verification Criteria:**
-
-- [ ] CardEditorView expands to fill wider sheets
-- [ ] CardEditorView shrinks when sheet is made smaller
-- [ ] Minimum width preserved (520 points)
-- [ ] Maximum width reasonable for macOS (suggest 800-1000 points)
-- [ ] Content is readable and well-spaced at all sizes
-- [ ] Works correctly on iOS/iPadOS (should not affect those platforms)
-
-**User Impact:** Medium - Affects macOS usability and aesthetics, makes editor feel cramped
-
-**Priority:** Medium - UI/UX improvement for macOS
-
-**Workaround:** Users can work with narrow editor, but it's not optimal for macOS
-
----
-
-## DR-0052: OpenAI Entity Extraction Has Two Critical Bugs (0 Entities + Wrong Card Types)
-
-**Status:** 🟡 Resolved - Not Verified
+**Status:** ✅ Verified
 **Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
-**Component:** OpenAIProvider / Content Analysis (ER-0010)
+**Component:** SuggestionEngine, Phase 6 (ER-0010)
 **Severity:** High
-**Date Identified:** 2026-01-24
-**Date Resolved:** 2026-01-24
+**Date Identified:** 2026-01-26
+**Date Resolved:** 2026-01-26
 
 **Description:**
 
-When using OpenAI provider for entity extraction (Phase 5, ER-0010), there were two critical bugs:
+The `SuggestionEngine.createRelationships()` function was only creating forward edges (source → target) and not creating the corresponding reverse edges (target → source). This is inconsistent with how `CardRelationshipView` creates relationships, which always creates bidirectional pairs.
 
-**Bug 1:** Analysis completes successfully but returns 0 entities due to JSON parsing failure
-**Bug 2:** After Bug 1 fix, entities are extracted but all cards created are "rules" instead of proper types (character, location, building, etc.)
+**Current Behavior (BEFORE FIX):**
 
-**Observed Behavior:**
-
-Console output during testing:
-```
-🔍 [EntityExtractor] Extracting entities from text
-   Provider: OpenAI DALL-E 3
-   Word count: 2235
-   Confidence threshold: 0.7
-📝 [TextPreprocessor] Preprocessing long text (2235 words)
-✅ [TextPreprocessor] Condensed 2235 → 740 words (33.1%) in 0.07s
-   Extracted 26 key entities
-   Found 45 relevant sentences
-🧠 [OpenAI] Analyzing text for task: entityExtraction
-   Text length: 4501 characters, 740 words
-⚠️ [OpenAI] Failed to parse entities JSON  ← ISSUE HERE
-✅ [OpenAI] Analysis complete in 88.75s
-   Entities: 0  ← RESULT: 0 ENTITIES
-   Relationships: 0
-```
+When creating Captain Drake with analysis detecting 5 relationships:
+1. Creates 5 entity cards (Voyager, New Haven Station, plasma rifle, compass)
+2. Creates only 5 forward CardEdge entries:
+   - Drake → pilots → Voyager
+   - Drake → enters → New Haven Station
+   - Drake → uses → plasma rifle
+   - Drake → owns → compass
+3. **Missing 5 reverse CardEdge entries** ❌
+4. Captain Drake shows 0 relationships in UI
+5. Voyager shows 1 relationship to Drake (forward edge exists)
 
 **Expected Behavior:**
-- GPT-4 returns entity JSON
-- JSON is parsed successfully
-- Entities are extracted and displayed in suggestion sheet
+
+For 5 suggested relationships, create 10 total CardEdge entries (bidirectional):
+
+**Forward edges (5):**
+- Drake → [pilots] → Voyager
+- Drake → [enters] → New Haven Station
+- Drake → [uses] → plasma rifle
+- Drake → [owns] → compass
+- (5th relationship)
+
+**Reverse edges (5) using mirror types:**
+- Voyager → [piloted-by] → Drake
+- New Haven Station → [is-entered-by] → Drake
+- plasma rifle → [used-by] → Drake
+- compass → [owned-by] → Drake
+- (5th reverse)
 
 **Root Cause:**
 
-**Mismatch between response format and parsing logic:**
-
-1. **OpenAIProvider.swift:270** - Request configuration:
-   ```swift
-   "response_format": ["type": "json_object"]  // Requests JSON OBJECT
-   ```
-
-2. **OpenAIProvider.swift:201** - System prompt (BEFORE fix):
-   ```swift
-   Return results as a JSON array with this structure:
-   [  // ← Asking for ARRAY
-     {
-       "name": "Entity Name",
-       ...
-     }
-   ]
-   ```
-
-3. **OpenAIProvider.swift:338** - Parsing code (BEFORE fix):
-   ```swift
-   let jsonArray = try? JSONDecoder().decode([EntityJSON].self, from: jsonData)
-   // ← Trying to parse as ARRAY
-   ```
-
-**Issue:** When `response_format: json_object` is specified, GPT-4 wraps responses in an object like:
-```json
-{
-  "entities": [...]
-}
-```
-
-But we were asking for an array and trying to parse as an array, causing parsing failure.
+`SuggestionEngine.createRelationships()` in `Cumberland/AI/SuggestionEngine.swift:346-418` was only creating the forward CardEdge and did not implement the reverse edge creation that `CardRelationshipView` uses.
 
 **Resolution:**
 
-**File:** `Cumberland/AI/OpenAIProvider.swift`
+Added bidirectional relationship creation to match `CardRelationshipView` pattern:
 
-**Change 1:** Updated system prompt (lines 198-211):
-```swift
-Return results as a JSON object with an "entities" array:
-{
-  "entities": [
-    {
-      "name": "Entity Name",
-      "type": "character|location|building|artifact|vehicle|organization|event",
-      "confidence": 0.0-1.0,
-      "context": "Brief surrounding text"
-    }
-  ]
-}
+1. **Added `ensureReverseEdge()` helper function (lines 424-459):**
+   - Checks if reverse edge already exists (target → source)
+   - Gets or creates mirror RelationType
+   - Creates reverse CardEdge with swapped source/target
+   - Uses timestamp offset (+0.001s) for ordering
+
+2. **Added `getMirrorType()` helper function (lines 461-490):**
+   - Finds existing mirror RelationType with swapped labels
+   - Example: "pilots/piloted-by" → "piloted-by/pilots"
+   - Creates new mirror type if needed with:
+     - forwardLabel = original inverseLabel
+     - inverseLabel = original forwardLabel
+     - sourceKind = original targetKind (swapped)
+     - targetKind = original sourceKind (swapped)
+
+3. **Added `makeRelationTypeCode()` helper function (line 492-495):**
+   - Builds RelationType code from forward/inverse labels
+   - Format: "forward/inverse"
+
+4. **Updated `createRelationships()` to call `ensureReverseEdge()` (line 410):**
+   - After creating each forward edge
+   - Automatically creates corresponding reverse edge
+   - Debug output shows both forward and reverse creation
+
+**New Behavior (AFTER FIX):**
+
+Creating Captain Drake with 5 detected relationships:
+1. Creates 5 entity cards ✅
+2. Creates 5 forward CardEdge entries ✅
+3. Creates 5 reverse CardEdge entries ✅
+4. Total: 10 CardEdge entries in database
+5. Captain Drake shows 5 relationships in UI ✅
+6. Voyager shows 1 relationship to Drake ✅
+7. Each entity shows its relationship to Drake ✅
+
+**Debug Output Example:**
 ```
-
-**Change 2:** Added wrapper struct (after line 370):
-```swift
-private struct EntityResponse: Codable {
-    let entities: [EntityJSON]
-}
+🔗 [SuggestionEngine] Creating 5 relationships (bidirectional)
+   ✅ Created forward: Drake → [pilots] → Voyager
+   ✅ Created reverse: Voyager → [piloted-by] → Drake
+   ✅ Created forward: Drake → [enters] → New Haven Station
+   ✅ Created reverse: New Haven Station → [is-entered-by] → Drake
+   ...
+✅ [SuggestionEngine] Successfully created 5 forward + 5 reverse = 10 total edges
 ```
-
-**Change 3:** Updated parsing logic (lines 336-368) to try both formats:
-```swift
-// Try parsing as wrapped object first (GPT-4 with response_format: json_object)
-if let wrappedResponse = try? JSONDecoder().decode(EntityResponse.self, from: jsonData) {
-    return wrappedResponse.entities.map { ... }
-}
-
-// Fallback: try parsing as direct array
-if let jsonArray = try? JSONDecoder().decode([EntityJSON].self, from: jsonData) {
-    return jsonArray.map { ... }
-}
-```
-
-**Change 4:** Added better debug logging to show first 500 chars of raw JSON on failure
-
----
-
-### Bug 2: All Entities Created as "Rules" Cards (Case-Sensitivity Issue)
-
-After fixing Bug 1, entities were successfully extracted but all cards created were of kind "rules" instead of their proper types (character, location, building, etc.).
-
-**Root Cause:**
-
-**Case mismatch between GPT-4 response and EntityType rawValues:**
-
-1. **OpenAIProvider.swift:206** - GPT-4 prompt asks for lowercase types:
-   ```swift
-   "type": "character|location|building|artifact|vehicle|organization|event"
-   ```
-
-2. **AIProviderProtocol.swift:167-174** - EntityType rawValues were CAPITALIZED (BEFORE fix):
-   ```swift
-   enum EntityType: String, Codable {
-       case character = "Character"  // ← Capital C
-       case location = "Location"    // ← Capital L
-       case building = "Building"    // ← Capital B
-       // etc.
-   ```
-
-3. **OpenAIProvider.swift:348** - Parsing with fallback to .other:
-   ```swift
-   type: EntityType(rawValue: json.type) ?? .other
-   // GPT returns "character", tries to match "Character", fails → defaults to .other
-   ```
-
-4. **AIProviderProtocol.swift:186** - .other maps to .rules:
-   ```swift
-   case .other: return .rules  // All entities became rules!
-   ```
-
-**Resolution for Bug 2:**
-
-**File:** `Cumberland/AI/AIProviderProtocol.swift`
-
-**Change 5:** Updated EntityType rawValues to lowercase (lines 167-174):
-```swift
-enum EntityType: String, Codable {
-    case character = "character"      // Changed from "Character"
-    case location = "location"        // Changed from "Location"
-    case building = "building"        // Changed from "Building"
-    case artifact = "artifact"        // Changed from "Artifact"
-    case vehicle = "vehicle"          // Changed from "Vehicle"
-    case organization = "organization" // Changed from "Organization"
-    case event = "event"              // Changed from "Event"
-    case other = "other"              // Changed from "Other"
-```
-
-Now the rawValues match what GPT-4 returns, so parsing works correctly and entities map to their proper card kinds.
-
----
-
-**Affected Code:**
-- `Cumberland/AI/OpenAIProvider.swift:198-211` - System prompt (Bug 1)
-- `Cumberland/AI/OpenAIProvider.swift:336-368` - Parsing logic (Bug 1)
-- `Cumberland/AI/OpenAIProvider.swift:370-373` - EntityResponse struct (Bug 1)
-- `Cumberland/AI/AIProviderProtocol.swift:167-174` - EntityType rawValues (Bug 2)
-
-**Test Steps:**
-
-1. Build and run Cumberland on macOS
-2. Create a Scene card
-3. Paste chapter-length prose from `TEST-SCENE-CHAPTER-LENGTH.md`
-4. Set Settings → AI → Provider to "OpenAI"
-5. Click "Analyze" button
-6. **Before Bug 1 fix**: Console shows "Failed to parse entities JSON", 0 entities returned
-7. **After Bug 1 fix**: Console shows "Parsed N entities from wrapped JSON", entities appear in suggestion sheet
-8. **Before Bug 2 fix**: Select entities and create cards → all cards are kind "rules"
-9. **After Bug 2 fix**: Select entities and create cards → cards have correct kinds (characters, locations, buildings, artifacts, vehicles, etc.)
-
-**Verification Criteria:**
-
-- [ ] OpenAI entity extraction returns entities (not 0) — Bug 1 fixed
-- [ ] Console shows "✅ Parsed N entities from wrapped JSON" — Bug 1 fixed
-- [ ] Suggestion sheet displays extracted entities — Bug 1 fixed
-- [ ] Entities have proper names, types, and confidence scores — Both bugs fixed
-- [ ] At least 15+ entities extracted from test scene (expected ~30-37)
-- [ ] Cards created with CORRECT kinds (not all "rules") — Bug 2 fixed
-  - Characters → .characters kind
-  - Locations → .locations kind
-  - Buildings → .buildings kind
-  - Artifacts → .artifacts kind
-  - Vehicles → .vehicles kind
-  - Organizations → .characters kind (acceptable mapping)
-  - Events → .scenes kind (acceptable mapping)
-
-**User Impact:** High - OpenAI entity extraction completely non-functional (Bug 1), then created wrong card types (Bug 2)
-
-**Priority:** High - Critical bugs in Phase 5 implementation
-
-**Workaround:** Use Apple Intelligence provider instead (not affected by these bugs)
-
-**Related:**
-- ER-0010 Phase 5 (Content Analysis MVP)
-- DR-0050 (Timeout issue - resolved separately)
-
----
-
-## DR-0050: OpenAI Content Analysis Timeout with Default URLSession Settings
-
-**Status:** 🟡 Resolved - Not Verified
-**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
-**Component:** OpenAIProvider / Content Analysis (ER-0010)
-**Severity:** High
-**Date Identified:** 2026-01-24
-**Date Resolved:** 2026-01-24
-
-**Description:**
-
-When using OpenAI as the AI provider for content analysis (ER-0010 Phase 5), GPT-4 API calls to `/v1/chat/completions` timeout after ~60 seconds with error code -1001. This occurs because:
-1. GPT-4 text analysis can take 30-120 seconds for complex entity extraction
-2. Default URLSession timeout (60s) is too short for AI operations
-3. Error messages were not user-friendly (showed raw NSURLError)
-
-**Error Observed:**
-```
-Task <UUID>.<N> finished with error [-1001]
-Error Domain=NSURLErrorDomain Code=-1001 "The request timed out."
-https://api.openai.com/v1/chat/completions
-```
-
-**Current Behavior (Before Fix):**
-- OpenAI content analysis times out after 60 seconds
-- Generic error message: "The request timed out."
-- No guidance for users on how to resolve
-- Apple Intelligence works fine (on-device, fast)
-
-**Expected Behavior:**
-- OpenAI requests should have sufficient timeout for AI operations
-- Clear error messages with actionable guidance
-- Suggest fallback to Apple Intelligence if timeout occurs
-
-**Root Cause:**
-
-OpenAIProvider used `URLSession.shared` with default configuration:
-- `timeoutIntervalForRequest`: 60 seconds (too short)
-- `timeoutIntervalForResource`: 7 days (fine)
-
-**Resolution:**
 
 **Files Modified:**
-- `Cumberland/AI/OpenAIProvider.swift:48-54` - Added custom URLSession with longer timeout
-- `Cumberland/AI/OpenAIProvider.swift:276-303` - Improved timeout error handling
-- `Cumberland/CardEditorView.swift:1133-1160` - User-friendly error messages in UI
 
-**Changes:**
+- `Cumberland/AI/SuggestionEngine.swift:346-495` - Added bidirectional relationship creation
+  - Updated `createRelationships()` to create both forward and reverse edges
+  - Added `ensureReverseEdge()` helper
+  - Added `getMirrorType()` helper
+  - Added `makeRelationTypeCode()` helper
 
-1. **Custom URLSession Configuration (OpenAIProvider.swift:48-54):**
-   ```swift
-   private lazy var urlSession: URLSession = {
-       let config = URLSessionConfiguration.default
-       config.timeoutIntervalForRequest = 120  // 2 minutes
-       config.timeoutIntervalForResource = 180 // 3 minutes
-       return URLSession(configuration: config)
-   }()
-   ```
+**Pattern Consistency:**
 
-2. **Better Error Handling (OpenAIProvider.swift:276-303):**
-   - Catch NSURLErrorTimedOut specifically
-   - Provide helpful message suggesting Apple Intelligence
-   - Detect network connectivity issues
-
-3. **User-Friendly UI Messages (CardEditorView.swift:1133-1160):**
-   - Timeout: "Try using Apple Intelligence (faster, on-device)"
-   - Missing API Key: "Add your API key in Settings → AI"
-   - Network errors: Specific troubleshooting steps
+This implementation now matches the pattern used in `CardRelationshipView.swift:944-973`:
+- Forward edge: source → [forward label] → target
+- Reverse edge: target → [inverse label] → source (using mirror type)
+- Both edges share same createdAt (with 0.001s offset for ordering)
+- Mirror RelationType auto-created if needed
 
 **Test Steps:**
 
-1. Set AI provider to OpenAI in Settings → AI
-2. Ensure OpenAI API key is configured (or intentionally leave blank to test error)
-3. Create/edit a card with 100+ word description
-4. Click "Analyze" button
-5. **Expected (with API key)**: Analysis completes within 2 minutes or times out with helpful message
-6. **Expected (without API key)**: Clear error: "OpenAI API key is missing or invalid"
+1. Create new Character "Captain Drake"
+2. Enter description: "Captain Drake pilots the starship Voyager. He entered the spaceport at New Haven Station. Drake uses a plasma rifle and carries an old family compass."
+3. Click "Analyze" (using OpenAI or Apple Intelligence)
+4. Select all 4-5 relationships
+5. Click "Create Selected"
+6. Click "Save"
+7. Open Captain Drake's detail view → Relationships tab
+8. **Expected**: Drake shows 4-5 outgoing relationships
+9. Open Voyager's detail view → Relationships tab
+10. **Expected**: Voyager shows 1 incoming relationship from Drake ("piloted-by")
+11. Check database (Developer Tools → Card Diagnostics)
+12. **Expected**: 8-10 total CardEdge entries (5 forward + 5 reverse)
 
-**Verification Criteria:**
+**Related Issues:**
 
-- [ ] OpenAI analysis completes successfully with valid API key (or times out with helpful message)
-- [ ] Timeout errors show actionable guidance
-- [ ] Missing API key error is clear and helpful
-- [ ] Apple Intelligence continues to work fast (~1-3 seconds)
+- Phase 6 (ER-0010) - Relationship Inference implementation
+- CardRelationshipView bidirectional edge creation
+- RelationType mirror type system
 
-**User Impact:** High - Blocks content analysis for users preferring OpenAI over Apple Intelligence
+---
 
-**Priority:** High - Core ER-0010 functionality
+## DR-0055: Relationship Creation Timing Issue - Cancel Button Behaves Like Save
 
-**Related:** ER-0010 Phase 5 (Content Analysis MVP)
+**Status:** ✅ Resolved - Not Verified
+**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
+**Component:** SuggestionReviewView, CardEditorView, Phase 6 (ER-0010)
+**Severity:** Critical
+**Date Identified:** 2026-01-26
+**Date Resolved:** 2026-01-26
+
+**Description:**
+
+In Phase 6 (ER-0010) implementation, a critical workflow bug caused the "Cancel" button in CardEditorView to behave identically to the "Save" button when creating relationships. When a user clicked "Create Selected" in the SuggestionReviewView during card creation, the source card was prematurely saved to the database. If the user then clicked "Cancel" instead of "Save", the source card remained in the database instead of being discarded.
+
+**Current Behavior (BEFORE FIX):**
+1. User creates new Character "Captain Drake" (not saved yet)
+2. User clicks "Analyze" → Gets relationship suggestions
+3. User clicks "Create Selected" in SuggestionReviewView
+4. **Source card "Drake" gets saved to database immediately** ❌
+5. User clicks "Cancel" in CardEditorView
+6. **Drake remains in database** ❌ (should be discarded)
+
+**Expected Behavior:**
+- "Create Selected": Create entity cards only, store pending relationships
+- "Save": Save source card, then create stored relationships
+- "Cancel": Discard source card, keep entity cards, discard pending relationships
+
+**Root Cause:**
+
+In `SuggestionReviewView.swift:262-284`, the `acceptSelectedSuggestions()` function was checking if the source card existed in the database. If not, it would insert and save the source card immediately to enable relationship creation. This violated the user expectation that the source card should only be saved when the user clicks the final "Save" button.
+
+**Resolution:**
+
+Implemented a smart relationship creation system that splits relationships into immediate and deferred groups:
+
+1. **Added state variable in CardEditorView.swift:107-109:**
+   ```swift
+   // Phase 6: Store pending relationships from analysis
+   // These will be created when the card is saved
+   @State private var pendingRelationships: [SuggestionEngine.RelationshipSuggestion] = []
+   ```
+
+2. **Updated SuggestionReviewView.swift to accept binding:**
+   - Modified `init()` to accept `pendingRelationships: Binding<[SuggestionEngine.RelationshipSuggestion]>`
+   - Changed `acceptSelectedSuggestions()` to intelligently split relationships into two groups
+
+3. **Smart relationship splitting logic in SuggestionReviewView.swift:255-297:**
+   - Compares each relationship's source/target names against the source card being created
+   - **Immediate relationships**: Neither source nor target matches the card being created → create now
+   - **Deferred relationships**: Either source or target matches the card being created → defer until save
+   - Creates immediate relationships using `suggestionEngine.createRelationships()`
+   - Stores deferred relationships in binding for later creation
+
+4. **Updated CardEditorView.save() to create deferred relationships:**
+   - After `modelContext.save()` in both `.create` and `.edit` cases
+   - Fetches all cards (including newly created source card)
+   - Calls `SuggestionEngine.createRelationships()` with pending suggestions
+   - Clears pending relationships after creation
+
+**New Behavior (AFTER FIX):**
+
+**Example 1: Creating "Captain Drake" with Drake's description:**
+1. User creates new Character "Captain Drake"
+2. Analyzes text: "Captain Drake pilots the starship Voyager. He entered the spaceport at New Haven Station..."
+3. Detected relationships:
+   - Drake → pilots → Voyager (involves Drake - deferred) ⏸️
+   - Drake → enters → New Haven Station (involves Drake - deferred) ⏸️
+   - Drake → uses → plasma rifle (involves Drake - deferred) ⏸️
+4. Clicks "Create Selected"
+   - Entity cards created (Voyager, New Haven Station, plasma rifle)
+   - All 3 relationships deferred (all involve Drake)
+   - Drake NOT saved yet ✅
+5. Clicks "Save"
+   - Drake saved to database
+   - All 3 deferred relationships created ✅
+
+**Example 2: Creating "Starship Voyager" with Drake's description:**
+1. User creates new Vehicle "Starship Voyager"
+2. Analyzes same text
+3. Detected relationships:
+   - Drake → pilots → Voyager (involves Voyager - deferred) ⏸️
+   - Drake → enters → New Haven Station (doesn't involve Voyager - immediate) ✅
+   - Drake → uses → plasma rifle (doesn't involve Voyager - immediate) ✅
+4. Clicks "Create Selected"
+   - Entity cards created (Drake, New Haven Station, plasma rifle)
+   - 2 relationships created immediately (Drake→Station, Drake→rifle) ✅
+   - 1 relationship deferred (Drake→Voyager)
+   - Voyager NOT saved yet ✅
+5. Clicks "Save"
+   - Voyager saved to database
+   - Deferred relationship created (Drake→Voyager) ✅
+
+**Example 3: Cancel workflow:**
+1. User clicks "Cancel" instead of "Save"
+   - Source card discarded (not saved)
+   - Entity cards remain in database (already created)
+   - Deferred relationships discarded ✅
+   - Immediate relationships remain (already created) ✅
+
+**Files Modified:**
+
+- `Cumberland/AI/SuggestionReviewView.swift:15-31` - Added `pendingRelationships` binding to init
+- `Cumberland/AI/SuggestionReviewView.swift:253-282` - Refactored `acceptSelectedSuggestions()` to store instead of create
+- `Cumberland/AI/SuggestionReviewView.swift:479-498` - Fixed Preview syntax (@Previewable at beginning)
+- `Cumberland/CardEditorView.swift:107-109` - Added `pendingRelationships` state variable
+- `Cumberland/CardEditorView.swift:1187-1198` - Passed binding to SuggestionReviewView
+- `Cumberland/CardEditorView.swift:1336-1360` - Create pending relationships in `.create` case
+- `Cumberland/CardEditorView.swift:1369-1393` - Create pending relationships in `.edit` case
+
+**Test Steps:**
+
+**Test A: Creating source card mentioned in description (Drake scenario):**
+1. Create new Character "Captain Drake"
+2. Enter description: "Captain Drake pilots the starship Voyager. He entered the spaceport at New Haven Station. Drake uses a plasma rifle and carries an old family compass."
+3. Click "Analyze" (using OpenAI or Apple Intelligence)
+4. **Verify**: 4-5 entities detected, 4 relationships detected (all involve Drake)
+5. Select all relationships
+6. Click "Create Selected"
+7. **Verify debug output**: "Created 4 entity cards", "Created 0 immediate relationships", "Stored 4 pending relationships (involve 'Captain Drake')"
+8. **Verify**: Entity cards exist in database (Voyager, New Haven Station, plasma rifle, compass)
+9. **Verify**: Drake does NOT exist in Characters list yet
+10. Click "Cancel"
+11. **Expected**: Drake should NOT appear in Characters list (discarded)
+12. **Expected**: Entity cards should remain (Voyager, Station, rifle, compass)
+
+**Test B: Creating source card NOT mentioned in description (Voyager scenario):**
+1. Create new Vehicle "Starship Voyager"
+2. Enter same description from Test A
+3. Click "Analyze"
+4. **Verify**: 4-5 entities detected, 4 relationships detected
+5. Select all relationships
+6. Click "Create Selected"
+7. **Verify debug output**: "Created 4 entity cards", "Created 3 immediate relationships", "Stored 1 pending relationships (involve 'Starship Voyager')"
+8. **Verify**: Entity cards exist (Drake, New Haven Station, plasma rifle, compass)
+9. **Verify**: 3 relationships exist immediately (Drake→Station, Drake→rifle, Drake→compass)
+10. **Verify**: Voyager does NOT exist in Vehicles list yet
+11. Click "Save"
+12. **Expected**: Voyager appears in Vehicles list
+13. **Expected**: 1 deferred relationship created (Drake→pilots→Voyager)
+14. **Verify**: Total of 4 relationships exist
+
+**Test C: Cancel workflow preserves immediate relationships:**
+1. Repeat Test B steps 1-9
+2. Click "Cancel" instead of "Save"
+3. **Expected**: Voyager does NOT appear in Vehicles list (discarded)
+4. **Expected**: Entity cards remain (Drake, Station, rifle, compass)
+5. **Expected**: 3 immediate relationships remain (Drake→Station, Drake→rifle, Drake→compass)
+6. **Expected**: Deferred relationship NOT created (Drake→Voyager never created)
+
+**Related Issues:**
+
+- Phase 6 (ER-0010) - Relationship Inference implementation
+- Card creation workflow
+- SwiftData transaction boundaries
+
+---
+
+## DR-0054: Edit Card Sheet on iOS Missing Save/Cancel Buttons
+
+**Status:** 🔴 Open
+**Platform:** iOS/iPadOS
+**Component:** CardSheetView, CardEditorView
+**Severity:** High
+**Date Identified:** 2026-01-25
+
+**Description:**
+
+On iOS/iPadOS, when editing a card via the Edit Card sheet, the Save and Cancel buttons that should appear at the bottom of the view are missing. This prevents users from saving changes or canceling edits, leaving them with no clear way to exit the edit mode.
+
+**Current Behavior:**
+- Open a card on iOS/iPadOS
+- Tap "Edit" to open the Edit Card sheet
+- CardEditorView displays with form fields
+- **No Save or Cancel buttons visible** at the bottom
+- User cannot save changes
+- User cannot cancel and exit
+- Only way to exit is pulling down the sheet (dismisses without saving)
+
+**Expected Behavior:**
+- Save button should appear at the bottom of CardEditorView
+- Cancel button should appear at the bottom of CardEditorView
+- Save button should save changes and dismiss the sheet
+- Cancel button should discard changes and dismiss the sheet
+- Buttons should be clearly visible and easily accessible
+
+**Possible Causes:**
+
+1. **ScrollView content clipping**: Save/Cancel buttons may be below visible scroll area
+2. **Missing toolbar buttons**: iOS may need toolbar buttons instead of inline buttons
+3. **Sheet presentation mode**: Sheet presentation may be cutting off bottom content
+4. **Platform-specific layout**: CardEditorView may have macOS-specific button placement
+
+**Investigation Needed:**
+
+1. Check if buttons exist but are hidden below scroll area
+2. Verify `.presentationDetents()` aren't clipping content
+3. Check if iOS needs toolbar buttons instead of inline buttons
+4. Review CardSheetView presentation logic
+5. Compare iOS vs macOS button placement in CardEditorView
+
+**Workaround:**
+
+Currently, users must pull down the sheet to dismiss, which loses all changes. No way to save edits on iOS.
+
+**Impact:**
+
+**High Severity** - Core editing functionality broken on iOS. Users cannot save changes to cards on iPhone/iPad.
+
+**Files to Review:**
+- `Cumberland/CardSheetView.swift` - iOS card editing sheet presentation
+- `Cumberland/CardEditorView.swift` - Form layout and button placement
+- Check for platform conditionals around Save/Cancel buttons
+
+**Test Steps:**
+
+1. Open Cumberland on iPhone or iPad
+2. Open any card
+3. Tap "Edit" button
+4. Scroll to bottom of editor
+5. **Expected**: Save and Cancel buttons visible
+6. **Actual**: No buttons visible
+
+**Related Issues:**
+
+- iOS editing workflow
+- Sheet presentation system
+- CardEditorView platform differences
 
 ---
 
@@ -529,102 +472,6 @@ static func seedRelationTypesIfNeeded(container: ModelContainer) async {
 
 ---
 
-## DR-0042: Apple Pencil Not Working with Gesture-Based Brushes on iOS
-
-**Status:** ✅ Resolved - Not Verified
-**Platform:** iOS/iPadOS only
-**Component:** DrawingCanvasView / UIPanGestureRecognizer
-**Severity:** High
-**Date Identified:** 2026-01-19
-**Date Resolved:** 2026-01-24
-
-**Description:**
-
-When using gesture-based brushes (Walls, Furniture/Stamps) on iOS, the Apple Pencil does not trigger the drawing gesture. Only finger touch works. This is inconsistent with the rest of the app where the Apple Pencil works perfectly for all other interactions (tapping to create maps, setting display parameters, moving the tool palette, changing brushes, etc.).
-
-**Current Behavior:**
-- **With Finger Touch**: Walls and furniture draw correctly with dotted preview and final rendering
-- **With Apple Pencil**:
-  - All UI interactions work (tap buttons, move palette, select brushes, etc.)
-  - Drawing gestures do NOT work - nothing happens when dragging with Pencil
-  - User must switch to finger to draw walls/furniture
-  - Area fill brushes (Carpet, Water Feature, Rubble) work fine with Pencil (they use PencilKit)
-
-**Expected Behavior:**
-- Apple Pencil should work identically to finger for gesture-based brushes
-- When dragging with Pencil over canvas with Wall/Furniture brush selected:
-  - Dotted preview should appear
-  - Final wall/furniture should render on touch end
-- Consistent behavior: if Pencil works for UI, it should work for drawing
-
-**Root Cause:**
-
-The `UIPanGestureRecognizer` added for gesture-based brushes (DR-0031/ER-0004 implementation) is not configured to recognize Apple Pencil touches. By default, `UIPanGestureRecognizer` only recognizes finger touches unless explicitly configured to allow stylus input.
-
-**Affected Code:**
-
-`Cumberland/DrawCanvas/DrawingCanvasView.swift:1226-1229`
-```swift
-// ER-0004: Add gesture recognizer for advanced brush drawing
-let panGesture = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDrawingGesture(_:)))
-panGesture.delegate = context.coordinator
-canvasView.addGestureRecognizer(panGesture)
-```
-
-**Solution:**
-
-Configure the gesture recognizer to accept stylus input:
-
-```swift
-let panGesture = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDrawingGesture(_:)))
-panGesture.delegate = context.coordinator
-panGesture.allowedTouchTypes = [UITouch.TouchType.direct.rawValue as NSNumber, UITouch.TouchType.stylus.rawValue as NSNumber]
-canvasView.addGestureRecognizer(panGesture)
-```
-
-**Steps to Reproduce:**
-1. Launch app on iPad with Apple Pencil
-2. Create interior map
-3. Select Wall brush from tool palette
-4. Try to draw wall with Apple Pencil
-5. **Observe**: Nothing happens - no preview, no wall
-6. Try drawing same wall with finger
-7. **Observe**: Preview appears, wall draws correctly
-
-**Workaround:**
-- Use finger instead of Apple Pencil for walls and furniture
-- Area fill brushes (which use PencilKit) work fine with Pencil
-
-**Impact:**
-- **High** - Breaks expected workflow for iPad + Apple Pencil users
-- Users must constantly switch between Pencil (for UI) and finger (for drawing)
-- Inconsistent user experience
-- Particularly problematic for architectural work (walls, furniture) where precision is important
-
-**Priority:** High - This significantly degrades the iPad drawing experience
-
-**Resolution:**
-
-Applied the documented solution by configuring the gesture recognizer to accept both direct touch (finger) and stylus (Apple Pencil) input:
-
-`Cumberland/DrawCanvas/DrawingCanvasView.swift:1229-1231`
-```swift
-// DR-0042: Allow Apple Pencil input for gesture-based brushes
-panGesture.allowedTouchTypes = [UITouch.TouchType.direct.rawValue as NSNumber, UITouch.TouchType.stylus.rawValue as NSNumber]
-```
-
-The fix is a single line added after creating the `UIPanGestureRecognizer`. This configures the gesture recognizer to accept both finger touches (`.direct`) and Apple Pencil input (`.stylus`), ensuring consistent behavior across input methods.
-
-**Verification Steps:**
-1. Launch app on iPad with Apple Pencil
-2. Create interior map
-3. Select Wall brush from tool palette
-4. Draw wall with Apple Pencil
-5. **Expected**: Preview appears, wall draws correctly (same as finger)
-6. Test Furniture/Stamps brush with Pencil
-7. **Expected**: Works identically to finger input
-
----
 
 ## DR-0041: Vegetation and Terrain Brushes Should Render as Area Fills
 

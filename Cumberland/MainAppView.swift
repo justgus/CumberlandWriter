@@ -81,6 +81,7 @@ struct MainAppView: View {
     @AppStorage("ColumnVisibility.buildings") private var buildingsColumnVisibility: String = "all"
     @AppStorage("ColumnVisibility.vehicles") private var vehiclesColumnVisibility: String = "all"
     @AppStorage("COlumnVisibility.artifacts") private var artifactsColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.chronicles") private var chroniclesColumnVisibility: String = "all"
     @AppStorage("ColumnVisibility.rules") private var rulesColumnVisibility: String = "all"
     @AppStorage("ColumnVisibility.sources") private var sourcesColumnVisibility: String = "all"
 
@@ -209,13 +210,12 @@ struct MainAppView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
             #else
-            NavigationView {
+            NavigationStack {
                 CardEditorView(mode: .create(kind: currentCreationKind) { _ in
                     showingCardEditor = false
                 })
             }
-            .frame(minWidth: 760, minHeight: 720)
-            .presentationSizing(.fitted)
+            .frame(minWidth: 760, idealWidth: 900, maxWidth: 1200, minHeight: 720)
             #endif
         }
         // Edit sheet
@@ -230,20 +230,29 @@ struct MainAppView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 #else
-                NavigationView {
+                NavigationStack {
                     CardEditorView(mode: .edit(card: card) {
                         showingEditCardEditor = false
                     })
                 }
-                .frame(minWidth: 760, minHeight: 720)
-                .presentationSizing(.fitted)
+                .frame(minWidth: 760, idealWidth: 900, maxWidth: 1200, minHeight: 720)
                 #endif
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("showSettings"))) { _ in
+            showingSettings = true
         }
         .sheet(isPresented: $showingSettings) {
             #if os(iOS)
             NavigationStack {
                 SettingsView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") {
+                                showingSettings = false
+                            }
+                        }
+                    }
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -1116,6 +1125,8 @@ struct MainAppView: View {
             visibilityString = vehiclesColumnVisibility
         case .kind(.artifacts):
             visibilityString = artifactsColumnVisibility
+        case .kind(.chronicles):
+            visibilityString = chroniclesColumnVisibility
         case .kind(.rules):
             visibilityString = rulesColumnVisibility
         case .kind(.sources):
@@ -1125,7 +1136,7 @@ struct MainAppView: View {
         }
         columnVisibility = parseColumnVisibility(from: visibilityString)
     }
-    
+
     private func saveColumnVisibility(_ visibility: NavigationSplitViewVisibility, for context: ColumnVisibilityContext) {
         let visibilityString = serializeColumnVisibility(visibility)
         switch context {
@@ -1155,6 +1166,8 @@ struct MainAppView: View {
             UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.vehicles")
         case .kind(.artifacts):
             UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.artifacts")
+        case .kind(.chronicles):
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.chronicles")
         case .kind(.rules):
             UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.rules")
         case .kind(.sources):

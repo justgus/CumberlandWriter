@@ -17,11 +17,12 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **5 unverified DRs** (All Open)
+Currently: **6 unverified DRs** (All Open)
 
 | DR | Title | Component | Status |
 |----|-------|-----------|--------|
-| DR-0042 | Apple Pencil Not Working with Gesture-Based Brushes on iOS | DrawingCanvasView / UIPanGestureRecognizer | 🔴 Open |
+| DR-0051 | CardEditorView Fixed to Narrow Width on macOS Sheet | CardEditorView | 🔴 Open |
+| DR-0043 | Duplicate RelationType Entries Created Despite Deduplication Logic | RelationType / CumberlandApp seeding | 🔴 Open |
 | DR-0041 | Vegetation and Terrain Brushes Should Render as Area Fills | BrushEngine / ExteriorMapBrushSet | 🔴 Open |
 | DR-0040 | Brush Set Picker Text Overflow on iOS | BrushGridView / Tool Palette | 🔴 Open |
 | DR-0039 | Saved Strokes/Settings Failed to Restore During Drawing Canvas Restoration | DrawCanvas / Draft Persistence / LayerManager | 🔴 Open |
@@ -31,14 +32,14 @@ See: [DR-unverified.md](./DR-unverified.md)
 
 ### Verified DRs (Resolved Issues)
 
-Currently: **37 verified DRs** | Next available DR: **DR-0038**
+Currently: **40 verified DRs** | Next available DR: **DR-0053**
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
 | Batch 1 | DR-0001 to DR-0010 | [DR-verified-0001-0010.md](./DR-verified-0001-0010.md) | ✅ All Verified |
 | Batch 2 | DR-0011 to DR-0020 | [DR-verified-0011-0020.md](./DR-verified-0011-0020.md) | ✅ All Verified |
 | Batch 3 | DR-0021 to DR-0030 | [DR-verified-0021-0030.md](./DR-verified-0021-0030.md) | ✅ All Verified |
-| Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | 🚧 In Progress (8/10 verified) |
+| Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | ✅ All Verified (10/10 verified) |
 
 ## DR Summary
 
@@ -94,10 +95,11 @@ Currently: **37 verified DRs** | Next available DR: **DR-0038**
 | DR-0029 | Base layer image recalculated on visibility toggle | BaseLayerImageCache | ✅ Verified |
 | DR-0030 | Missing "Add Card" UI on iOS/misplaced Settings | MainAppView, CumberlandApp | ✅ Verified |
 
-### DR-0032 to DR-0037 - macOS Drawing, Documentation, and Architectural Issues (Verified)
+### DR-0031 to DR-0040 - Advanced Brushes, macOS Drawing, OpenAI Integration (Verified)
 
 | DR | Title | Component | Status |
 |----|-------|-----------|--------|
+| DR-0031 | Advanced Brush Rendering Not Executed on Any Platform | DrawCanvas/BrushEngine Integration | ✅ Verified |
 | DR-0032 | All Brush Strokes Disappear After Several Seconds on macOS | DrawCanvas/exportCanvasState | ✅ Verified |
 | DR-0033 | Duplicate Default Story Structures in Structure List | CumberlandApp/Seeding | ✅ Verified |
 | DR-0033.1 | "Novel" Structure Still Has Duplicate Entry After Deduplication | CumberlandApp/Deduplication | ✅ Verified |
@@ -105,6 +107,9 @@ Currently: **37 verified DRs** | Next available DR: **DR-0038**
 | DR-0035 | DRs 0019-0030 Missing from DR-Documentation.md Index | DR-Documentation.md | ✅ Verified |
 | DR-0036 | Interior / Architectural Maps Header Controls Take Up Too Much Space on iPad | MapWizardView / Interior Configuration UI | ✅ Verified |
 | DR-0037 | Insufficient Sandy Beach Area Around Water Brushes | DrawCanvas/BrushEngine Water Rendering | ✅ Resolved - Closed (Expanded to ER-0007) |
+| DR-0042 | Apple Pencil Not Working with Gesture-Based Brushes on iOS | DrawingCanvasView / UIPanGestureRecognizer | ✅ Verified |
+| DR-0050 | OpenAI Content Analysis Timeout with Default URLSession Settings | OpenAIProvider / Content Analysis | ✅ Verified |
+| DR-0052 | OpenAI Entity Extraction Has Two Critical Bugs (0 Entities + Wrong Card Types) | OpenAIProvider / Content Analysis | ✅ Verified |
 
 ## How to Use This Documentation
 
@@ -132,13 +137,13 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 43
-- **Verified:** 38 (88%) ✅
+- **Total DRs:** 52
+- **Verified:** 40 (77%) ✅
 - **Resolved - Not Verified:** 0 (0%) 🟡
-- **Open:** 5 (12%) 🔴
-- **Latest DR:** DR-0042 (2026-01-19 - Apple Pencil Not Working with Gesture-Based Brushes on iOS)
+- **Open:** 6 (12%) 🔴
+- **Latest DR:** DR-0052 (2026-01-24 - OpenAI Entity Extraction Bugs)
 
 ---
 
-*Last Updated: 2026-01-19*
-*Document Version: 4.7 (Opened DR-0041 and DR-0042)*
+*Last Updated: 2026-01-25*
+*Document Version: 4.8 (Verified DR-0042, DR-0050, DR-0052 - Batch 4 Complete)*

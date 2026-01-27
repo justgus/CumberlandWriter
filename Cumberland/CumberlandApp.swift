@@ -186,17 +186,19 @@ struct CumberlandApp: App {
                     }
                 }
         }
-        #if os(macOS)
         .commands {
+            #if os(macOS)
             AboutCommands()
+            #endif
             PreferencesCommands()
-            #if DEBUG
+            #if DEBUG && os(macOS)
             DeveloperCommands()
             #endif
+            #if os(macOS)
             // New: Editor command to insert default author into the focused Author field.
             EditorCommands()
+            #endif
         }
-        #endif
 
         #if os(visionOS)
         ImmersiveSpace(id: appModel.immersiveSpaceID) {
@@ -905,20 +907,37 @@ private struct AboutCommands: Commands {
         }
     }
 }
+#endif // os(macOS)
 
+// PreferencesCommands - Available on all platforms
 private struct PreferencesCommands: Commands {
+    #if os(macOS)
     @Environment(\.openWindow) private var openWindow
+    #endif
 
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
+            #if os(macOS)
             Button("Preferences...") {
                 openWindow(id: "settings")
             }
             .keyboardShortcut(",", modifiers: .command)
+            #else
+            // iOS/iPadOS: Post notification to trigger settings sheet
+            Button("Preferences...") {
+                NotificationCenter.default.post(name: Notification.Name("showSettings"), object: nil)
+            }
+            .keyboardShortcut(",", modifiers: .command)
+            #endif
         }
     }
 }
 
+extension Notification.Name {
+    static let showSettings = Notification.Name("showSettings")
+}
+
+#if os(macOS)
 #if DEBUG
 private struct DeveloperCommands: Commands {
     @Environment(\.openWindow) private var openWindow

@@ -12,17 +12,26 @@ struct SuggestionReviewView: View {
 
     // MARK: - Properties
 
-    let suggestions: SuggestionEngine.Suggestions
     let sourceCard: Card
     let existingCards: [Card]
+    @Binding var pendingRelationships: [SuggestionEngine.RelationshipSuggestion]
 
     // MARK: - State
 
+    @State private var mutableSuggestions: SuggestionEngine.Suggestions
     @State private var selectedCardSuggestions = Set<UUID>()
     @State private var selectedRelationshipSuggestions = Set<UUID>()
+    @State private var selectedCalendarSuggestions = Set<UUID>()  // Phase 7
     @State private var isCreating = false
     @State private var errorMessage: String?
     @State private var showError = false
+
+    init(suggestions: SuggestionEngine.Suggestions, sourceCard: Card, existingCards: [Card], pendingRelationships: Binding<[SuggestionEngine.RelationshipSuggestion]>) {
+        self.sourceCard = sourceCard
+        self.existingCards = existingCards
+        self._pendingRelationships = pendingRelationships
+        self._mutableSuggestions = State(initialValue: suggestions)
+    }
 
     private let suggestionEngine = SuggestionEngine()
 
@@ -36,17 +45,22 @@ struct SuggestionReviewView: View {
                     headerView
 
                     // Card Suggestions Section
-                    if !suggestions.cards.isEmpty {
+                    if !mutableSuggestions.cards.isEmpty {
                         cardSuggestionsSection
                     }
 
                     // Relationship Suggestions Section
-                    if !suggestions.relationships.isEmpty {
+                    if !mutableSuggestions.relationships.isEmpty {
                         relationshipSuggestionsSection
                     }
 
+                    // Calendar Suggestions Section (Phase 7)
+                    if !mutableSuggestions.calendars.isEmpty {
+                        calendarSuggestionsSection
+                    }
+
                     // Empty State
-                    if suggestions.isEmpty {
+                    if mutableSuggestions.isEmpty {
                         emptyStateView
                     }
                 }
@@ -83,31 +97,41 @@ struct SuggestionReviewView: View {
 
     private var headerView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Found **\(suggestions.totalCount)** suggestions")
+            Text("Found **\(mutableSuggestions.totalCount)** suggestions")
                 .font(.headline)
 
-            Text("Select the cards and relationships you want to create.")
+            Text("Select the cards, relationships, and calendar systems you want to create.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            if !suggestions.cards.isEmpty {
+            if !mutableSuggestions.cards.isEmpty {
                 HStack {
                     Image(systemName: "doc.badge.plus")
                         .font(.caption)
-                    Text("\(suggestions.cards.count) new cards")
+                    Text("\(mutableSuggestions.cards.count) new cards")
                         .font(.caption)
                 }
                 .foregroundStyle(.blue)
             }
 
-            if !suggestions.relationships.isEmpty {
+            if !mutableSuggestions.relationships.isEmpty {
                 HStack {
                     Image(systemName: "arrow.triangle.branch")
                         .font(.caption)
-                    Text("\(suggestions.relationships.count) relationships")
+                    Text("\(mutableSuggestions.relationships.count) relationships")
                         .font(.caption)
                 }
                 .foregroundStyle(.purple)
+            }
+
+            if !mutableSuggestions.calendars.isEmpty {
+                HStack {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.caption)
+                    Text("\(mutableSuggestions.calendars.count) calendar system(s)")
+                        .font(.caption)
+                }
+                .foregroundStyle(.green)
             }
         }
         .padding()
@@ -123,9 +147,9 @@ struct SuggestionReviewView: View {
                 .font(.title3)
                 .fontWeight(.semibold)
 
-            ForEach(suggestions.cards) { suggestion in
+            ForEach($mutableSuggestions.cards) { $suggestion in
                 CardSuggestionRow(
-                    suggestion: suggestion,
+                    suggestion: $suggestion,
                     isSelected: selectedCardSuggestions.contains(suggestion.id)
                 ) {
                     toggleSelection(for: suggestion)
@@ -142,10 +166,29 @@ struct SuggestionReviewView: View {
                 .font(.title3)
                 .fontWeight(.semibold)
 
-            ForEach(suggestions.relationships) { suggestion in
+            ForEach(mutableSuggestions.relationships) { suggestion in
                 RelationshipSuggestionRow(
                     suggestion: suggestion,
                     isSelected: selectedRelationshipSuggestions.contains(suggestion.id)
+                ) {
+                    toggleSelection(for: suggestion)
+                }
+            }
+        }
+    }
+
+    // MARK: - Calendar Suggestions (Phase 7)
+
+    private var calendarSuggestionsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Calendar Systems Detected")
+                .font(.title3)
+                .fontWeight(.semibold)
+
+            ForEach(mutableSuggestions.calendars) { suggestion in
+                CalendarSuggestionRow(
+                    suggestion: suggestion,
+                    isSelected: selectedCalendarSuggestions.contains(suggestion.id)
                 ) {
                     toggleSelection(for: suggestion)
                 }
@@ -189,7 +232,7 @@ struct SuggestionReviewView: View {
                 Text("Create Selected")
             }
         }
-        .disabled(selectedCardSuggestions.isEmpty && selectedRelationshipSuggestions.isEmpty || isCreating)
+        .disabled(selectedCardSuggestions.isEmpty && selectedRelationshipSuggestions.isEmpty && selectedCalendarSuggestions.isEmpty || isCreating)
     }
 
     private var selectAllButton: some View {
@@ -228,20 +271,31 @@ struct SuggestionReviewView: View {
         }
     }
 
+    private func toggleSelection(for suggestion: SuggestionEngine.CalendarSuggestion) {
+        if selectedCalendarSuggestions.contains(suggestion.id) {
+            selectedCalendarSuggestions.remove(suggestion.id)
+        } else {
+            selectedCalendarSuggestions.insert(suggestion.id)
+        }
+    }
+
     private func selectAllCards() {
-        selectedCardSuggestions = Set(suggestions.cards.map { $0.id })
-        selectedRelationshipSuggestions = Set(suggestions.relationships.map { $0.id })
+        selectedCardSuggestions = Set(mutableSuggestions.cards.map { $0.id })
+        selectedRelationshipSuggestions = Set(mutableSuggestions.relationships.map { $0.id })
+        selectedCalendarSuggestions = Set(mutableSuggestions.calendars.map { $0.id })  // Phase 7
     }
 
     private func selectHighConfidenceOnly() {
-        let highConfidence = suggestionEngine.getHighConfidenceSuggestions(suggestions)
+        let highConfidence = suggestionEngine.getHighConfidenceSuggestions(mutableSuggestions)
         selectedCardSuggestions = Set(highConfidence.cards.map { $0.id })
         selectedRelationshipSuggestions = Set(highConfidence.relationships.map { $0.id })
+        selectedCalendarSuggestions = Set(highConfidence.calendars.map { $0.id })  // Phase 7
     }
 
     private func deselectAll() {
         selectedCardSuggestions.removeAll()
         selectedRelationshipSuggestions.removeAll()
+        selectedCalendarSuggestions.removeAll()  // Phase 7
     }
 
     private func acceptSelectedSuggestions() {
@@ -249,22 +303,127 @@ struct SuggestionReviewView: View {
 
         Task {
             do {
-                // Get selected suggestions
-                let selectedCards = suggestions.cards.filter { selectedCardSuggestions.contains($0.id) }
-                let selectedRelationships = suggestions.relationships.filter { selectedRelationshipSuggestions.contains($0.id) }
+                // Get selected suggestions (with user-modified card types)
+                let selectedCards = mutableSuggestions.cards.filter { selectedCardSuggestions.contains($0.id) }
+                let selectedRelationships = mutableSuggestions.relationships.filter { selectedRelationshipSuggestions.contains($0.id) }
+                let selectedCalendars = mutableSuggestions.calendars.filter { selectedCalendarSuggestions.contains($0.id) }  // Phase 7
 
-                // Create cards
+                // Create entity cards first
                 if !selectedCards.isEmpty {
                     try suggestionEngine.createCards(from: selectedCards, context: modelContext, sourceCard: sourceCard)
                 }
 
-                // Create relationships
-                if !selectedRelationships.isEmpty {
-                    try suggestionEngine.createRelationships(from: selectedRelationships, context: modelContext, existingCards: existingCards)
+                // Phase 7: Create calendar systems
+                if !selectedCalendars.isEmpty {
+                    for calendarSuggestion in selectedCalendars {
+                        let detected = calendarSuggestion.detectedCalendar
+
+                        // Build TimeDivision hierarchy from detected calendar data
+                        var divisions: [TimeDivision] = []
+
+                        // Add day division (base unit)
+                        divisions.append(TimeDivision(
+                            name: "day",
+                            pluralName: "days",
+                            length: 1,
+                            isVariable: false
+                        ))
+
+                        // Add week division if days per week is known
+                        if let daysPerWeek = detected.daysPerWeek {
+                            divisions.append(TimeDivision(
+                                name: "week",
+                                pluralName: "weeks",
+                                length: daysPerWeek,
+                                isVariable: false
+                            ))
+                        }
+
+                        // Add month division
+                        if let daysPerMonth = detected.daysPerMonth {
+                            divisions.append(TimeDivision(
+                                name: "month",
+                                pluralName: "months",
+                                length: daysPerMonth,
+                                isVariable: false
+                            ))
+                        } else {
+                            // Default to 30 days if not specified
+                            divisions.append(TimeDivision(
+                                name: "month",
+                                pluralName: "months",
+                                length: 30,
+                                isVariable: true
+                            ))
+                        }
+
+                        // Add year division
+                        divisions.append(TimeDivision(
+                            name: "year",
+                            pluralName: "years",
+                            length: detected.monthsPerYear,
+                            isVariable: false
+                        ))
+
+                        // Create CalendarSystem with divisions
+                        let calendar = CalendarSystem(
+                            name: detected.name,
+                            divisions: divisions
+                        )
+
+                        modelContext.insert(calendar)
+
+                        #if DEBUG
+                        print("✅ [SuggestionReviewView] Created CalendarSystem: \(detected.name)")
+                        print("   Divisions: \(divisions.map { $0.name }.joined(separator: " → "))")
+                        #endif
+                    }
+
+                    try modelContext.save()
+                }
+
+                // Phase 6 Fix: Split relationships into two groups:
+                // 1. Immediate relationships (don't involve source card being created)
+                // 2. Pending relationships (involve source card as source OR target)
+
+                let sourceCardName = sourceCard.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+                var immediateRelationships: [SuggestionEngine.RelationshipSuggestion] = []
+                var deferredRelationships: [SuggestionEngine.RelationshipSuggestion] = []
+
+                for relationship in selectedRelationships {
+                    let sourceMatches = relationship.sourceCardName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == sourceCardName
+                    let targetMatches = relationship.targetCardName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == sourceCardName
+
+                    if sourceMatches || targetMatches {
+                        // This relationship involves the source card being created - defer it
+                        deferredRelationships.append(relationship)
+                    } else {
+                        // This relationship doesn't involve the source card - create it now
+                        immediateRelationships.append(relationship)
+                    }
+                }
+
+                // Create immediate relationships now (all cards exist)
+                if !immediateRelationships.isEmpty {
+                    let allCards = try modelContext.fetch(FetchDescriptor<Card>())
+                    try suggestionEngine.createRelationships(
+                        from: immediateRelationships,
+                        context: modelContext,
+                        existingCards: allCards
+                    )
+                }
+
+                // Store deferred relationships for creation when source card is saved
+                await MainActor.run {
+                    pendingRelationships = deferredRelationships
                 }
 
                 #if DEBUG
-                print("✅ [SuggestionReviewView] Created \(selectedCards.count) cards and \(selectedRelationships.count) relationships")
+                print("✅ [SuggestionReviewView] Created \(selectedCards.count) entity cards")
+                print("✅ [SuggestionReviewView] Created \(selectedCalendars.count) calendar systems")
+                print("✅ [SuggestionReviewView] Created \(immediateRelationships.count) immediate relationships")
+                print("📋 [SuggestionReviewView] Stored \(deferredRelationships.count) pending relationships (involve '\(sourceCard.name)')")
                 #endif
 
                 // Dismiss
@@ -287,7 +446,7 @@ struct SuggestionReviewView: View {
 // MARK: - Card Suggestion Row
 
 private struct CardSuggestionRow: View {
-    let suggestion: SuggestionEngine.CardSuggestion
+    @Binding var suggestion: SuggestionEngine.CardSuggestion
     let isSelected: Bool
     let onToggle: () -> Void
 
@@ -310,13 +469,16 @@ private struct CardSuggestionRow: View {
 
                     Spacer()
 
-                    Text(suggestion.cardKind.rawValue)
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.blue.opacity(0.1))
-                        .foregroundStyle(.blue)
-                        .cornerRadius(6)
+                    // Card type picker - allows user to override AI suggestion
+                    Picker("Card Type", selection: $suggestion.cardKind) {
+                        ForEach(Kinds.orderedCases.filter { $0 != .structure }, id: \.self) { kind in
+                            Text(kind.rawValue).tag(kind)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .font(.caption)
+                    .tint(.blue)
+                    .help("Change card type (AI suggested: \(suggestion.entity.type.rawValue))")
                 }
 
                 // Confidence
@@ -381,7 +543,7 @@ private struct RelationshipSuggestionRow: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    Text(suggestion.relationship.type.rawValue)
+                    Text(suggestion.relationTypeCode)
                         .font(.subheadline)
                         .foregroundStyle(.purple)
 
@@ -398,7 +560,7 @@ private struct RelationshipSuggestionRow: View {
                 ConfidenceBadge(confidence: suggestion.confidence)
 
                 // Context
-                if let context = suggestion.relationship.context {
+                if let context = suggestion.context {
                     Text(context.prefix(100) + (context.count > 100 ? "..." : ""))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -413,6 +575,126 @@ private struct RelationshipSuggestionRow: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(isSelected ? Color.purple : Color.clear, lineWidth: 2)
+        )
+    }
+}
+
+// MARK: - Calendar Suggestion Row (Phase 7)
+
+private struct CalendarSuggestionRow: View {
+    let suggestion: SuggestionEngine.CalendarSuggestion
+    let isSelected: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Checkbox
+            Button {
+                onToggle()
+            } label: {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? .green : .secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                // Calendar name
+                HStack {
+                    Text(suggestion.detectedCalendar.name)
+                        .font(.headline)
+
+                    Spacer()
+
+                    ConfidenceBadge(confidence: suggestion.detectedCalendar.confidence)
+                }
+
+                // Summary
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+
+                    Text("\(suggestion.detectedCalendar.monthsPerYear) months")
+                        .font(.caption)
+
+                    if let daysPerMonth = suggestion.detectedCalendar.daysPerMonth {
+                        Text("•")
+                            .foregroundStyle(.secondary)
+                        Text("\(daysPerMonth) days/month")
+                            .font(.caption)
+                    }
+
+                    if let daysPerWeek = suggestion.detectedCalendar.daysPerWeek {
+                        Text("•")
+                            .foregroundStyle(.secondary)
+                        Text("\(daysPerWeek) days/week")
+                            .font(.caption)
+                    }
+                }
+
+                // Month names (show first 5)
+                if !suggestion.detectedCalendar.monthNames.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "list.bullet")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        let monthsToShow = suggestion.detectedCalendar.monthNames.prefix(5)
+                        let remaining = suggestion.detectedCalendar.monthNames.count - monthsToShow.count
+
+                        Text(monthsToShow.joined(separator: ", "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+
+                        if remaining > 0 {
+                            Text("(+\(remaining) more)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                // Era name
+                if let eraName = suggestion.detectedCalendar.eraName {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.badge.checkmark")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        Text("Era: \(eraName)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Festivals
+                if let festivals = suggestion.detectedCalendar.festivals, !festivals.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.yellow)
+
+                        Text("\(festivals.count) festival(s)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Context preview
+                Text(suggestion.detectedCalendar.context.prefix(150) + (suggestion.detectedCalendar.context.count > 150 ? "..." : ""))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .padding(.top, 4)
+            }
+        }
+        .padding()
+        .background(isSelected ? Color.green.opacity(0.05) : Color.gray.opacity(0.1))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isSelected ? Color.green : Color.clear, lineWidth: 2)
         )
     }
 }
@@ -461,6 +743,8 @@ private struct ConfidenceBadge: View {
 // MARK: - Preview
 
 #Preview {
+    @Previewable @State var pendingRelationships: [SuggestionEngine.RelationshipSuggestion] = []
+
     let sampleEntities = [
         Entity(name: "Shadowblade", type: .artifact, confidence: 0.92, context: "Aria drew the Shadowblade from its sheath"),
         Entity(name: "Temple of Shadows", type: .building, confidence: 0.88, context: "entered the Temple of Shadows"),
@@ -472,8 +756,9 @@ private struct ConfidenceBadge: View {
     let suggestions = suggestionEngine.generateCardSuggestions(from: sampleEntities, sourceCard: card)
 
     SuggestionReviewView(
-        suggestions: SuggestionEngine.Suggestions(cards: suggestions, relationships: []),
+        suggestions: SuggestionEngine.Suggestions(cards: suggestions, relationships: [], calendars: []),
         sourceCard: card,
-        existingCards: []
+        existingCards: [],
+        pendingRelationships: $pendingRelationships
     )
 }

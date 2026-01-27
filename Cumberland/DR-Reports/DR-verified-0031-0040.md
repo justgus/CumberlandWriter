@@ -795,4 +795,269 @@ Refactored interior configuration view to use the same compact hamburger menu pa
 
 ---
 
-*End of Batch 4*
+## DR-0042: Apple Pencil Not Working with Gesture-Based Brushes on iOS
+
+**Status:** ✅ Resolved - Verified
+**Verification Date:** 2026-01-25
+**Platform:** iOS/iPadOS only
+**Component:** DrawingCanvasView / UIPanGestureRecognizer
+**Severity:** High
+**Date Identified:** 2026-01-19
+**Date Resolved:** 2026-01-24
+
+**Description:**
+
+When using gesture-based brushes (Walls, Furniture/Stamps) on iOS, the Apple Pencil does not trigger the drawing gesture. Only finger touch works. This is inconsistent with the rest of the app where the Apple Pencil works perfectly for all other interactions (tapping to create maps, setting display parameters, moving the tool palette, changing brushes, etc.).
+
+**Current Behavior:**
+- **With Finger Touch**: Walls and furniture draw correctly with dotted preview and final rendering
+- **With Apple Pencil**:
+  - All UI interactions work (tap buttons, move palette, select brushes, etc.)
+  - Drawing gestures do NOT work - nothing happens when dragging with Pencil
+  - User must switch to finger to draw walls/furniture
+  - Area fill brushes (Carpet, Water Feature, Rubble) work fine with Pencil (they use PencilKit)
+
+**Expected Behavior:**
+- Apple Pencil should work identically to finger for gesture-based brushes
+- When dragging with Pencil over canvas with Wall/Furniture brush selected:
+  - Dotted preview should appear
+  - Final wall/furniture should render on touch end
+- Consistent behavior: if Pencil works for UI, it should work for drawing
+
+**Root Cause:**
+
+The `UIPanGestureRecognizer` added for gesture-based brushes (DR-0031/ER-0004 implementation) is not configured to recognize Apple Pencil touches. By default, `UIPanGestureRecognizer` only recognizes finger touches unless explicitly configured to allow stylus input.
+
+**Affected Code:**
+
+`Cumberland/DrawCanvas/DrawingCanvasView.swift:1226-1229`
+```swift
+// ER-0004: Add gesture recognizer for advanced brush drawing
+let panGesture = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDrawingGesture(_:)))
+panGesture.delegate = context.coordinator
+canvasView.addGestureRecognizer(panGesture)
+```
+
+**Resolution:**
+
+Applied the documented solution by configuring the gesture recognizer to accept both direct touch (finger) and stylus (Apple Pencil) input:
+
+`Cumberland/DrawCanvas/DrawingCanvasView.swift:1229-1231`
+```swift
+// DR-0042: Allow Apple Pencil input for gesture-based brushes
+panGesture.allowedTouchTypes = [UITouch.TouchType.direct.rawValue as NSNumber, UITouch.TouchType.stylus.rawValue as NSNumber]
+```
+
+The fix is a single line added after creating the `UIPanGestureRecognizer`. This configures the gesture recognizer to accept both finger touches (`.direct`) and Apple Pencil input (`.stylus`), ensuring consistent behavior across input methods.
+
+**Files Modified:**
+- `Cumberland/DrawCanvas/DrawingCanvasView.swift:1229-1231` - Added allowedTouchTypes configuration
+
+**Verification:**
+- ✅ Apple Pencil now works with Wall brush
+- ✅ Apple Pencil now works with Furniture/Stamps brush
+- ✅ Dotted preview appears correctly with Pencil
+- ✅ Final rendering works correctly with Pencil
+- ✅ Finger touch continues to work as before
+- ✅ Area fill brushes continue to work with Pencil
+- ✅ User verified on iPad with Apple Pencil on 2026-01-25
+
+---
+
+## DR-0050: OpenAI Content Analysis Timeout with Default URLSession Settings
+
+**Status:** ✅ Resolved - Verified
+**Verification Date:** 2026-01-25
+**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
+**Component:** OpenAIProvider / Content Analysis (ER-0010)
+**Severity:** High
+**Date Identified:** 2026-01-24
+**Date Resolved:** 2026-01-24
+
+**Description:**
+
+When using OpenAI as the AI provider for content analysis (ER-0010 Phase 5), GPT-4 API calls to `/v1/chat/completions` timeout after ~60 seconds with error code -1001. This occurs because:
+1. GPT-4 text analysis can take 30-120 seconds for complex entity extraction
+2. Default URLSession timeout (60s) is too short for AI operations
+3. Error messages were not user-friendly (showed raw NSURLError)
+
+**Error Observed:**
+```
+Task <UUID>.<N> finished with error [-1001]
+Error Domain=NSURLErrorDomain Code=-1001 "The request timed out."
+https://api.openai.com/v1/chat/completions
+```
+
+**Root Cause:**
+
+OpenAIProvider used `URLSession.shared` with default configuration:
+- `timeoutIntervalForRequest`: 60 seconds (too short)
+- `timeoutIntervalForResource`: 7 days (fine)
+
+**Resolution:**
+
+**1. Custom URLSession Configuration (OpenAIProvider.swift:48-54):**
+```swift
+private lazy var urlSession: URLSession = {
+    let config = URLSessionConfiguration.default
+    config.timeoutIntervalForRequest = 120  // 2 minutes
+    config.timeoutIntervalForResource = 180 // 3 minutes
+    return URLSession(configuration: config)
+}()
+```
+
+**2. Better Error Handling (OpenAIProvider.swift:276-303):**
+- Catch NSURLErrorTimedOut specifically
+- Provide helpful message suggesting Apple Intelligence
+- Detect network connectivity issues
+
+**3. User-Friendly UI Messages (CardEditorView.swift:1133-1160):**
+- Timeout: "Try using Apple Intelligence (faster, on-device)"
+- Missing API Key: "Add your API key in Settings → AI"
+- Network errors: Specific troubleshooting steps
+
+**Files Modified:**
+- `Cumberland/AI/OpenAIProvider.swift:48-54` - Custom URLSession with longer timeout
+- `Cumberland/AI/OpenAIProvider.swift:276-303` - Improved timeout error handling
+- `Cumberland/CardEditorView.swift:1133-1160` - User-friendly error messages
+
+**Verification:**
+- ✅ OpenAI analysis completes successfully with valid API key
+- ✅ Timeout increased from 60s to 120s
+- ✅ Timeout errors show actionable guidance
+- ✅ Missing API key error is clear and helpful
+- ✅ Apple Intelligence continues to work fast (~1-3 seconds)
+- ✅ User verified on 2026-01-25
+
+**Related:** ER-0010 Phase 5 (Content Analysis MVP), DR-0052
+
+---
+
+## DR-0052: OpenAI Entity Extraction Has Two Critical Bugs (0 Entities + Wrong Card Types)
+
+**Status:** ✅ Resolved - Verified
+**Verification Date:** 2026-01-25
+**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
+**Component:** OpenAIProvider / Content Analysis (ER-0010)
+**Severity:** High
+**Date Identified:** 2026-01-24
+**Date Resolved:** 2026-01-24
+
+**Description:**
+
+When using OpenAI provider for entity extraction (Phase 5, ER-0010), there were two critical bugs:
+
+**Bug 1:** Analysis completes successfully but returns 0 entities due to JSON parsing failure
+**Bug 2:** After Bug 1 fix, entities are extracted but all cards created are "rules" instead of proper types (character, location, building, etc.)
+
+**Observed Behavior (Bug 1):**
+```
+🔍 [EntityExtractor] Extracting entities from text
+   Provider: OpenAI DALL-E 3
+   Word count: 2235
+⚠️ [OpenAI] Failed to parse entities JSON  ← ISSUE HERE
+✅ [OpenAI] Analysis complete in 88.75s
+   Entities: 0  ← RESULT: 0 ENTITIES
+```
+
+**Root Cause (Bug 1):**
+
+**Mismatch between response format and parsing logic:**
+
+1. **OpenAIProvider.swift:270** - Request configuration requested JSON OBJECT format
+2. **OpenAIProvider.swift:201** - System prompt asked for JSON ARRAY
+3. **OpenAIProvider.swift:338** - Parsing code tried to parse as ARRAY
+
+When `response_format: json_object` is specified, GPT-4 wraps responses in an object like:
+```json
+{
+  "entities": [...]
+}
+```
+
+But we were asking for an array and trying to parse as an array, causing parsing failure.
+
+**Resolution (Bug 1):**
+
+**Change 1:** Updated system prompt (lines 198-211) to request wrapped object format
+**Change 2:** Added wrapper struct (after line 370):
+```swift
+private struct EntityResponse: Codable {
+    let entities: [EntityJSON]
+}
+```
+
+**Change 3:** Updated parsing logic (lines 336-368) to try both formats:
+```swift
+// Try parsing as wrapped object first (GPT-4 with response_format: json_object)
+if let wrappedResponse = try? JSONDecoder().decode(EntityResponse.self, from: jsonData) {
+    return wrappedResponse.entities.map { ... }
+}
+
+// Fallback: try parsing as direct array
+if let jsonArray = try? JSONDecoder().decode([EntityJSON].self, from: jsonData) {
+    return jsonArray.map { ... }
+}
+```
+
+**Change 4:** Added better debug logging
+
+---
+
+### Bug 2: All Entities Created as "Rules" Cards (Case-Sensitivity Issue)
+
+After fixing Bug 1, entities were successfully extracted but all cards created were of kind "rules" instead of their proper types.
+
+**Root Cause (Bug 2):**
+
+**Case mismatch between GPT-4 response and EntityType rawValues:**
+
+1. GPT-4 prompt asked for lowercase types: `"character|location|building..."`
+2. EntityType rawValues were CAPITALIZED: `case character = "Character"`
+3. Parsing with fallback: `EntityType(rawValue: json.type) ?? .other`
+   - GPT returns "character", tries to match "Character", fails → defaults to .other
+4. `.other` maps to `.rules`: All entities became rules!
+
+**Resolution (Bug 2):**
+
+Updated EntityType rawValues to lowercase (AIProviderProtocol.swift:167-174):
+```swift
+enum EntityType: String, Codable {
+    case character = "character"      // Changed from "Character"
+    case location = "location"        // Changed from "Location"
+    case building = "building"        // Changed from "Building"
+    case artifact = "artifact"        // Changed from "Artifact"
+    case vehicle = "vehicle"          // Changed from "Vehicle"
+    case organization = "organization" // Changed from "Organization"
+    case event = "event"              // Changed from "Event"
+    case other = "other"              // Changed from "Other"
+}
+```
+
+**Files Modified:**
+- `Cumberland/AI/OpenAIProvider.swift:198-211` - System prompt (Bug 1)
+- `Cumberland/AI/OpenAIProvider.swift:336-368` - Parsing logic (Bug 1)
+- `Cumberland/AI/OpenAIProvider.swift:370-373` - EntityResponse struct (Bug 1)
+- `Cumberland/AI/AIProviderProtocol.swift:167-174` - EntityType rawValues (Bug 2)
+
+**Verification:**
+- ✅ OpenAI entity extraction returns entities (not 0) — Bug 1 fixed
+- ✅ Console shows "✅ Parsed N entities from wrapped JSON" — Bug 1 fixed
+- ✅ Suggestion sheet displays extracted entities — Bug 1 fixed
+- ✅ Entities have proper names, types, and confidence scores — Both bugs fixed
+- ✅ At least 15+ entities extracted from test scene
+- ✅ Cards created with CORRECT kinds (not all "rules") — Bug 2 fixed
+  - Characters → .characters kind ✅
+  - Locations → .locations kind ✅
+  - Buildings → .buildings kind ✅
+  - Artifacts → .artifacts kind ✅
+  - Vehicles → .vehicles kind ✅
+  - Organizations → .characters kind (acceptable mapping) ✅
+  - Events → .scenes kind (acceptable mapping) ✅
+- ✅ User verified on 2026-01-25
+
+**Related:** ER-0010 Phase 5 (Content Analysis MVP), DR-0050
+
+---
+
+*End of Batch 4 - Complete (10/10 verified)*

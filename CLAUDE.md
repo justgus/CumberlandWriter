@@ -16,10 +16,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Minimum Versions - DO NOT ASSUME OLDER VERSIONS
 
-- **Xcode**: 16.2+ (Xcode 26.2 build 17C52)
-- **macOS SDK**: 26.2 (macOS 15.2+)
-- **iOS SDK**: 26.2 (iOS 18.2+)
-- **visionOS SDK**: 26.2 (visionOS 2.2+)
+- **Xcode**: 26.2+ (build 17C52)
+- **macOS**: 26.2+
+- **iOS/iPadOS**: 26.2+
+- **visionOS**: 26.2+
 - **Swift**: 5.0+ with upcoming features enabled
 
 **NEVER assume features, APIs, or behaviors from earlier versions of Xcode or any Apple platform.**
@@ -28,10 +28,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 When researching APIs, features, or behaviors, ONLY reference current documentation:
 
-- **Xcode 16 Release Notes**: https://developer.apple.com/documentation/xcode-release-notes/xcode-16-release-notes
-- **macOS 15 (Sequoia) APIs**: https://developer.apple.com/documentation/macos-release-notes/
-- **iOS 18 APIs**: https://developer.apple.com/documentation/ios-ipados-release-notes/
-- **visionOS 2 APIs**: https://developer.apple.com/documentation/visionos-release-notes/
+- **Xcode 26 Release Notes**: https://developer.apple.com/documentation/xcode-release-notes/xcode-26-release-notes
+- **macOS 26 APIs**: https://developer.apple.com/documentation/macos-release-notes/
+- **iOS 26 APIs**: https://developer.apple.com/documentation/ios-ipados-release-notes/
+- **visionOS 26 APIs**: https://developer.apple.com/documentation/visionos-release-notes/
 - **SwiftData Documentation**: https://developer.apple.com/documentation/swiftdata
 - **Swift Testing (not XCTest)**: https://developer.apple.com/documentation/testing
 
@@ -39,12 +39,12 @@ When researching APIs, features, or behaviors, ONLY reference current documentat
 
 This project uses **modern** Swift and SwiftUI features that may not exist in older SDKs:
 
-- **Swift Testing** framework (NOT XCTest) - introduced in Xcode 16
+- **Swift Testing** framework (NOT XCTest) - introduced in Xcode 26
 - **SwiftData** with Schema versioning and migrations
 - **@Observable** macro (Swift 5.9+)
 - **#Predicate** macro for SwiftData queries
 - **Upcoming Swift features** enabled via compiler flags
-- **Apple Intelligence APIs** (iOS 18.2+, macOS 15.2+, visionOS 2.2+)
+- **Apple Intelligence APIs** (iOS 26.2+, macOS 26.2+, visionOS 26.2+)
 
 ### Verification Steps
 
@@ -59,7 +59,7 @@ Before making assumptions about API availability or behavior:
 
 - ❌ Assuming XCTest instead of Swift Testing
 - ❌ Using deprecated SwiftData patterns from WWDC 2023
-- ❌ Referencing iOS 17 or earlier API documentation
+- ❌ Referencing earlier than iOS 26 API documentation
 - ❌ Assuming CloudKit behaviors from older SDK versions
 - ❌ Using pre-Swift 5.9 concurrency patterns
 - ❌ Ignoring Swift 6 language mode compatibility
@@ -326,6 +326,62 @@ visionOS documentation in `Cumberland/visionOS/`:
 2. Add migration stage (lightweight or custom)
 3. Update `AppMigrations.schemas` and `AppMigrations.stages`
 4. Test migration thoroughly before deploying
+
+### Understanding and Using RelationTypes
+
+**CRITICAL CONCEPT**: RelationTypes define bidirectional relationships with directional verbiage.
+
+**Format**: `"forward/backward"`
+- **First part (before slash)**: How the SOURCE card relates to the TARGET card
+- **Second part (after slash)**: How the TARGET card relates to the SOURCE card
+
+**Key Properties**:
+- Relationships are **bidirectional** (always stored as CardEdge from source to target)
+- Verbiage is **directional** (describes the relationship in each direction)
+- Can be **reversed** without changing meaning
+
+**Examples**:
+```swift
+// "owns/owned-by" RelationType
+Aria → "owns/owned-by" → Shadowblade
+  ↑                        ↑
+  SOURCE                  TARGET
+
+Reading: "Aria owns Shadowblade" AND "Shadowblade is owned-by Aria"
+
+// Same relationship, reversed perspective:
+Shadowblade → "owned-by/owns" → Aria
+  ↑                              ↑
+  SOURCE                        TARGET
+
+Reading: "Shadowblade is owned-by Aria" AND "Aria owns Shadowblade"
+```
+
+**More Examples**:
+- `"uses/used-by"` - Character uses Artifact / Artifact used-by Character
+- `"born-in/birthplace-of"` - Character born-in Location / Location birthplace-of Character
+- `"part-of/contains"` - Building part-of Location / Location contains Building
+- `"appears-in/features"` - Character appears-in Scene / Scene features Character
+
+**When Creating Relationships in Code**:
+1. Determine SOURCE and TARGET cards
+2. Choose appropriate RelationType
+3. Use the FIRST part of the slash for the forward relationship
+4. The SECOND part describes the reverse (automatically understood)
+5. Store as CardEdge from source to target
+
+**AI Relationship Inference** (Phase 6):
+- Parse sentence structure to identify relationships
+- Determine source and target entities
+- Select RelationType where FIRST part matches the inferred relationship
+- Example: "Aria drew the Shadowblade"
+  - Source: Aria
+  - Target: Shadowblade
+  - Action: "drew" → implies ownership/usage
+  - RelationType: "owns/owned-by" OR "uses/used-by"
+  - Result: Aria → "owns/owned-by" → Shadowblade
+
+**See**: `Model/RelationType.swift` for all available relationship types
 
 ## Platform Conditionals
 

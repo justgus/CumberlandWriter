@@ -104,6 +104,10 @@ struct CardEditorView: View {
     @State private var analysisError: String?
     @State private var showAnalysisError: Bool = false
 
+    // Phase 6: Store pending relationships from analysis
+    // These will be created when the card is saved
+    @State private var pendingRelationships: [SuggestionEngine.RelationshipSuggestion] = []
+
     // MARK: - Quick Attribution Prompt State (for dropped text/images)
     private struct PendingAttribution: Identifiable, Equatable {
         let id = UUID()
@@ -154,11 +158,15 @@ struct CardEditorView: View {
     @State private var epochDescription: String = ""
 
     // MARK: - Tunable constants (match CardView where sensible)
-    #if os(visionOS)
+    #if os(macOS)
+    private let thumbnailSide: CGFloat = 72
+    private let thumbnailTopPadding: CGFloat = 8
+    private let maxCardWidth: CGFloat = .infinity  // Fill available width on macOS (DR-0051)
+    #elseif os(visionOS)
     private let thumbnailSide: CGFloat = 96
     private let thumbnailTopPadding: CGFloat = 8
     private let maxCardWidth: CGFloat = 640
-    #else
+    #else  // iOS/iPadOS
     private let thumbnailSide: CGFloat = 72
     private let thumbnailTopPadding: CGFloat = 8
     private let maxCardWidth: CGFloat = 430
@@ -1098,9 +1106,9 @@ struct CardEditorView: View {
 
         Task {
             do {
-                // Get AI provider
-                guard let provider = AISettings.shared.currentProvider else {
-                    throw AIProviderError.providerUnavailable(reason: "No AI provider available")
+                // Get AI provider for analysis
+                guard let provider = AISettings.shared.currentAnalysisProvider else {
+                    throw AIProviderError.providerUnavailable(reason: "No AI provider available for analysis")
                 }
 
                 // Get current card (for edit mode) or create a temporary one (for create mode)
@@ -1120,15 +1128,21 @@ struct CardEditorView: View {
                 let extractor = EntityExtractor(provider: provider)
                 let entities = try await extractor.extractEntities(from: detailedText, existingCards: existingCards)
 
-                // Generate suggestions
+                // Generate suggestions (Phase 6: relationship inference, Phase 7: calendar extraction)
                 let suggestionEngine = SuggestionEngine()
-                let suggestions = suggestionEngine.generateCardSuggestions(from: entities, sourceCard: currentCard)
+                let suggestions = await suggestionEngine.generateAllSuggestions(
+                    entities: entities,
+                    relationships: [],  // Empty - we're using inference, not AI relationship extraction
+                    sourceCard: currentCard,
+                    existingCards: existingCards,
+                    provider: provider  // Phase 7: Pass provider for calendar extraction
+                )
 
                 await MainActor.run {
-                    self.analysisSuggestions = SuggestionEngine.Suggestions(cards: suggestions, relationships: [])
+                    self.analysisSuggestions = suggestions
                     self.isAnalyzing = false
 
-                    if !suggestions.isEmpty {
+                    if !suggestions.cards.isEmpty || !suggestions.relationships.isEmpty || !suggestions.calendars.isEmpty {
                         self.showAnalysisSuggestions = true
                     } else {
                         // Provide helpful message based on text length
@@ -1181,7 +1195,8 @@ struct CardEditorView: View {
             SuggestionReviewView(
                 suggestions: suggestions,
                 sourceCard: currentCardForAnalysis,
-                existingCards: allCards
+                existingCards: allCards,
+                pendingRelationships: $pendingRelationships
             )
         } else {
             EmptyView()
@@ -1326,6 +1341,33 @@ struct CardEditorView: View {
 
             try? modelContext.save()
 
+            // Phase 6 (ER-0010): Create pending relationships now that source card exists
+            if !pendingRelationships.isEmpty {
+                do {
+                    // Fetch all cards including the one we just created
+                    let allCards = try modelContext.fetch(FetchDescriptor<Card>())
+
+                    // Create the relationships
+                    let suggestionEngine = SuggestionEngine()
+                    try suggestionEngine.createRelationships(
+                        from: pendingRelationships,
+                        context: modelContext,
+                        existingCards: allCards
+                    )
+
+                    #if DEBUG
+                    print("✅ [CardEditorView] Created \(pendingRelationships.count) pending relationships")
+                    #endif
+
+                    // Clear pending relationships
+                    pendingRelationships.removeAll()
+                } catch {
+                    #if DEBUG
+                    print("⚠️ [CardEditorView] Failed to create pending relationships: \(error)")
+                    #endif
+                }
+            }
+
             // Phase 9.3: Auto-generate image if enabled and conditions met
             tryAutoGenerateImage(for: card)
 
@@ -1358,6 +1400,33 @@ struct CardEditorView: View {
             }
 
             try? modelContext.save()
+
+            // Phase 6 (ER-0010): Create pending relationships if any exist
+            if !pendingRelationships.isEmpty {
+                do {
+                    // Fetch all cards
+                    let allCards = try modelContext.fetch(FetchDescriptor<Card>())
+
+                    // Create the relationships
+                    let suggestionEngine = SuggestionEngine()
+                    try suggestionEngine.createRelationships(
+                        from: pendingRelationships,
+                        context: modelContext,
+                        existingCards: allCards
+                    )
+
+                    #if DEBUG
+                    print("✅ [CardEditorView] Created \(pendingRelationships.count) pending relationships")
+                    #endif
+
+                    // Clear pending relationships
+                    pendingRelationships.removeAll()
+                } catch {
+                    #if DEBUG
+                    print("⚠️ [CardEditorView] Failed to create pending relationships: \(error)")
+                    #endif
+                }
+            }
 
             // Phase 9.3: Auto-generate image if enabled and conditions met
             tryAutoGenerateImage(for: card)
@@ -1408,9 +1477,9 @@ struct CardEditorView: View {
             return
         }
 
-        // Get AI provider
-        guard let provider = AISettings.shared.currentProvider else {
-            print("⚠️ [Auto-Generation] No AI provider available")
+        // Get AI provider for image generation
+        guard let provider = AISettings.shared.currentImageGenerationProvider else {
+            print("⚠️ [Auto-Generation] No AI provider available for image generation")
             return
         }
 

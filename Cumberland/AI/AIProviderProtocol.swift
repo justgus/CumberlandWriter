@@ -117,8 +117,9 @@ struct AnalysisResult: Codable {
     /// Inferred relationships (for relationshipInference or comprehensive tasks)
     var relationships: [Relationship]?
 
-    /// Extracted calendar structure (for calendarExtraction or comprehensive tasks)
-    var calendar: CalendarStructure?
+    /// Extracted calendar structures (for calendarExtraction or comprehensive tasks)
+    /// Phase 7: Changed from single calendar to array to support multiple calendar systems
+    var calendars: [CalendarStructure]?
 
     /// Provider-specific metadata about the analysis
     var metadata: AnalysisMetadata?
@@ -171,6 +172,7 @@ enum EntityType: String, Codable {
     case vehicle = "vehicle"
     case organization = "organization"
     case event = "event"
+    case historicalEvent = "historical_event" // Historical events, eras, time periods
     case other = "other"
 
     /// Map to Card kind
@@ -183,6 +185,7 @@ enum EntityType: String, Codable {
         case .vehicle: return .vehicles
         case .organization: return .characters // Use characters for organizations
         case .event: return .scenes // Use scenes for events
+        case .historicalEvent: return .chronicles // Use chronicles for historical events
         case .other: return .rules // Use rules for other entities
         }
     }

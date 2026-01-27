@@ -847,7 +847,8 @@ private struct BatchAttributionSheet: View {
 // MARK: - AI Settings Pane
 
 private struct AISettingsPane: View {
-    @State private var preferredProvider: String = AIProviderRegistry.shared.getPreferredProviderName()
+    @State private var analysisProvider: String = AISettings.shared.analysisProvider
+    @State private var imageGenerationProvider: String = AISettings.shared.imageGenerationProvider
     @State private var apiKeys: [String: String] = [:] // providerKey -> entered text
     @State private var showAPIKey: [String: Bool] = [:] // providerKey -> show/hide
     @State private var savedMessage: String?
@@ -859,9 +860,9 @@ private struct AISettingsPane: View {
 
     var body: some View {
         Form {
-            // Preferred provider section
+            // Analysis provider section
             Section {
-                Picker("Preferred Provider", selection: $preferredProvider) {
+                Picker("Provider", selection: $analysisProvider) {
                     ForEach(providers, id: \.name) { provider in
                         HStack {
                             Text(provider.name)
@@ -873,14 +874,38 @@ private struct AISettingsPane: View {
                         .tag(provider.name)
                     }
                 }
-                .onChange(of: preferredProvider) { _, newValue in
-                    AIProviderRegistry.shared.setPreferredProvider(name: newValue)
-                    showSavedMessage("Preferred provider updated")
+                .onChange(of: analysisProvider) { _, newValue in
+                    AISettings.shared.analysisProvider = newValue
+                    showSavedMessage("Analysis provider updated")
                 }
             } header: {
-                Text("Default Provider")
+                Text("Content Analysis")
             } footer: {
-                Text("This provider will be selected by default when generating AI images.")
+                Text("Used for entity extraction, relationship inference, and content analysis. Apple Intelligence is faster and free.")
+            }
+
+            // Image generation provider section
+            Section {
+                Picker("Provider", selection: $imageGenerationProvider) {
+                    ForEach(providers, id: \.name) { provider in
+                        HStack {
+                            Text(provider.name)
+                            if !provider.isAvailable {
+                                Text("(Unavailable)")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .tag(provider.name)
+                    }
+                }
+                .onChange(of: imageGenerationProvider) { _, newValue in
+                    AISettings.shared.imageGenerationProvider = newValue
+                    showSavedMessage("Image generation provider updated")
+                }
+            } header: {
+                Text("Image Generation")
+            } footer: {
+                Text("Used for generating images and maps. DALL-E 3 produces higher quality results but requires API key and has usage costs.")
             }
 
             // Provider list with API key management

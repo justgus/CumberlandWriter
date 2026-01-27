@@ -2,7 +2,7 @@
 
 This document tracks enhancement requests that are proposed, in progress, or implemented but awaiting user verification.
 
-**Status:** Currently **7 active ERs**
+**Status:** Currently **9 active ERs** (6 Proposed, 0 Implemented - Not Verified, 3 Verified Awaiting Move)
 
 ---
 
@@ -1544,10 +1544,11 @@ Implement **Phase 1 (Copy/Paste)** first as part of ER-0009 completion or as sta
 
 ## ER-0012: Chronicles Card Type for Historical Events and Time Periods
 
-**Status:** 🔵 Proposed
-**Component:** Card Model (Kinds.swift), MainAppView, UI
+**Status:** ✅ Verified
+**Component:** Card Model (Kinds.swift), MainAppView, AI Integration
 **Priority:** Medium
 **Date Requested:** 2026-01-24
+**Date Implemented:** 2026-01-25
 
 **User Request:**
 
@@ -1575,26 +1576,35 @@ Add a new card type: **Chronicles**
 - Major transitions: "The Fall of Stormwatch"
 - Background lore that shapes the world but isn't directly narrated
 
-**Implementation Plan:**
+**Implementation Summary:**
 
-**Phase 1: Add Chronicles to Kinds Enum**
-- [ ] Add `.chronicles = "Chronicles"` case to `Kinds.swift`
-- [ ] Add to `orderedCases` (position: after Artifacts, before Rules)
-- [ ] Add singular title: "Chronicle"
-- [ ] Choose SF Symbol icon: `"book.pages"` or `"scroll"` or `"text.book.closed"`
-- [ ] Define light/dark color palette (suggest: gold/amber tones for historical feel)
+**Phase 1: Add Chronicles to Kinds Enum** ✅
+- [x] Added `.chronicles = "Chronicles"` case to `Kinds.swift:24`
+- [x] Added to `orderedCases` (position: after Artifacts, before Rules) - Line 35
+- [x] Added singular title: "Chronicle" - Line 47
+- [x] Chose SF Symbol icon: `"scroll"` / `"scroll.fill"` - Lines 69, 166
+- [x] Defined light/dark color palette (warm gold/amber, h: 40/360) - Lines 105, 120
 
-**Phase 2: UI Integration**
-- [ ] Add Chronicles to sidebar in `MainAppView.swift`
-- [ ] Add visibility toggle to column settings (`@AppStorage`)
-- [ ] Add Chronicles filter to sidebar
-- [ ] Update "Add Card" button to include Chronicles option
+**Phase 2: UI Integration** ✅
+- [x] Added Chronicles to sidebar filter in `MainAppView.swift`
+- [x] Added visibility toggle to column settings (`@AppStorage`) - Line 84
+- [x] Added Chronicles to switch statements (load/save column visibility) - Lines 1119, 1159
+- [x] Chronicles automatically appears in "Add Card" button (inherits from `Kinds.orderedCases`)
 
-**Phase 3: Entity Extraction Integration (ER-0010)**
-- [ ] Add "historical_event" or "era" entity type to `EntityType` enum
-- [ ] Map to `.chronicles` card kind in `toCardKind()`
-- [ ] Update AI prompts to extract historical events/time periods
-- [ ] Update `SuggestionEngine` to suggest Chronicles cards
+**Phase 3: Entity Extraction Integration (ER-0010)** ✅
+- [x] Added `historicalEvent = "historical_event"` entity type to `EntityType` enum - `AIProviderProtocol.swift:173`
+- [x] Mapped to `.chronicles` card kind in `toCardKind()` - `AIProviderProtocol.swift:185`
+- [x] Updated OpenAI prompt to extract historical events/time periods - `OpenAIProvider.swift:199-201, 206`
+- [x] Added `historicalEvent` to entity type flags - `AISettings.swift:297`
+- [x] Added `historicalEvent` to EntityTypesView picker - `AISettingsView.swift:352`
+
+**Files Modified:**
+- `Cumberland/Model/Kinds.swift` - Added Chronicles enum case, ordering, icon, colors
+- `Cumberland/AI/AIProviderProtocol.swift` - Added historicalEvent entity type → Chronicles mapping
+- `Cumberland/AI/OpenAIProvider.swift` - Updated prompt to extract historical events
+- `Cumberland/AI/AISettings.swift` - Added historicalEvent to entity type flags
+- `Cumberland/AI/AISettingsView.swift` - Added historicalEvent to entity type picker
+- `Cumberland/MainAppView.swift` - Added Chronicles column visibility and switch cases
 
 **Visual Design Suggestions:**
 
@@ -1648,10 +1658,11 @@ Add a new card type: **Chronicles**
 
 ## ER-0013: Separate AI Provider Settings for Analysis and Image Generation
 
-**Status:** 🔵 Proposed
+**Status:** ✅ Verified
 **Component:** AISettings, Settings UI, AI Provider Selection
 **Priority:** Medium
 **Date Requested:** 2026-01-24
+**Date Implemented:** 2026-01-25
 
 **User Request:**
 
@@ -1699,32 +1710,40 @@ Split into two separate provider settings:
 }
 ```
 
-**Implementation Plan:**
+**Implementation Summary:**
 
-**Phase 1: Update AISettings Model**
-- [ ] Add `analysisProvider: String` property to `AISettings`
-- [ ] Add `imageGenerationProvider: String` property to `AISettings`
-- [ ] Add migration logic from old `selectedProvider`
-- [ ] Update `currentProvider` computed property to return appropriate provider based on context
-- [ ] Add helper methods: `providerForAnalysis()`, `providerForImageGeneration()`
+**Phase 1: Update AISettings Model** ✅
+- [x] Added `analysisProvider: String` property to `AISettings` with migration logic - `AISettings.swift:56-71`
+- [x] Added `imageGenerationProvider: String` property to `AISettings` with migration logic - `AISettings.swift:73-88`
+- [x] Added automatic migration from legacy `preferredProvider` - Both properties check legacy value on first access
+- [x] Deprecated `currentProvider` and added `currentAnalysisProvider` / `currentImageGenerationProvider` - Lines 165-194
+- [x] Added helper method: `provider(for: AITask)` - Lines 159-164
+- [x] Added `AITask` enum (`.analysis`, `.imageGeneration`) - Lines 251-255
 
-**Phase 2: Update Settings UI**
-- [ ] Split provider picker into two sections in Settings view
-- [ ] Section 1: "Analysis Provider" with picker (Apple Intelligence, OpenAI)
-- [ ] Section 2: "Image Generation Provider" with picker (Apple Intelligence, OpenAI)
-- [ ] Add explanatory text for each section
-- [ ] Show API key status for each provider separately
+**Phase 2: Update Settings UI** ✅
+- [x] Split provider picker into two separate sections in `AISettingsView.swift:55-93`
+- [x] Section 1: "Content Analysis" with provider picker and API key management - Lines 65-83
+- [x] Section 2: "Image Generation" with provider picker and API key management - Lines 86-111
+- [x] Added explanatory footer text for each section describing use cases
+- [x] Show API key status for each provider separately (shared `apiKeyRow()` method)
 
-**Phase 3: Update Provider Selection Logic**
-- [ ] `CardEditorView`: Use `analysisProvider` for "Analyze" button
-- [ ] `AIImageGenerationView`: Use `imageGenerationProvider` for image generation
-- [ ] `MapWizardView`: Use `imageGenerationProvider` for AI Generate option
-- [ ] `EntityExtractor`: Use `analysisProvider` for entity extraction
+**Phase 3: Update Provider Selection Logic** ✅
+- [x] `CardEditorView:1102`: Use `currentAnalysisProvider` for "Analyze" button (entity extraction)
+- [x] `CardEditorView:1412`: Use `currentImageGenerationProvider` for image auto-generation
+- [x] Updated all usages of deprecated `currentProvider` to use task-specific properties
+- [x] Fixed debug `printSettings()` to show both providers separately - `AISettings.swift:452`
 
-**Phase 4: Update Provider Initialization**
-- [ ] Update provider factory methods to accept task type parameter
-- [ ] `getProvider(for: .analysis)` → returns analysis provider
-- [ ] `getProvider(for: .imageGeneration)` → returns image generation provider
+**Phase 4: Availability Checks** ✅
+- [x] Updated `isImageGenerationAvailable` to check `currentImageGenerationProvider` - Line 178
+- [x] Updated `isContentAnalysisAvailable` to check `currentAnalysisProvider` - Line 183
+- [x] Updated `isProviderAvailable` to check if either provider available - Line 195
+
+**Files Modified:**
+- `Cumberland/AI/AISettings.swift` - Added separate provider properties, migration logic, AITask enum, deprecated old properties
+- `Cumberland/AI/AISettingsView.swift` - Split provider section into two separate sections with independent pickers
+- `Cumberland/CardEditorView.swift` - Updated to use task-specific provider properties (analysis vs image generation)
+
+**Build Status:** ✅ Compiles with zero errors and zero warnings
 
 **UI Mockup:**
 
@@ -1807,6 +1826,417 @@ Settings → AI
 - **Common pattern**: Many AI tools offer per-task provider selection
 - **Not urgent**: Current single-provider system works
 - **Nice enhancement**: Improves user experience and control
+
+---
+
+## ER-0014: Change Card Type Feature with Relationship Deletion
+
+**Status:** ✅ Verified
+**Component:** CardRelationshipView, SuggestionReviewView, AI Suggestion System
+**Priority:** Medium
+**Date Requested:** 2026-01-25
+**Date Implemented:** 2026-01-25
+
+**User Request:**
+
+User identified a need to change card types in two scenarios:
+1. **Before Card Creation (AI Suggestions)**: Cards suggested by AI analysis may be miscategorized (e.g., "Shadow War" suggested as Scene should be Chronicle)
+2. **After Card Creation (Existing Cards)**: Cards may need reclassification as the worldbuilding evolves
+
+User decided on implementation approach:
+- **AI Suggestion Sheet**: Allow type change BEFORE creating cards (low-risk, no data loss)
+- **Relationship Tab**: Allow type change AFTER creation with warning dialog (high-risk, deletes all relationships)
+- **NOT in CardEditorView**: Too easy to accidentally trigger
+- **NOT as menu item**: Too accessible for destructive operation
+
+**Problem Statement:**
+
+Currently, once a card is created with a specific type (Kind), there's no way to change it:
+- **Immutable Type**: Card type is set at creation and cannot be changed
+- **AI Miscategorization**: AI may suggest wrong types (e.g., historical events as Scenes instead of Chronicles)
+- **User Evolving Understanding**: As worldbuilding progresses, categorization needs may change
+- **All-or-Nothing**: Can't fix type without deleting and recreating card (loses all relationships anyway)
+
+**Implemented Solution:**
+
+**Part 1: Change Type in AI Suggestion Sheet (Low-Risk)** ✅
+
+Allow users to override AI's suggested type BEFORE creating cards:
+
+**Files Modified:**
+- `Cumberland/AI/SuggestionEngine.swift:14` - Made `cardKind` mutable (`var` instead of `let`)
+- `Cumberland/AI/SuggestionReviewView.swift` - Multiple changes:
+  - Lines 21-28: Changed `suggestions` to `mutableSuggestions` state
+  - Lines 23-28: Added init() to accept immutable suggestions and create mutable state
+  - Line 126: Changed `ForEach(suggestions.cards)` to `ForEach($mutableSuggestions.cards)`
+  - Line 290: Changed `CardSuggestionRow` to accept `@Binding var suggestion`
+  - Lines 311-319: Replaced static type badge with `Picker` for all card types (except .structure)
+
+**How It Works:**
+1. User analyzes card description → AI suggests entities
+2. Suggestion sheet shows entities with suggested types
+3. User sees "Shadow War" suggested as "Scene"
+4. User taps type picker → selects "Chronicles"
+5. Card is created with correct type from the start
+6. **No relationships exist yet** → No data loss
+
+**Part 2: Change Type in Relationship Tab (High-Risk)** ✅
+
+Allow users to change type for existing cards with clear warning about relationship deletion:
+
+**Files Modified:**
+- `Cumberland/CardRelationshipView.swift`:
+  - Lines 107-108: Added state variables for dialog and selected type
+  - Lines 543-558: Added "Change Card Type…" button in topControls
+  - Lines 345-359: Added confirmation dialog with type picker and destructive action
+  - Lines 1105-1132: Implemented `changeCardType(to:)` function
+
+**How It Works:**
+1. User opens card in Relationship tab
+2. User clicks "Change Card Type…" button
+3. Confirmation dialog appears with:
+   - **Warning**: "Changing the card type from [X] to another type will REMOVE ALL RELATIONSHIPS for [card name]. This cannot be undone."
+   - **Type Picker**: Shows all card types (except .structure)
+   - **Change Type Button**: Red destructive style
+   - **Cancel Button**: Safe exit
+4. User selects new type → clicks "Change Type"
+5. System:
+   - Fetches all CardEdges where card is source or target
+   - Deletes all edges (relationships)
+   - Changes `primary.kindRaw` to new type
+   - Saves model context
+6. Card type is changed, all relationships removed
+
+**Implementation Details:**
+
+**Relationship Deletion Logic** (`CardRelationshipView.swift:1105-1132`):
+```swift
+private func changeCardType(to newKind: Kinds) {
+    guard newKind != primary.kind else { return }
+
+    // Fetch all edges where this card is either source or target
+    let cardID: UUID? = primary.id
+    let fetchFrom = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
+    let fetchTo = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
+
+    let edgesFrom = (try? modelContext.fetch(fetchFrom)) ?? []
+    let edgesTo = (try? modelContext.fetch(fetchTo)) ?? []
+
+    // Delete all relationships
+    for edge in edgesFrom + edgesTo {
+        modelContext.delete(edge)
+    }
+
+    // Change the card type
+    primary.kindRaw = newKind.rawValue
+
+    // Save changes
+    try? modelContext.save()
+}
+```
+
+**Why Relationship Deletion is Necessary:**
+
+1. **Relationship Type Constraints**: RelationTypes have `sourceKind` and `targetKind` constraints
+   - Example: "stories/is-storied-by" only valid for Scene → Project
+   - If Scene becomes Character, this relationship type is invalid
+2. **Data Integrity**: Invalid relationships would break the relationship system
+3. **User Clarity**: Better to delete all than leave some orphaned/invalid relationships
+4. **Explicit Trade-off**: User is warned and must confirm the destructive action
+
+**User Scenarios:**
+
+**Scenario 1: AI Misclassification (No Data Loss)**
+1. User writes scene description mentioning "The Shadow War"
+2. AI suggests "Shadow War" as Scene
+3. User sees this in suggestion sheet, changes to Chronicles
+4. Card created as Chronicles ✅
+5. **No relationships deleted** (card didn't exist yet)
+
+**Scenario 2: Late Reclassification (Destructive)**
+1. User has "The Shadow War" card (type: Scenes)
+2. Card has relationships to Characters, Locations, Projects
+3. User realizes it should be Chronicles (historical background, not active scene)
+4. User opens Relationship tab → "Change Card Type…"
+5. Dialog warns: "Will REMOVE ALL RELATIONSHIPS"
+6. User confirms → Type changes to Chronicles, all relationships deleted
+7. User rebuilds only the relationships that still make sense
+
+**Testing Checklist:**
+
+**Part 1: AI Suggestion Sheet**
+- [ ] Analyze card with 100+ word description
+- [ ] Verify suggestion sheet shows entities with type pickers
+- [ ] Change suggested type (e.g., Scene → Chronicles)
+- [ ] Create card
+- [ ] Verify card has correct type in sidebar
+- [ ] Verify card has correct kind badge color
+
+**Part 2: Relationship Tab**
+- [ ] Create card with several relationships
+- [ ] Open card in Relationship tab
+- [ ] Click "Change Card Type…" button
+- [ ] Verify confirmation dialog appears with warning
+- [ ] Verify type picker shows all types except .structure
+- [ ] Select new type → click "Change Type"
+- [ ] Verify card type changes
+- [ ] Verify all relationships are deleted
+- [ ] Verify card appears in correct sidebar section
+- [ ] Cancel dialog → verify no changes
+
+**Edge Cases:**
+- [ ] Change type to same type → no-op (guard clause)
+- [ ] Card with 0 relationships → type changes, nothing deleted
+- [ ] Card with 50+ relationships → all deleted (test performance)
+- [ ] CloudKit sync → verify type change and edge deletions sync
+
+**Build Status:**
+✅ **BUILD SUCCEEDED** with zero errors and zero warnings
+
+**Files Modified:**
+- `Cumberland/AI/SuggestionEngine.swift` - Made cardKind mutable
+- `Cumberland/AI/SuggestionReviewView.swift` - Added type picker to suggestion rows
+- `Cumberland/CardRelationshipView.swift` - Added change type button, dialog, and implementation
+
+**User Impact:** High - Provides flexibility for correcting categorization mistakes, but with appropriate warnings for destructive operations
+
+**Priority Justification:**
+
+**Medium Priority** because:
+- **User-requested**: Specific pain point identified
+- **Common use case**: AI misclassification happens frequently with new Chronicles type
+- **Workaround exists**: Delete and recreate card (same data loss)
+- **Quality of life**: Prevents frustration from miscategorized cards
+- **Not urgent**: Users can work around it, but it's tedious
+
+**Related:**
+- ER-0012: Chronicles Card Type (new type frequently needs reclassification)
+- ER-0010: AI Content Analysis (AI suggestions may be imperfect)
+
+---
+
+## ER-0015: Improve Empty Analysis Results Message - Show "No New Entities" and List Existing Matches
+
+**Status:** 🔵 Proposed
+**Component:** SuggestionReviewView, SuggestionEngine, Entity Extraction
+**Priority:** Low
+**Date Requested:** 2026-01-25
+
+**User Request:**
+
+User said: "When re-analyzing a description and finding no entities the popup should say no new entities found. and maybe provide an list of existing entities that were found and not duplicated."
+
+**Problem Statement:**
+
+Currently, when analyzing a card description, if all detected entities already exist as cards (100% deduplication), the SuggestionReviewView shows an empty state message:
+
+```
+🔍 No Suggestions Found
+
+The AI couldn't find any entities or relationships in the text.
+
+Try adding more descriptive details to your card.
+```
+
+This message is **misleading** because:
+1. **AI DID find entities** - it just found that they all already exist
+2. **Implies text is insufficient** - when actually the text is working well
+3. **Doesn't acknowledge existing cards** - user doesn't know what was matched
+4. **Suggests user needs to add more** - when they may have already created those cards
+
+**Desired Behavior:**
+
+The empty state should distinguish between two scenarios:
+
+**Scenario 1: Truly No Entities Found**
+```
+🔍 No Entities Detected
+
+The AI couldn't identify any entities or relationships in this text.
+
+Try adding more descriptive details about:
+• Characters, creatures, or people
+• Locations, buildings, or places
+• Artifacts, items, or objects
+• Historical events or time periods
+```
+
+**Scenario 2: All Entities Already Exist (Deduplication)**
+```
+✅ No New Entities Found
+
+All detected entities already exist as cards. Great work keeping your worldbuilding organized!
+
+Entities found (already created):
+• Shadowblade (Artifact)
+• Temple of Shadows (Building)
+• Blackrock City (Location)
+• Aria (Character)
+
+💡 Tip: You can still create relationships between these cards in the Relationship tab.
+```
+
+**Requirements:**
+
+### Data Model Changes:
+
+1. **SuggestionEngine Return Type Enhancement**
+   - Current: Returns `Suggestions` struct with empty arrays when nothing new
+   - Needed: Return additional `existingMatches: [ExistingEntityMatch]` array
+   - `ExistingEntityMatch` contains:
+     - `entityName: String` - Name detected in text
+     - `matchedCard: Card` - Existing card that was matched
+     - `confidence: Double` - Match confidence
+     - `context: String?` - Text snippet where entity was mentioned
+
+2. **Empty State Detection Logic**
+   - Distinguish between:
+     - **Case A**: `entities.isEmpty` (AI found nothing)
+     - **Case B**: `suggestions.isEmpty && !existingMatches.isEmpty` (All duplicates)
+
+### UI Changes:
+
+3. **SuggestionReviewView Empty State Variants**
+   - **File:** `Cumberland/AI/SuggestionReviewView.swift:164-182`
+   - Replace single `emptyStateView` with:
+     - `noEntitiesFoundView` - For Case A (truly empty)
+     - `allExistingEntitiesView` - For Case B (all duplicates)
+
+4. **Existing Entities List Display**
+   - Show matched card name and type
+   - Group by card type (Characters, Locations, etc.)
+   - Optional: Show context snippet where entity was mentioned
+   - Link to open matched card (tap to view)
+
+5. **Helpful Tips**
+   - For Case A: Suggest adding more descriptive text
+   - For Case B: Suggest using Relationship tab to connect cards
+
+### SuggestionEngine Changes:
+
+6. **Track Deduplication Results**
+   - **File:** `Cumberland/AI/SuggestionEngine.swift`
+   - Currently: Deduplication silently filters out matches
+   - Needed: Capture filtered matches and return them
+   - Method: `generateCardSuggestions()` should return both new suggestions AND existing matches
+
+7. **Existing Match Structure**
+   ```swift
+   struct ExistingEntityMatch: Identifiable {
+       let id = UUID()
+       let entityName: String
+       let matchedCard: Card
+       let confidence: Double
+       let context: String?
+   }
+
+   struct Suggestions: Identifiable {
+       var cards: [CardSuggestion]
+       var relationships: [RelationshipSuggestion]
+       var existingMatches: [ExistingEntityMatch] = [] // NEW
+
+       var hasNewSuggestions: Bool {
+           !cards.isEmpty || !relationships.isEmpty
+       }
+
+       var foundExistingOnly: Bool {
+           !hasNewSuggestions && !existingMatches.isEmpty
+       }
+
+       var foundNothing: Bool {
+           !hasNewSuggestions && existingMatches.isEmpty
+       }
+   }
+   ```
+
+### Implementation Details:
+
+**Phase 1: Track Existing Matches**
+
+1. Modify `SuggestionEngine.generateCardSuggestions()`:
+   - When deduplication finds a match, add to `existingMatches` array
+   - Store entity name, matched card, confidence, context
+   - Return both new suggestions and existing matches
+
+2. Update `SuggestionEngine.Suggestions` struct:
+   - Add `existingMatches` property
+   - Add computed properties for state detection
+
+**Phase 2: Update Empty State UI**
+
+3. Modify `SuggestionReviewView.emptyStateView`:
+   - Check `mutableSuggestions.foundNothing` vs `mutableSuggestions.foundExistingOnly`
+   - Show appropriate message for each case
+
+4. Add `existingEntitiesSection`:
+   - Grouped list of existing matches
+   - Card type headers (Characters, Locations, etc.)
+   - Card names with icons
+   - Optional: Context snippets
+
+**Components Affected:**
+
+- `Cumberland/AI/SuggestionEngine.swift` - Track deduplication results, return existing matches
+- `Cumberland/AI/SuggestionReviewView.swift` - Distinguish empty states, show existing matches
+- `Cumberland/AI/EntityExtractor.swift` (if exists) - May need to pass through existing cards for matching
+
+**User Scenarios:**
+
+**Scenario 1: First Analysis (Truly Empty)**
+- User writes: "The hero went to the place."
+- AI finds: No specific entities (too vague)
+- Empty state shows: "No Entities Detected" + tips for descriptive text
+- User adds more detail: "Aria drew the Shadowblade"
+- Re-analyzes: Now finds entities
+
+**Scenario 2: Re-Analysis (All Existing)**
+- User has cards: "Aria" (Character), "Shadowblade" (Artifact), "Temple of Shadows" (Building)
+- User writes scene: "Aria drew the Shadowblade in the Temple of Shadows"
+- AI detects all three entities
+- Deduplication finds all three already exist
+- Empty state shows: "No New Entities Found" + list of matched cards
+- User understands: Good! Everything is already organized
+
+**Scenario 3: Mixed Results (Some New, Some Existing)**
+- User has cards: "Aria" (Character), "Temple of Shadows" (Building)
+- User writes scene: "Aria drew the Shadowblade in the Temple of Shadows"
+- AI detects: Aria (exists), Shadowblade (new), Temple of Shadows (exists)
+- Suggestion sheet shows:
+  - New Cards section: "Shadowblade" (Artifact)
+  - (No empty state shown - has new suggestions)
+- This scenario already works, but could be enhanced to show existing matches alongside new suggestions
+
+**Testing Checklist:**
+
+- [ ] Analyze card with vague text → "No Entities Detected" message
+- [ ] Analyze card mentioning only existing entities → "No New Entities Found" + list
+- [ ] Verify existing entities list shows correct card names and types
+- [ ] Verify existing entities list groups by type
+- [ ] Re-analyze same text twice → consistent results
+- [ ] Analyze card with mix of new and existing → only shows new in suggestions
+
+**Priority Justification:**
+
+**Low Priority** because:
+- **Nice-to-have**: Current behavior works, just misleading
+- **User education**: Users can learn to ignore empty state on re-analysis
+- **Not blocking**: Doesn't prevent any functionality
+- **Polish feature**: Quality of life improvement
+- **After ER-0012/0013/0014**: Higher priority features completed first
+
+**Related:**
+
+- ER-0010: AI Content Analysis (core entity extraction)
+- ER-0012: Chronicles Card Type (new entity type for deduplication)
+- Deduplication logic in SuggestionEngine
+
+**Notes:**
+
+This enhancement improves user trust in the AI system by:
+1. **Transparency**: Shows what the AI actually found
+2. **Positive reinforcement**: Acknowledges user's existing organization
+3. **Actionable guidance**: Suggests next steps (relationships) instead of implying failure
+4. **Reduced confusion**: Users won't think AI is broken when it finds nothing new
 
 ---
 

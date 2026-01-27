@@ -106,6 +106,10 @@ struct CardRelationshipView: View {
     // NEW: Manage Relation Types sheet
     @State private var isPresentingManageRelationTypes: Bool = false
 
+    // Change card type state
+    @State private var isPresentingChangeCardType: Bool = false
+    @State private var selectedNewCardType: Kinds = .characters
+
     // Full-size image viewer
     @State private var showFullSizeImage: Bool = false
 
@@ -333,6 +337,18 @@ struct CardRelationshipView: View {
         .onChange(of: selectedKind) { _, _ in
             selectedRelatedCard = nil
         }
+        .sheet(isPresented: $isPresentingChangeCardType) {
+            ChangeCardTypeSheet(
+                currentKind: primary.kind,
+                cardName: primary.name,
+                selectedKind: $selectedNewCardType
+            ) { newKind in
+                changeCardType(to: newKind)
+                isPresentingChangeCardType = false
+            } onCancel: {
+                isPresentingChangeCardType = false
+            }
+        }
     } //end var body
 
     private var hasFullSizeImage: Bool {
@@ -519,6 +535,20 @@ struct CardRelationshipView: View {
             .help("Remove the relationship between the selected card and “\(primary.name)”")
 
             Divider().frame(height: 18)
+
+            // Change Card Type button
+            Button {
+                selectedNewCardType = primary.kind
+                isPresentingChangeCardType = true
+            } label: {
+                #if os(macOS)
+                Label("Change Card Type…", systemImage: "arrow.triangle.swap")
+                #else
+                Label("Change Card Type…", systemImage: "arrow.triangle.swap")
+                    .labelStyle(.iconOnly)
+                #endif
+            }
+            .help("Change the type of \"\(primary.name)\" (will remove all relationships)")
 
             // NEW: Manage Relation Types
             Button {
@@ -1062,6 +1092,36 @@ struct CardRelationshipView: View {
         try? modelContext.save()
     }
 
+    /// Change the card type and remove all relationships
+    /// This is a destructive operation that cannot be undone
+    private func changeCardType(to newKind: Kinds) {
+        guard newKind != primary.kind else { return }
+
+        // Fetch all edges where this card is either source or target
+        let cardID: UUID? = primary.id
+        let fetchFrom = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
+        let fetchTo = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
+
+        let edgesFrom = (try? modelContext.fetch(fetchFrom)) ?? []
+        let edgesTo = (try? modelContext.fetch(fetchTo)) ?? []
+
+        // Delete all relationships
+        for edge in edgesFrom + edgesTo {
+            modelContext.delete(edge)
+        }
+
+        // Change the card type
+        primary.kindRaw = newKind.rawValue
+
+        // Save changes
+        try? modelContext.save()
+
+        #if DEBUG
+        print("✅ [CardRelationshipView] Changed card type from \(primary.kind.title) to \(newKind.title)")
+        print("   Removed \(edgesFrom.count + edgesTo.count) relationships")
+        #endif
+    }
+
     private func fetchRelationType(code: String) -> RelationType? {
         let fetch = FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == code })
         return try? modelContext.fetch(fetch).first
@@ -1602,3 +1662,75 @@ private struct ExistingCardPickerSheet: View {
 }
 
 import struct SwiftUI.Image
+
+// MARK: - Change Card Type Sheet
+
+private struct ChangeCardTypeSheet: View {
+    let currentKind: Kinds
+    let cardName: String
+    @Binding var selectedKind: Kinds
+    let onChange: (Kinds) -> Void
+    let onCancel: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var showingConfirmation = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("Current Type: **\(currentKind.title)**")
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Current Card Type")
+                }
+
+                Section {
+                    Picker("New Type", selection: $selectedKind) {
+                        ForEach(Kinds.orderedCases.filter { $0 != .structure }, id: \.self) { kind in
+                            Label {
+                                Text(kind.title)
+                            } icon: {
+                                Image(systemName: kind.systemImage)
+                                    .foregroundStyle(kind.accentColor(for: .light))
+                            }
+                            .tag(kind)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                } header: {
+                    Text("Select New Type")
+                } footer: {
+                    Text("Changing the card type will remove ALL relationships for \"\(cardName)\". This cannot be undone.")
+                        .foregroundStyle(.red)
+                }
+            }
+            .navigationTitle("Change Card Type")
+            #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        onCancel()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Change Type") {
+                        showingConfirmation = true
+                    }
+                    .disabled(selectedKind == currentKind)
+                }
+            }
+            .alert("Confirm Type Change", isPresented: $showingConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Change Type", role: .destructive) {
+                    onChange(selectedKind)
+                }
+            } message: {
+                Text("Change \"\(cardName)\" from \(currentKind.title) to \(selectedKind.title)? This will DELETE ALL RELATIONSHIPS and cannot be undone.")
+            }
+        }
+    }
+}

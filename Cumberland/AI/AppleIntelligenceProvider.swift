@@ -226,7 +226,7 @@ class AppleIntelligenceProvider: AIProviderProtocol {
         print("   Found \(entities.count) entities via NaturalLanguage framework")
         #endif
 
-        return AnalysisResult(entities: entities, relationships: nil, calendar: nil, metadata: nil)
+        return AnalysisResult(entities: entities, relationships: nil, calendars: nil, metadata: nil)
     }
 
     /// Extract custom entities using pattern matching (artifacts, vehicles, buildings)
@@ -343,14 +343,14 @@ class AppleIntelligenceProvider: AIProviderProtocol {
     private func inferRelationships(from text: String) async throws -> AnalysisResult {
         // Phase 6 implementation - relationship inference
         // For now, return empty relationships
-        return AnalysisResult(entities: nil, relationships: [], calendar: nil, metadata: nil)
+        return AnalysisResult(entities: nil, relationships: [], calendars: nil, metadata: nil)
     }
 
     /// Extract calendar structure (Phase 7 - placeholder for now)
     private func extractCalendar(from text: String) async throws -> AnalysisResult {
         // Phase 7 implementation - calendar extraction
-        // For now, return nil calendar
-        return AnalysisResult(entities: nil, relationships: nil, calendar: nil, metadata: nil)
+        // For now, return nil calendars
+        return AnalysisResult(entities: nil, relationships: nil, calendars: nil, metadata: nil)
     }
 
     /// Perform comprehensive analysis (all tasks combined)
@@ -363,7 +363,7 @@ class AppleIntelligenceProvider: AIProviderProtocol {
         return AnalysisResult(
             entities: entitiesResult.entities,
             relationships: relationshipsResult.relationships,
-            calendar: calendarResult.calendar,
+            calendars: calendarResult.calendars,
             metadata: nil
         )
     }

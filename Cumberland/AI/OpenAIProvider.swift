@@ -197,13 +197,14 @@ class OpenAIProvider: AIProviderProtocol {
     private func extractEntities(from text: String, apiKey: String) async throws -> AnalysisResult {
         let systemPrompt = """
         You are an expert at analyzing fantasy and sci-fi narrative text to identify key entities.
-        Extract characters, locations, buildings, artifacts, vehicles, organizations, and events.
+        Extract characters, locations, buildings, artifacts, vehicles, organizations, events, and historical events.
+        Use "historical_event" for named time periods, eras, wars, treaties, and significant background events.
         Return results as a JSON object with an "entities" array:
         {
           "entities": [
             {
               "name": "Entity Name",
-              "type": "character|location|building|artifact|vehicle|organization|event",
+              "type": "character|location|building|artifact|vehicle|organization|event|historical_event",
               "confidence": 0.0-1.0,
               "context": "Brief surrounding text"
             }
@@ -220,19 +221,83 @@ class OpenAIProvider: AIProviderProtocol {
 
         let entities = try await callGPT4(systemPrompt: systemPrompt, userPrompt: userPrompt, apiKey: apiKey)
 
-        return AnalysisResult(entities: parseEntities(from: entities), relationships: nil, calendar: nil, metadata: nil)
+        return AnalysisResult(entities: parseEntities(from: entities), relationships: nil, calendars: nil, metadata: nil)
     }
 
     /// Infer relationships using GPT-4 (Phase 6 - placeholder)
     private func inferRelationships(from text: String, apiKey: String) async throws -> AnalysisResult {
         // Phase 6 implementation
-        return AnalysisResult(entities: nil, relationships: [], calendar: nil, metadata: nil)
+        return AnalysisResult(entities: nil, relationships: [], calendars: nil, metadata: nil)
     }
 
-    /// Extract calendar structure using GPT-4 (Phase 7 - placeholder)
+    /// Extract calendar structure using GPT-4 (Phase 7)
     private func extractCalendar(from text: String, apiKey: String) async throws -> AnalysisResult {
-        // Phase 7 implementation
-        return AnalysisResult(entities: nil, relationships: nil, calendar: nil, metadata: nil)
+        let systemPrompt = """
+        You are an expert at analyzing fantasy and sci-fi narrative text to identify custom calendar systems.
+        Extract ALL calendar system definitions including time divisions, month names, day names, eras, and festivals.
+
+        Return results as a JSON object with a "calendars" array:
+        {
+          "calendars": [
+            {
+              "name": "Calendar Name",
+              "divisions": [
+                {
+                  "name": "day",
+                  "pluralName": "days",
+                  "length": 24,
+                  "isVariable": false
+                },
+                {
+                  "name": "week",
+                  "pluralName": "weeks",
+                  "length": 7,
+                  "isVariable": false
+                },
+                {
+                  "name": "month",
+                  "pluralName": "months",
+                  "length": 30,
+                  "isVariable": true
+                },
+                {
+                  "name": "year",
+                  "pluralName": "years",
+                  "length": 12,
+                  "isVariable": false
+                }
+              ],
+              "eras": ["Era Name"],
+              "festivals": [
+                {
+                  "name": "Festival Name",
+                  "date": "timing description"
+                }
+              ],
+              "confidence": 0.95
+            }
+          ]
+        }
+
+        Important:
+        - Extract ALL calendar systems mentioned in the text (e.g., if both "Imperium Calendar" and "Old Republic Calendar" are described, return both)
+        - Extract numeric values (days per month, months per year, days per week)
+        - Set "isVariable" to true for divisions with varying lengths
+        - Use "confidence" between 0.0-1.0 based on how clearly each calendar is defined
+        - If NO calendar systems are described, return {"calendars": []}
+        """
+
+        let userPrompt = """
+        Analyze this text and extract ALL calendar system definitions:
+
+        \(text)
+        """
+
+        let response = try await callGPT4(systemPrompt: systemPrompt, userPrompt: userPrompt, apiKey: apiKey)
+
+        let calendars = parseCalendars(from: response)
+
+        return AnalysisResult(entities: nil, relationships: nil, calendars: calendars, metadata: nil)
     }
 
     /// Perform comprehensive analysis
@@ -244,7 +309,7 @@ class OpenAIProvider: AIProviderProtocol {
         return AnalysisResult(
             entities: entitiesResult.entities,
             relationships: relationshipsResult.relationships,
-            calendar: calendarResult.calendar,
+            calendars: calendarResult.calendars,
             metadata: nil
         )
     }
@@ -379,6 +444,68 @@ class OpenAIProvider: AIProviderProtocol {
         #endif
         return []
     }
+
+    /// Parse calendars from JSON string
+    private func parseCalendars(from jsonString: String) -> [CalendarStructure]? {
+        guard let jsonData = jsonString.data(using: .utf8) else {
+            #if DEBUG
+            print("⚠️ [OpenAI] Failed to convert JSON string to data")
+            #endif
+            return nil
+        }
+
+        // Try parsing wrapped calendars response
+        if let wrappedResponse = try? JSONDecoder().decode(CalendarResponse.self, from: jsonData) {
+            let calendarsJSON = wrappedResponse.calendars
+
+            guard !calendarsJSON.isEmpty else {
+                #if DEBUG
+                print("ℹ️ [OpenAI] No calendars found in text")
+                #endif
+                return []
+            }
+
+            #if DEBUG
+            print("✅ [OpenAI] Parsed \(calendarsJSON.count) calendar(s)")
+            #endif
+
+            // Convert JSON to CalendarStructure array
+            let calendars = calendarsJSON.map { calendarJSON in
+                let divisions = calendarJSON.divisions.map { div in
+                    TimeDivisionData(
+                        name: div.name,
+                        pluralName: div.pluralName,
+                        length: div.length,
+                        isVariable: div.isVariable
+                    )
+                }
+
+                let festivals = calendarJSON.festivals?.map { fest in
+                    Festival(name: fest.name, date: fest.date)
+                }
+
+                #if DEBUG
+                print("   - \(calendarJSON.name ?? "Unnamed"): confidence \(Int(calendarJSON.confidence * 100))%")
+                #endif
+
+                return CalendarStructure(
+                    name: calendarJSON.name,
+                    divisions: divisions,
+                    eras: calendarJSON.eras,
+                    festivals: festivals,
+                    confidence: calendarJSON.confidence
+                )
+            }
+
+            return calendars
+        }
+
+        #if DEBUG
+        print("⚠️ [OpenAI] Failed to parse calendars JSON")
+        print("   Raw JSON (first 500 chars): \(String(jsonString.prefix(500)))")
+        #endif
+        return nil
+    }
 }
 
 // MARK: - GPT-4 Response Types
@@ -404,6 +531,30 @@ private struct EntityJSON: Codable {
 
 private struct EntityResponse: Codable {
     let entities: [EntityJSON]
+}
+
+private struct CalendarJSON: Codable {
+    let name: String?
+    let divisions: [TimeDivisionJSON]
+    let eras: [String]?
+    let festivals: [FestivalJSON]?
+    let confidence: Double
+}
+
+private struct TimeDivisionJSON: Codable {
+    let name: String
+    let pluralName: String
+    let length: Int
+    let isVariable: Bool
+}
+
+private struct FestivalJSON: Codable {
+    let name: String
+    let date: String
+}
+
+private struct CalendarResponse: Codable {
+    let calendars: [CalendarJSON]
 }
 
 // MARK: - API Response Types

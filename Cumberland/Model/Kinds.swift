@@ -22,6 +22,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case buildings = "Buildings"
     case vehicles = "Vehicles"
     case artifacts = "Artifacts"
+    case chronicles = "Chronicles" // Historical events, eras, and time periods
     case rules = "Rules"
     case sources = "Sources" // New: visible in sidebar
     case structure = "Structure" // New: story spine management
@@ -31,7 +32,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     // Ordered list exactly as requested, with Maps before Locations
     static let orderedCases: [Kinds] = [
         .projects, .worlds, .characters, .chapters, .scenes, .timelines,
-        .maps, .locations, .buildings, .vehicles, .artifacts, .rules, .sources, .structure
+        .maps, .locations, .buildings, .vehicles, .artifacts, .chronicles, .rules, .sources, .structure
     ]
 
     var title: String { rawValue }
@@ -50,6 +51,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .buildings:  return "Building"
         case .vehicles:   return "Vehicle"
         case .artifacts:  return "Artifact"
+        case .chronicles: return "Chronicle"
         case .rules:      return "Rule"
         case .sources:    return "Source"
         case .structure:  return "Structure"
@@ -69,6 +71,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .buildings: return "building.2"
         case .vehicles: return "car"
         case .artifacts: return "shippingbox"
+        case .chronicles: return "scroll" // Historical records icon
         case .rules: return "list.bullet.rectangle"
         case .sources: return "book" // Bibliography-like icon
         case .structure: return "list.number" // Story structure icon
@@ -100,6 +103,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .buildings:  return Self.pastel(h:  10/360, s: 0.16, b: 0.96)
         case .vehicles:   return Self.pastel(h: 225/360, s: 0.20, b: 0.96)
         case .artifacts:  return Self.pastel(h: 300/360, s: 0.18, b: 0.96)
+        case .chronicles: return Self.pastel(h:  40/360, s: 0.20, b: 0.97) // warm gold/amber
         case .rules:      return Self.pastel(h:  85/360, s: 0.16, b: 0.96)
         case .sources:    return Self.pastel(h: 260/360, s: 0.16, b: 0.97) // soft purple-blue
         case .structure:  return Self.pastel(h: 200/360, s: 0.18, b: 0.97) // soft cyan
@@ -119,6 +123,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .buildings:  return Self.rich(h:  10/360, s: 0.55, b: 0.30)
         case .vehicles:   return Self.rich(h: 225/360, s: 0.57, b: 0.30)
         case .artifacts:  return Self.rich(h: 300/360, s: 0.60, b: 0.30)
+        case .chronicles: return Self.rich(h:  40/360, s: 0.58, b: 0.32) // rich amber
         case .rules:      return Self.rich(h:  85/360, s: 0.57, b: 0.28)
         case .sources:    return Self.rich(h: 260/360, s: 0.58, b: 0.32)
         case .structure:  return Self.rich(h: 200/360, s: 0.58, b: 0.30)
@@ -143,6 +148,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .buildings:  return "building.2"
         case .vehicles:   return "car"
         case .artifacts:  return "shippingbox"
+        case .chronicles: return "scroll"
         case .rules:      return "list.bullet.rectangle"
         case .sources:    return "book"
         case .structure:  return "list.number"
@@ -162,6 +168,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .buildings:  return "building.2.fill"
         case .vehicles:   return "car.fill"
         case .artifacts:  return "shippingbox.fill"
+        case .chronicles: return "scroll.fill"
         case .rules:      return "list.bullet.rectangle.fill"
         case .sources:    return "book.fill"
         case .structure:  return "list.number"
