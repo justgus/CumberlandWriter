@@ -44,6 +44,10 @@ final class CalendarSystem {
     @Relationship(inverse: \Card.calendarSystem)
     var timelines: [Card]? = []
 
+    /// Calendar card that owns this system (for UI/navigation)
+    /// CloudKit: Optional, defaults to nil
+    var calendarCard: Card?
+
     // MARK: - Initialization
 
     init(id: UUID = UUID(), name: String = "", divisions: [TimeDivision] = [], createdAt: Date = Date(), modifiedAt: Date = Date()) {

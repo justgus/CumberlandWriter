@@ -184,8 +184,8 @@ enum EntityType: String, Codable {
         case .artifact: return .artifacts
         case .vehicle: return .vehicles
         case .organization: return .characters // Use characters for organizations
-        case .event: return .scenes // Use scenes for events
-        case .historicalEvent: return .chronicles // Use chronicles for historical events
+        case .event: return .chronicles // Calendar events, holidays, festivals → chronicles
+        case .historicalEvent: return .chronicles // Historical events, eras, time periods → chronicles
         case .other: return .rules // Use rules for other entities
         }
     }

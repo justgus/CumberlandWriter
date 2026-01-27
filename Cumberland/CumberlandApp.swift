@@ -178,6 +178,33 @@ struct CumberlandApp: App {
                     await CumberlandApp.backfillSceneProjectStoriesEdgesIfNeeded(container: modelContainer)
                     await CumberlandApp.seedStoryStructuresIfNeeded(container: modelContainer)
                     await CumberlandApp.seedCalendarSystemsIfNeeded(container: modelContainer)
+
+                    // Phase 7.5: One-time migration of CalendarSystem → Calendar Cards
+                    let migrationKey = "didMigrateCalendarSystemsToCards_v1"
+                    if !UserDefaults.standard.bool(forKey: migrationKey) {
+                        let context = modelContainer.mainContext
+                        let migrated = CalendarSystemMigrationHelper.migrateOrphanCalendarSystems(context: context)
+
+                        #if DEBUG
+                        print("📅 [App] Calendar migration complete: \(migrated) calendars converted to cards")
+                        #endif
+
+                        // Set flag to prevent re-running
+                        UserDefaults.standard.set(true, forKey: migrationKey)
+                    }
+
+                    // Phase 7.5: One-time deduplication of calendar cards (cleanup from older versions)
+                    let deduplicationKey = "didDeduplicateCalendarCards_v1"
+                    if !UserDefaults.standard.bool(forKey: deduplicationKey) {
+                        await CumberlandApp.removeDuplicateCalendarCards(container: modelContainer)
+
+                        #if DEBUG
+                        print("📅 [App] Calendar deduplication complete")
+                        #endif
+
+                        // Set flag to prevent re-running
+                        UserDefaults.standard.set(true, forKey: deduplicationKey)
+                    }
                 }
                 // Developer-triggered destructive reset (macOS menu posts a notification)
                 .onReceive(NotificationCenter.default.publisher(for: .eraseAndReseed)) { _ in
@@ -683,38 +710,157 @@ extension CumberlandApp {
         }
     }
 
-    // ER-0008: Seed Gregorian calendar template if needed
+    // ER-0008 / Phase 7.5: Seed Gregorian calendar CARD if needed
     @MainActor
     static func seedCalendarSystemsIfNeeded(container: ModelContainer) async {
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Seeding")
         let ctx = container.mainContext
         ctx.autosaveEnabled = true
 
-        // Check if Gregorian calendar already exists
+        // Check if Gregorian calendar card already exists (Phase 7.5)
         let gregorianName = "Gregorian"
-        var fetchByName = FetchDescriptor<CalendarSystem>(
-            predicate: #Predicate<CalendarSystem> { calendar in
-                calendar.name == gregorianName
+        var fetchCalendarCards = FetchDescriptor<Card>(
+            predicate: #Predicate<Card> { card in
+                card.kindRaw == "Calendars" && card.name == gregorianName
             }
         )
-        fetchByName.fetchLimit = 1
+        fetchCalendarCards.fetchLimit = 1
 
-        if let existing = try? ctx.fetch(fetchByName), !existing.isEmpty {
-            logger.debug("Gregorian calendar already exists, skipping seed")
+        if let existing = try? ctx.fetch(fetchCalendarCards), !existing.isEmpty {
+            logger.debug("Gregorian calendar card already exists, skipping seed")
             return
         }
 
-        // Create Gregorian calendar template
-        let gregorian = CalendarSystem.gregorian()
-        gregorian.calendarDescription = "Standard Gregorian calendar with seconds, minutes, hours, days, weeks, months, years, decades, centuries, and millennia"
-        ctx.insert(gregorian)
+        // Create Gregorian calendar system
+        let gregorianSystem = CalendarSystem.gregorian()
+        gregorianSystem.calendarDescription = "Standard Gregorian calendar with seconds, minutes, hours, days, weeks, months, years, decades, centuries, and millennia"
+
+        // Phase 7.5: Create Calendar CARD
+        let calendarCard = Card(
+            kind: .calendars,
+            name: gregorianName,
+            subtitle: "10 divisions from second to millennium",
+            detailedText: gregorianSystem.calendarDescription ?? ""
+        )
+
+        // Link card to system
+        calendarCard.calendarSystemRef = gregorianSystem
+
+        // Insert both
+        ctx.insert(gregorianSystem)
+        ctx.insert(calendarCard)
 
         do {
             try ctx.save()
-            logger.info("Seeded Gregorian calendar system")
+            logger.info("Seeded Gregorian calendar card")
         } catch {
-            logger.error("Failed to seed Gregorian calendar: \(String(describing: error))")
+            logger.error("Failed to seed Gregorian calendar card: \(String(describing: error))")
         }
+    }
+
+    // Phase 7.5: Remove duplicate calendar cards, keeping only the first of each unique name
+    @MainActor
+    static func removeDuplicateCalendarCards(container: ModelContainer) async {
+        let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Deduplication")
+        let ctx = container.mainContext
+        ctx.autosaveEnabled = false // Disable during cleanup
+
+        // Fetch all calendar cards
+        let allCalendarsFetch = FetchDescriptor<Card>(
+            predicate: #Predicate<Card> { $0.kindRaw == "Calendars" },
+            sortBy: [SortDescriptor(\.name, order: .forward)]
+        )
+
+        guard let allCalendarCards = try? ctx.fetch(allCalendarsFetch) else {
+            logger.error("Failed to fetch calendar cards for deduplication")
+            ctx.autosaveEnabled = true
+            return
+        }
+
+        #if DEBUG
+        logger.debug("Starting deduplication: found \(allCalendarCards.count) total calendar cards")
+        for card in allCalendarCards {
+            logger.debug("  - '\(card.name)' (ID: \(card.id))")
+        }
+        #endif
+
+        // Group by normalized name (trimmed whitespace, lowercased)
+        var nameGroups: [String: [Card]] = [:]
+
+        for card in allCalendarCards {
+            let normalizedName = card.name.trimmingCharacters(in: .whitespaces).lowercased()
+
+            if nameGroups[normalizedName] == nil {
+                nameGroups[normalizedName] = []
+            }
+            nameGroups[normalizedName]?.append(card)
+        }
+
+        // For each group with duplicates, keep the first and delete the rest
+        var duplicatesToDelete: [Card] = []
+        var orphanedCalendarSystems: [CalendarSystem] = []
+
+        for (normalizedName, cards) in nameGroups {
+            guard cards.count > 1 else {
+                continue // No duplicates for this name
+            }
+
+            // Keep the first, mark rest for deletion
+            let toKeep = cards[0]
+            let toDelete = Array(cards.dropFirst())
+
+            logger.info("Found \(cards.count) calendar cards named '\(normalizedName)'. Keeping first (created \(toKeep.name)), deleting \(toDelete.count) duplicates")
+
+            duplicatesToDelete.append(contentsOf: toDelete)
+        }
+
+        // Before deleting cards, nullify relationships and mark CalendarSystems for cleanup
+        for card in duplicatesToDelete {
+            if let calendarSystem = card.calendarSystemRef {
+                orphanedCalendarSystems.append(calendarSystem)
+                card.calendarSystemRef = nil // Nullify to prevent cascade issues
+            }
+        }
+
+        // Save after nullifying relationships
+        if !duplicatesToDelete.isEmpty {
+            do {
+                try ctx.save()
+                logger.debug("Nullified relationships for \(duplicatesToDelete.count) duplicate cards")
+            } catch {
+                logger.error("Failed to save after nullifying relationships: \(String(describing: error))")
+                ctx.autosaveEnabled = true
+                return
+            }
+        }
+
+        // Delete duplicate cards
+        for card in duplicatesToDelete {
+            ctx.delete(card)
+            logger.debug("Deleted duplicate calendar card: \(card.name)")
+        }
+
+        // Delete orphaned CalendarSystems
+        for calendarSystem in orphanedCalendarSystems {
+            // Only delete if no other card references it
+            if calendarSystem.calendarCard == nil {
+                ctx.delete(calendarSystem)
+                logger.debug("Deleted orphaned CalendarSystem: \(calendarSystem.name)")
+            }
+        }
+
+        if !duplicatesToDelete.isEmpty {
+            do {
+                try ctx.save()
+                logger.info("Removed \(duplicatesToDelete.count) duplicate calendar cards and \(orphanedCalendarSystems.filter { $0.calendarCard == nil }.count) orphaned systems")
+            } catch {
+                logger.error("Failed to save after deduplication: \(String(describing: error))")
+            }
+        } else {
+            logger.debug("No duplicate calendar cards found")
+        }
+
+        ctx.autosaveEnabled = true
     }
 
     // DR-0033, DR-0033.1: Remove duplicate structures, keeping only the first of each unique name

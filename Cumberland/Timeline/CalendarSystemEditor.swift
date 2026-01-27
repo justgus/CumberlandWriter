@@ -247,7 +247,7 @@ struct CalendarSystemEditor: View {
                             .foregroundStyle(.secondary)
 
                         if division.isVariable {
-                            Image(systemName: "tilde")
+                            Image(systemName: "waveform")
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
                                 .help("Variable length")
@@ -464,7 +464,7 @@ private struct DivisionRow: View {
                 // Variable toggle
                 Toggle(isOn: $division.isVariable) {
                     HStack(spacing: 4) {
-                        Image(systemName: division.isVariable ? "tilde" : "minus")
+                        Image(systemName: division.isVariable ? "waveform" : "minus")
                             .font(.caption)
                         Text("Variable")
                             .font(.caption)

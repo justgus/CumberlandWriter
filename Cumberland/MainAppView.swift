@@ -73,6 +73,7 @@ struct MainAppView: View {
     @AppStorage("ColumnVisibility.scenes") private var scenesColumnVisibility: String = "all"
     @AppStorage("ColumnVisibility.worlds") private var worldsColumnVisibility: String = "all"
     @AppStorage("ColumnVisibility.timelines") private var timelinesColumnVisibility: String = "all"
+    @AppStorage("ColumnVisibility.calendars") private var calendarsColumnVisibility: String = "all"
     @AppStorage("ColumnVisibility.chapters") private var chaptersColumnVisibility: String = "all"
     @AppStorage("ColumnVisibility.all") private var allColumnVisibility: String = "all"
     @AppStorage("ColumnVisibility.structure") private var structureColumnVisibility: String = "all"
@@ -564,8 +565,14 @@ struct MainAppView: View {
                 } else {
                     switch selectedDetailTab {
                     case .details:
-                        CardSheetView(card: card)
-                            .navigationTitle(card.name)
+                        // Route calendar cards to their specialized view
+                        if card.kind == .calendars {
+                            CalendarCardDetailView(card: card)
+                                .id(card.id) // Force recreation when selecting a different card
+                        } else {
+                            CardSheetView(card: card)
+                                .navigationTitle(card.name)
+                        }
                     case .relationships:
                         CardRelationshipView(primary: card)
                             .navigationTitle("Relationships: \(card.name)")
@@ -1109,6 +1116,8 @@ struct MainAppView: View {
             visibilityString = worldsColumnVisibility
         case .kind(.timelines):
             visibilityString = timelinesColumnVisibility
+        case .kind(.calendars):
+            visibilityString = calendarsColumnVisibility
         case .kind(.chapters):
             visibilityString = chaptersColumnVisibility
         case .all:
@@ -1150,6 +1159,8 @@ struct MainAppView: View {
             UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.worlds")
         case .kind(.timelines):
             UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.timelines")
+        case .kind(.calendars):
+            UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.calendars")
         case .kind(.chapters):
             UserDefaults.standard.set(visibilityString, forKey: "ColumnVisibility.chapters")
         case .all:

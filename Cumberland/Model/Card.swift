@@ -108,6 +108,11 @@ final class Card: Identifiable {
     /// Example: "The beginning of the Age of Starlight", "Year 0 of the Empire"
     var epochDescription: String? = nil
 
+    /// Reference to calendar system (for kind=.calendars only)
+    /// CloudKit: Optional, defaults to nil
+    @Relationship(deleteRule: .cascade, inverse: \CalendarSystem.calendarCard)
+    var calendarSystemRef: CalendarSystem?
+
     // Precomputed aggregate for simple/backup searches
     // Provide a default so migration can backfill existing rows.
     var normalizedSearchText: String = ""
@@ -170,6 +175,11 @@ final class Card: Identifiable {
     var sizeCategory: SizeCategory {
         get { SizeCategory(rawValue: sizeCategoryRaw) ?? .standard }
         set { sizeCategoryRaw = newValue.rawValue }
+    }
+
+    // Convenience check for Calendar cards
+    var isCalendarCard: Bool {
+        kind == .calendars
     }
 
     var thumbnailURL: URL? {

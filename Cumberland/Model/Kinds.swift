@@ -17,6 +17,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case chapters = "Chapters"
     case scenes = "Scenes"
     case timelines = "Timelines"
+    case calendars = "Calendars"
     case maps = "Maps"
     case locations = "Locations"
     case buildings = "Buildings"
@@ -31,7 +32,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
 
     // Ordered list exactly as requested, with Maps before Locations
     static let orderedCases: [Kinds] = [
-        .projects, .worlds, .characters, .chapters, .scenes, .timelines,
+        .projects, .worlds, .characters, .chapters, .scenes, .timelines, .calendars,
         .maps, .locations, .buildings, .vehicles, .artifacts, .chronicles, .rules, .sources, .structure
     ]
 
@@ -46,6 +47,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .chapters:   return "Chapter"
         case .scenes:     return "Scene"
         case .timelines:  return "Timeline"
+        case .calendars:  return "Calendar"
         case .maps:       return "Map"
         case .locations:  return "Location"
         case .buildings:  return "Building"
@@ -66,6 +68,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .chapters: return "text.book.closed"
         case .scenes: return "film"
         case .timelines: return "calendar"
+        case .calendars: return "calendar.badge.clock"
         case .maps: return "map"
         case .locations: return "mappin.and.ellipse"
         case .buildings: return "building.2"
@@ -98,6 +101,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .chapters:   return Self.pastel(h:  50/360, s: 0.20, b: 0.97)
         case .scenes:     return Self.pastel(h: 340/360, s: 0.18, b: 0.97)
         case .timelines:  return Self.pastel(h:  30/360, s: 0.22, b: 0.97)
+        case .calendars:  return Self.pastel(h: 245/360, s: 0.20, b: 0.96)
         case .maps:       return Self.pastel(h: 190/360, s: 0.18, b: 0.96)
         case .locations:  return Self.pastel(h: 110/360, s: 0.20, b: 0.96)
         case .buildings:  return Self.pastel(h:  10/360, s: 0.16, b: 0.96)
@@ -118,6 +122,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .chapters:   return Self.rich(h:  50/360, s: 0.60, b: 0.32)
         case .scenes:     return Self.rich(h: 340/360, s: 0.55, b: 0.30)
         case .timelines:  return Self.rich(h:  30/360, s: 0.60, b: 0.32)
+        case .calendars:  return Self.rich(h: 245/360, s: 0.58, b: 0.30)
         case .maps:       return Self.rich(h: 190/360, s: 0.55, b: 0.28)
         case .locations:  return Self.rich(h: 110/360, s: 0.55, b: 0.28)
         case .buildings:  return Self.rich(h:  10/360, s: 0.55, b: 0.30)
@@ -143,6 +148,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .chapters:   return "text.book.closed"
         case .scenes:     return "film"
         case .timelines:  return "calendar"
+        case .calendars:  return "calendar.badge.clock"
         case .maps:       return "map"
         case .locations:  return "mappin.and.ellipse"
         case .buildings:  return "building.2"
@@ -163,6 +169,7 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         case .chapters:   return "text.book.closed.fill"
         case .scenes:     return "film.fill"
         case .timelines:  return "calendar"
+        case .calendars:  return "calendar.badge.clock"
         case .maps:       return "map.fill"
         case .locations:  return "mappin.and.ellipse"
         case .buildings:  return "building.2.fill"

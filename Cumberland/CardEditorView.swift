@@ -215,7 +215,12 @@ struct CardEditorView: View {
             _imageData = State(initialValue: nil) // only set when user selects/replaces
 
             // Initialize timeline properties from card (ER-0008)
-            _selectedCalendar = State(initialValue: card.calendarSystem)
+            // Phase 7.5: For calendar cards, load from calendarSystemRef
+            if card.kind == .calendars {
+                _selectedCalendar = State(initialValue: card.calendarSystemRef)
+            } else {
+                _selectedCalendar = State(initialValue: card.calendarSystem)
+            }
             _epochDate = State(initialValue: card.epochDate)
             _epochDescription = State(initialValue: card.epochDescription ?? "")
         }
@@ -617,6 +622,19 @@ struct CardEditorView: View {
                 }
                 timelineConfigurationPanel
             }
+        } else if mode.kind == .calendars {
+            // Calendar system configuration (Phase 7.5)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: Kinds.calendars.systemImage)
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    Text("Calendar System")
+                        .font(.headline)
+                    Spacer()
+                }
+                calendarConfigurationPanel
+            }
         } else {
             VStack(alignment: .center, spacing: 8) {
                 Image(systemName: "ellipsis.circle")
@@ -894,6 +912,32 @@ struct CardEditorView: View {
                 Text("The epoch is the starting point/zero-date for this timeline.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    // Phase 7.5: Calendar card configuration
+    private var calendarConfigurationPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider().padding(.vertical, 2)
+
+            if let calendarSystem = selectedCalendar {
+                CalendarSystemEditor(calendar: calendarSystem)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("No calendar system attached.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        let newSystem = CalendarSystem(name: name)
+                        selectedCalendar = newSystem
+                    } label: {
+                        Label("Create Calendar System", systemImage: "plus.circle.fill")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
         }
     }
@@ -1339,6 +1383,12 @@ struct CardEditorView: View {
                 card.epochDescription = trimmedEpochDesc.isEmpty ? nil : trimmedEpochDesc
             }
 
+            // Phase 7.5: If creating a Calendar card, persist calendar system reference
+            if kind == .calendars, let calendar = selectedCalendar {
+                modelContext.insert(calendar)
+                card.calendarSystemRef = calendar
+            }
+
             try? modelContext.save()
 
             // Phase 6 (ER-0010): Create pending relationships now that source card exists
@@ -1397,6 +1447,18 @@ struct CardEditorView: View {
                 card.epochDate = epochDate
                 let trimmedEpochDesc = epochDescription.trimmingCharacters(in: .whitespacesAndNewlines)
                 card.epochDescription = trimmedEpochDesc.isEmpty ? nil : trimmedEpochDesc
+            }
+
+            // Phase 7.5: If editing a Calendar card, update calendar system reference
+            if mode.kind == .calendars {
+                if let calendar = selectedCalendar {
+                    if card.calendarSystemRef == nil {
+                        modelContext.insert(calendar)
+                    }
+                    card.calendarSystemRef = calendar
+                } else {
+                    card.calendarSystemRef = nil
+                }
             }
 
             try? modelContext.save()
@@ -2282,12 +2344,18 @@ private extension View {
 // MARK: - Calendar System Picker (ER-0008)
 
 /// Picker view for selecting a CalendarSystem from available options
+/// Phase 7.5: Now uses Calendar cards instead of standalone CalendarSystem objects
 private struct CalendarSystemPicker: View {
     @Binding var selection: CalendarSystem?
     @Environment(\.modelContext) private var modelContext
 
-    @Query(sort: \CalendarSystem.name, order: .forward)
-    private var calendars: [CalendarSystem]
+    @Query(filter: #Predicate<Card> { $0.kindRaw == "Calendars" }, sort: \Card.name, order: .forward)
+    private var calendarCards: [Card]
+
+    // Extract calendar systems from cards
+    private var calendars: [CalendarSystem] {
+        calendarCards.compactMap { $0.calendarSystemRef }
+    }
 
     @State private var showCalendarEditor = false
     @State private var calendarToEdit: CalendarSystem?

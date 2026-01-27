@@ -365,16 +365,29 @@ struct SuggestionReviewView: View {
                             isVariable: false
                         ))
 
-                        // Create CalendarSystem with divisions
-                        let calendar = CalendarSystem(
+                        // Phase 7.5: Create CalendarSystem
+                        let calendarSystem = CalendarSystem(
                             name: detected.name,
                             divisions: divisions
                         )
 
-                        modelContext.insert(calendar)
+                        // Phase 7.5: Create Calendar CARD
+                        let calendarCard = Card(
+                            kind: .calendars,
+                            name: detected.name,
+                            subtitle: "\(detected.monthsPerYear) months, \(detected.daysPerMonth ?? 0) days/month",
+                            detailedText: detected.context
+                        )
+
+                        // Link card to system
+                        calendarCard.calendarSystemRef = calendarSystem
+
+                        // Insert both
+                        modelContext.insert(calendarSystem)
+                        modelContext.insert(calendarCard)
 
                         #if DEBUG
-                        print("✅ [SuggestionReviewView] Created CalendarSystem: \(detected.name)")
+                        print("✅ [SuggestionReviewView] Created Calendar Card: \(detected.name)")
                         print("   Divisions: \(divisions.map { $0.name }.joined(separator: " → "))")
                         #endif
                     }
@@ -421,7 +434,7 @@ struct SuggestionReviewView: View {
 
                 #if DEBUG
                 print("✅ [SuggestionReviewView] Created \(selectedCards.count) entity cards")
-                print("✅ [SuggestionReviewView] Created \(selectedCalendars.count) calendar systems")
+                print("✅ [SuggestionReviewView] Created \(selectedCalendars.count) calendar cards")
                 print("✅ [SuggestionReviewView] Created \(immediateRelationships.count) immediate relationships")
                 print("📋 [SuggestionReviewView] Stored \(deferredRelationships.count) pending relationships (involve '\(sourceCard.name)')")
                 #endif

@@ -328,19 +328,36 @@ class SuggestionEngine {
             #endif
         }
 
+        // Phase 7.5: Filter out card suggestions that match detected calendar names
+        // This prevents calendars from being suggested as artifacts
+        let calendarNames = Set(calendarSuggestions.map { $0.detectedCalendar.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) })
+        let filteredCardSuggestions = cardSuggestions.filter { suggestion in
+            let entityName = suggestion.entity.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            let isCalendar = calendarNames.contains(entityName)
+
+            if isCalendar {
+                #if DEBUG
+                print("   ⏭️  Filtered out entity '\(suggestion.entity.name)' - detected as calendar")
+                #endif
+            }
+
+            return !isCalendar
+        }
+
         return Suggestions(
-            cards: cardSuggestions,
+            cards: filteredCardSuggestions,
             relationships: allRelationshipSuggestions,
             calendars: calendarSuggestions
         )
     }
 
     /// Determine if calendar extraction should be attempted for this card kind
-    /// Phase 7
+    /// Phase 7 / Phase 7.5: Expanded to more card types
     private func shouldExtractCalendars(for kind: Kinds) -> Bool {
-        // Extract calendars for: Timelines, Scenes, Worlds, and Rules
+        // Extract calendars from worldbuilding and narrative cards
+        // Calendars can appear in worldbuilding descriptions, history, locations, etc.
         switch kind {
-        case .timelines, .scenes, .worlds, .rules:
+        case .timelines, .scenes, .worlds, .rules, .characters, .locations, .chronicles, .projects:
             return true
         default:
             return false
