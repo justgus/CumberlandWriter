@@ -42,7 +42,7 @@
 - ✅ **Phase 7.5:** Calendar Cards Architecture (ER-0008) - COMPLETED & VERIFIED (2026-01-27)
   - ✅ Added .calendars kind to Kinds enum
   - ✅ Card.calendarSystemRef relationship (one-to-one with CalendarSystem)
-  - ✅ CalendarCardDetailView with 3 tabs (Details, Timelines, Multi-Timeline)
+  - ✅ ~~CalendarCardDetailView with 3 tabs~~ → Refactored in Phase 8 to align with MainAppView tab pattern
   - ✅ Migration helper for orphaned CalendarSystem objects
   - ✅ Deduplication for duplicate calendar cards
   - ✅ Updated AI extraction to create Calendar cards (not standalone systems)
@@ -51,6 +51,22 @@
   - ✅ Fixed event classification (events → chronicles, not scenes)
   - ✅ Expanded calendar extraction to 8 card types
   - ✅ All SF Symbol issues resolved (tilde, gearshape)
+- ✅ **Phase 8:** Multi-Timeline Graph (ER-0008) - COMPLETED (2026-01-28)
+  - ✅ MultiTimelineGraphView.swift created
+  - ✅ Query all timelines using calendar system
+  - ✅ Horizontal timeline rendering with shared X-axis
+  - ✅ Synchronized zoom/scroll controls (7 zoom levels)
+  - ✅ Timeline track enable/disable toggles
+  - ✅ Color-coded timelines (10-color palette)
+  - ✅ Scene visualization with temporal positioning
+  - ✅ ~~Integrated into CalendarCardDetailView~~ → Refactored to use MainAppView tab pattern
+  - ✅ Empty states and error handling
+  - ✅ **Architectural Refactoring:** Aligned Calendar cards with standard tab pattern
+    - Created CalendarDetailEditor.swift for Tab 1 (Details)
+    - Removed CalendarCardDetailView.swift (custom tabbed interface)
+    - Updated MainAppView.swift to route calendars to CalendarDetailEditor (Tab 1) and MultiTimelineGraphView (Tab 3)
+    - Tab 2 (Relationships) uses standard CardRelationshipView
+    - Removed redundant "Timelines" tab (functionality covered by Relationships tab)
 - ⏸️ **Remaining Phases:** See detailed timeline below
 
 ---
@@ -1593,7 +1609,7 @@ Currently, CalendarSystem is a separate SwiftData model managed only through Tim
 
 ---
 
-### Phase 8: ER-0008 Multi-Timeline Graph (2 weeks)
+### Phase 8: ER-0008 Multi-Timeline Graph ✅ COMPLETED (2026-01-28)
 
 **Priority:** LOW-MEDIUM - Advanced visualization, high value for complex projects
 
@@ -1604,43 +1620,93 @@ Currently, CalendarSystem is a separate SwiftData model managed only through Tim
 
 **Tasks:**
 
-#### 8.1: Multi-Timeline Graph View
-- [ ] Create `MultiTimelineGraphView.swift`
-- [ ] Query all timelines using this calendar
-- [ ] Render as horizontal timelines
+#### 8.1: Multi-Timeline Graph View ✅
+- [x] Create `MultiTimelineGraphView.swift` - COMPLETED
+- [x] Query all timelines using this calendar - COMPLETED
+- [x] Render as horizontal timelines - COMPLETED
   - X-axis: Calendar time (shared)
   - Y-axis: Multiple timeline tracks
-  - Scenes as labeled tickmarks
-- [ ] Synchronized X-axis zoom/scroll
+  - Scenes as labeled tickmarks with durations
+- [x] Synchronized X-axis zoom/scroll - COMPLETED
 
-#### 8.2: Integration with Calendar Card
-- [ ] Add third tab to Calendar detail view
-- [ ] "Multi-Timeline Graph" tab
-- [ ] List timelines using this calendar
-- [ ] Enable/disable timeline tracks (show/hide)
+#### 8.2: Integration with Calendar Card ✅
+- [x] Add third tab to Calendar detail view - COMPLETED
+- [x] "Multi-Timeline Graph" tab - COMPLETED (replaced placeholder)
+- [x] List timelines using this calendar - COMPLETED (via track toggles)
+- [x] Enable/disable timeline tracks (show/hide) - COMPLETED
 
-#### 8.3: Visualization Features
-- [ ] Color-code timelines (by project/world)
-- [ ] Scene hover/tap for details
-- [ ] Jump to scene in timeline
-- [ ] Zoom controls (shared with TimelineChartView)
+#### 8.3: Visualization Features ✅
+- [x] Color-code timelines (by project/world) - COMPLETED (10-color palette)
+- [x] Scene hover/tap for details - COMPLETED (sheet presentation)
+- [x] Jump to scene in timeline - COMPLETED (via scene details sheet)
+- [x] Zoom controls (shared with TimelineChartView) - COMPLETED (7 levels)
 
-#### 8.4: Testing
-- [ ] Multi-timeline rendering tests
-- [ ] Synchronization tests (zoom/scroll)
-- [ ] Performance tests (many timelines/scenes)
+#### 8.4: Testing ⏸️
+- [ ] Multi-timeline rendering tests - DEFERRED (manual testing performed)
+- [ ] Synchronization tests (zoom/scroll) - DEFERRED (manual testing performed)
+- [ ] Performance tests (many timelines/scenes) - DEFERRED
+
+**Implementation Details:**
+
+**File:** `Cumberland/MultiTimelineGraphView.swift`
+- Created comprehensive multi-timeline visualization view (600+ lines)
+- Query system for timelines using a specific calendar system
+- TimelineTrack data model for managing timeline + scenes + color
+- SceneItem data model for temporal scene positioning
+- TimelineSceneItem for chart rendering
+
+**Key Features:**
+1. **Timeline Querying** - Fetches all timelines using the calendar system with temporal scenes
+2. **Track Visualization** - Renders each timeline as a horizontal track (Y-axis)
+3. **Temporal X-Axis** - Shared date-based X-axis across all tracks
+4. **Color Coding** - 10-color palette cycling (blue, purple, pink, red, orange, yellow, green, teal, cyan, indigo)
+5. **Zoom Levels** - 7 levels (hour, day, week, month, year, decade, century)
+6. **Synchronized Controls** - Zoom and scroll synchronized across all tracks
+7. **Track Toggles** - Menu to enable/disable individual timeline tracks
+8. **Empty States** - Handles no timelines, all hidden, no temporal scenes
+9. **Scene Details** - Tap scene to view details in sheet
+
+**Integration:**
+- ~~Updated `CalendarCardDetailView.swift` Multi-Timeline tab~~ → REFACTORED (see below)
+- ~~Replaced placeholder with actual MultiTimelineGraphView~~ → REFACTORED (see below)
+- Added error state for missing calendar system
+
+**Architectural Refactoring (2026-01-28):**
+After initial implementation, refactored to align Calendar cards with standard MainAppView tab pattern:
+1. **Removed CalendarCardDetailView.swift** - Custom tabbed interface with 3 tabs
+2. **Created CalendarDetailEditor.swift** - Detail editor for Tab 1 (Details)
+   - Name/subtitle fields
+   - CalendarSystemEditor integration
+   - "Create Calendar System" button for cards without calendar system
+3. **Updated MainAppView.swift** - Integrated Calendar cards into standard pattern:
+   - Tab 1 (Details): Routes calendars to CalendarDetailEditor instead of CardSheetView
+   - Tab 2 (Relationships): Standard CardRelationshipView (shows timelines using this calendar)
+   - Tab 3 (Timeline): Shows MultiTimelineGraphView for Calendar cards
+4. **Benefits:**
+   - Consistent UI/UX across all card types
+   - Removed redundant "Timelines" tab (functionality in Relationships tab)
+   - Cleaner navigation and code architecture
+   - Calendar cards fully integrated into MainAppView flow
+
+**Architecture Decisions:**
+- Reused TemporalZoomLevel enum pattern from TimelineChartView
+- Used SwiftUI Charts framework for rendering
+- State management with @State for tracks, zoom, scroll position
+- Automatic zoom level selection based on data span
+- Removed duplicate `clamped(to:)` extension (already in CanvasLayerTransform)
+- Aligned with MainAppView tab pattern for consistency
 
 **Deliverables:**
-- Multi-timeline visualization on Calendar cards
-- Synchronized timeline comparison
-- Professional graph UI
+- ✅ Multi-timeline visualization on Calendar cards
+- ✅ Synchronized timeline comparison
+- ✅ Professional graph UI
 
 **Success Criteria:**
-- Can view multiple timelines simultaneously
-- X-axis synchronization works correctly
-- Performance acceptable with 5+ timelines
+- ✅ Can view multiple timelines simultaneously
+- ✅ X-axis synchronization works correctly
+- ⏸️ Performance acceptable with 5+ timelines (requires real-world testing)
 
-**Risk:** Medium - Performance with many timelines, UI complexity
+**Risk:** Medium - Performance with many timelines, UI complexity (mitigated by efficient SwiftData queries)
 
 **Testing Activities:**
 - [ ] **Unit Tests (CumberlandTests/ER-0008-Timeline/):**
@@ -1673,6 +1739,38 @@ Currently, CalendarSystem is a separate SwiftData model managed only through Tim
   - [ ] Scene label clarity
   - [ ] Color contrast for different timelines
   - [ ] Zoom behavior feels smooth
+
+**Phase 8 Completion Notes (2026-01-28):**
+
+Phase 8 successfully delivered Multi-Timeline Graph visualization with all core features implemented:
+✅ Timeline/Chronicle querying and rendering
+✅ Synchronized zoom/scroll controls
+✅ Track visibility toggles
+✅ Architectural alignment with MainAppView tab pattern
+
+**Architectural Discovery:**
+During Phase 8 implementation and testing discussions, identified proper conceptual hierarchy:
+- **Timeline** = Character's Point of View (primary track)
+- **Chronicle** = Historical Event (appears in multiple timelines)
+- **Scene** = Specific Moment (within or outside chronicles)
+
+Current Phase 8 implementation treats Chronicles and Timelines as equivalent (both as tracks), but the correct model should show:
+- Timelines as tracks
+- Chronicles as temporal spans (lozenges) within timeline tracks
+- Scenes as markers within chronicles or standalone
+
+**Next Steps:**
+Created **ER-0016** to document proper Timeline/Chronicle/Scene hierarchy and Multi-Timeline Graph redesign. Starting ER-0016 Phase 1 (enable Chronicles to use calendars) before proceeding to Phase 9.
+
+**Phase 8 Status:** ✅ COMPLETED & CLOSED (2026-01-28)
+
+---
+
+**Transition to ER-0016 (Before Phase 9):**
+
+Before continuing to Phase 9, implementing ER-0016 Phase 1 to enable Chronicles to use calendars. This is a quick enhancement that supports the proper conceptual model and enables flexible worldbuilding workflows.
+
+See `ER-unverified.md` ER-0016 for full details.
 
 ---
 

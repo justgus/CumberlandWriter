@@ -609,14 +609,14 @@ struct CardEditorView: View {
             .task {
                 await loadStructureStateForEditIfNeeded()
             }
-        } else if mode.kind == .timelines {
-            // Timeline system configuration (ER-0008)
+        } else if mode.kind == .timelines || mode.kind == .chronicles {
+            // Timeline/Chronicle system configuration (ER-0008, ER-0016)
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
-                    Image(systemName: Kinds.timelines.systemImage)
+                    Image(systemName: mode.kind.systemImage)
                         .foregroundStyle(.secondary)
                         .font(.caption)
-                    Text("Timeline Options")
+                    Text(mode.kind == .timelines ? "Timeline Options" : "Chronicle Options")
                         .font(.headline)
                     Spacer()
                 }
@@ -1375,8 +1375,8 @@ struct CardEditorView: View {
                 persistStructureForNewProject(projectCard: card)
             }
 
-            // If creating a Timeline, persist calendar system and epoch (ER-0008)
-            if kind == .timelines {
+            // If creating a Timeline or Chronicle, persist calendar system and epoch (ER-0008, ER-0016)
+            if kind == .timelines || kind == .chronicles {
                 card.calendarSystem = selectedCalendar
                 card.epochDate = epochDate
                 let trimmedEpochDesc = epochDescription.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1441,8 +1441,8 @@ struct CardEditorView: View {
                 updateStructureForExistingProject(projectCard: card)
             }
 
-            // If editing a Timeline, update calendar system and epoch (ER-0008)
-            if mode.kind == .timelines {
+            // If editing a Timeline or Chronicle, update calendar system and epoch (ER-0008, ER-0016)
+            if mode.kind == .timelines || mode.kind == .chronicles {
                 card.calendarSystem = selectedCalendar
                 card.epochDate = epochDate
                 let trimmedEpochDesc = epochDescription.trimmingCharacters(in: .whitespacesAndNewlines)

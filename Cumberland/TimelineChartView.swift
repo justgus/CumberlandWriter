@@ -206,6 +206,9 @@ struct TimelineChartView: View {
                     timeline: timeline,
                     edge: edge
                 )
+                #if os(macOS)
+                .frame(minWidth: 560, minHeight: 640)
+                #endif
                 .onDisappear {
                     // Reload data to reflect changes
                     Task { @MainActor in

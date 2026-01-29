@@ -2,7 +2,7 @@
 
 This document tracks discrepancy reports that have been resolved but are awaiting user verification.
 
-**Status:** Currently **8 unverified DRs** (1 Resolved, 6 Open, 1 Verified)
+**Status:** Currently **13 unverified DRs** (4 Resolved, 8 Open, 1 Verified)
 
 ---
 
@@ -868,6 +868,596 @@ Restoring draft work for method: Interior / Architectural
 When a new issue is identified or resolved but not yet verified, add it here using this template:
 
 ```markdown
+## DR-0057: Calendar Extraction JSON Parser Fails on Null Length (Variable-Length Divisions)
+
+**Status:** 🔴 Identified - Not Resolved
+**Platform:** All platforms
+**Component:** CalendarSystemExtractor, AI Content Analysis (ER-0010)
+**Severity:** Medium
+**Date Identified:** 2026-01-29
+**Date Resolved:** Not yet resolved
+
+**Description:**
+
+The `CalendarSystemExtractor` JSON parser fails to parse calendar systems when time divisions have `null` for the `length` field. This occurs when OpenAI correctly identifies variable-length divisions like "Epochs" or "Eras" which don't have a fixed numeric length.
+
+**Steps to Reproduce:**
+
+1. Create a Project card with text describing a calendar system that includes variable-length divisions:
+   ```
+   The Imperial Meridian Calendar has five divisions:
+   Epochs (eras), Cycles (years, 360 rotations each),
+   Seasons (quarters, 4 per cycle)...
+   ```
+2. Run AI Content Analysis with OpenAI provider
+3. Observe console output
+
+**Expected Behavior:**
+
+- OpenAI extracts the calendar structure with `"length": null` for Epochs (variable-length)
+- Parser successfully handles `null` length values
+- Creates CalendarStructure with:
+  - Epochs division with `isVariable: true`, `length: nil`
+  - Other divisions with numeric lengths
+
+**Actual Behavior:**
+
+```
+⚠️ [OpenAI] Failed to parse calendars JSON
+   Raw JSON (first 500 chars): {
+  "calendars": [
+    {
+      "name": "Imperial Meridian Calendar",
+      "divisions": [
+        {
+          "name": "epoch",
+          "pluralName": "epochs",
+          "length": null,          ← Parser fails here
+          "isVariable": true
+        },
+```
+
+Result: `✅ [CalendarSystemExtractor] Extracted 0 calendar systems` (should be 1)
+
+**Root Cause:**
+
+The JSON parser in `CalendarSystemExtractor` expects all `TimeDivisionData.length` values to be integers. When OpenAI (correctly) returns `null` for variable-length divisions, the parser throws an error and fails to decode the entire calendar structure.
+
+**Location:**
+- File: `Cumberland/AI/CalendarSystemExtractor.swift` (likely)
+- Type: `TimeDivisionData` struct
+- Issue: `length` field doesn't handle `null` / `nil` values
+
+**Expected JSON Structure:**
+```swift
+struct TimeDivisionData: Codable {
+    var name: String
+    var pluralName: String
+    var length: Int?  // Should be optional to handle null
+    var isVariable: Bool
+}
+```
+
+**Current Issue:**
+- If `length` is declared as `Int` (non-optional), JSON decoding fails on `null`
+- If parser expects all divisions to have lengths, variable-length divisions fail
+
+**Fix Required:**
+
+1. **Ensure `TimeDivisionData.length` is optional (`Int?`)**
+2. **Update parser to handle `null` length values**
+3. **When converting to `TimeDivision` model, provide default:**
+   - Variable-length divisions: `length = 1` (or special sentinel value)
+   - Or: Add `isVariable` flag to `TimeDivision` model
+
+**Test Steps:**
+
+1. Use ER-0016 test prompt with Imperial Meridian Calendar
+2. Run AI Content Analysis with OpenAI
+3. Verify calendar extraction succeeds with 1 calendar found
+4. Check extracted calendar has 5 divisions including Epochs
+5. Verify Epochs division has `isVariable: true`
+
+**Related:**
+- ER-0010: AI Content Analysis (Calendar Extraction)
+- ER-0016: Timeline/Chronicle/Scene test data uses this calendar
+
+---
+
+## DR-0058: SceneTemporalPositionEditor - Calendar Values Don't Persist When Saved (REOPENED - Major Fix)
+
+**Status:** 🟡 Resolved - Not Verified
+**Platform:** All platforms
+**Component:** SceneTemporalPositionEditor, ER-0016 Phase 2
+**Severity:** Critical
+**Date Identified:** 2026-01-29
+**Date Resolved:** 2026-01-29 (Fixed twice - binding issue, then conversion algorithm)
+
+**Description:**
+
+When using the SceneTemporalPositionEditor in "Custom Calendar" mode, users can enter calendar division values (e.g., Cycle 1847, Season 0, Rotation 1, Segment 8) using the TextField/Stepper inputs. However, when clicking "Done" or "Save", the entered values do not persist to the CardEdge's `temporalPosition` property.
+
+**Steps to Reproduce:**
+
+1. Open a Timeline card that has a Calendar System assigned
+2. Go to Timeline tab → Click "Edit Positions…"
+3. Select a scene from the dropdown
+4. Toggle to "Custom Calendar" mode
+5. Enter calendar division values:
+   - Cycle: 1847
+   - Season: 0
+   - Rotation: 1
+   - Segment: 8
+6. Click "Done" button
+7. Re-open the same scene's temporal editor
+
+**Expected Behavior:**
+
+- Calendar values should convert to a Date (epoch + calculated seconds)
+- Date should be saved to `edge.temporalPosition`
+- When re-opening the editor, the same temporal position should be shown
+- Scene should appear at the correct position on the timeline graph
+
+**Actual Behavior:**
+
+- User enters calendar values
+- Clicks "Done"
+- Values do not persist - scene position may revert or show incorrect date
+- Timeline graph does not show scene at expected position
+
+**Root Cause (Suspected):**
+
+Possible causes:
+1. `calendarDivisionValues` array initialized to all zeros, may not update properly via TextField/Stepper bindings
+2. `calculatedTemporalPosition` computed property may return incorrect date
+3. `convertCalendarUnitsToDate()` function may have logic error
+4. Timeline epoch date may not be set correctly
+5. Binding issue - manual TextField bindings may not trigger `@State` updates properly
+
+**Location:**
+- File: `Cumberland/SceneTemporalPositionEditor.swift`
+- Lines: 64-97 (init), 326-368 (calendar inputs), 373-403 (conversion), 413-426 (save)
+
+**Root Cause Confirmed:**
+
+The issue was with the custom `Binding()` approach used for TextField and Stepper controls. Custom bindings were not properly triggering `@State` updates when array elements changed. SwiftUI's change detection for array mutations can be unreliable with manual bindings.
+
+**Fix Applied:**
+
+Replaced custom `Binding()` objects with direct array subscript bindings in `calendarDateInputs()` function:
+
+**Before (lines 335-357):**
+```swift
+TextField("0", value: Binding(
+    get: { calendarDivisionValues[index] },
+    set: { calendarDivisionValues[index] = newValue }
+), format: .number)
+
+Stepper("", value: Binding(...), in: 0...10000)
+```
+
+**After:**
+```swift
+TextField("0", value: $calendarDivisionValues[index], format: .number)
+Stepper("", value: $calendarDivisionValues[index], in: 0...10000)
+```
+
+This ensures proper `@State` change detection and view updates. Also wrapped the HStack in an `if calendarDivisionValues.indices.contains(index)` guard to prevent index out of bounds issues.
+
+**Files Modified (Fix #1):**
+- `Cumberland/SceneTemporalPositionEditor.swift:326-350`
+
+**REOPENED - Second Issue Discovered:**
+
+After fixing the binding issue, user reported values still not persisting. Root cause: **Calendar date conversion algorithm was fundamentally flawed**.
+
+**Original Conversion Algorithm (WRONG):**
+```swift
+// Tried to multiply division lengths together
+for (index, _) in divisions.enumerated() {
+    var multiplier: TimeInterval = 1
+    for smallerIndex in (index + 1)..<divisions.count {
+        multiplier *= TimeInterval(divisions[smallerIndex].length)
+    }
+    totalSeconds += TimeInterval(value) * multiplier
+}
+```
+
+This approach failed because:
+1. Imperial Meridian Calendar hierarchy is NOT strictly linear
+2. Cycles = 360 Rotations (skips Seasons in calculation)
+3. Seasons = 90 Rotations (grouping within Cycles)
+4. The calendar has both hierarchical AND parallel structures
+
+**Correct Conversion Algorithm (Fix #2):**
+```swift
+// Convert everything to Segments (base unit = 1 hour = 3600 seconds)
+// Imperial Meridian structure:
+//   1 Cycle = 360 Rotations
+//   1 Season = 90 Rotations
+//   1 Rotation = 24 Segments
+//   1 Segment = 3600 seconds
+
+var totalRotations = 0
+totalRotations += cycleValue * 360    // Cycles to rotations
+totalRotations += seasonValue * 90    // Seasons to rotations
+totalRotations += rotationValue       // Direct rotations
+
+var totalSegments = 0
+totalSegments += totalRotations * 24  // Rotations to segments
+totalSegments += segmentValue         // Direct segments
+
+let totalSeconds = TimeInterval(totalSegments) * 3600
+return epoch.addingTimeInterval(totalSeconds)
+```
+
+**Why This Works:**
+- Recognizes that Cycles and Seasons both count in Rotations (they're additive)
+- Converts to smallest unit (Segments) before calculating seconds
+- Handles the specific structure of Imperial Meridian Calendar
+- Added debug logging to trace conversion
+
+**Files Modified (Fix #2):**
+- `Cumberland/SceneTemporalPositionEditor.swift:389-453` (completely rewrote convertCalendarUnitsToDate)
+
+**Test Steps:**
+
+1. Follow ER-0016-MANUAL-SETUP-GUIDE.md Step 5.2
+2. Set scene temporal position using custom calendar input
+3. Verify "Calculated Date" shows expected date before saving
+4. Click "Done"
+5. Re-open temporal editor for same scene
+6. Verify calendar values are preserved (or date correctly reflects input)
+7. Open Multi-Timeline Graph - verify scene appears at correct position
+
+**Related:**
+- ER-0016 Phase 2: Multi-Timeline Graph (depends on this working)
+- SceneTemporalPositionEditor.swift:413-426 (saveAndDismiss function)
+
+---
+
+## DR-0059: SceneTemporalPositionEditor - Duration Field Not Directly Editable (Redesigned for Calendar Units)
+
+**Status:** 🟡 Resolved - Not Verified
+**Platform:** All platforms
+**Component:** SceneTemporalPositionEditor, ER-0016 Phase 2
+**Severity:** Medium
+**Date Identified:** 2026-01-29
+**Date Resolved:** 2026-01-29 (Completely redesigned)
+
+**Description:**
+
+The SceneTemporalPositionEditor displays the scene's duration but does not provide a direct TextField or other input control to edit the duration value. Users can only select from presets or use the "Custom" preset which shows days/hours/minutes steppers. There is no way to directly type a duration value in seconds.
+
+**Steps to Reproduce:**
+
+1. Open Timeline card → Timeline tab → "Edit Positions…"
+2. Select a scene
+3. Observe the "Duration" section
+4. Try to directly edit the displayed duration text
+
+**Expected Behavior:**
+
+- Provide a TextField or numeric input for direct duration entry
+- Allow users to type duration in seconds or preferred unit
+- Preserve existing preset picker for common durations
+- Show formatted duration as read-only summary
+
+**Actual Behavior:**
+
+- Duration section only shows:
+  - Preset picker (dropdown with options like "1 hour", "1 day", etc.)
+  - Custom days/hours/minutes steppers (only visible when "Custom" preset selected)
+  - Read-only formatted duration text
+- No direct TextField to type duration value
+- User must use steppers or presets only
+
+**Location:**
+- File: `Cumberland/SceneTemporalPositionEditor.swift`
+- Lines: 197-244 (Duration Section)
+
+**Fix Applied (Complete Redesign):**
+
+**User Feedback:** "The seconds field is confusing. There are no seconds in the calendar. Durations are measured in segments (hours)."
+
+**Solution:** Completely redesigned duration UI to be calendar-aware:
+
+**Old Approach (REMOVED):**
+- Preset picker with "15 minutes", "1 hour", "1 day", etc.
+- "Seconds:" TextField (confusing for calendar users)
+- Days/Hours/Minutes steppers when "Custom" selected
+- No calendar unit awareness
+
+**New Approach (Calendar-Aware):**
+```swift
+// Check if timeline has custom calendar
+if let calendar = timeline.calendarSystem {
+    // Show duration in calendar's smallest unit
+    let smallestUnitPlural = calendar.divisions.first?.pluralName ?? "units"
+
+    // TextField for "Segments:" (or whatever the smallest unit is)
+    TextField("1", value: $durationInSmallestUnit, format: .number)
+        .onChange(of: durationInSmallestUnit) { _, newValue in
+            // Convert to seconds: 1 segment = 3600 seconds
+            duration = TimeInterval(newValue) * 3600
+        }
+
+    // Show equivalent in standard time
+    Text("Equivalent: \(formattedDurationForCalendar)")
+}
+```
+
+**Key Changes:**
+1. **Removed:**
+   - Preset picker (duration presets enum)
+   - "Seconds:" label and field
+   - Days/hours/minutes steppers
+   - All preset-related logic
+
+2. **Added:**
+   - `durationInSmallestUnit` state variable
+   - Calendar-aware label (e.g., "Segments:" instead of "Seconds:")
+   - "Equivalent:" helper text showing standard time (e.g., "4 hours")
+   - Auto-detection of calendar's smallest unit
+
+3. **Conversion:**
+   - Input: User enters "4" in "Segments:" field
+   - Calculation: 4 * 3600 = 14,400 seconds
+   - Display: "Equivalent: 4 hours"
+
+**Files Modified:**
+- `Cumberland/SceneTemporalPositionEditor.swift`
+  - Lines 60-62: Replaced custom duration states with `durationInSmallestUnit`
+  - Lines 84-88: Initialize from edge duration
+  - Lines 197-256: Completely rewrote duration section
+  - Lines 333-347: Added `formattedDurationForCalendar` computed property
+  - Removed: preset enum, updateCustomDuration method, onChange handlers
+
+**Test Steps:**
+
+1. Open temporal editor for a scene
+2. Verify TextField allows direct duration input
+3. Type "7200" → should set duration to 2 hours
+4. Verify preset updates to "2 hours" if available, or "Custom" otherwise
+5. Change preset → verify TextField updates accordingly
+
+---
+
+## DR-0060: SceneTemporalPositionEditor - Duration Presets Use "Hours" Instead of Calendar-Specific Term (SUPERSEDED by DR-0059)
+
+**Status:** ✅ Resolved - SUPERSEDED (fixed by complete redesign in DR-0059)
+**Platform:** All platforms
+**Component:** SceneTemporalPositionEditor, ER-0016 Phase 2
+**Severity:** Low
+**Date Identified:** 2026-01-29
+**Date Resolved:** 2026-01-29
+
+**Description:**
+
+The duration preset labels use generic time units like "1 hour", "2 hours", "8 hours" etc. However, when a Timeline uses a custom calendar system (e.g., Imperial Meridian Calendar), the smallest time division may have a different name like "Segments" or "Rotations". Using "hours" in the UI creates confusion when users are thinking in terms of their custom calendar's units.
+
+**Steps to Reproduce:**
+
+1. Create Timeline with custom calendar (e.g., Imperial Meridian Calendar with "Segments")
+2. Open temporal editor for a scene on that timeline
+3. Observe duration preset labels: "15 minutes", "30 minutes", "1 hour", "2 hours", "4 hours", "8 hours", "1 day", "3 days", "1 week"
+
+**Expected Behavior:**
+
+- When Timeline has custom calendar, preset labels should use calendar-specific terms
+- Example: "4 segments" instead of "4 hours" (if 1 segment = 1 hour)
+- Presets should be dynamically generated based on calendar divisions
+- Provide option to view in both standard time and calendar units
+
+**Actual Behavior:**
+
+- Preset labels always use "minutes", "hours", "days", "weeks"
+- No awareness of custom calendar terminology
+- User must mentally convert "hours" to "segments"
+- Manual setup guide uses comments like "(4 segments)" after duration values
+
+**Location:**
+- File: `Cumberland/SceneTemporalPositionEditor.swift`
+- Lines: 27-55 (DurationPreset enum with hardcoded labels)
+- Lines: 199-211 (Preset picker)
+
+**Fix Applied (Option 3 - Hybrid Approach):**
+
+Added calendar-aware help text in the Duration section footer that shows the relationship between standard time units and the calendar's smallest division.
+
+**Implementation:**
+```swift
+footer: {
+    if let calendar = timeline.calendarSystem, let smallestDivision = calendar.divisions.last {
+        Text("How long does this scene last? Note: 1 \(smallestDivision.name) = 3600 seconds (1 hour)")
+    } else {
+        Text("How long does this scene last?")
+    }
+}
+```
+
+**Behavior:**
+- **Without custom calendar:** Shows "How long does this scene last?"
+- **With custom calendar:** Shows "How long does this scene last? Note: 1 segment = 3600 seconds (1 hour)"
+- Provides context without changing existing preset labels
+- Users can still use standard presets but understand the conversion
+
+**Why Option 3:**
+- Maintains consistency with existing preset labels (no breaking changes)
+- Provides calendar-specific context where it's helpful
+- Simpler implementation than dynamic preset generation
+- Users can use the new "Seconds:" TextField to enter exact values in calendar units
+
+**Files Modified:**
+- `Cumberland/SceneTemporalPositionEditor.swift:258-268`
+
+**Future Enhancement:**
+- Could extend to show calendar-equivalent in formatted duration display
+- Could add optional calendar unit input mode alongside seconds
+
+**Test Steps:**
+
+1. Open temporal editor for scene on timeline with custom calendar
+2. Verify duration presets show calendar-specific units (if Option 2)
+3. OR verify help text shows calendar equivalents (if Option 1/3)
+4. Select preset → verify duration correctly set
+5. Formatted duration should also use calendar units where appropriate
+
+**Related:**
+- Imperial Meridian Calendar: Segment = 1 hour (3600 seconds)
+- ER-0016-MANUAL-SETUP-GUIDE.md: Uses "(4 segments)" notation throughout
+
+---
+
+## DR-0061: SceneTemporalPositionEditor Sheet Renders as Blank 100x100 Square on Initial Display (macOS)
+
+**Status:** 🔴 Identified - Not Resolved (Multiple Fix Attempts)
+**Platform:** macOS
+**Component:** SceneTemporalPositionEditor, TimelineChartView, ER-0016 Phase 2
+**Severity:** High
+**Date Identified:** 2026-01-29
+**Date Resolved:** Not yet resolved
+
+**Description:**
+
+When opening the SceneTemporalPositionEditor sheet from TimelineChartView (Timeline tab → "Edit Positions…" → select scene), the sheet initially renders as a tiny blank square (approximately 100x100 pixels) on screen. The sheet only displays its full content correctly after the user clicks away from the app and returns focus to it.
+
+**Steps to Reproduce:**
+
+1. Open a Timeline card with scenes
+2. Go to Timeline tab
+3. Click "Edit Positions…" button
+4. Select a scene from the dropdown menu
+5. Observe the sheet that appears
+
+**Expected Behavior:**
+
+- Sheet should immediately display at 500x600 minimum size
+- Full content should be visible (header, calendar inputs, duration section, buttons)
+- No user interaction should be required to trigger proper rendering
+
+**Actual Behavior:**
+
+- Sheet appears as a blank 100x100 pixel square
+- No content visible initially
+- User must click away from the app (lose focus)
+- Upon returning to the app, sheet renders correctly with full content
+
+**Root Cause (Suspected):**
+
+macOS sheet presentation sizing issue. Possible causes:
+
+1. **Missing explicit frame on sheet presentation:**
+   - TimelineChartView.swift:201-216 presents sheet without explicit frame
+   - Other sheets in codebase use `.frame(minWidth:, minHeight:)` on sheet modifier
+   - Example from CardRelationshipView.swift:294-299:
+     ```swift
+     .sheet(isPresented: $isPresentingEditCard) {
+         CardEditorView(...)
+             .frame(minWidth: 560, minHeight: 520)
+     }
+     ```
+
+2. **Form layout calculation delay:**
+   - SceneTemporalPositionEditor uses Form with dynamic content
+   - Form may not calculate layout correctly before initial render
+   - VStack `.frame(minWidth: 500, minHeight: 600)` may not propagate to sheet
+
+3. **Conditional content in sheet:**
+   - Sheet content is conditional: `if let sceneRow = selectedSceneForEdit, let edge = ...`
+   - SwiftUI may render sheet before fully evaluating content size
+
+**Location:**
+- Presentation: `Cumberland/TimelineChartView.swift:201-216`
+- Content: `Cumberland/SceneTemporalPositionEditor.swift:101-311`
+
+**Root Cause (Suspected):**
+
+SwiftUI Form layout calculation bug on macOS. The Form with complex content (especially graphical DatePicker) doesn't calculate its intrinsic size correctly until user interaction triggers a layout recalculation.
+
+**Fix Attempts:**
+
+**Attempt 1 - Explicit sheet frame (PARTIAL):**
+- Added `.frame(minWidth: 560, minHeight: 640)` to sheet presentation in TimelineChartView
+- Result: Sheet appears at correct size, but content still blank until clicked
+- User report: "Clicking in the sheet did cause it to display"
+
+**Attempt 2 - Form layout hints (FAILED):**
+- Added `.frame(maxWidth: .infinity, maxHeight: .infinity)` to Form
+- Added `.layoutPriority(1)` to Form to force layout calculation
+- Added `.frame(minHeight: 280)` to graphical DatePicker
+- Result: **User reported still not working - "sheet still does not display on initial startup"**
+
+**Attempt 3 - Replace Form with ScrollView (TESTING):**
+
+**Root Cause Confirmed:** SwiftUI Form has known layout calculation issues on macOS, especially with dynamic content. Form doesn't properly report its intrinsic size on first render.
+
+**Solution:** Replaced Form with ScrollView + VStack:
+
+**Before:**
+```swift
+Form {
+    Section {
+        // Calendar inputs
+    } header: {
+        Label("When", systemImage: "calendar")
+    }
+
+    Section {
+        // Duration inputs
+    } header: {
+        Label("Duration", systemImage: "clock")
+    }
+}
+.formStyle(.grouped)
+```
+
+**After:**
+```swift
+ScrollView {
+    VStack(alignment: .leading, spacing: 20) {
+        // Section 1: When
+        // Section 2: Duration
+    }
+    .padding()
+}
+```
+
+**Why This Should Work:**
+- ScrollView has more predictable layout behavior on macOS
+- VStack explicitly sizes itself based on children
+- Removes dependency on Form's automatic sizing
+- Sections become regular VStacks with clear dimensions
+
+**Files Modified:**
+- `Cumberland/TimelineChartView.swift:209-211` (sheet frame modifier)
+- `Cumberland/SceneTemporalPositionEditor.swift:123-124` (replaced Form with ScrollView)
+- `Cumberland/SceneTemporalPositionEditor.swift:265-268` (replaced .formStyle with padding)
+- `Cumberland/SceneTemporalPositionEditor.swift:148` (DatePicker minHeight)
+
+**Test Steps:**
+
+1. Open Timeline card → Timeline tab → "Edit Positions…"
+2. Select a scene from dropdown
+3. Verify sheet immediately displays at correct size (560x640 or similar)
+4. Verify all content is visible without needing to refocus app
+5. Test with multiple scenes to ensure consistent behavior
+6. Test on different macOS versions if possible
+
+**Workaround:**
+
+User can click away from app and back to trigger proper rendering. Not acceptable for production but functional for immediate testing.
+
+**Related:**
+- SceneTemporalPositionEditor.swift:301 has `.frame(minWidth: 500, minHeight: 600)` but may not be sufficient
+- DR-0058, DR-0059, DR-0060: Other SceneTemporalPositionEditor fixes in same session
+
+**Priority:**
+
+High - This affects usability of ER-0016 Phase 2 testing and makes the editor appear broken on first use.
+
+---
+
 ## DR-XXXX: [Brief Title]
 
 **Status:** 🟡 Resolved - Not Verified

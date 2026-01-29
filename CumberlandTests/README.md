@@ -6,34 +6,32 @@ This test target has been reorganized to support development of ER-0008, ER-0009
 
 ```
 CumberlandTests/
-├── Existing/                          # Original tests (pre-ER implementation)
+├── Existing/                                      # Original tests (pre-ER implementation)
 │   ├── CitationTests.swift
 │   ├── StoryStructureTests.swift
 │   ├── SpecHeaderGuardTests.swift
 │   └── WipeStoreTests.swift
 │
-├── ER-0008-Timeline/                  # Timeline System tests
-│   ├── CalendarSystemTests.swift     ✓ Created
-│   ├── TemporalPositioningTests.swift (TODO)
-│   ├── TimelineChartTests.swift       (TODO)
-│   └── MultiTimelineGraphTests.swift  (TODO)
+├── ER-0008-Timeline/                              # Timeline System tests
+│   ├── CalendarSystemTests.swift                  ✓ Complete
+│   ├── TemporalPositioningTests.swift             ✓ Complete
+│   └── MultiTimelineTests.swift                   ✓ Complete
 │
-├── ER-0009-ImageGeneration/           # AI Image Generation tests
-│   ├── AIProviderTests.swift          ✓ Created
-│   ├── ImageGenerationTests.swift     (TODO)
-│   ├── AttributionTests.swift         (TODO)
-│   └── MetadataTests.swift            (TODO)
+├── ER-0009-ImageGeneration/                       # AI Image Generation tests
+│   ├── AIProviderTests.swift                      ✓ Complete
+│   ├── AISettingsTests.swift                      ✓ Complete
+│   ├── KeychainHelperTests.swift                  ✓ Complete
+│   ├── AIImageGeneratorTests.swift                ✓ Complete
+│   └── ImageGenerationWorkflowTests.swift         ✓ Complete
 │
-├── ER-0010-ContentAnalysis/           # AI Content Analysis tests
-│   ├── EntityExtractionTests.swift    ✓ Created
-│   ├── RelationshipInferenceTests.swift (TODO)
-│   ├── SuggestionEngineTests.swift    (TODO)
-│   └── CalendarExtractionTests.swift  (TODO)
+├── ER-0010-ContentAnalysis/                       # AI Content Analysis tests
+│   ├── EntityExtractionTests.swift                ✓ Complete
+│   └── CalendarExtractionTests.swift              ✓ Complete
 │
-└── Integration/                       # Cross-ER integration tests
-    ├── CrossERWorkflowTests.swift     ✓ Created
-    ├── AIInfrastructureTests.swift    (TODO)
-    └── MigrationTests.swift           (TODO)
+└── Integration/                                   # Cross-ER integration tests
+    ├── CrossERWorkflowTests.swift                 ✓ Created
+    ├── AIInfrastructureTests.swift                (Deferred to ER-0017)
+    └── MigrationTests.swift                       (Deferred to ER-0017)
 ```
 
 ## Test Framework
@@ -130,6 +128,36 @@ Tests run automatically on:
 3. **Implement TODOs** in template test files as features are developed
 4. **Run baseline tests** to ensure existing functionality works
 
+## Test Coverage Summary
+
+### ER-0008: Time-Based Timeline System
+- ✅ **CalendarSystemTests** (17 tests) - Calendar creation, modification, persistence, Gregorian template
+- ✅ **TemporalPositioningTests** (14 tests) - Scene temporal positioning, duration, timeline-scene relationships
+- ✅ **MultiTimelineTests** (11 tests) - Shared calendars, parallel events, multi-timeline queries
+
+**Total: 42 tests**
+
+### ER-0009: AI Image Generation
+- ✅ **AIProviderTests** (18 tests) - Provider protocol, registry, error handling, analysis tasks
+- ✅ **AISettingsTests** (existing) - Settings persistence, provider selection
+- ✅ **KeychainHelperTests** (existing) - Secure API key storage
+- ✅ **AIImageGeneratorTests** (existing) - Image generation workflows
+- ✅ **ImageGenerationWorkflowTests** (17 tests) - Prompt generation, eligibility, attribution, end-to-end workflows
+
+**Total: 35+ tests**
+
+### ER-0010: AI Content Analysis
+- ✅ **EntityExtractionTests** (25 tests) - Entity type mapping, extraction, confidence scoring, duplicate detection
+- ✅ **CalendarExtractionTests** (20 tests) - Calendar structure extraction, time divisions, eras, festivals
+
+**Total: 45 tests**
+
+### Overall Test Statistics
+- **Total Test Files:** 11
+- **Total Tests:** 122+
+- **Code Coverage Target:** >80% for core logic
+- **All tests use Swift Testing framework** (not XCTest)
+
 ---
 
-*Last Updated: 2026-01-20 (Phase 0)*
+*Last Updated: 2026-01-29 (Tests Complete for ER-0008, ER-0009, ER-0010)*

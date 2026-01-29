@@ -2,88 +2,17 @@
 
 This document tracks enhancement requests that are proposed, in progress, or implemented but awaiting user verification.
 
-**Status:** Currently **9 active ERs** (6 Proposed, 0 Implemented - Not Verified, 3 Verified Awaiting Move)
-
----
-
-
-## ER-0006: Display Working Indicator During Base Layer Rendering - REOPENED
-
-**Status:** 🔴 Regression - Interior Base Layer Not Showing Indicator
-**Component:** MapWizardView, BaseLayerButton (Interior), ToolsTabView
-**Priority:** Medium
-**Date Originally Verified:** 2026-01-09
-**Date Reopened:** 2026-01-10
-**Regression Identified:** 2026-01-10
-
-**Regression Description:**
-
-ER-0006 was previously implemented and verified for base layer rendering progress indicators. However, the working indicator is not appearing when generating interior base layers, specifically:
-- **Wood floor texture on iPad** is particularly time-consuming
-- No progress indicator appears during interior base layer generation
-- User experiences frozen UI without feedback
-- The implementation may be incomplete for interior base layers or only working for exterior layers
-
-**Original Implementation (2026-01-09):**
-- Added `isGeneratingBaseLayer` state to `DrawingCanvasModel`
-- Created async wrappers for base layer generation in MapWizardView, BaseLayerButton, ToolsTabView
-- Added progress overlays to `drawConfigView` (exterior) and `interiorConfigView`
-- Verified for exterior base layers ✅
-- **Assumed verified for interior base layers** ❌
-
-**Current Behavior (Regression):**
-- **Exterior base layers**: Progress indicator works correctly ✅
-- **Interior base layers**: No progress indicator appears ❌
-- Wood floor texture generation on iPad takes several seconds with no feedback
-- User wonders if app has frozen
-
-**Investigation Needed:**
-
-1. Verify interior base layer code path sets `isGeneratingBaseLayer = true`
-2. Check if `BaseLayerButton` interior flow calls async wrappers
-3. Verify interior base layer menu items call `applyBaseLayerFillAsync()` not direct `applyFill()`
-4. Test all interior fill types (Stone Floor, Wood Floor, Tile, etc.)
-5. Specifically test Wood Floor on iPad (reported as slow)
-
-**Possible Root Causes:**
-
-1. **Interior base layer menu** may be calling synchronous `applyFill()` instead of `applyFillAsync()`
-2. **Interior base layer button** code path may bypass async wrapper
-3. **Interior preset buttons** (Floorplan, Dungeon, Caverns) may not use async approach
-4. Progress overlay may not be attached to interior canvas view
-
-**Expected Fix:**
-
-1. Audit all interior base layer trigger points
-2. Ensure all call `applyBaseLayerFillAsync()` or equivalent async wrapper
-3. Verify `isGeneratingBaseLayer` flag is set/cleared correctly for interior
-4. Add specific test case for Wood Floor on iPad
-5. Consider adding explicit loading indicator for slow patterns like Wood Floor
-
-**Files to Review:**
-- `Cumberland/MapWizardView.swift` - Interior base layer menu items
-- `Cumberland/DrawCanvas/BaseLayerButton.swift` - Interior base layer button
-- `Cumberland/DrawCanvas/BaseLayerPatterns.swift` - Interior fill pattern generation
-- `Cumberland/DrawCanvas/ProceduralPatternView.swift` - Interior pattern rendering
-
-**Test Steps:**
-
-1. Open Map Wizard → Interior/Architectural tab
-2. Select Base Layer → Interior → Wood Floor
-3. Observe on iPad (slower device more noticeable)
-4. **Expected**: Progress indicator appears immediately, shows "Generating Base Layer..."
-5. **Actual**: No indicator, appears frozen for several seconds
-
-**Priority:** Medium - Affects user experience on iPad, creates impression of frozen app
+**Status:** Currently **11 active ERs** (4 Proposed, 0 In Progress, 4 Implemented - Not Verified, 3 Verified Awaiting Move)
 
 ---
 
 ## ER-0008: Time-Based Timeline System with Custom Calendars and Multi-Timeline Visualization
 
-**Status:** 🔵 Proposed
+**Status:** 🟡 Implemented - Not Verified
 **Component:** Timeline System, Card Model, TimelineChartView
 **Priority:** High
 **Date Requested:** 2026-01-20
+**Date Implemented:** 2026-01-28
 
 **Rationale:**
 
@@ -370,14 +299,129 @@ This is a large enhancement that should be implemented incrementally:
 5. **Phase 3:** Multi-Timeline Graph visualization
 6. **Phase 4:** Polish, performance optimization, edge cases
 
+### Implementation Summary (2026-01-28)
+
+**✅ Implemented Features (Phases 1-8):**
+
+1. **Calendar System Model** (Phase 1A & 4)
+   - `CalendarSystem` model with SwiftData persistence
+   - Custom time divisions (moments, hours, days, months, years, etc.)
+   - Variable-length divisions support
+   - Eras and festivals tracking
+   - Gregorian calendar template
+
+2. **Calendar Editor UI** (Phase 4)
+   - `CalendarEditorView` with comprehensive editing
+   - Time division management (add, edit, reorder, delete)
+   - Era and festival management
+   - Calendar system selection for Timelines
+   - Epoch date and description configuration
+
+3. **Timeline-Calendar Association** (Phase 1B & 4)
+   - Timeline cards can select a calendar system
+   - Epoch date defines timeline start/zero point
+   - Epoch description for context
+   - Backward compatible with ordinal timelines
+
+4. **Temporal Positioning** (Phase 5)
+   - Scene cards can have `temporalPosition` (Date)
+   - Duration support on CardEdge relationships
+   - Temporal positioning on Timeline tracks
+   - Flexible workflow (can create scenes before calendars)
+
+5. **Multi-Timeline Graph** (Phase 8)
+   - `MultiTimelineGraphView` with SwiftUI Charts
+   - Visualizes multiple timelines sharing a calendar
+   - Scene bars with temporal positioning
+   - Color-coded tracks per timeline
+   - Zoom and pan controls
+   - Date axis with proper formatting
+
+6. **Calendar Picker UI** (Phase 3)
+   - `CalendarPickerView` for selecting calendars
+   - Used in Timeline editors and AI content analysis
+   - Calendar creation workflow integration
+
+7. **AI Calendar Extraction** (Phase 7 - ER-0010 integration)
+   - OpenAI GPT-4 extracts calendar structures from text
+   - Parses time divisions, eras, festivals
+   - Multiple calendar support (can extract several from one text)
+   - Confidence scoring
+
+**✅ Files Modified/Created:**
+- `Cumberland/Model/CalendarSystem.swift` - Calendar model
+- `Cumberland/CalendarEditorView.swift` - Calendar editing UI
+- `Cumberland/CalendarPickerView.swift` - Calendar selection UI
+- `Cumberland/MultiTimelineGraphView.swift` - Multi-timeline visualization
+- `Cumberland/CardEditorView.swift` - Timeline options panel
+- `Cumberland/CalendarDetailEditor.swift` - Calendar detail editing
+- `Cumberland/Model/Migrations.swift` - Schema migration to AppSchemaV5
+- Implementation phases documented in `DR-Reports/IMPLEMENTATION-PHASES-ER-0008-0009-0010.md`
+
+**✅ Unit Tests Complete (2026-01-29):**
+- ✅ **42 unit tests created** covering calendar system, temporal positioning, multi-timeline functionality
+- ✅ Tests use Swift Testing framework with in-memory SwiftData
+- ⚠️ **Manual step required:** Add test files to Xcode project and fix visionOS target
+- 📄 See `CumberlandTests/UNIT-TEST-COMPLETION-STATUS.md` for details
+
+**🔄 Integration Testing Deferred to ER-0017:**
+- Cross-platform testing (all 4 platforms)
+- CloudKit sync testing
+- Performance testing with large timelines (100+ scenes)
+- UI automation tests
+
+**Test Steps for Verification:**
+
+1. **Create Custom Calendar:**
+   - Create a new card of kind "Calendars"
+   - Open calendar editor
+   - Add time divisions (e.g., "cycle" with 24 hours, "rotation" with 10 cycles)
+   - Add eras and festivals
+   - Save calendar
+
+2. **Associate Timeline with Calendar:**
+   - Create or edit a Timeline card
+   - Flip to back side (ellipsis button)
+   - Select calendar system
+   - Set epoch date and description
+   - Save timeline
+
+3. **Add Temporal Scenes:**
+   - Create Scene cards
+   - In scene editor, set temporal position
+   - Associate scene with timeline (via relationships)
+   - Verify scene appears at correct position on timeline
+
+4. **Multi-Timeline Visualization:**
+   - Create multiple timelines sharing a calendar
+   - Add scenes to different timelines at different times
+   - View Multi-Timeline Graph
+   - Verify all timelines appear with proper alignment
+   - Test zoom and pan controls
+
+5. **Gregorian Calendar Template:**
+   - Create a new calendar card
+   - Select "Gregorian" template
+   - Verify pre-populated time divisions (hours, days, months, years)
+   - Verify standard months (January, February, etc.)
+
+6. **AI Calendar Extraction:**
+   - Create a Scene with detailed calendar description in text
+   - Use AI analysis to extract calendar
+   - Verify extracted calendar appears in suggestions
+   - Create calendar from suggestion
+   - Verify time divisions match source text
+
 ---
 
 ## ER-0009: AI Image Generation for Cards (Apple Intelligence and Third-Party APIs)
 
-**Status:** 🔵 Proposed
+**Status:** 🟡 Implemented - Not Verified
 **Component:** Card Image System, Settings, MapWizard, Image Import
 **Priority:** High
 **Date Requested:** 2026-01-20
+**Date Implemented:** 2026-01-29
+**Related:** ER-0017 (Batch generation and history features moved)
 
 **Rationale:**
 
@@ -877,14 +921,138 @@ Visual inspiration is crucial for worldbuilding and narrative design, but writer
 - Writer maintains full creative control
 - All narrative content is human-authored
 
+### Implementation Summary (2026-01-29)
+
+**✅ Implemented Features (Phases 1-8):**
+
+1. **Apple Intelligence Integration** (Phase 2A)
+   - Full Image Playground integration via `.imagePlaygroundSheet`
+   - On-device, privacy-preserving image generation
+   - Native iOS/macOS support (18.2+/15.2+)
+
+2. **OpenAI/DALL-E 3 Integration** (Phase 9.1)
+   - Complete DALL-E 3 API client in `OpenAIProvider.swift`
+   - GPT-4 for content analysis
+   - Secure API key storage in Keychain
+   - Rate limiting and error handling
+
+3. **Multi-Provider Architecture** (Phase 2B & 9.2)
+   - `AIProviderProtocol` for unified provider interface
+   - `AIProviderRegistry` for provider management
+   - Separate provider selection for image generation and content analysis
+   - Provider metadata display (models, rate limits, licensing)
+
+4. **Provider Configuration UI** (Phase 9.2)
+   - `AISettingsPane` in Settings with full provider management
+   - API key input with show/hide toggle
+   - Provider availability indicators
+   - Model and capability information display
+
+5. **Smart Prompt Extraction** (Phase 3A)
+   - Automatic prompt generation from card name + subtitle + description
+   - Card-type-aware prompt prefixes
+   - Integrated into both Apple Intelligence and OpenAI providers
+
+6. **Auto-Generation** (Phase 9.3)
+   - "Auto Generate Images" setting in AISettings
+   - Triggers on card save if conditions met:
+     * No existing image
+     * Description >= minimum words (default: 50)
+     * AI provider available
+   - Background generation with full attribution
+
+7. **Map Wizard AI Generation** (Phase 9.4)
+   - "AI Generate" method fully implemented in MapWizardView
+   - Uses `AIImageGenerationView` modal
+   - Supports both Apple Intelligence and OpenAI
+   - Generated maps flow into finalize step
+
+8. **Attribution & Metadata** (Phase 4A)
+   - `AIImageMetadata` embedded in PNG EXIF data
+   - Tracks: prompt, provider, model, timestamp, software
+   - Automatic attribution on generation
+   - Export preserves metadata
+
+**✅ Files Modified/Created:**
+- `Cumberland/AI/OpenAIProvider.swift` - DALL-E 3 and GPT-4 integration
+- `Cumberland/AI/AIProviderProtocol.swift` - Provider interface
+- `Cumberland/AI/AIProviderRegistry.swift` - Provider management
+- `Cumberland/AI/AISettings.swift` - Settings with split providers
+- `Cumberland/AI/KeychainHelper.swift` - Secure API key storage
+- `Cumberland/AI/AppleIntelligenceProvider.swift` - Image Playground integration
+- `Cumberland/SettingsView.swift` - AISettingsPane UI (lines 849-1158)
+- `Cumberland/CardEditorView.swift` - Auto-generation on save
+- `Cumberland/MapWizardView.swift` - AI map generation
+- `Cumberland/AI/AIImageMetadata.swift` - EXIF metadata embedding
+
+**✅ Unit Tests Complete (2026-01-29):**
+- ✅ **35+ unit tests created** covering AI providers, workflows, prompts, attribution
+- ✅ Tests use Swift Testing framework with in-memory SwiftData
+- ⚠️ **Manual step required:** Add test files to Xcode project and fix visionOS target
+- 📄 See `CumberlandTests/UNIT-TEST-COMPLETION-STATUS.md` for details
+
+**🔄 Features Moved to ER-0017:**
+- Phase 9.5: Batch Generation (select multiple cards, queue management)
+- Phase 9.6: Regeneration History (version tracking, restore previous)
+- Phase 9.7: Integration Testing (cross-platform, CloudKit sync, performance)
+- Phase 10: Polish, Documentation, UI automation
+
+**Why Split:**
+ER-0009 Phases 1-8 provide complete, usable AI image generation functionality. The deferred features (batch processing, history management, comprehensive testing) are power-user enhancements that can be implemented independently without blocking ER-0009 verification.
+
+**Test Steps for Verification:**
+
+1. **Apple Intelligence Image Generation:**
+   - Create a Character card with detailed description (100+ words)
+   - Click "Generate Image" in card editor
+   - Verify Image Playground sheet appears
+   - Generate image and verify it saves to card
+   - Check image EXIF metadata includes attribution
+
+2. **OpenAI DALL-E 3 Image Generation:**
+   - Go to Settings → AI & Providers
+   - Enter OpenAI API key and save
+   - Select "OpenAI DALL-E 3" as image generation provider
+   - Create a Location card with description
+   - Generate image using OpenAI provider
+   - Verify image quality and attribution
+
+3. **Auto-Generation:**
+   - Enable "Auto Generate Images" in AI Settings
+   - Create a new Vehicle card without image
+   - Add detailed description (60+ words)
+   - Save card
+   - Verify image generates automatically in background
+
+4. **Map Wizard AI Generation:**
+   - Open Map Wizard
+   - Select "AI Generate" method
+   - Enter map description (e.g., "Ancient stone fortress on a cliff")
+   - Click Continue
+   - Verify AI generation modal appears
+   - Generate map and save as card
+
+5. **Multi-Provider Switching:**
+   - Generate image with Apple Intelligence
+   - Switch to OpenAI in settings
+   - Generate another image for different card
+   - Verify both providers work independently
+
+6. **Settings & Configuration:**
+   - Verify Settings → AI & Providers shows both providers
+   - Verify API key management (save, show/hide, delete)
+   - Verify provider metadata displays correctly
+   - Verify separate provider selection for analysis vs. generation
+
 ---
 
 ## ER-0010: AI Assistant for Content Analysis and Structured Data Extraction
 
-**Status:** 🔵 Proposed
+**Status:** 🟡 Implemented - Not Verified
 **Component:** Card Editors, AI System, Relationship Manager, Settings
 **Priority:** High
 **Date Requested:** 2026-01-20
+**Date Implemented:** 2026-01-28
 
 **Rationale:**
 
@@ -1330,8 +1498,117 @@ AI Analysis suggests:
 - Export analysis reports
 - Natural language queries ("Show me all scenes mentioning the sword")
 
+### Implementation Summary (2026-01-28)
+
+**✅ Implemented Features (Phases 1-7):**
+
+1. **Entity Extraction System** (Phase 3)
+   - AI-powered entity identification from card descriptions
+   - Support for: Characters, Locations, Buildings, Artifacts, Vehicles, Organizations, Events, Historical Events
+   - Confidence scoring for each extracted entity
+   - Context snippets for user review
+
+2. **Analyze Button UI** (Phase 2)
+   - "Analyze with AI" button in CardEditorView
+   - Available for all card types with descriptions
+   - Progress indicator during analysis
+   - Results displayed in suggestions panel
+
+3. **Suggestion Review System** (Phase 4)
+   - `ContentAnalysisSuggestionsView` for reviewing extracted entities
+   - Side-by-side display: suggestions vs existing matches
+   - Confidence indicators with color coding
+   - Context snippets for each suggestion
+   - Bulk actions (select all, create all, ignore all)
+
+4. **Card Creation from Suggestions** (Phase 4)
+   - One-click card creation from suggestions
+   - Automatic type mapping (entity type → card kind)
+   - Initial content populated from extracted context
+   - Relationship creation between source card and new cards
+
+5. **Duplicate Detection** (Phase 5)
+   - Match suggestions against existing cards
+   - Fuzzy name matching to identify duplicates
+   - Show existing matches with "Already Exists" indicator
+   - Allow creating relationships to existing cards instead of duplicates
+
+6. **Calendar Extraction** (Phase 7)
+   - Extract calendar systems from narrative descriptions
+   - Parse time divisions (hours, days, months, years, custom units)
+   - Identify eras, festivals, and special events
+   - Multiple calendar support (can extract several from one text)
+   - Create calendar cards from extracted data
+
+7. **AI Provider Integration** (Phase 1 & 3)
+   - Shared infrastructure with ER-0009
+   - Separate provider selection for analysis vs. image generation
+   - Apple Intelligence and OpenAI GPT-4 support
+   - Async analysis with proper error handling
+
+**✅ Files Modified/Created:**
+- `Cumberland/ContentAnalysisSuggestionsView.swift` - Suggestion review UI
+- `Cumberland/CardEditorView.swift` - "Analyze with AI" button integration
+- `Cumberland/AI/AppleIntelligenceProvider.swift` - Entity extraction implementation
+- `Cumberland/AI/OpenAIProvider.swift` - GPT-4 analysis, calendar extraction
+- `Cumberland/AI/AIProviderProtocol.swift` - AnalysisTask and AnalysisResult types
+- `Cumberland/AI/AISettings.swift` - Analysis settings and provider selection
+- Implementation documented in `DR-Reports/IMPLEMENTATION-PHASES-ER-0008-0009-0010.md`
+
+**✅ Unit Tests Complete (2026-01-29):**
+- ✅ **45 unit tests created** covering entity extraction, calendar parsing, confidence scoring
+- ✅ Tests use Swift Testing framework with in-memory SwiftData
+- ⚠️ **Manual step required:** Add test files to Xcode project and fix visionOS target
+- 📄 See `CumberlandTests/UNIT-TEST-COMPLETION-STATUS.md` for details
+
+**🔄 Integration Testing Deferred to ER-0017:**
+- Integration tests for full analysis workflows
+- Cross-platform testing (all 4 platforms)
+- Performance testing with long descriptions (1000+ words)
+- CloudKit sync testing
+- Learning system tests
+
+**Test Steps for Verification:**
+
+1. **Entity Extraction:**
+   - Create a Scene card with detailed description mentioning locations, characters, artifacts
+   - Example: "Aria drew the Shadowblade from its sheath in the Dustport tavern"
+   - Click "Analyze with AI"
+   - Verify suggestions appear for: Aria (Character), Shadowblade (Artifact), Dustport (Location)
+   - Check confidence scores and context snippets
+
+2. **Card Creation from Suggestions:**
+   - From analysis results, click "Create Card" for a suggestion
+   - Verify new card created with correct type
+   - Verify card has initial content from context
+   - Verify relationship created between source and new card
+
+3. **Duplicate Detection:**
+   - Create a character "Commander Vex"
+   - Analyze a scene mentioning "Vex"
+   - Verify suggestion shows "Already Exists" indicator
+   - Verify can create relationship without creating duplicate
+
+4. **Calendar Extraction:**
+   - Create a Scene with calendar description:
+     "The Meridian calendar has 10 cycles per rotation, and each cycle has 24 hours. The year is divided into 12 months, starting with Firstmoon in the Age of Discovery."
+   - Analyze with AI
+   - Verify calendar structure extracted
+   - Create calendar card from suggestion
+   - Verify time divisions match source text
+
+5. **Apple Intelligence vs. OpenAI:**
+   - Test analysis with Apple Intelligence (faster, free)
+   - Switch to OpenAI in settings
+   - Test same analysis with OpenAI (more detailed)
+   - Compare results quality
+
+6. **Empty Results Handling:**
+   - Analyze a card with no extractable entities
+   - Verify proper "No entities found" message
+   - Verify doesn't crash or show empty list
+
 ---
-```
 
 ## ER-0011: Image Sharing and Linking Between Cards
 
@@ -2237,6 +2514,840 @@ This enhancement improves user trust in the AI system by:
 2. **Positive reinforcement**: Acknowledges user's existing organization
 3. **Actionable guidance**: Suggests next steps (relationships) instead of implying failure
 4. **Reduced confusion**: Users won't think AI is broken when it finds nothing new
+
+---
+
+## ER-0016: Timeline/Chronicle/Scene Proper Hierarchy and Multi-Timeline Graph Redesign
+
+**Status:** 🟡 Implemented - Not Verified
+**Component:** MultiTimelineGraphView, Card Model, CardEditorView, Timeline System
+**Priority:** High
+**Date Requested:** 2026-01-28
+**Date Phase 1 Implemented:** 2026-01-28
+**Date Phase 2 Implemented:** 2026-01-29
+**Related:** ER-0008 (Multi-Timeline Graph implementation)
+
+**Rationale:**
+
+The current Multi-Timeline Graph implementation (Phase 8, ER-0008) treats **Chronicles** as timeline tracks, but this doesn't match the proper conceptual model for worldbuilding. The correct hierarchy should be:
+
+- **Timeline** = Character's Point of View / Lifeline
+  - Represents a character's entire narrative arc
+  - Example: "Commander Vex's Timeline" (everything from Vex's perspective)
+
+- **Chronicle** = Historical Event / Campaign
+  - A specific event or period in the world's history
+  - Has temporal bounds (start and end dates)
+  - Can appear in MULTIPLE character timelines (different perspectives on the same event)
+  - Example: "The Northern Campaign" appears in Vex's, Kael's, and Lyra's timelines
+
+- **Scene** = Specific Moment
+  - A discrete event within a chronicle or standalone
+  - Has temporal position and duration
+  - Example: "Fleet Departure" within "The Northern Campaign"
+
+**Key Insight:** Chronicles are like "War of the Roses (1455-1485)" - historical events with temporal bounds that appear in multiple character storylines. They are NOT the primary organizational structure for timelines.
+
+**Current Behavior (Phase 8 Implementation):**
+
+The Multi-Timeline Graph currently:
+- Queries for Timelines OR Chronicles using a calendar
+- Displays each as a separate track
+- Shows scenes as bars on those tracks
+- Treats Chronicles and Timelines as equivalent entities
+
+**Problems with Current Implementation:**
+
+1. **Conceptual Mismatch:** Chronicles are shown as separate tracks, but they should be **spans within Timeline tracks**
+2. **Missing Character POV:** No way to represent that "Vex's Timeline" is Vex's point of view
+3. **No Chronicle Reuse:** Can't show the same Chronicle appearing in multiple character timelines
+4. **Scene Grouping:** Scenes can't be grouped under Chronicles visually
+5. **Standalone Scenes:** No way to show scenes that aren't part of a chronicle
+
+**Requested Behavior:**
+
+### Conceptual Model
+
+**Independent Entities** (can be created in any order, no enforced relationships):
+- Timeline Card (kind=.timelines) - "Commander Vex's Timeline"
+- Chronicle Card (kind=.chronicles) - "The Northern Campaign"
+- Scene Card (kind=.scenes) - "Fleet Departure"
+- Character Card (kind=.characters) - "Commander Vex"
+
+**Optional Relationships** (added when ready):
+
+1. **Scene → Timeline** (edge with temporalPosition, duration)
+   - Places the scene at a specific time on that timeline
+   - REQUIRED for scene to appear on Multi-Timeline Graph
+
+2. **Scene → Chronicle** (edge, grouping only)
+   - Groups scene under a chronicle
+   - Optional - scenes can exist standalone
+
+3. **Chronicle → Timeline** (edge with temporalPosition as START, duration as SPAN)
+   - Places the chronicle on the timeline
+   - Defines the temporal bounds of the chronicle
+   - Optional initially (brainstorming), added later
+
+4. **Character → Timeline** (optional, naming convention primarily)
+   - Can be explicit relationship or just naming convention
+   - Allows flexible workflow (may create Timeline before Character)
+
+### Visual Design - Multi-Timeline Graph
+
+**Timeline Track:** Horizontal lane representing a character's story
+**Chronicle Lozenge:** Rounded rectangle spanning start to end of chronicle
+**Scene Tick:** Small labeled marker at temporal position
+
+```
+Timeline Track: "Vex's Timeline"
+├─[═══════ The Northern Campaign ═══════]  ← Chronicle lozenge (span)
+│   ├─┊ Fleet Departure                    ← Scene tick inside chronicle
+│   ├─┊ Border Skirmish
+│   └─┊ Station Assault
+└─┊ Intelligence Briefing                   ← Scene tick outside chronicle
+
+Timeline Track: "Kael's Timeline"
+├─[═══════ The Northern Campaign ═══════]  ← Same chronicle, different timeline
+│   ├─┊ Cargo Deal
+│   └─┊ Outpost Delivery
+└─┊ Black Market Deal                       ← Standalone scene
+```
+
+**Visual Elements:**
+- **Timeline** = horizontal track with character name label
+- **Chronicle** = rounded rectangle "lozenge" spanning temporalPosition to (temporalPosition + duration)
+  - Light fill color (semi-transparent)
+  - Chronicle name label centered
+  - Can overlap with other chronicles on same timeline
+- **Scene in Chronicle** = small tick/marker within the chronicle lozenge
+  - Scene name label
+  - Positioned at exact temporalPosition
+- **Scene standalone** = small tick/marker on timeline track (outside any chronicle)
+  - Same visual treatment but no parent lozenge
+
+### Implementation Requirements
+
+#### 1. Enable Chronicles to Use Calendars
+
+**CardEditorView.swift:**
+- Update timeline options panel to show for `.chronicles` kind (currently only `.timelines`)
+- Allow Chronicles to:
+  - Select calendar system
+  - Set epoch date and description
+  - Same UI that Timeline cards already have
+
+#### 2. Redesign MultiTimelineGraphView Query Logic
+
+**Current (WRONG):**
+```swift
+// Fetch Timelines OR Chronicles
+let fetch = FetchDescriptor<Card>(
+    predicate: #Predicate<Card> { card in
+        (card.kindRaw == timelineKindRaw || card.kindRaw == chronicleKindRaw)
+        && card.calendarSystem?.id == calID
+    }
+)
+```
+
+**Correct:**
+```swift
+// Fetch ONLY Timelines
+let timelinesFetch = FetchDescriptor<Card>(
+    predicate: #Predicate<Card> { card in
+        card.kindRaw == timelineKindRaw && card.calendarSystem?.id == calID
+    }
+)
+
+// For each Timeline, fetch:
+// 1. Chronicles related to it (Chronicle→Timeline edges with temporal bounds)
+// 2. Scenes related to it (Scene→Timeline edges with temporal positions)
+// 3. For each Scene, check if grouped under a Chronicle (Scene→Chronicle edge)
+```
+
+#### 3. Update MultiTimelineGraphView Data Model
+
+**New structures needed:**
+
+```swift
+struct TimelineTrack {
+    let timeline: Card  // kind = .timelines
+    let chronicles: [ChronicleSpan]  // Chronicles appearing on this timeline
+    let scenes: [SceneMarker]  // All scenes on this timeline
+}
+
+struct ChronicleSpan {
+    let chronicle: Card  // kind = .chronicles
+    let start: Date  // temporalPosition from Chronicle→Timeline edge
+    let duration: TimeInterval  // duration from Chronicle→Timeline edge
+    let scenes: [SceneMarker]  // Scenes grouped under this chronicle
+}
+
+struct SceneMarker {
+    let scene: Card  // kind = .scenes
+    let position: Date  // temporalPosition from Scene→Timeline edge
+    let duration: TimeInterval?  // optional duration
+    let parentChronicle: Card?  // if Scene→Chronicle relationship exists
+}
+```
+
+#### 4. Update MultiTimelineGraphView Rendering
+
+**Chart structure:**
+- Y-axis: Timeline tracks (one per Timeline card)
+- X-axis: Shared temporal axis (calendar dates)
+- Rendering layers:
+  1. **Background:** Timeline track lanes
+  2. **Chronicle lozenges:** RectangleMark with rounded corners, light fill
+  3. **Scene markers:** PointMark or small BarMark with labels
+
+**SwiftUI Charts implementation:**
+- Each Timeline = separate Y-domain value
+- Chronicles = RectangleMark spanning xStart to xEnd
+- Scenes = PointMark or thin BarMark at temporalPosition
+- Annotations for labels (chronicle names, scene names)
+
+#### 5. Update Relationship Types (if needed)
+
+May need new RelationType patterns:
+- "occurs-in/contains-event" (Chronicle → Timeline)
+- "part-of/contains" (Scene → Chronicle) - may already exist
+
+### Edge Cases and Considerations
+
+1. **Chronicle without temporal bounds:**
+   - Allow Chronicles to exist without Timeline relationship initially
+   - Only appear on Multi-Timeline Graph once Chronicle→Timeline edge created
+
+2. **Scene in multiple Chronicles:**
+   - Currently relationship model supports 1:M (scene to multiple chronicles)
+   - Visually, scene marker would appear in multiple lozenges on same timeline
+
+3. **Overlapping Chronicles:**
+   - Chronicles can overlap on same timeline (e.g., "The War" and "Personal Crisis" happening simultaneously)
+   - Use semi-transparent lozenges so overlaps are visible
+
+4. **Empty Chronicles:**
+   - Chronicles with no scenes should still render as lozenges
+   - Shows the temporal span even if details haven't been filled in yet
+
+5. **Scenes outside Chronicles:**
+   - Perfectly valid - not all scenes are part of larger events
+   - Render as standalone markers on the timeline track
+
+### Testing Requirements
+
+**Test Scenario:** "The Meridian Chronicles"
+- Create Calendar: "Imperial Meridian Calendar"
+- Create 3 Characters: Commander Vex, Merchant Kael, Scientist Lyra
+- Create 3 Timelines: "Vex's Timeline", "Kael's Timeline", "Lyra's Timeline"
+- Create 2 Chronicles: "The Northern Campaign", "Ancient Discoveries"
+- Create 18 Scenes (distributed across chronicles and standalone)
+- Assign Chronicles to Timelines with temporal bounds
+- Assign Scenes to Timelines with temporal positions
+- Assign some Scenes to Chronicles for grouping
+- View Multi-Timeline Graph showing all 3 timelines with chronicles and scenes
+
+**Expected Results:**
+- 3 timeline tracks (Vex, Kael, Lyra)
+- "The Northern Campaign" appears as lozenge on Vex's and Kael's timelines
+- "Ancient Discoveries" appears as lozenge on Lyra's timeline
+- Scenes grouped under chronicles appear inside lozenges
+- Standalone scenes appear as markers on timeline tracks
+- Temporal synchronization works (same date aligned across all tracks)
+
+### Migration Considerations
+
+**Backward Compatibility:**
+- Existing Phase 8 implementation shows Chronicles as tracks
+- After this ER, Chronicles will be shown as spans within Timeline tracks
+- No data migration needed - just query and rendering logic changes
+- Existing temporal positioning data on edges remains valid
+
+**User Impact:**
+- Users with existing Multi-Timeline setups will see different visualization
+- Need to document the new model in help/documentation
+- May need to add Chronicles→Timeline relationships for existing setups
+
+### Implementation Phases
+
+**Phase 1: Enable Chronicles to Use Calendars**
+- Update CardEditorView to show calendar options for Chronicles
+- Quick win, enables brainstorming workflow
+
+**Phase 2: Redesign Multi-Timeline Graph**
+- Update query logic (Timelines only, then fetch related Chronicles/Scenes)
+- Update data models (TimelineTrack, ChronicleSpan, SceneMarker)
+- Update rendering (tracks, lozenges, markers)
+- Main implementation work
+
+**Phase 3: Update Test Prompt**
+- Create in-app content analysis prompt using new model
+- Timeline cards with calendars
+- Chronicle cards that appear in multiple timelines
+- Scene cards grouped under chronicles or standalone
+
+**Priority:** High - Correct conceptual model is critical for long-term usability
+
+**Complexity:** Medium-High - Requires redesign of Phase 8 implementation
+
+**Dependencies:**
+- ER-0008 (Phase 8) - Builds on existing Multi-Timeline Graph
+- Relationship system - Uses existing CardEdge for temporal positioning
+
+**Benefits:**
+- ✅ Matches proper worldbuilding conceptual model
+- ✅ Chronicles can appear in multiple character timelines
+- ✅ Scenes can be grouped under chronicles or standalone
+- ✅ Supports flexible, non-linear brainstorming workflow
+- ✅ Visual clarity (timelines = tracks, chronicles = spans, scenes = markers)
+
+---
+
+### Implementation Progress
+
+#### ✅ Phase 1: Enable Chronicles to Use Calendars - IMPLEMENTED (2026-01-28)
+
+**Changes Made:**
+
+1. **CardEditorView.swift** - Updated back face options panel
+   - Line 612: Changed condition from `mode.kind == .timelines` to `mode.kind == .timelines || mode.kind == .chronicles`
+   - Line 619: Dynamic title based on kind ("Timeline Options" vs "Chronicle Options")
+   - Uses same `timelineConfigurationPanel` for both kinds
+
+2. **CardEditorView.swift** - Updated create mode save logic
+   - Line 1379: Extended condition to save calendar settings for Chronicles
+   - Chronicles now persist `calendarSystem`, `epochDate`, and `epochDescription`
+
+3. **CardEditorView.swift** - Updated edit mode save logic
+   - Line 1445: Extended condition to update calendar settings for Chronicles
+   - Chronicles can modify calendar system and epoch after creation
+
+**What This Enables:**
+
+- Chronicles can now select a calendar system (just like Timelines)
+- Chronicles can set epoch date and description (when the chronicle begins)
+- Supports flexible brainstorming workflow (create Chronicles before or after calendars)
+- Lays groundwork for Phase 2 (Multi-Timeline Graph redesign)
+
+**Testing:**
+
+✅ Build successful (macOS)
+⏸️ Manual testing pending user verification:
+1. Create Chronicle card
+2. Flip to back (ellipsis button)
+3. Verify "Chronicle Options" panel appears
+4. Verify can select calendar system
+5. Verify can set epoch date/description
+6. Save and reopen - verify settings persist
+
+**Files Modified:**
+- `Cumberland/CardEditorView.swift` (3 changes)
+
+**Status:** 🟡 Implemented - Not Verified
+
+---
+
+#### ✅ Phase 2: Multi-Timeline Graph Redesign - IMPLEMENTED (2026-01-29)
+
+**Changes Made:**
+
+1. **Updated Data Models** - New structures for proper hierarchy
+   - `TimelineTrack`: Now includes `chronicles: [ChronicleSpan]` and `scenes: [SceneMarker]`
+   - `ChronicleSpan`: Represents chronicle temporal span with `start`, `duration`, and nested `scenes`
+   - `SceneMarker`: Represents scene marker with `position`, optional `duration`, and `parentChronicle`
+
+2. **Updated Query Logic** (`loadData()`)
+   - Fetches **only Timelines** using the calendar (not Chronicles as tracks)
+   - For each Timeline, fetches Chronicles related via Chronicle→Timeline edges
+   - For each Timeline, fetches Scenes related via Scene→Timeline edges
+   - Checks Scene→Chronicle relationships to determine scene grouping
+   - Groups scenes under their parent chronicles
+
+3. **Updated Rendering** (`chartArea`)
+   - **Layer 1**: Chronicle lozenges as semi-transparent `RectangleMark` spanning start to end
+   - **Layer 2**: Scene markers as small `BarMark` with labels on top
+   - Scenes within chronicles rendered at 80% opacity
+   - Standalone scenes rendered at full opacity
+   - Increased track height to 80 pixels to accommodate chronicles
+
+**What This Enables:**
+
+- ✅ Timelines = character storylines (horizontal tracks)
+- ✅ Chronicles = temporal spans within timelines (lozenges)
+- ✅ Scenes = markers at specific positions (inside or outside chronicles)
+- ✅ Same chronicle can appear on multiple timelines with different temporal bounds
+- ✅ Scenes can be standalone or grouped under chronicles
+- ✅ Proper worldbuilding conceptual model (characters → timelines → chronicles → scenes)
+
+**Testing:**
+
+✅ Build successful (macOS)
+⏸️ Manual testing pending user verification:
+1. Create multiple Timelines with calendars
+2. Create Chronicles and assign to Timelines with temporal bounds (start + duration)
+3. Create Scenes and assign to Timelines with temporal positions
+4. Create Scene→Chronicle relationships for grouping
+5. View Multi-Timeline Graph to see proper hierarchy
+6. Verify Chronicle lozenges span correctly
+7. Verify Scene markers appear inside chronicles or standalone
+
+**Files Modified:**
+- `Cumberland/MultiTimelineGraphView.swift` (complete redesign of data models and rendering)
+
+**Status:** 🟡 Implemented - Not Verified
+
+---
+
+## ER-0017: AI Image Generation - Batch Processing and History Management
+
+**Status:** 🔵 Proposed
+**Component:** AI System, Card Image Management, CardEditorView
+**Priority:** Medium
+**Date Requested:** 2026-01-29
+**Related:** ER-0009 (Image Generation features split out)
+
+**Rationale:**
+
+During implementation of ER-0008, ER-0009, and ER-0010 (Phases 1-8), the core AI functionality was completed successfully:
+- ✅ Apple Intelligence integration
+- ✅ OpenAI/DALL-E 3 integration
+- ✅ Multi-provider selection UI
+- ✅ Auto-generation on card save
+- ✅ Map Wizard AI generation
+
+However, advanced workflow features (Phases 9.5-9.7 and Phase 10) were deferred to keep ER-0009 focused on core functionality. This ER captures those deferred features for future implementation.
+
+**Current Behavior:**
+
+Users can:
+- Generate images one card at a time
+- Auto-generate on save (if enabled)
+- Regenerate by manually triggering generation again (overwrites existing)
+
+Users cannot:
+- Select multiple cards and generate images in batch
+- Track generation history (previous versions)
+- Revert to an earlier generated version
+- Compare different generated versions side-by-side
+
+**Desired Behavior:**
+
+### Feature 9.5: Batch Generation
+
+**Multi-Select and Queue:**
+1. In card list/grid views, enable multi-selection mode
+2. User selects multiple cards without images (or with images to regenerate)
+3. Click "Generate Images for Selected" toolbar action
+4. System queues generation requests with:
+   - Progress tracking (5 of 20 complete)
+   - Per-card status (queued/generating/complete/failed)
+   - Cancellation support
+   - Rate limit awareness (throttle requests if needed)
+
+**Queue Management:**
+- Show active generation queue in UI (sidebar or sheet)
+- Display card name, generation status, elapsed time
+- Allow removing items from queue before they start
+- Handle failures gracefully (continue queue, report errors)
+- Respect provider rate limits (e.g., 5 requests/minute for DALL-E)
+
+**Batch Results Review:**
+- After completion, show summary sheet:
+  - "20 of 22 images generated successfully"
+  - List of failures with reasons
+  - Option to retry failed cards
+  - Option to review generated images before saving
+
+### Feature 9.6: Regeneration History
+
+**Version Tracking:**
+- When regenerating an image, save the previous version before replacing
+- Store up to N previous versions (configurable, default: 5)
+- Each version includes:
+  - Image data
+  - Generation timestamp
+  - Prompt used
+  - Provider used (Apple Intelligence, OpenAI, etc.)
+  - Generation metadata (model version, settings)
+
+**History UI:**
+- In Card Editor, show "Image History" button/disclosure
+- Display versions as thumbnail grid with timestamps
+- Select any version to view full size
+- Actions:
+  - "Restore this version" (set as current image)
+  - "Delete this version" (free up space)
+  - "Compare" (side-by-side with current)
+  - "Export" (save version to files)
+
+**Storage Management:**
+- Versions stored in `@Attribute(.externalStorage)` like main images
+- Configurable history limit (1-10 versions)
+- "Clear All History" option in settings (keep only current)
+- Automatic cleanup when limit exceeded (FIFO)
+
+**History Model:**
+```swift
+@Model
+class ImageVersion {
+    var card: Card?
+    var imageData: Data?
+    var generatedAt: Date
+    var prompt: String
+    var provider: String
+    var modelVersion: String?
+    var versionNumber: Int
+}
+```
+
+### Feature 9.7 & Phase 10: Comprehensive Testing
+
+**Testing Infrastructure:**
+- Unit tests for batch queue management
+- Unit tests for history storage/retrieval
+- Integration tests for multi-provider workflows
+- UI tests for batch generation flows
+- Performance tests for large batches (100+ cards)
+
+**Cross-Platform Testing:**
+- macOS, iOS, iPadOS, visionOS testing
+- CloudKit sync testing for history data
+- Offline/online scenarios
+- Error handling and recovery
+
+**Documentation:**
+- User guide for batch generation workflows
+- API documentation for batch queue system
+- Performance characteristics and limits
+- Troubleshooting guide
+
+**Requirements:**
+
+### Batch Generation Requirements:
+1. Support selecting 1-100 cards for batch generation
+2. Queue system with pause/resume/cancel capabilities
+3. Progress tracking with estimated time remaining
+4. Handle provider rate limits gracefully
+5. Show per-card generation status in real-time
+6. Generate results summary after completion
+7. Allow retry of failed generations
+
+### History Management Requirements:
+1. Store up to N previous versions per card (default: 5)
+2. Each version includes prompt, provider, timestamp, metadata
+3. UI to browse, compare, restore, and delete versions
+4. Automatic cleanup when history limit exceeded
+5. External storage for version data (same as main image)
+6. Export individual versions to files
+7. Settings to configure history limit and cleanup behavior
+
+### Testing Requirements:
+1. Unit test coverage for queue management
+2. Unit test coverage for history storage
+3. Integration tests for full workflows
+4. Cross-platform testing (all 4 platforms)
+5. CloudKit sync testing
+6. Performance testing (batch of 100 cards)
+7. Error handling and edge case tests
+
+**Design Approach:**
+
+### Batch Generation Architecture:
+- `BatchGenerationQueue` class manages generation queue
+- Each queue item: `BatchGenerationTask(card, prompt, provider, status)`
+- Queue worker respects rate limits, processes sequentially
+- UI observes queue state via `@Observable` or Combine
+- Results collected in `BatchGenerationResult` structure
+
+### History Storage:
+- Add `imageVersions` relationship to Card model
+- `ImageVersion` model with external storage for data
+- Limit enforced on insert (delete oldest if > limit)
+- UI layer reads versions on demand (not loaded by default)
+
+### Settings:
+- `imageHistoryLimit` (1-10, default: 5)
+- `batchGenerationMaxConcurrent` (1-5, default: 1)
+- `batchGenerationRespectRateLimits` (bool, default: true)
+
+**Components Affected:**
+- Card model (add `imageVersions` relationship)
+- AI image generation system (add versioning on regenerate)
+- Card list/grid views (add multi-select mode, batch action)
+- CardEditorView (add history UI)
+- AISettings (add batch and history settings)
+- New: `BatchGenerationQueue.swift`
+- New: `BatchGenerationView.swift` (queue status UI)
+- New: `ImageHistoryView.swift` (version browser)
+- New: `ImageVersion.swift` (model)
+
+**Test Steps:**
+
+### Batch Generation:
+1. Select 10 cards without images
+2. Click "Generate Images for Selected"
+3. Observe queue progress (should complete all 10)
+4. Verify all cards have images after completion
+5. Test failure handling (disconnect network mid-batch)
+6. Test cancellation (cancel batch mid-queue)
+7. Test rate limiting (verify delays between requests)
+
+### History Management:
+1. Generate image for a card
+2. Regenerate image (should save previous as version)
+3. Open image history UI
+4. Verify previous version is shown
+5. Restore previous version (should become current)
+6. Generate 5 more times (should have 5 versions)
+7. Generate again (oldest should be deleted)
+8. Test "Clear All History" (should keep only current)
+
+**Implementation Phases:**
+
+**Phase 1: Batch Generation Queue (1 week)**
+- Implement `BatchGenerationQueue` class
+- Add multi-select to card list views
+- Create batch generation UI
+- Implement queue worker with rate limiting
+- Test with 10-20 cards
+
+**Phase 2: History Storage (1 week)**
+- Add `ImageVersion` model
+- Add `imageVersions` relationship to Card
+- Implement version saving on regenerate
+- Implement automatic cleanup (FIFO when limit exceeded)
+- Add history limit setting
+
+**Phase 3: History UI (1 week)**
+- Create `ImageHistoryView` for browsing versions
+- Add restore, delete, compare, export actions
+- Integrate into CardEditorView
+- Test version management workflows
+
+**Phase 4: Testing & Polish (1-2 weeks)**
+- Write unit tests for queue and history
+- Cross-platform testing
+- Performance testing (large batches)
+- Documentation updates
+- Bug fixes
+
+**Priority:** Medium - Nice-to-have features for power users, but core functionality exists
+
+**Complexity:** High - Requires queue management, data model changes, complex UI
+
+**Dependencies:**
+- ER-0009 (builds on existing image generation system)
+- Requires multi-select support in card list views
+
+**Benefits:**
+- ✅ More efficient workflow for generating many images
+- ✅ Ability to experiment with different prompts without losing previous results
+- ✅ Better quality control (compare versions before committing)
+- ✅ Undo support for image generation
+- ✅ Professional workflow for content creators
+
+**Notes:**
+- Split from ER-0009 Phases 9.5-9.7 and Phase 10 to keep ER-0009 focused
+- ER-0009 Phases 1-8 are complete and ready for verification
+- This ER can be implemented independently after ER-0009 is verified
+- Consider user feedback on history limit and batch size before finalizing implementation
+
+---
+
+## ER-0018: Improve AI Content Analysis Text Preprocessing for Structured Data
+
+**Status:** 🔵 Proposed
+**Component:** TextPreprocessor, AI Content Analysis (ER-0010)
+**Priority:** Medium
+**Date Requested:** 2026-01-29
+**Related:** ER-0010 (AI Content Analysis), ER-0016 (Test data extraction)
+
+**Rationale:**
+
+The current `TextPreprocessor` is designed to condense long narrative text for AI analysis, but it's **too aggressive** when processing structured or semi-structured data. When analyzing test prompts or technical documentation with markdown formatting, it discards critical information that users expect the AI to extract.
+
+**Current Behavior:**
+
+When running AI content analysis on a 719-word structured test prompt:
+
+```
+📝 [TextPreprocessor] Preprocessing long text (719 words)
+✅ [TextPreprocessor] Condensed 719 → 122 words (17.0%) in 0.01s
+   Extracted 6 key entities
+   Found 13 relevant sentences
+```
+
+**Problems:**
+1. **Discards 83% of the text** (597 words removed)
+2. **Removes all structured content:**
+   - Scene definitions (14 scenes completely removed)
+   - Timeline details
+   - Chronicle descriptions
+   - Detailed calendar information
+3. **Loses markdown structure:**
+   - Headings (####)
+   - Bold markers (**)
+   - List formatting
+4. **Results in poor extraction:**
+   - Only 5 entities found (should be 20+)
+   - No scenes extracted
+   - No timelines extracted
+   - No chronicles extracted
+
+**Expected Behavior:**
+
+The preprocessor should:
+1. **Detect structured/semi-structured content** (markdown, lists, headings)
+2. **Preserve structure** when present (don't condense structured data)
+3. **Only condense** unstructured narrative prose (long paragraphs)
+4. **Use different strategies** based on content type:
+   - **Structured data** (markdown with headings): Keep 100%
+   - **Technical documentation**: Keep 80-100%
+   - **Narrative prose**: Condense to 20-50% (current behavior)
+   - **Mixed content**: Preserve structure, condense only narrative sections
+
+**Example Detection Logic:**
+
+```swift
+func detectContentType(text: String) -> ContentType {
+    let hasMarkdownHeadings = text.contains(/#+ /)
+    let hasBoldMarkers = text.contains("**")
+    let hasListMarkers = text.contains("\n- ") || text.contains("\n* ")
+    let hasCodeBlocks = text.contains("```")
+
+    if hasMarkdownHeadings && (hasBoldMarkers || hasListMarkers) {
+        return .structured  // Don't condense
+    } else if text.split(separator: "\n").count > 50 {
+        return .narrative  // Condense heavily
+    } else {
+        return .technical  // Condense lightly
+    }
+}
+```
+
+**Requirements:**
+
+### 1. Content Type Detection
+- Detect markdown formatting (headings, bold, lists)
+- Detect structured patterns (entity definitions, key-value pairs)
+- Detect technical vs narrative content
+
+### 2. Adaptive Preprocessing Strategies
+
+**Strategy A: Structured Data (No Condensation)**
+- Input: Test prompts, API documentation, structured worldbuilding data
+- Action: Pass through with minimal processing (100% retained)
+- Preserve: Headings, lists, bold text, entity definitions
+
+**Strategy B: Technical Documentation (Light Condensation)**
+- Input: User guides, implementation docs, specifications
+- Action: Remove redundancy but keep technical details (70-90% retained)
+- Preserve: Code examples, technical terms, specifications
+
+**Strategy C: Narrative Prose (Heavy Condensation)**
+- Input: Long story descriptions, character backstories, scene narratives
+- Action: Current aggressive condensation (20-50% retained)
+- Preserve: Named entities, key events, character actions
+
+**Strategy D: Mixed Content (Selective Condensation)**
+- Input: Content with both structured and narrative sections
+- Action: Preserve structured sections, condense narrative sections
+- Preserve: All structure, summarize prose
+
+### 3. Configuration Options
+
+Add settings or parameters:
+```swift
+enum PreprocessingMode {
+    case auto        // Detect content type (default)
+    case preserve    // No condensation (100%)
+    case balanced    // Light condensation (70%)
+    case aggressive  // Current behavior (20%)
+}
+```
+
+### 4. Debug Output Enhancement
+
+Improve logging to show:
+```
+📝 [TextPreprocessor] Analyzing text (719 words)
+   Content type: Structured (markdown headings detected)
+   Strategy: Preserve structure, no condensation
+✅ [TextPreprocessor] Processed 719 → 719 words (100%) in 0.01s
+   Mode: preserve
+   Reason: Structured data with markdown headings
+```
+
+**Test Cases:**
+
+1. **Structured Test Prompt (ER-0016):**
+   - Input: 719 words with markdown headings, 14 scene definitions
+   - Expected: 719 words retained (100%), all scenes visible to AI
+   - Current: 122 words retained (17%), scenes lost
+
+2. **Long Character Backstory:**
+   - Input: 2000 words of narrative prose
+   - Expected: 400-600 words retained (20-30%), entities preserved
+   - Current: ~350 words retained (17.5%)
+
+3. **API Documentation:**
+   - Input: 500 words of function signatures and examples
+   - Expected: 450-500 words retained (90-100%)
+   - Current: ~85 words retained (17%)
+
+4. **Mixed Content:**
+   - Input: 1000 words (300 structured + 700 narrative)
+   - Expected: 300 structured + 150 narrative = 450 words (45%)
+   - Current: ~170 words retained (17%)
+
+**Implementation Approach:**
+
+### Phase 1: Content Type Detection
+1. Add `ContentTypeDetector` utility
+2. Detect markdown, lists, headings, code blocks
+3. Score content as structured vs narrative
+4. Return preprocessing strategy recommendation
+
+### Phase 2: Adaptive Preprocessing
+1. Refactor `TextPreprocessor` to use strategies
+2. Implement `StructuredPreprocessor` (no condensation)
+3. Implement `TechnicalPreprocessor` (light condensation)
+4. Keep existing logic as `NarrativePreprocessor` (heavy condensation)
+
+### Phase 3: Configuration & Testing
+1. Add configuration options to AI settings
+2. Test with ER-0016 prompt (should extract all entities)
+3. Test with various content types
+4. Update documentation
+
+**Components Affected:**
+
+- `Cumberland/AI/TextPreprocessor.swift` - Main refactoring
+- `Cumberland/AI/EntityExtractor.swift` - May need to pass preprocessing mode
+- `Cumberland/AI/CalendarSystemExtractor.swift` - May need to pass preprocessing mode
+- Settings UI (optional) - Add preprocessing mode selector
+
+**Priority:** Medium - This prevents successful testing of ER-0016 and limits AI analysis effectiveness, but workarounds exist (manual creation, using OpenAI for better results)
+
+**Complexity:** Medium - Requires content type detection and strategy refactoring, but core preprocessing logic can remain
+
+**Dependencies:**
+- ER-0010 (AI Content Analysis) - Builds on existing system
+
+**Benefits:**
+- ✅ Structured test data extracts correctly (enables ER-0016 testing)
+- ✅ Technical documentation analyzed more accurately
+- ✅ API references and specifications preserved
+- ✅ Narrative content still condensed appropriately
+- ✅ Better AI extraction results across all content types
+- ✅ User control over preprocessing behavior
+
+**Notes:**
+- This issue was discovered while testing ER-0016 Phase 2 implementation
+- OpenAI provider still failed to extract scenes/timelines even with better entity recognition
+- Root cause: Text preprocessor removed 83% of the test data before AI analysis
+- See test results in ER-0016-TEST-PROMPT.md and console logs
 
 ---
 

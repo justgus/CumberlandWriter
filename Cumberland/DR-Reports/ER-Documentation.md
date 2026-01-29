@@ -17,20 +17,26 @@ ERs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified ERs (Active & Proposed)
 
-Currently: **4 unverified ERs**
+Currently: **10 unverified ERs** (3 Proposed, 1 In Progress, 3 Implemented - Not Verified, 3 Verified Awaiting Move)
 
 | ER | Title | Component | Status |
 |----|-------|-----------|--------|
-| ER-0006 | Display Working Indicator During Base Layer Rendering | MapWizardView, BaseLayerButton, ToolsTabView | 🔴 Reopened (Regression) |
-| ER-0008 | Time-Based Timeline System with Custom Calendars and Multi-Timeline Visualization | Timeline System, Card Model, TimelineChartView | 🔵 Proposed |
-| ER-0009 | AI Image Generation for Cards (Apple Intelligence and Third-Party APIs) | Card Image System, Settings, MapWizard, Image Import | 🔵 Proposed |
-| ER-0010 | AI Assistant for Content Analysis and Structured Data Extraction | Card Editors, AI System, Relationship Manager, Settings | 🔵 Proposed |
+| ER-0008 | Time-Based Timeline System with Custom Calendars and Multi-Timeline Visualization | Timeline System, Card Model, TimelineChartView | 🟡 Implemented - Not Verified |
+| ER-0009 | AI Image Generation for Cards (Apple Intelligence and Third-Party APIs) | Card Image System, Settings, MapWizard, Image Import | 🟡 Implemented - Not Verified |
+| ER-0010 | AI Assistant for Content Analysis and Structured Data Extraction | Card Editors, AI System, Relationship Manager, Settings | 🟡 Implemented - Not Verified |
+| ER-0011 | Image Sharing and Linking Between Cards | Card Model, CardEditorView, Image Management | 🔵 Proposed |
+| ER-0012 | Chronicles Card Type for Historical Events and Time Periods | Card Model, MainAppView, AI Integration | ✅ Verified (awaiting move) |
+| ER-0013 | Separate AI Provider Settings for Analysis and Image Generation | AISettings, Settings UI, AI Provider Selection | ✅ Verified (awaiting move) |
+| ER-0014 | Change Card Type Feature with Relationship Deletion | CardRelationshipView, SuggestionReviewView | ✅ Verified (awaiting move) |
+| ER-0015 | Improve Empty Analysis Results Message | SuggestionReviewView, SuggestionEngine | 🔵 Proposed |
+| ER-0016 | Timeline/Chronicle/Scene Proper Hierarchy and Multi-Timeline Graph Redesign | MultiTimelineGraphView, Card Model, CardEditorView | 🟡 In Progress (Phase 1 Implemented) |
+| ER-0017 | AI Image Generation - Batch Processing and History Management | AI System, Card Image Management | 🔵 Proposed |
 
 See: [ER-unverified.md](./ER-unverified.md)
 
 ### Verified ERs (Completed Enhancements)
 
-Currently: **7 verified ERs** | Next available ER: **ER-0011**
+Currently: **10 verified ERs** (7 in batches, 3 awaiting move) | Next available ER: **ER-0018**
 
 | Batch | ERs | File | Status |
 |-------|-----|------|--------|
@@ -102,15 +108,26 @@ When a verified batch file contains multiple ERs (flexible batching), create a n
 
 ## Statistics
 
-- **Total ERs:** 10
-- **Verified:** 7 (70.0%) ✅
-- **Implemented - Not Verified:** 0 (0%) 🟡
-- **In Progress:** 0 (0%)
-- **Proposed:** 3 (30.0%) 🔵
-- **Reopened:** 1 (ER-0006 regression)
-- **Latest ER:** ER-0010 (2026-01-20 - Proposed - AI Assistant for Content Analysis)
+- **Total ERs:** 17
+- **Verified:** 10 (58.8%) ✅
+  - In batches: 7
+  - Awaiting move: 3 (ER-0012, ER-0013, ER-0014)
+- **Implemented - Not Verified:** 3 (17.6%) 🟡
+  - ER-0008 (Timeline System)
+  - ER-0009 (AI Image Generation)
+  - ER-0010 (AI Content Analysis)
+- **In Progress:** 1 (5.9%) 🟡
+  - ER-0016 (Phase 1 complete)
+- **Proposed:** 3 (17.6%) 🔵
+  - ER-0011, ER-0015, ER-0017
+- **Latest ER:** ER-0017 (2026-01-29 - Proposed - AI Batch Generation & History)
+
+**Recent Activity:**
+- 2026-01-29: Created ER-0017 for deferred batch/history features from ER-0009
+- 2026-01-29: Marked ER-0008, ER-0009, ER-0010 as Implemented - Not Verified (Phases 1-8 complete)
+- 2026-01-29: Closed ER-0006 (regression resolved separately)
 
 ---
 
-*Last Updated: 2026-01-20*
-*Document Version: 2.7 (Added ER-0010 - AI Assistant)*
+*Last Updated: 2026-01-29*
+*Document Version: 3.0 (Major update: ER-0008/0009/0010 implementation complete, ER-0017 created)*

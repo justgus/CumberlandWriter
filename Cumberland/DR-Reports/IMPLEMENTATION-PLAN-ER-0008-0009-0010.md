@@ -3,7 +3,7 @@
 **Major Enhancement Requests - AI and Timeline System**
 
 **Date Created:** 2026-01-20
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-01-28
 **Status:** In Progress - Active Development
 
 ---
@@ -29,7 +29,7 @@ Contains the comprehensive, step-by-step breakdown of all phases (0 through 10):
 - Phase 6: Relationship Inference ✅
 - Phase 7: Calendar Extraction ✅
 - Phase 7.5: Calendar Cards Architecture ✅
-- Phase 8: Multi-Timeline Graph (upcoming)
+- Phase 8: Multi-Timeline Graph ✅
 - Phase 9: Third-Party AI APIs (upcoming)
 - Phase 10: Polish & Documentation (upcoming)
 
@@ -69,13 +69,15 @@ Contains the high-level strategy and planning information:
 
 ## Quick Status Summary
 
-**Current Phase:** Phase 7.5 ✅ COMPLETED & VERIFIED (2026-01-27)
-**Next Phase:** Phase 8 - Multi-Timeline Graph
+**Current Phase:** Phase 8 ✅ COMPLETED (2026-01-28)
+**Next Phase:** ER-0016 Phase 1 (Chronicles with Calendars), then Phase 9
 
-**Completed Phases:** 0, 1, 2A, 2B, 3A, 3B, 4A, 4B, 5, 6, 7, 7.5
-**Remaining Phases:** 8, 9, 10
+**Note:** Phase 8 identified architectural improvements documented in ER-0016. Starting ER-0016 Phase 1 before continuing to Phase 9.
 
-**Overall Progress:** ~75% complete (12 of 16 phases)
+**Completed Phases:** 0, 1, 2A, 2B, 3A, 3B, 4A, 4B, 5, 6, 7, 7.5, 8
+**Remaining Phases:** 9, 10
+
+**Overall Progress:** ~81% complete (13 of 16 phases)
 
 ---
 

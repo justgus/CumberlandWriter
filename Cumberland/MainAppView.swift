@@ -565,10 +565,10 @@ struct MainAppView: View {
                 } else {
                     switch selectedDetailTab {
                     case .details:
-                        // Route calendar cards to their specialized view
+                        // Route calendar cards to their specialized detail editor
                         if card.kind == .calendars {
-                            CalendarCardDetailView(card: card)
-                                .id(card.id) // Force recreation when selecting a different card
+                            CalendarDetailEditor(card: card)
+                                .navigationTitle(card.name)
                         } else {
                             CardSheetView(card: card)
                                 .navigationTitle(card.name)
@@ -597,6 +597,18 @@ struct MainAppView: View {
                         if card.kind == .timelines {
                             TimelineChartView(timeline: card)
                                 .navigationTitle(card.name.isEmpty ? "Timeline" : card.name)
+                        } else if card.kind == .calendars {
+                            if let calendarSystem = card.calendarSystemRef {
+                                MultiTimelineGraphView(calendarSystem: calendarSystem)
+                                    .navigationTitle(card.name.isEmpty ? "Multi-Timeline" : card.name)
+                            } else {
+                                ContentPlaceholderView(
+                                    title: "No Calendar System",
+                                    subtitle: "This calendar card needs a calendar system to display the multi-timeline graph.",
+                                    systemImage: "exclamationmark.triangle"
+                                )
+                                .padding()
+                            }
                         } else {
                             CardSheetView(card: card)
                                 .navigationTitle(card.name)

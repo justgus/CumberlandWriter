@@ -6,7 +6,7 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
     case relationships = "Relationships"
     case aggregateText = "Aggregate" // New: AggregateTextView for Chapters
     case board = "Board" // Structural Spine (Projects) or Murder Board (Worlds/Characters/Scenes)
-    case timeline = "Timeline" // Timeline chart (Timelines only)
+    case timeline = "Timeline" // Timeline chart (Timelines) or Multi-Timeline Graph (Calendars)
     case mapWizard = "Map Wizard" // Map creation/editing wizard (Maps only)
 
     var id: String { rawValue }
@@ -29,7 +29,7 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
         case .relationships: return "Manage Relationships"
         case .aggregateText: return "Aggregate Text"
         case .board: return "Board"
-        case .timeline: return "Timeline Chart"
+        case .timeline: return "Timeline Visualization"
         case .mapWizard: return "Create or Edit Map"
         }
     }
@@ -51,7 +51,12 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
         if kind == .worlds || kind == .characters || kind == .scenes {
             tabs.append(.board)
         }
+        // Timelines: Timeline Chart
         if kind == .timelines {
+            tabs.append(.timeline)
+        }
+        // Calendars: Multi-Timeline Graph
+        if kind == .calendars {
             tabs.append(.timeline)
         }
         // Maps: Map Wizard

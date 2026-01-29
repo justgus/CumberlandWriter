@@ -19,6 +19,11 @@ struct SceneTemporalPositionEditor: View {
     @State private var duration: TimeInterval
     @State private var useCustomDuration: Bool
 
+    // Calendar-aware date input mode
+    @State private var useCalendarInput: Bool = false
+    @State private var calendarDivisionValues: [Int] = [] // Values for each division
+    @State private var displayedCalculatedDate: Date = Date() // Explicitly tracked for view updates
+
     // Duration presets
     private enum DurationPreset: String, CaseIterable, Identifiable {
         case minutes15 = "15 minutes"
@@ -52,10 +57,8 @@ struct SceneTemporalPositionEditor: View {
 
     @State private var selectedPreset: DurationPreset = .hour1
 
-    // Custom duration input
-    @State private var customDays: Int = 0
-    @State private var customHours: Int = 1
-    @State private var customMinutes: Int = 0
+    // Duration input - use calendar units if available
+    @State private var durationInSmallestUnit: Int = 1 // e.g., 1 segment = 3600 seconds
 
     init(scene: Card, timeline: Card, edge: CardEdge) {
         self.scene = scene
@@ -74,14 +77,22 @@ struct SceneTemporalPositionEditor: View {
         let preset = DurationPreset.allCases.first { $0.timeInterval == initialDuration } ?? .hour1
         _selectedPreset = State(initialValue: preset)
 
-        // Break down duration into days/hours/minutes for custom input
-        let days = Int(initialDuration / 86400)
-        let hours = Int((initialDuration.truncatingRemainder(dividingBy: 86400)) / 3600)
-        let minutes = Int((initialDuration.truncatingRemainder(dividingBy: 3600)) / 60)
+        // Calculate duration in smallest calendar unit (e.g., segments)
+        // 1 segment = 3600 seconds (1 hour)
+        let smallestUnitSeconds: TimeInterval = 3600
+        let units = Int(initialDuration / smallestUnitSeconds)
+        _durationInSmallestUnit = State(initialValue: max(1, units))
 
-        _customDays = State(initialValue: days)
-        _customHours = State(initialValue: hours)
-        _customMinutes = State(initialValue: minutes)
+        // Initialize calendar-aware input
+        let hasCustomCalendar = timeline.calendarSystem != nil
+        _useCalendarInput = State(initialValue: hasCustomCalendar)
+
+        // Initialize division values (start with zeros, user will set them)
+        let divisionCount = timeline.calendarSystem?.divisions.count ?? 0
+        _calendarDivisionValues = State(initialValue: Array(repeating: 0, count: divisionCount))
+
+        // Initialize displayed calculated date
+        _displayedCalculatedDate = State(initialValue: initialPosition)
     }
 
     var body: some View {
@@ -107,38 +118,110 @@ struct SceneTemporalPositionEditor: View {
 
             Divider()
 
-            Form {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
                 // Temporal Position Section
                 Section {
-                    // Date picker (graphical calendar)
-                    DatePicker(
-                        "Date",
-                        selection: $temporalPosition,
-                        displayedComponents: [.date]
-                    )
-                    .datePickerStyle(.graphical)
+                    // Toggle between calendar-aware and standard date input
+                    if timeline.calendarSystem != nil {
+                        Picker("Input Mode", selection: $useCalendarInput) {
+                            Text("Custom Calendar").tag(true)
+                            Text("Standard Date").tag(false)
+                        }
+                        .pickerStyle(.segmented)
+                        .onChange(of: useCalendarInput) { _, newValue in
+                            print("📅 [SceneTemporalPositionEditor] Input mode changed to: \(newValue ? "Custom Calendar" : "Standard Date")")
+                            if newValue, let calendar = timeline.calendarSystem, let epoch = timeline.epochDate {
+                                // Switching to calendar mode - recalculate
+                                let calculated = convertCalendarUnitsToDate(divisions: calendar.divisions, values: calendarDivisionValues, epoch: epoch)
+                                displayedCalculatedDate = calculated
+                                temporalPosition = calculated
+                            }
+                        }
+                    }
 
-                    // Time picker (separate for better UX)
-                    DatePicker(
-                        "Time",
-                        selection: $temporalPosition,
-                        displayedComponents: [.hourAndMinute]
-                    )
-                    .datePickerStyle(.compact)
+                    if useCalendarInput, let calendar = timeline.calendarSystem {
+                        // Calendar-aware date inputs
+                        calendarDateInputs(for: calendar)
+                    } else {
+                        // Standard date picker (graphical calendar)
+                        DatePicker(
+                            "Date",
+                            selection: $temporalPosition,
+                            displayedComponents: [.date]
+                        )
+                        .datePickerStyle(.graphical)
+                        .frame(minHeight: 280) // Ensure graphical calendar has proper size
+
+                        // Time picker (separate for better UX)
+                        DatePicker(
+                            "Time",
+                            selection: $temporalPosition,
+                            displayedComponents: [.hourAndMinute]
+                        )
+                        .datePickerStyle(.compact)
+                    }
 
                     Divider()
 
-                    // Show end time
-                    HStack {
-                        Text("Scene End Time:")
+                    // Show calculated date/time
+                    if useCalendarInput {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Calculated Date:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            // Show in calendar format
+                            if let _ = timeline.calendarSystem {
+                                Text(formatDateInCalendar(displayedCalculatedDate))
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(.primary)
+                            }
+
+                            // Show in Gregorian for reference
+                            HStack {
+                                Text("(")
+                                Text(displayedCalculatedDate, style: .date)
+                                Text(displayedCalculatedDate, style: .time)
+                                Text(")")
+                            }
+                            .font(.caption)
                             .foregroundStyle(.secondary)
-                        Spacer()
-                        Text(endTime, style: .date)
-                            .foregroundStyle(.primary)
-                        Text(endTime, style: .time)
-                            .foregroundStyle(.primary)
+                        }
                     }
-                    .font(.subheadline)
+
+                    // Show end time
+                    if useCalendarInput, let _ = timeline.calendarSystem {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Scene End Time:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Text(formatDateInCalendar(endTime))
+                                .font(.subheadline)
+                                .foregroundStyle(.primary)
+
+                            HStack {
+                                Text("(")
+                                Text(endTime, style: .date)
+                                Text(endTime, style: .time)
+                                Text(")")
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        HStack {
+                            Text("Scene End Time:")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(endTime, style: .date)
+                                .foregroundStyle(.primary)
+                            Text(endTime, style: .time)
+                                .foregroundStyle(.primary)
+                        }
+                        .font(.subheadline)
+                    }
                 } header: {
                     Label("When", systemImage: "calendar")
                 } footer: {
@@ -156,41 +239,56 @@ struct SceneTemporalPositionEditor: View {
 
                 // Duration Section
                 Section {
-                    Picker("Duration Preset", selection: $selectedPreset) {
-                        ForEach(DurationPreset.allCases) { preset in
-                            Text(preset.rawValue).tag(preset)
-                        }
-                    }
-                    .onChange(of: selectedPreset) { _, newValue in
-                        if let interval = newValue.timeInterval {
-                            duration = interval
-                            useCustomDuration = false
-                        } else {
-                            useCustomDuration = true
-                        }
-                    }
-
-                    // Custom duration input
-                    if selectedPreset == .custom {
-                        HStack {
-                            Stepper("Days: \(customDays)", value: $customDays, in: 0...365)
-                            Spacer()
-                        }
+                    if let calendar = timeline.calendarSystem {
+                        // Calendar-aware duration input
+                        let smallestUnitPlural = calendar.divisions.first?.pluralName ?? "units"
 
                         HStack {
-                            Stepper("Hours: \(customHours)", value: $customHours, in: 0...23)
+                            Text(smallestUnitPlural.capitalized + ":")
+                                .frame(width: 100, alignment: .leading)
+
                             Spacer()
+
+                            TextField("1", value: $durationInSmallestUnit, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 100)
+                                .multilineTextAlignment(.trailing)
+                                .onChange(of: durationInSmallestUnit) { _, newValue in
+                                    // Convert calendar units to seconds
+                                    // 1 segment = 3600 seconds
+                                    duration = TimeInterval(newValue) * 3600
+                                }
+
+                            Stepper("", value: $durationInSmallestUnit, in: 1...1000)
+                                .labelsHidden()
                         }
 
-                        HStack {
-                            Stepper("Minutes: \(customMinutes)", value: $customMinutes, in: 0...59)
-                            Spacer()
+                        // Show equivalent in standard time
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Equivalent:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(formattedDurationForCalendar)
+                                .font(.subheadline)
+                                .foregroundStyle(.primary)
                         }
-
-                        Text("Total: \(formattedDuration)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     } else {
+                        // Standard duration input (no calendar)
+                        HStack {
+                            Text("Seconds:")
+                                .frame(width: 100, alignment: .leading)
+
+                            Spacer()
+
+                            TextField("3600", value: Binding(
+                                get: { Int(duration) },
+                                set: { duration = TimeInterval($0) }
+                            ), format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 100)
+                            .multilineTextAlignment(.trailing)
+                        }
+
                         Text("Duration: \(formattedDuration)")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -198,12 +296,20 @@ struct SceneTemporalPositionEditor: View {
                 } header: {
                     Label("Duration", systemImage: "clock")
                 } footer: {
-                    Text("How long does this scene last?")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let calendar = timeline.calendarSystem, let smallestUnit = calendar.divisions.first {
+                        Text("How long does this scene last? 1 \(smallestUnit.name) = 1 hour (3600 seconds)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("How long does this scene last?")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                }
+                .padding()
             }
-            .formStyle(.grouped)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             Spacer()
 
@@ -230,19 +336,34 @@ struct SceneTemporalPositionEditor: View {
         }
         .padding()
         .frame(minWidth: 500, minHeight: 600)
-        .onChange(of: customDays) { _, _ in updateCustomDuration() }
-        .onChange(of: customHours) { _, _ in updateCustomDuration() }
-        .onChange(of: customMinutes) { _, _ in updateCustomDuration() }
+        .onChange(of: calendarDivisionValues) { _, newValues in
+            // Recalculate temporal position when calendar values change
+            print("📅 [SceneTemporalPositionEditor] Calendar values changed: \(newValues)")
+            if useCalendarInput, let calendar = timeline.calendarSystem, let epoch = timeline.epochDate {
+                let calculated = convertCalendarUnitsToDate(divisions: calendar.divisions, values: newValues, epoch: epoch)
+                displayedCalculatedDate = calculated
+                temporalPosition = calculated
+                print("📅 [SceneTemporalPositionEditor] Updated displayed date to: \(calculated)")
+            }
+        }
     }
 
     // MARK: - Computed Properties
 
+    private var calculatedTemporalPosition: Date {
+        if useCalendarInput, let calendar = timeline.calendarSystem, let epoch = timeline.epochDate {
+            return convertCalendarUnitsToDate(divisions: calendar.divisions, values: calendarDivisionValues, epoch: epoch)
+        }
+        return temporalPosition
+    }
+
     private var endTime: Date {
-        temporalPosition.addingTimeInterval(duration)
+        let startTime = useCalendarInput ? displayedCalculatedDate : temporalPosition
+        return startTime.addingTimeInterval(duration)
     }
 
     private var formattedDuration: String {
-        let totalSeconds = selectedPreset == .custom ? customDuration : duration
+        let totalSeconds = duration
 
         let days = Int(totalSeconds / 86400)
         let hours = Int((totalSeconds.truncatingRemainder(dividingBy: 86400)) / 3600)
@@ -262,25 +383,173 @@ struct SceneTemporalPositionEditor: View {
         return components.isEmpty ? "0 minutes" : components.joined(separator: ", ")
     }
 
-    private var customDuration: TimeInterval {
-        TimeInterval(customDays * 86400 + customHours * 3600 + customMinutes * 60)
+    private var formattedDurationForCalendar: String {
+        let totalSeconds = duration
+        let hours = Int(totalSeconds / 3600)
+        let days = hours / 24
+        let remainingHours = hours % 24
+
+        if days > 0 && remainingHours > 0 {
+            return "\(days) day\(days == 1 ? "" : "s"), \(remainingHours) hour\(remainingHours == 1 ? "" : "s")"
+        } else if days > 0 {
+            return "\(days) day\(days == 1 ? "" : "s")"
+        } else {
+            return "\(hours) hour\(hours == 1 ? "" : "s")"
+        }
+    }
+
+    /// Format date in calendar representation
+    private func formatDateInCalendar(_ date: Date) -> String {
+        guard let _ = timeline.calendarSystem, let epoch = timeline.epochDate else {
+            return date.formatted(date: .abbreviated, time: .shortened)
+        }
+
+        // Calculate time since epoch in seconds
+        let secondsSinceEpoch = date.timeIntervalSince(epoch)
+
+        // Convert to segments (base unit, 3600 seconds each)
+        let totalSegments = Int(secondsSinceEpoch / 3600)
+
+        // Convert to rotations
+        let totalRotations = totalSegments / 24
+        let segments = totalSegments % 24
+
+        // Convert to cycles and seasons
+        let cycles = totalRotations / 360
+        let rotationsInCycle = totalRotations % 360
+        let seasons = rotationsInCycle / 90
+        let rotations = rotationsInCycle % 90
+
+        return "Cycle \(cycles), Season \(seasons), Rotation \(rotations), Segment \(segments)"
+    }
+
+    // MARK: - Calendar Date Input Views
+
+    @ViewBuilder
+    private func calendarDateInputs(for calendar: CalendarSystem) -> some View {
+        ForEach(Array(calendar.divisions.enumerated()), id: \.offset) { index, division in
+            if calendarDivisionValues.indices.contains(index) {
+                HStack {
+                    Text(division.name.capitalized + ":")
+                        .frame(width: 100, alignment: .leading)
+
+                    Spacer()
+
+                    // Use direct binding to array element for proper @State updates
+                    TextField("0", value: $calendarDivisionValues[index], format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 80)
+                        .multilineTextAlignment(.trailing)
+
+                    Stepper("", value: $calendarDivisionValues[index], in: 0...10000)
+                        .labelsHidden()
+                }
+            }
+        }
+
+        // Help text
+        Text("Enter values for each time division. For example: Cycle 1847, Season 2 (Spring), Rotation 1, Segment 8")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
+    }
+
+    // MARK: - Calendar Conversion
+
+    /// Converts calendar division values to a Date based on the timeline's epoch
+    /// Imperial Meridian Calendar structure (user enters in this order):
+    ///   - Epoch (variable, eras) - usually 0
+    ///   - Cycle (years, 360 rotations each)
+    ///   - Season (quarters, 90 rotations each, 4 per cycle)
+    ///   - Rotation (days, 24 segments each)
+    ///   - Segment (hours, 3600 seconds each)
+    private func convertCalendarUnitsToDate(divisions: [TimeDivision], values: [Int], epoch: Date) -> Date {
+        guard values.count == divisions.count else {
+            print("⚠️ [SceneTemporalPositionEditor] Division count mismatch: \(divisions.count) divisions, \(values.count) values")
+            return epoch
+        }
+
+        // For Imperial Meridian Calendar specifically:
+        // Convert everything to segments (the base unit = 1 hour = 3600 seconds)
+
+        // Find division indices by name
+        var cycleValue = 0
+        var seasonValue = 0
+        var rotationValue = 0
+        var segmentValue = 0
+
+        for (index, division) in divisions.enumerated() {
+            let value = values[index]
+            let divName = division.name.lowercased()
+
+            if divName == "epoch" {
+                // Epochs are variable-length eras, typically not used in date calculation
+                // We start from the epoch date itself
+                continue
+            } else if divName == "cycle" {
+                cycleValue = value
+            } else if divName == "season" {
+                seasonValue = value
+            } else if divName == "rotation" {
+                rotationValue = value
+            } else if divName == "segment" {
+                segmentValue = value
+            }
+        }
+
+        // Calculate total segments
+        // 1 Cycle = 360 Rotations
+        // 1 Season = 90 Rotations (but we add this to the cycle's rotations)
+        // 1 Rotation = 24 Segments
+        // 1 Segment = 3600 seconds
+
+        var totalRotations = 0
+        totalRotations += cycleValue * 360  // Cycles to rotations
+        totalRotations += seasonValue * 90  // Seasons to rotations
+        totalRotations += rotationValue     // Direct rotations
+
+        var totalSegments = 0
+        totalSegments += totalRotations * 24  // Rotations to segments
+        totalSegments += segmentValue         // Direct segments
+
+        let totalSeconds = TimeInterval(totalSegments) * 3600  // Segments to seconds
+
+        print("📅 [SceneTemporalPositionEditor] Converting calendar date:")
+        print("   Input: Cycle \(cycleValue), Season \(seasonValue), Rotation \(rotationValue), Segment \(segmentValue)")
+        print("   → Total rotations: \(totalRotations)")
+        print("   → Total segments: \(totalSegments)")
+        print("   → Total seconds from epoch: \(totalSeconds)")
+        print("   → Epoch date: \(epoch)")
+        print("   → Result date: \(epoch.addingTimeInterval(totalSeconds))")
+
+        return epoch.addingTimeInterval(totalSeconds)
     }
 
     // MARK: - Actions
 
-    private func updateCustomDuration() {
-        if selectedPreset == .custom {
-            duration = customDuration
-        }
-    }
-
     private func saveAndDismiss() {
         // Update edge with new temporal position and duration
-        edge.temporalPosition = temporalPosition
+        if useCalendarInput {
+            edge.temporalPosition = displayedCalculatedDate
+            print("💾 [SceneTemporalPositionEditor] Saving calendar date: \(displayedCalculatedDate)")
+            print("💾 [SceneTemporalPositionEditor] Calendar values: \(calendarDivisionValues)")
+            if let formatted = timeline.calendarSystem != nil ? formatDateInCalendar(displayedCalculatedDate) : nil {
+                print("💾 [SceneTemporalPositionEditor] As calendar: \(formatted)")
+            }
+        } else {
+            edge.temporalPosition = temporalPosition
+            print("💾 [SceneTemporalPositionEditor] Saving standard date: \(temporalPosition)")
+        }
         edge.duration = duration
+        print("💾 [SceneTemporalPositionEditor] Saving duration: \(duration) seconds")
 
         // Save context
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+            print("✅ [SceneTemporalPositionEditor] Context saved successfully")
+        } catch {
+            print("❌ [SceneTemporalPositionEditor] Failed to save context: \(error)")
+        }
 
         dismiss()
     }
