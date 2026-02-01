@@ -22,13 +22,23 @@ class SuggestionEngine {
 
     /// Suggestion for creating a relationship
     /// Phase 6: Now supports both AI-extracted and inferred relationships
+    /// ER-0020: Updated to store dynamic verbs from AI extraction
     struct RelationshipSuggestion: Identifiable {
         let id = UUID()
         let sourceCardName: String
         let targetCardName: String
-        let relationTypeCode: String  // Maps to RelationType.code in database
+
+        // ER-0020: Store forwardVerb and inverseVerb from AI or pattern
+        let forwardVerb: String       // "wields", "discovered", "owns"
+        let inverseVerb: String        // "is wielded by", "discovered by", "owned-by"
+
         let confidence: Double
         let context: String?  // Sentence or context where relationship was found
+
+        // Computed property for backward compatibility
+        var relationTypeCode: String {
+            "\(forwardVerb)/\(inverseVerb)"
+        }
 
         var displayDescription: String {
             "\(sourceCardName) → \(relationTypeCode) → \(targetCardName)"
@@ -120,32 +130,31 @@ class SuggestionEngine {
         return suggestions
     }
 
-    /// Generate relationship suggestions from AI-extracted relationships
-    func generateRelationshipSuggestions(from relationships: [Relationship], existingCards: [Card]) -> [RelationshipSuggestion] {
+    /// Generate relationship suggestions from AI-extracted relationships (ER-0020)
+    /// Phase 6 Fix Applied: Don't require cards to exist yet - they'll be created from entity suggestions
+    func generateRelationshipSuggestions(from relationships: [DetectedRelationship], existingCards: [Card]) -> [RelationshipSuggestion] {
         var suggestions: [RelationshipSuggestion] = []
 
         for relationship in relationships {
-            // Try to find matching cards for source and target
-            guard let sourceCard = findCard(named: relationship.source, in: existingCards),
-                  let targetCard = findCard(named: relationship.target, in: existingCards) else {
-                #if DEBUG
-                print("   Skipping relationship: cards not found (\(relationship.source) → \(relationship.target))")
-                #endif
-                continue
-            }
+            // Phase 6 Fix: Don't require cards to exist yet
+            // They might be created from the entity suggestions
+            // We'll validate existence when actually creating the relationships
 
-            // Map RelationshipType enum to RelationType.code
-            let relationTypeCode = mapRelationshipTypeToCode(relationship.type)
-
+            // ER-0020: Use forwardVerb/inverseVerb directly from AI extraction
             let suggestion = RelationshipSuggestion(
-                sourceCardName: sourceCard.name,
-                targetCardName: targetCard.name,
-                relationTypeCode: relationTypeCode,
+                sourceCardName: relationship.sourceEntityName,
+                targetCardName: relationship.targetEntityName,
+                forwardVerb: relationship.forwardVerb,
+                inverseVerb: relationship.inverseVerb,
                 confidence: relationship.confidence,
                 context: relationship.context
             )
 
             suggestions.append(suggestion)
+
+            #if DEBUG
+            print("     → \(relationship.sourceEntityName) → [\(relationship.forwardVerb)/\(relationship.inverseVerb)] → \(relationship.targetEntityName) (\(Int(relationship.confidence * 100))%)")
+            #endif
         }
 
         // Sort by confidence (highest first)
@@ -168,12 +177,15 @@ class SuggestionEngine {
         sourceCard: Card? = nil  // The card being created (may not be saved yet)
     ) -> [RelationshipSuggestion] {
         #if DEBUG
+        print("======================================")
         print("🔍 [SuggestionEngine] Starting relationship inference...")
         print("   Text length: \(text.count) characters")
+        print("   Text (first 200 chars): \(String(text.prefix(200)))")
         print("   Entities for inference: \(entities.count)")
         for entity in entities {
             print("     - \(entity.name) (\(entity.type.rawValue))")
         }
+        print("======================================")
         #endif
 
         let inference = RelationshipInference()
@@ -184,7 +196,16 @@ class SuggestionEngine {
         )
 
         #if DEBUG
+        print("======================================")
         print("   Detected \(detectedRelationships.count) relationships from patterns")
+        if detectedRelationships.isEmpty {
+            print("   ⚠️ WARNING: NO RELATIONSHIPS DETECTED!")
+            print("   This could mean:")
+            print("     - Text doesn't contain relationship patterns")
+            print("     - Entities don't appear in same sentences")
+            print("     - Pattern matching failed")
+        }
+        print("======================================")
         #endif
 
         var suggestions: [RelationshipSuggestion] = []
@@ -194,10 +215,12 @@ class SuggestionEngine {
             // They might be created from the entity suggestions
             // We'll validate existence when actually creating the relationships
 
+            // ER-0020: Use forwardVerb/inverseVerb from detected relationship
             let suggestion = RelationshipSuggestion(
                 sourceCardName: detected.sourceEntityName,
                 targetCardName: detected.targetEntityName,
-                relationTypeCode: detected.relationTypeCode,
+                forwardVerb: detected.forwardVerb,
+                inverseVerb: detected.inverseVerb,
                 confidence: detected.confidence,
                 context: detected.context
             )
@@ -252,9 +275,10 @@ class SuggestionEngine {
     /// Generate all suggestions (cards + relationships + calendars)
     /// Phase 6: Added relationship inference
     /// Phase 7: Added calendar extraction
+    /// ER-0020: Updated to use DetectedRelationship with dynamic verbs
     func generateAllSuggestions(
         entities: [Entity],
-        relationships: [Relationship],
+        relationships: [DetectedRelationship],
         sourceCard: Card,
         existingCards: [Card],
         provider: AIProviderProtocol? = nil  // Phase 7: Optional for calendar extraction
@@ -448,7 +472,7 @@ class SuggestionEngine {
     }
 
     /// Create relationships from accepted suggestions
-    /// Phase 6 implementation
+    /// Phase 6 implementation + ER-0020 (dynamic verb support)
     /// Creates BOTH forward and reverse edges for each relationship (bidirectional)
     func createRelationships(from suggestions: [RelationshipSuggestion], context: ModelContext, existingCards: [Card]) throws {
         #if DEBUG
@@ -458,10 +482,6 @@ class SuggestionEngine {
             print("     - \(card.name) (\(card.kind.rawValue))")
         }
         #endif
-
-        // Fetch all RelationTypes once
-        let relationTypesFetch = FetchDescriptor<RelationType>()
-        let relationTypes = try context.fetch(relationTypesFetch)
 
         var createdCount = 0
 
@@ -486,13 +506,12 @@ class SuggestionEngine {
                 continue
             }
 
-            // Find the RelationType
-            guard let relationType = relationTypes.first(where: { $0.code == suggestion.relationTypeCode }) else {
-                #if DEBUG
-                print("   ⚠️ Skipping relationship: RelationType not found (code: \(suggestion.relationTypeCode))")
-                #endif
-                continue
-            }
+            // ER-0020: Find or create RelationType with dynamic verbs
+            let relationType = try findOrCreateRelationType(
+                forwardVerb: suggestion.forwardVerb,
+                inverseVerb: suggestion.inverseVerb,
+                context: context
+            )
 
             // Check if forward relationship already exists
             if relationshipExists(from: sourceCard, to: targetCard, type: relationType, context: context) {
@@ -524,6 +543,38 @@ class SuggestionEngine {
         let totalEdges = createdCount * 2
         print("✅ [SuggestionEngine] Successfully created \(createdCount) forward + \(createdCount) reverse = \(totalEdges) total edges")
         #endif
+    }
+
+    /// Find or create a RelationType for the given verbs (ER-0020)
+    /// Implements dynamic RelationType creation for AI-extracted relationships
+    private func findOrCreateRelationType(forwardVerb: String, inverseVerb: String, context: ModelContext) throws -> RelationType {
+        let code = "\(forwardVerb)/\(inverseVerb)"
+
+        // Try to find existing RelationType with this code
+        let fetchDescriptor = FetchDescriptor<RelationType>(
+            predicate: #Predicate { $0.code == code }
+        )
+
+        if let existing = try context.fetch(fetchDescriptor).first {
+            #if DEBUG
+            print("      Found existing RelationType: \(code)")
+            #endif
+            return existing
+        }
+
+        // Create new RelationType dynamically (ER-0020)
+        #if DEBUG
+        print("      Creating new RelationType: \(code)")
+        #endif
+
+        let newType = RelationType(
+            code: code,
+            forwardLabel: forwardVerb,
+            inverseLabel: inverseVerb
+        )
+
+        context.insert(newType)
+        return newType
     }
 
     /// Create the reverse edge for bidirectional relationships

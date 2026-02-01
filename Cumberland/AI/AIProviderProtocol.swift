@@ -1,5 +1,38 @@
 import Foundation
 
+// MARK: - Detected Relationship (ER-0020)
+
+/// A detected relationship between two entities (ER-0020)
+/// Used by both AI providers (dynamic verb extraction) and local pattern matching
+struct DetectedRelationship: Codable, Identifiable {
+    let id: UUID
+    let sourceEntityName: String
+    let targetEntityName: String
+
+    // ER-0020: Support for AI-generated dynamic verbs
+    let forwardVerb: String         // "wields", "discovered", "writes"
+    let inverseVerb: String          // "is wielded by", "discovered by", "is written by"
+
+    let confidence: Double
+    let context: String  // The sentence where it was found
+
+    // Computed property for backward compatibility
+    var relationTypeCode: String {
+        "\(forwardVerb)/\(inverseVerb)"
+    }
+
+    // Initializer for AI-generated relationships (ER-0020)
+    init(id: UUID = UUID(), sourceEntityName: String, targetEntityName: String, forwardVerb: String, inverseVerb: String, confidence: Double, context: String) {
+        self.id = id
+        self.sourceEntityName = sourceEntityName
+        self.targetEntityName = targetEntityName
+        self.forwardVerb = forwardVerb
+        self.inverseVerb = inverseVerb
+        self.confidence = confidence
+        self.context = context
+    }
+}
+
 /// Protocol defining AI provider capabilities for image generation and content analysis
 /// Shared infrastructure for ER-0009 (Image Generation) and ER-0010 (Content Analysis)
 ///
@@ -115,7 +148,8 @@ struct AnalysisResult: Codable {
     var entities: [Entity]?
 
     /// Inferred relationships (for relationshipInference or comprehensive tasks)
-    var relationships: [Relationship]?
+    /// ER-0020: Now uses DetectedRelationship with dynamic verbs instead of old Relationship enum
+    var relationships: [DetectedRelationship]?
 
     /// Extracted calendar structures (for calendarExtraction or comprehensive tasks)
     /// Phase 7: Changed from single calendar to array to support multiple calendar systems

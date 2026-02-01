@@ -41,11 +41,13 @@ final class CalendarSystem {
 
     /// Timelines using this calendar system
     /// CloudKit: relationships must have inverses
-    @Relationship(inverse: \Card.calendarSystem)
+    /// When calendar is deleted, nullify the reference on timeline cards
+    @Relationship(deleteRule: .nullify, inverse: \Card.calendarSystem)
     var timelines: [Card]? = []
 
     /// Calendar card that owns this system (for UI/navigation)
     /// CloudKit: Optional, defaults to nil
+    /// Inverse of Card.calendarSystemRef (declared on Card side with cascade delete)
     var calendarCard: Card?
 
     // MARK: - Initialization

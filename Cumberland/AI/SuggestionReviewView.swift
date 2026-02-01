@@ -80,10 +80,6 @@ struct SuggestionReviewView: View {
                 ToolbarItem(placement: .primaryAction) {
                     acceptButton
                 }
-
-                ToolbarItem(placement: .secondaryAction) {
-                    selectAllButton
-                }
             }
             .alert("Error", isPresented: $showError) {
                 Button("OK", role: .cancel) {}
@@ -96,42 +92,80 @@ struct SuggestionReviewView: View {
     // MARK: - Header
 
     private var headerView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Found **\(mutableSuggestions.totalCount)** suggestions")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 12) {
+            // Title and count
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Found **\(mutableSuggestions.totalCount)** suggestions")
+                        .font(.headline)
 
-            Text("Select the cards, relationships, and calendar systems you want to create.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            if !mutableSuggestions.cards.isEmpty {
-                HStack {
-                    Image(systemName: "doc.badge.plus")
-                        .font(.caption)
-                    Text("\(mutableSuggestions.cards.count) new cards")
-                        .font(.caption)
+                    Text("Select the cards, relationships, and calendar systems you want to create.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
-                .foregroundStyle(.blue)
+
+                Spacer()
+
+                // ER-0019: Prominent "Select All" button in header for easy access
+                HStack(spacing: 8) {
+                    Button {
+                        selectAll()
+                    } label: {
+                        Label("Select All", systemImage: "checkmark.circle.fill")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(mutableSuggestions.isEmpty)
+
+                    // Advanced selection menu
+                    Menu {
+                        Button("Select High Confidence (>85%)") {
+                            selectHighConfidenceOnly()
+                        }
+
+                        Button("Deselect All") {
+                            deselectAll()
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
+                    }
+                    .disabled(mutableSuggestions.isEmpty)
+                }
             }
 
-            if !mutableSuggestions.relationships.isEmpty {
-                HStack {
-                    Image(systemName: "arrow.triangle.branch")
-                        .font(.caption)
-                    Text("\(mutableSuggestions.relationships.count) relationships")
-                        .font(.caption)
+            // Summary counts
+            HStack(spacing: 16) {
+                if !mutableSuggestions.cards.isEmpty {
+                    HStack {
+                        Image(systemName: "doc.badge.plus")
+                            .font(.caption)
+                        Text("\(mutableSuggestions.cards.count) new cards")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.blue)
                 }
-                .foregroundStyle(.purple)
-            }
 
-            if !mutableSuggestions.calendars.isEmpty {
-                HStack {
-                    Image(systemName: "calendar.badge.plus")
-                        .font(.caption)
-                    Text("\(mutableSuggestions.calendars.count) calendar system(s)")
-                        .font(.caption)
+                if !mutableSuggestions.relationships.isEmpty {
+                    HStack {
+                        Image(systemName: "arrow.triangle.branch")
+                            .font(.caption)
+                        Text("\(mutableSuggestions.relationships.count) relationships")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.purple)
                 }
-                .foregroundStyle(.green)
+
+                if !mutableSuggestions.calendars.isEmpty {
+                    HStack {
+                        Image(systemName: "calendar.badge.plus")
+                            .font(.caption)
+                        Text("\(mutableSuggestions.calendars.count) calendar system(s)")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.green)
+                }
             }
         }
         .padding()
@@ -235,24 +269,6 @@ struct SuggestionReviewView: View {
         .disabled(selectedCardSuggestions.isEmpty && selectedRelationshipSuggestions.isEmpty && selectedCalendarSuggestions.isEmpty || isCreating)
     }
 
-    private var selectAllButton: some View {
-        Menu {
-            Button("Select All Cards") {
-                selectAllCards()
-            }
-
-            Button("Select High Confidence (>85%)") {
-                selectHighConfidenceOnly()
-            }
-
-            Button("Deselect All") {
-                deselectAll()
-            }
-        } label: {
-            Image(systemName: "checkmark.circle")
-        }
-    }
-
     // MARK: - Actions
 
     private func toggleSelection(for suggestion: SuggestionEngine.CardSuggestion) {
@@ -279,7 +295,8 @@ struct SuggestionReviewView: View {
         }
     }
 
-    private func selectAllCards() {
+    // ER-0019: Renamed from selectAllCards() for clarity (selects all types, not just cards)
+    private func selectAll() {
         selectedCardSuggestions = Set(mutableSuggestions.cards.map { $0.id })
         selectedRelationshipSuggestions = Set(mutableSuggestions.relationships.map { $0.id })
         selectedCalendarSuggestions = Set(mutableSuggestions.calendars.map { $0.id })  // Phase 7
@@ -379,11 +396,11 @@ struct SuggestionReviewView: View {
                             detailedText: detected.context
                         )
 
-                        // Link card to system
+                        // Link card to system (sets up bidirectional relationship)
                         calendarCard.calendarSystemRef = calendarSystem
 
-                        // Insert both
-                        modelContext.insert(calendarSystem)
+                        // Insert ONLY the card - SwiftData will automatically insert the related CalendarSystem
+                        // This is correct because Card has the @Relationship decorator with cascade delete
                         modelContext.insert(calendarCard)
 
                         #if DEBUG
@@ -396,25 +413,41 @@ struct SuggestionReviewView: View {
                 }
 
                 // Phase 6 Fix: Split relationships into two groups:
-                // 1. Immediate relationships (don't involve source card being created)
-                // 2. Pending relationships (involve source card as source OR target)
+                // 1. Immediate relationships (source card exists OR doesn't involve source card)
+                // 2. Pending relationships (source card doesn't exist yet AND involves source card)
 
-                let sourceCardName = sourceCard.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                // Check if source card already exists in database (by checking if it's in existingCards)
+                let sourceCardIsPersistent = existingCards.contains(where: { $0.id == sourceCard.id })
 
                 var immediateRelationships: [SuggestionEngine.RelationshipSuggestion] = []
                 var deferredRelationships: [SuggestionEngine.RelationshipSuggestion] = []
 
-                for relationship in selectedRelationships {
-                    let sourceMatches = relationship.sourceCardName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == sourceCardName
-                    let targetMatches = relationship.targetCardName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == sourceCardName
+                if sourceCardIsPersistent {
+                    // Source card already exists - all relationships can be created immediately
+                    immediateRelationships = selectedRelationships
+                    #if DEBUG
+                    print("ℹ️ [SuggestionReviewView] Source card '\(sourceCard.name)' is persistent - creating all relationships immediately")
+                    #endif
+                } else {
+                    // Source card hasn't been saved yet - need to defer relationships involving it
+                    let sourceCardName = sourceCard.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
-                    if sourceMatches || targetMatches {
-                        // This relationship involves the source card being created - defer it
-                        deferredRelationships.append(relationship)
-                    } else {
-                        // This relationship doesn't involve the source card - create it now
-                        immediateRelationships.append(relationship)
+                    for relationship in selectedRelationships {
+                        let sourceMatches = relationship.sourceCardName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == sourceCardName
+                        let targetMatches = relationship.targetCardName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == sourceCardName
+
+                        if sourceMatches || targetMatches {
+                            // This relationship involves the source card being created - defer it
+                            deferredRelationships.append(relationship)
+                        } else {
+                            // This relationship doesn't involve the source card - create it now
+                            immediateRelationships.append(relationship)
+                        }
                     }
+
+                    #if DEBUG
+                    print("ℹ️ [SuggestionReviewView] Source card '\(sourceCard.name)' not yet saved - deferring \(deferredRelationships.count) relationships")
+                    #endif
                 }
 
                 // Create immediate relationships now (all cards exist)

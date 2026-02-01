@@ -202,6 +202,7 @@ struct CardEditorView: View {
             }
 
             // Timeline properties default to nil/empty for create mode
+            // Note: epoch will be auto-initialized when user selects a calendar via CalendarSystemPicker
             _selectedCalendar = State(initialValue: nil)
             _epochDate = State(initialValue: nil)
             _epochDescription = State(initialValue: "")
@@ -899,19 +900,38 @@ struct CardEditorView: View {
 
             // Epoch date configuration (only show if calendar is selected)
             if selectedCalendar != nil {
-                DatePicker("Epoch Date", selection: Binding(
-                    get: { epochDate ?? Date() },
-                    set: { epochDate = $0 }
-                ), displayedComponents: [.date, .hourAndMinute])
-                    .datePickerStyle(.compact)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Epoch Date (Required for calendar conversion)")
+                        .font(.subheadline.bold())
 
-                TextField("Epoch Description (optional)", text: $epochDescription, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(2...4)
+                    DatePicker("Epoch Date", selection: Binding(
+                        get: {
+                            let current = epochDate ?? Date()
+                            print("📅 [CardEditorView] DatePicker get: \(epochDate == nil ? "nil (defaulting to today)" : current.description)")
+                            return current
+                        },
+                        set: { newValue in
+                            print("📅 [CardEditorView] DatePicker set: \(newValue)")
+                            epochDate = newValue
+                            print("📅 [CardEditorView] epochDate now: \(epochDate?.description ?? "nil")")
+                        }
+                    ), displayedComponents: [.date, .hourAndMinute])
+                        .datePickerStyle(.compact)
 
-                Text("The epoch is the starting point/zero-date for this timeline.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    if epochDate == nil {
+                        Text("⚠️ Warning: No epoch date set. Calendar temporal positioning will not work.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+
+                    TextField("Epoch Description (optional)", text: $epochDescription, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(2...4)
+
+                    Text("The epoch is the starting point/zero-date for this timeline. Example: Jan 1, 1847")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -1168,15 +1188,15 @@ struct CardEditorView: View {
                 // Get all existing cards for deduplication
                 let existingCards = try modelContext.fetch(FetchDescriptor<Card>())
 
-                // Extract entities
+                // ER-0020: Extract entities AND relationships from AI
                 let extractor = EntityExtractor(provider: provider)
-                let entities = try await extractor.extractEntities(from: detailedText, existingCards: existingCards)
+                let extractionResult = try await extractor.extractEntities(from: detailedText, existingCards: existingCards)
 
-                // Generate suggestions (Phase 6: relationship inference, Phase 7: calendar extraction)
+                // Generate suggestions (Phase 6: relationship inference, Phase 7: calendar extraction, ER-0020: AI relationships)
                 let suggestionEngine = SuggestionEngine()
                 let suggestions = await suggestionEngine.generateAllSuggestions(
-                    entities: entities,
-                    relationships: [],  // Empty - we're using inference, not AI relationship extraction
+                    entities: extractionResult.entities,
+                    relationships: extractionResult.relationships,  // ER-0020: AI-extracted relationships with dynamic verbs
                     sourceCard: currentCard,
                     existingCards: existingCards,
                     provider: provider  // Phase 7: Pass provider for calendar extraction
@@ -1381,6 +1401,11 @@ struct CardEditorView: View {
                 card.epochDate = epochDate
                 let trimmedEpochDesc = epochDescription.trimmingCharacters(in: .whitespacesAndNewlines)
                 card.epochDescription = trimmedEpochDesc.isEmpty ? nil : trimmedEpochDesc
+
+                print("📅 [CardEditorView] Creating Timeline/Chronicle:")
+                print("   Calendar: \(selectedCalendar?.name ?? "nil")")
+                print("   Epoch Date: \(epochDate?.description ?? "nil")")
+                print("   Epoch Description: \(trimmedEpochDesc)")
             }
 
             // Phase 7.5: If creating a Calendar card, persist calendar system reference
@@ -1447,6 +1472,11 @@ struct CardEditorView: View {
                 card.epochDate = epochDate
                 let trimmedEpochDesc = epochDescription.trimmingCharacters(in: .whitespacesAndNewlines)
                 card.epochDescription = trimmedEpochDesc.isEmpty ? nil : trimmedEpochDesc
+
+                print("📅 [CardEditorView] Updating Timeline/Chronicle:")
+                print("   Calendar: \(selectedCalendar?.name ?? "nil")")
+                print("   Epoch Date: \(epochDate?.description ?? "nil")")
+                print("   Epoch Description: \(trimmedEpochDesc)")
             }
 
             // Phase 7.5: If editing a Calendar card, update calendar system reference

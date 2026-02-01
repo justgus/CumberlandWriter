@@ -13,6 +13,9 @@ struct TimelineChartView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     // Timeline mode: ordinal (sortIndex-based) or temporal (date-based)
     private enum TimelineMode {
@@ -162,6 +165,11 @@ struct TimelineChartView: View {
     @State private var didEnsureInitialNamesVisible: Bool = false
 
     var body: some View {
+        let _ = print("📊 [TimelineChartView] body: rendering for timeline '\(timeline.name)'")
+        let _ = print("📊 [TimelineChartView] body: timelineMode = \(timelineMode)")
+        let _ = print("📊 [TimelineChartView] body: scenes.count = \(scenes.count)")
+        let _ = print("📊 [TimelineChartView] body: calendar system = \(timeline.calendarSystem?.name ?? "nil")")
+
         VStack(spacing: 12) {
             header
 
@@ -176,6 +184,15 @@ struct TimelineChartView: View {
         .task(id: timeline.id) {
             await loadData()
         }
+        #if os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: .temporalEditorDidClose)) { _ in
+            // Reload data when temporal editor window closes
+            Task { @MainActor in
+                print("🔄 [TimelineChartView] Received window close notification, reloading data")
+                await loadData()
+            }
+        }
+        #endif
         .navigationTitle(timeline.name.isEmpty ? "Timeline" : timeline.name)
         .sheet(isPresented: $isPresentingReorder) {
             ReorderScenesSheet(
@@ -198,6 +215,8 @@ struct TimelineChartView: View {
             .frame(minWidth: 420, minHeight: 420)
             #endif
         }
+        #if os(iOS)
+        // iOS: Use sheet presentation (works fine)
         .sheet(isPresented: $isPresentingTemporalEditor) {
             if let sceneRow = selectedSceneForEdit,
                let edge = findEdge(from: sceneRow.scene, to: timeline) {
@@ -206,9 +225,7 @@ struct TimelineChartView: View {
                     timeline: timeline,
                     edge: edge
                 )
-                #if os(macOS)
-                .frame(minWidth: 560, minHeight: 640)
-                #endif
+                .presentationDetents([.large])
                 .onDisappear {
                     // Reload data to reflect changes
                     Task { @MainActor in
@@ -217,6 +234,28 @@ struct TimelineChartView: View {
                 }
             }
         }
+        #else
+        // macOS: Use window instead of sheet to fix DR-0061
+        .onChange(of: isPresentingTemporalEditor) { _, isPresenting in
+            if isPresenting {
+                if let sceneRow = selectedSceneForEdit,
+                   let _ = findEdge(from: sceneRow.scene, to: timeline) {
+                    print("🪟 [TimelineChartView] Opening temporal editor window")
+                    print("   Scene: \(sceneRow.scene.name)")
+                    print("   Timeline: \(timeline.name)")
+
+                    let request = AppModel.TemporalEditorRequest(
+                        sceneID: sceneRow.scene.id,
+                        timelineID: timeline.id
+                    )
+                    openWindow(value: request)
+
+                    // Reset flag after opening window
+                    isPresentingTemporalEditor = false
+                }
+            }
+        }
+        #endif
     }
 
     // Find the CardEdge between a scene and this timeline
@@ -454,7 +493,10 @@ struct TimelineChartView: View {
     // MARK: - Chart
 
     private var chartArea: some View {
-        Group {
+        let _ = print("📊 [TimelineChartView] chartArea: timelineMode = \(timelineMode)")
+        let _ = timelineMode == .temporal ? print("📊 [TimelineChartView] chartArea: calling temporalChartArea") : print("📊 [TimelineChartView] chartArea: calling ordinalChartArea")
+
+        return Group {
             if timelineMode == .temporal {
                 temporalChartArea
             } else {
@@ -716,9 +758,12 @@ struct TimelineChartView: View {
     // MARK: - Temporal Chart (Date-based Gantt-style)
 
     private var temporalChartArea: some View {
+        let _ = print("📊 [TimelineChartView] temporalChartArea: START")
         let lanes = effectiveLanes()
+        let _ = print("📊 [TimelineChartView] temporalChartArea: effectiveLanes complete")
 
         // Lane keys for Y domain
+        let _ = print("📊 [TimelineChartView] temporalChartArea: calculating lane keys")
         let allKey = laneKeyAll()
         let itemKeys: [String] = lanes.items.map { laneKey(for: $0) }
 
@@ -731,7 +776,9 @@ struct TimelineChartView: View {
 
         // For temporal mode, we need Date domain for X-axis
         // Get min/max temporal positions from scenes
+        let _ = print("📊 [TimelineChartView] temporalChartArea: filtering scenes with dates, scenes.count = \(scenes.count)")
         let scenesWithDates = scenes.filter { $0.temporalPosition != nil }
+        let _ = print("📊 [TimelineChartView] temporalChartArea: scenesWithDates.count = \(scenesWithDates.count)")
 
         guard !scenesWithDates.isEmpty else {
             // No temporal data yet - show empty state with helpful message
@@ -755,7 +802,11 @@ struct TimelineChartView: View {
             )
         }
 
+        let _ = print("📊 [TimelineChartView] temporalChartArea: calculating minDate")
         let minDate = scenesWithDates.compactMap(\.temporalPosition).min() ?? Date()
+        let _ = print("📊 [TimelineChartView] temporalChartArea: minDate = \(minDate)")
+
+        let _ = print("📊 [TimelineChartView] temporalChartArea: calculating maxDate")
         let maxDate = scenesWithDates.compactMap { scene -> Date? in
             if let end = scene.temporalEnd {
                 return end
@@ -765,13 +816,18 @@ struct TimelineChartView: View {
             }
             return nil
         }.max() ?? Date()
+        let _ = print("📊 [TimelineChartView] temporalChartArea: maxDate = \(maxDate)")
 
-        // Apply epoch offset if timeline has one
-        let epochDate = timeline.epochDate ?? minDate
-        let displayMinDate = min(epochDate, minDate)
-        let displayMaxDate = max(epochDate.addingTimeInterval(86400), maxDate) // At least 1 day range
+        // Use scene dates for display range (don't force epoch into range if it's far away)
+        let _ = print("📊 [TimelineChartView] temporalChartArea: timeline.epochDate = \(timeline.epochDate?.description ?? "nil")")
+
+        // Ensure at least a 1-day range for the chart
+        let displayMinDate = minDate
+        let displayMaxDate = max(minDate.addingTimeInterval(86400), maxDate) // At least 1 day range
+        let _ = print("📊 [TimelineChartView] temporalChartArea: displayMinDate = \(displayMinDate), displayMaxDate = \(displayMaxDate)")
 
         // Build temporal scene items for "All" lane
+        let _ = print("📊 [TimelineChartView] temporalChartArea: building allLaneTemporalItems")
         let allLaneTemporalItems: [TemporalSceneItem] = scenesWithDates.compactMap { row in
             guard let start = row.temporalPosition else { return nil }
             let end = row.temporalEnd ?? start.addingTimeInterval(3600) // Default 1-hour duration
@@ -783,6 +839,7 @@ struct TimelineChartView: View {
                 laneKey: allKey
             )
         }
+        let _ = print("📊 [TimelineChartView] temporalChartArea: allLaneTemporalItems.count = \(allLaneTemporalItems.count)")
 
         // Build temporal items for character/chapter lanes
         let participationMap: [UUID: [UUID]] = (lanes.kind == .characters) ? participationCharacters : participationChapters
@@ -837,6 +894,7 @@ struct TimelineChartView: View {
             return Date(timeIntervalSinceReferenceDate: midInterval)
         }()
 
+        let _ = print("📊 [TimelineChartView] temporalChartArea: about to return Chart view")
         return AnyView(
             Chart {
                 // All Scenes lane

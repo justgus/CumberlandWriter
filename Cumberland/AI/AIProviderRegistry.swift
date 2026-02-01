@@ -23,8 +23,8 @@ class AIProviderRegistry {
         // Register all available providers
         self.providers = [
             AppleIntelligenceProvider(),
-            OpenAIProvider()
-            // ClaudeProvider() - future
+            OpenAIProvider(),
+            AnthropicProvider()
             // GeminiProvider() - future
             // StabilityAIProvider() - future
         ]

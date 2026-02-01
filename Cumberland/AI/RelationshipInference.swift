@@ -41,16 +41,8 @@ struct RelationshipInference {
         let description: String
     }
 
-    /// A detected relationship between two entities
-    struct DetectedRelationship {
-        let id = UUID()
-        let sourceEntityName: String
-        let targetEntityName: String
-        let relationTypeCode: String
-        let confidence: Double
-        let context: String  // The sentence where it was found
-        let pattern: RelationshipPattern
-    }
+    // NOTE: DetectedRelationship has been moved to AIProviderProtocol.swift (ER-0020)
+    // See extension below for pattern-based convenience initializer
 
     // MARK: - Relationship Patterns
 
@@ -203,6 +195,41 @@ struct RelationshipInference {
             sourceKind: nil,
             targetKind: nil,
             description: "Entity references another entity"
+        ),
+
+        // MARK: Discovery & Leadership (common narrative verbs)
+
+        .init(
+            id: "discovered",
+            triggers: ["discovered", "found", "uncovered", "unearthed", "located"],
+            relationTypeCode: "discovered/discovered-by",
+            isSymmetric: false,
+            baseConfidence: 0.85,
+            sourceKind: .characters,
+            targetKind: nil, // Can be artifacts, locations, buildings
+            description: "Character discovered something"
+        ),
+
+        .init(
+            id: "leads",
+            triggers: ["led by", "leads", "headed by", "commanded by", "under"],
+            relationTypeCode: "leads/led-by",
+            isSymmetric: false,
+            baseConfidence: 0.80,
+            sourceKind: .characters,
+            targetKind: nil, // Can be organizations, groups, teams
+            description: "Character leads a group or organization"
+        ),
+
+        .init(
+            id: "works-at",
+            triggers: ["works at", "employed by", "serves at", "stationed at", "of the", "of"],
+            relationTypeCode: "works-at/employs",
+            isSymmetric: false,
+            baseConfidence: 0.75,
+            sourceKind: .characters,
+            targetKind: nil, // Can be buildings, organizations
+            description: "Character works at a place or for an organization"
         )
     ]
 
@@ -222,6 +249,17 @@ struct RelationshipInference {
 
         var relationships: [DetectedRelationship] = []
 
+        // Determine if we need fuzzy matching based on text length
+        // Compressed text (from TextPreprocessor when > 5000 words) needs fuzzy matching
+        // because entity names may be abbreviated
+        let wordCount = text.split(separator: " ").count
+        let useFuzzyMatching = wordCount > 800  // Likely compressed or very long text
+
+        #if DEBUG
+        print("   Text word count: \(wordCount)")
+        print("   Using fuzzy matching: \(useFuzzyMatching)")
+        #endif
+
         // Split text into sentences for analysis
         let sentences = splitIntoSentences(text)
 
@@ -233,9 +271,9 @@ struct RelationshipInference {
             print("   📝 Analyzing sentence: \"\(sentence)\"")
             #endif
 
-            // Find which entities appear in this sentence (using fuzzy matching)
+            // Find which entities appear in this sentence
             let entitiesInSentence = entities.filter { entity in
-                findEntityInSentence(entityName: entity.name, sentence: sentenceLower) != nil
+                findEntityInSentence(entityName: entity.name, sentence: sentenceLower, useFuzzyMatching: useFuzzyMatching) != nil
             }
 
             #if DEBUG
@@ -276,9 +314,9 @@ struct RelationshipInference {
                         }
 
                         // Check sentence structure to determine if this is the right direction
-                        // Phase 6 Fix: Use fuzzy name matching to handle partial names and pronouns
-                        let sourceIndex = findEntityInSentence(entityName: sourceEntity.name, sentence: sentenceLower)
-                        let targetIndex = findEntityInSentence(entityName: targetEntity.name, sentence: sentenceLower)
+                        // Phase 6 Fix: Use fuzzy name matching to handle partial names and pronouns (only for compressed text)
+                        let sourceIndex = findEntityInSentence(entityName: sourceEntity.name, sentence: sentenceLower, useFuzzyMatching: useFuzzyMatching)
+                        let targetIndex = findEntityInSentence(entityName: targetEntity.name, sentence: sentenceLower, useFuzzyMatching: useFuzzyMatching)
                         let triggerIndex = sentenceLower.range(of: trigger.lowercased())?.lowerBound
 
                         guard let sIdx = sourceIndex, let tIdx = targetIndex, let trIdx = triggerIndex else {
@@ -302,13 +340,13 @@ struct RelationshipInference {
                         // Cap at 0.95
                         confidence = min(confidence, 0.95)
 
+                        // Use pattern-based initializer (backward compatibility with ER-0020)
                         let relationship = DetectedRelationship(
                             sourceEntityName: sourceEntity.name,
                             targetEntityName: targetEntity.name,
-                            relationTypeCode: pattern.relationTypeCode,
+                            pattern: pattern,
                             confidence: confidence,
-                            context: sentence,
-                            pattern: pattern
+                            context: sentence
                         )
 
                         relationships.append(relationship)
@@ -328,41 +366,58 @@ struct RelationshipInference {
     /// Find entity name in sentence with fuzzy matching
     /// Handles partial names (e.g., "Drake" matches "Captain Drake")
     /// Returns the index of the match, or nil if not found
-    private func findEntityInSentence(entityName: String, sentence: String) -> String.Index? {
+    private func findEntityInSentence(entityName: String, sentence: String, useFuzzyMatching: Bool) -> String.Index? {
         let entityLower = entityName.lowercased()
         let sentenceLower = sentence
 
-        // Try exact match first
-        if let range = sentenceLower.range(of: entityLower) {
+        // Try exact match first with word boundaries
+        if let range = findWordBoundaryMatch(word: entityLower, in: sentenceLower) {
             return range.lowerBound
         }
 
-        // Try matching each word in the entity name
-        // "Captain Drake" → try "captain" and "drake" separately
-        let entityWords = entityLower.split(separator: " ")
-        for word in entityWords where word.count > 2 {  // Skip short words like "of", "the"
-            if let range = sentenceLower.range(of: String(word)) {
-                // Found a word from the entity name
-                // Return the position where this word appears
+        // Only use fuzzy matching for compressed/long text where names may be abbreviated
+        guard useFuzzyMatching else {
+            return nil
+        }
+
+        // For compressed text: Try matching significant words from the entity name
+        // "Captain Jarek Stormborn" → try "jarek" and "stormborn" (skip "captain" as it's generic)
+        let entityWords = entityLower.split(separator: " ").map(String.init)
+
+        // Filter to significant words (> 3 chars, likely proper nouns)
+        let significantWords = entityWords.filter { word in
+            word.count > 3 && !["the", "and", "for", "with", "from"].contains(word)
+        }
+
+        // Require at least one significant word match
+        for word in significantWords {
+            if let range = findWordBoundaryMatch(word: word, in: sentenceLower) {
                 return range.lowerBound
             }
         }
 
-        // Handle common pronoun substitutions for characters
-        // If entity is a character and sentence starts with a pronoun, assume it's referring to them
-        // This is a simple heuristic - more sophisticated NLP would track coreference
-        if entityName.contains(" ") {  // Multi-word names are likely characters (e.g., "Captain Drake")
-            let pronouns = ["he ", "she ", "they ", "it "]
-            for pronoun in pronouns {
-                if sentenceLower.hasPrefix(pronoun) {
-                    // Assume pronoun refers to this entity
-                    // Return position 0 (start of sentence)
-                    return sentenceLower.startIndex
-                }
-            }
+        return nil
+    }
+
+    /// Find a word using word boundary matching (not substring matching)
+    /// This prevents "Silver" from matching in "Silverpeak"
+    private func findWordBoundaryMatch(word: String, in text: String) -> Range<String.Index>? {
+        // Normalize whitespace in both word and text to handle line breaks and multiple spaces
+        let normalizedWord = word.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        let normalizedText = text.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+
+        // Use regex with word boundaries to match whole words only
+        let pattern = "\\b\(NSRegularExpression.escapedPattern(for: normalizedWord))\\b"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
+            return nil
         }
 
-        return nil
+        let nsRange = NSRange(normalizedText.startIndex..<normalizedText.endIndex, in: normalizedText)
+        guard let match = regex.firstMatch(in: normalizedText, range: nsRange) else {
+            return nil
+        }
+
+        return Range(match.range, in: normalizedText)
     }
 
     /// Split text into sentences
@@ -413,5 +468,26 @@ struct RelationshipInference {
         }
 
         return unique
+    }
+}
+
+// MARK: - DetectedRelationship Pattern-Based Extension
+
+/// Extension to DetectedRelationship for pattern-based detection (backward compatibility)
+extension DetectedRelationship {
+    /// Convenience initializer for pattern-based relationship detection
+    /// Extracts forwardVerb/inverseVerb from the pattern's relationTypeCode
+    init(sourceEntityName: String, targetEntityName: String, pattern: RelationshipInference.RelationshipPattern, confidence: Double, context: String) {
+        let forwardVerb = pattern.relationTypeCode.components(separatedBy: "/").first ?? "related-to"
+        let inverseVerb = pattern.relationTypeCode.components(separatedBy: "/").last ?? "related-to"
+
+        self.init(
+            sourceEntityName: sourceEntityName,
+            targetEntityName: targetEntityName,
+            forwardVerb: forwardVerb,
+            inverseVerb: inverseVerb,
+            confidence: confidence,
+            context: context
+        )
     }
 }

@@ -29,12 +29,29 @@ class AppModel {
             case edit(cardID: UUID)
         }
         let mode: Mode
-        
+
         init(mode: Mode) {
             self.id = UUID()
             self.mode = mode
         }
     }
     var pendingCardEditorRequest: CardEditorRequest?
+    #endif
+
+    #if os(macOS)
+    /// Tracks temporal editor presentation for macOS window management
+    /// This resolves DR-0061: Sheet rendering issues on macOS
+    struct TemporalEditorRequest: Identifiable, Hashable, Codable {
+        let id: UUID
+        let sceneID: UUID
+        let timelineID: UUID
+
+        init(sceneID: UUID, timelineID: UUID) {
+            self.id = UUID()
+            self.sceneID = sceneID
+            self.timelineID = timelineID
+        }
+    }
+    var pendingTemporalEditorRequest: TemporalEditorRequest?
     #endif
 }

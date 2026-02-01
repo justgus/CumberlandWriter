@@ -286,6 +286,17 @@ struct CumberlandApp: App {
         }
         .windowResizability(.contentSize)
 
+        // Temporal editor window for macOS
+        // DR-0061: Using window instead of sheet to fix rendering issues
+        WindowGroup(for: AppModel.TemporalEditorRequest.self) { $request in
+            if let request {
+                TemporalEditorWindowView(editorRequest: request)
+                    .modelContainer(modelContainer)
+                    .preferredColorScheme(appPreferredColorScheme)
+            }
+        }
+        .defaultSize(width: 560, height: 640)
+
         // Developer diagnostic windows (DEBUG only, some use in-memory samples, some live)
         #if DEBUG
         // Existing sample-backed diagnostics
@@ -358,6 +369,14 @@ struct CumberlandApp: App {
                 .modelContainer(modelContainer) // live container
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 920, minHeight: 560)
+        }
+
+        // DR-0065: CalendarSystem relationship fix tool (live container)
+        Window("Fix CalendarSystem Relationships (DR-0065)", id: "dev.fixCalendarRelationships") {
+            CalendarSystemCleanupView()
+                .modelContainer(modelContainer) // live container
+                .preferredColorScheme(appPreferredColorScheme)
+                .frame(minWidth: 640, minHeight: 560)
         }
         #endif
         #endif
@@ -1153,6 +1172,12 @@ private struct DeveloperCommands: Commands {
                 openWindow(id: "dev.fixInverseEdges")
             }
             .keyboardShortcut("R", modifiers: [.command, .shift])
+
+            // DR-0065: Fix CalendarSystem relationships
+            Button("Fix CalendarSystem Relationships (DR-0065)…") {
+                openWindow(id: "dev.fixCalendarRelationships")
+            }
+            .keyboardShortcut("C", modifiers: [.command, .shift])
 
             Divider()
 

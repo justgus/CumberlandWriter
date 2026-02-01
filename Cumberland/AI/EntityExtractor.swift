@@ -17,17 +17,31 @@ class EntityExtractor {
     init(provider: AIProviderProtocol, settings: AISettings = .shared, preprocessor: TextPreprocessor? = nil) {
         self.provider = provider
         self.settings = settings
-        self.preprocessor = preprocessor ?? TextPreprocessor(config: .balanced)
+        // Use custom config for entity extraction - only preprocess for VERY long texts (5000+ words)
+        // Claude can handle large texts natively, and preprocessing loses fantasy names
+        let entityExtractionConfig = TextPreprocessor.Config(
+            maxWords: 3000,
+            contextWordsPerSide: 25,
+            preprocessThreshold: 5000, // Only preprocess texts over 5000 words
+            maxSentencesPerEntity: 10
+        )
+        self.preprocessor = preprocessor ?? TextPreprocessor(config: entityExtractionConfig)
     }
 
     // MARK: - Public API
 
-    /// Extract entities from text
+    /// Result from entity and relationship extraction (ER-0020)
+    struct ExtractionResult {
+        let entities: [Entity]
+        let relationships: [DetectedRelationship]
+    }
+
+    /// Extract entities AND relationships from text (ER-0020)
     /// - Parameters:
     ///   - text: The text to analyze
     ///   - existingCards: Existing cards in the database for deduplication
-    /// - Returns: Array of extracted entities, filtered and deduplicated
-    func extractEntities(from text: String, existingCards: [Card]) async throws -> [Entity] {
+    /// - Returns: Extracted entities and AI-generated relationships
+    func extractEntities(from text: String, existingCards: [Card]) async throws -> ExtractionResult {
         // Validate input
         guard !text.isEmpty else {
             throw AIProviderError.invalidInput(reason: "Text cannot be empty")
@@ -63,7 +77,7 @@ class EntityExtractor {
             #if DEBUG
             print("   No entities found")
             #endif
-            return []
+            return ExtractionResult(entities: [], relationships: [])
         }
 
         #if DEBUG
@@ -76,15 +90,19 @@ class EntityExtractor {
         entities = deduplicateEntities(entities)
         entities = filterAgainstExistingCards(entities, existingCards: existingCards)
 
+        // ER-0020: Extract relationships from AI provider
+        let relationships = result.relationships ?? []
+
         #if DEBUG
         print("✅ [EntityExtractor] Extraction complete")
         print("   Final entities: \(entities.count)")
         for entity in entities {
             print("   - \(entity.name) (\(entity.type.rawValue), \(String(format: "%.0f", entity.confidence * 100))%)")
         }
+        print("   AI relationships extracted: \(relationships.count)")
         #endif
 
-        return entities
+        return ExtractionResult(entities: entities, relationships: relationships)
     }
 
     // MARK: - Filtering
@@ -189,10 +207,10 @@ class EntityExtractor {
 extension EntityExtractor {
     /// Extract entities grouped by type
     func extractEntitiesGrouped(from text: String, existingCards: [Card]) async throws -> [EntityType: [Entity]] {
-        let entities = try await extractEntities(from: text, existingCards: existingCards)
+        let result = try await extractEntities(from: text, existingCards: existingCards)
 
         var grouped: [EntityType: [Entity]] = [:]
-        for entity in entities {
+        for entity in result.entities {
             grouped[entity.type, default: []].append(entity)
         }
 

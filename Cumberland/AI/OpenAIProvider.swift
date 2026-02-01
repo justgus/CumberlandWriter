@@ -193,13 +193,17 @@ class OpenAIProvider: AIProviderProtocol {
 
     // MARK: - Private Analysis Methods
 
-    /// Extract entities using GPT-4
+    /// Extract entities AND relationships using GPT-4 (Phase 3 + ER-0020)
     private func extractEntities(from text: String, apiKey: String) async throws -> AnalysisResult {
         let systemPrompt = """
-        You are an expert at analyzing fantasy and sci-fi narrative text to identify key entities.
+        You are an expert at analyzing fantasy and sci-fi narrative text to identify key entities and relationships between them.
+
         Extract characters, locations, buildings, artifacts, vehicles, organizations, events, and historical events.
         Use "historical_event" for named time periods, eras, wars, treaties, and significant background events.
-        Return results as a JSON object with an "entities" array:
+
+        ALSO extract relationships between entities based on the verbs and sentence structure in the text.
+
+        Return results as a JSON object:
         {
           "entities": [
             {
@@ -208,20 +212,57 @@ class OpenAIProvider: AIProviderProtocol {
               "confidence": 0.0-1.0,
               "context": "Brief surrounding text"
             }
+          ],
+          "relationships": [
+            {
+              "source": "Source Entity Name",
+              "target": "Target Entity Name",
+              "forwardVerb": "verb describing source → target",
+              "inverseVerb": "verb describing target → source",
+              "confidence": 0.0-1.0,
+              "context": "The sentence containing the relationship"
+            }
           ]
         }
+
+        For relationships:
+        - Use the ACTUAL VERB from the text (e.g., "wields", "discovered", "writes", "dispatched")
+        - Generate appropriate inverse verb (e.g., "is wielded by", "discovered by", "is written by", "dispatched by")
+
+        CRITICAL: Focus on PERSISTENT CONNECTIONS, not temporary actions or prepositional phrases
+
+        **HIGH confidence (0.9+): Subject-Verb-Direct Object relationships**
+        - "Captain discovered Codex" → Captain → discovered/discovered by → Codex (0.95)
+        - "Dean dispatched courier" → Dean → dispatched/dispatched by → courier (0.95)
+        - "Character owns artifact" → Character → owns/owned by → artifact (0.9)
+
+        **AVOID or use LOW confidence (<0.7): Prepositional phrases and momentary actions**
+        - "descended the steps OF the Observatory" → SKIP (OF = prepositional phrase, not direct object)
+        - "walked INTO the building" → SKIP (INTO = prepositional phrase)
+        - "sitting ON the chair" → SKIP (temporary physical position)
+        - "running THROUGH the forest" → SKIP (momentary movement)
+
+        **Focus on meaningful entity relationships:**
+        - Ownership, creation, discovery, employment, leadership, membership, containment
+        - Avoid: temporary movements, physical descriptions, prepositional locations
+
+        - Only include clear, explicit relationships (confidence > 0.7)
+        - Both source and target must be entities you extracted in the "entities" array
+
         Only include entities that are proper nouns or specific named things.
         """
 
         let userPrompt = """
-        Analyze this text and extract all entities:
+        Analyze this text and extract all entities and relationships:
 
         \(text)
         """
 
-        let entities = try await callGPT4(systemPrompt: systemPrompt, userPrompt: userPrompt, apiKey: apiKey)
+        let response = try await callGPT4(systemPrompt: systemPrompt, userPrompt: userPrompt, apiKey: apiKey)
 
-        return AnalysisResult(entities: parseEntities(from: entities), relationships: nil, calendars: nil, metadata: nil)
+        let (entities, relationships) = parseEntitiesAndRelationships(from: response)
+
+        return AnalysisResult(entities: entities, relationships: relationships, calendars: nil, metadata: nil)
     }
 
     /// Infer relationships using GPT-4 (Phase 6 - placeholder)
@@ -399,21 +440,50 @@ class OpenAIProvider: AIProviderProtocol {
         return content
     }
 
-    /// Parse entities from JSON string
-    private func parseEntities(from jsonString: String) -> [Entity] {
+    /// Parse entities AND relationships from JSON string (ER-0020)
+    private func parseEntitiesAndRelationships(from jsonString: String) -> (entities: [Entity], relationships: [DetectedRelationship]) {
         guard let jsonData = jsonString.data(using: .utf8) else {
             #if DEBUG
             print("⚠️ [OpenAI] Failed to convert JSON string to data")
             #endif
-            return []
+            return ([], [])
         }
 
-        // Try parsing as wrapped object first (GPT-4 with response_format: json_object)
+        // Try parsing as EntityAndRelationshipResponse first (ER-0020 format)
+        if let wrappedResponse = try? JSONDecoder().decode(EntityAndRelationshipResponse.self, from: jsonData) {
+            #if DEBUG
+            print("✅ [OpenAI] Parsed \(wrappedResponse.entities.count) entities and \(wrappedResponse.relationships.count) relationships from wrapped JSON")
+            #endif
+
+            let entities = wrappedResponse.entities.map { json in
+                Entity(
+                    name: json.name,
+                    type: EntityType(rawValue: json.type) ?? .other,
+                    confidence: json.confidence,
+                    context: json.context
+                )
+            }
+
+            let relationships = wrappedResponse.relationships.map { relData in
+                DetectedRelationship(
+                    sourceEntityName: relData.source,
+                    targetEntityName: relData.target,
+                    forwardVerb: relData.forwardVerb,
+                    inverseVerb: relData.inverseVerb,
+                    confidence: relData.confidence,
+                    context: relData.context ?? ""
+                )
+            }
+
+            return (entities, relationships)
+        }
+
+        // Try parsing as wrapped object (GPT-4 with response_format: json_object) - backward compatibility
         if let wrappedResponse = try? JSONDecoder().decode(EntityResponse.self, from: jsonData) {
             #if DEBUG
-            print("✅ [OpenAI] Parsed \(wrappedResponse.entities.count) entities from wrapped JSON")
+            print("✅ [OpenAI] Parsed \(wrappedResponse.entities.count) entities from wrapped JSON (legacy format, no relationships)")
             #endif
-            return wrappedResponse.entities.map { json in
+            let entities = wrappedResponse.entities.map { json in
                 Entity(
                     name: json.name,
                     type: EntityType(rawValue: json.type) ?? .other,
@@ -421,14 +491,15 @@ class OpenAIProvider: AIProviderProtocol {
                     context: json.context
                 )
             }
+            return (entities, [])
         }
 
-        // Fallback: try parsing as direct array
+        // Fallback: try parsing as direct array - backward compatibility
         if let jsonArray = try? JSONDecoder().decode([EntityJSON].self, from: jsonData) {
             #if DEBUG
-            print("✅ [OpenAI] Parsed \(jsonArray.count) entities from array JSON")
+            print("✅ [OpenAI] Parsed \(jsonArray.count) entities from array JSON (legacy format, no relationships)")
             #endif
-            return jsonArray.map { json in
+            let entities = jsonArray.map { json in
                 Entity(
                     name: json.name,
                     type: EntityType(rawValue: json.type) ?? .other,
@@ -436,13 +507,20 @@ class OpenAIProvider: AIProviderProtocol {
                     context: json.context
                 )
             }
+            return (entities, [])
         }
 
         #if DEBUG
-        print("⚠️ [OpenAI] Failed to parse entities JSON")
+        print("⚠️ [OpenAI] Failed to parse entities/relationships JSON")
         print("   Raw JSON (first 500 chars): \(String(jsonString.prefix(500)))")
         #endif
-        return []
+        return ([], [])
+    }
+
+    /// Parse entities from JSON string (backward compatibility - kept for other methods if needed)
+    private func parseEntities(from jsonString: String) -> [Entity] {
+        let (entities, _) = parseEntitiesAndRelationships(from: jsonString)
+        return entities
     }
 
     /// Parse calendars from JSON string
@@ -531,6 +609,21 @@ private struct EntityJSON: Codable {
 
 private struct EntityResponse: Codable {
     let entities: [EntityJSON]
+}
+
+/// Combined entity and relationship extraction response format (ER-0020)
+private struct EntityAndRelationshipResponse: Codable {
+    let entities: [EntityJSON]
+    let relationships: [RelationshipJSON]
+}
+
+private struct RelationshipJSON: Codable {
+    let source: String
+    let target: String
+    let forwardVerb: String
+    let inverseVerb: String
+    let confidence: Double
+    let context: String?
 }
 
 private struct CalendarJSON: Codable {

@@ -17,29 +17,30 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **6 unverified DRs** (All Open)
+Currently: **0 unverified DRs**
 
-| DR | Title | Component | Status |
-|----|-------|-----------|--------|
-| DR-0051 | CardEditorView Fixed to Narrow Width on macOS Sheet | CardEditorView | 🔴 Open |
-| DR-0043 | Duplicate RelationType Entries Created Despite Deduplication Logic | RelationType / CumberlandApp seeding | 🔴 Open |
-| DR-0041 | Vegetation and Terrain Brushes Should Render as Area Fills | BrushEngine / ExteriorMapBrushSet | 🔴 Open |
-| DR-0040 | Brush Set Picker Text Overflow on iOS | BrushGridView / Tool Palette | 🔴 Open |
-| DR-0039 | Saved Strokes/Settings Failed to Restore During Drawing Canvas Restoration | DrawCanvas / Draft Persistence / LayerManager | 🔴 Open |
-| DR-0038 | Draft Interior Drawing Settings Not Remembered Between View Loads | MapWizardView / Draft Persistence | 🔴 Open |
+**Archived Open DRs:**
+See: [DR-archive-0038-0056.md](./DR-archive-0038-0056.md) for older open/unresolved DRs:
+- DR-0055 (Resolved - Not Verified)
+- DR-0054, DR-0043, DR-0041, DR-0040 (Open)
+- DR-0038, DR-0039 (Archived Open)
 
+**Current Unverified DRs:**
 See: [DR-unverified.md](./DR-unverified.md)
 
 ### Verified DRs (Resolved Issues)
 
-Currently: **40 verified DRs** | Next available DR: **DR-0053**
+Currently: **52 verified DRs** (+ 1 closed/deferred) | Next available DR: **DR-0069**
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
-| Batch 1 | DR-0001 to DR-0010 | [DR-verified-0001-0010.md](./DR-verified-0001-0010.md) | ✅ All Verified |
-| Batch 2 | DR-0011 to DR-0020 | [DR-verified-0011-0020.md](./DR-verified-0011-0020.md) | ✅ All Verified |
-| Batch 3 | DR-0021 to DR-0030 | [DR-verified-0021-0030.md](./DR-verified-0021-0030.md) | ✅ All Verified |
-| Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | ✅ All Verified (10/10 verified) |
+| Batch 1 | DR-0001 to DR-0010 | [DR-verified-0001-0010.md](./DR-verified-0001-0010.md) | ✅ All Verified (10/10) |
+| Batch 2 | DR-0011 to DR-0020 | [DR-verified-0011-0020.md](./DR-verified-0011-0020.md) | ✅ All Verified (10/10) |
+| Batch 3 | DR-0021 to DR-0030 | [DR-verified-0021-0030.md](./DR-verified-0021-0030.md) | ✅ All Verified (10/10) |
+| Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | ✅ All Verified (10/10) |
+| Batch 5 | DR-0041 to DR-0050 | [DR-verified-0041-0050.md](./DR-verified-0041-0050.md) | 🚧 In Progress (1/10 verified) |
+| Batch 6 | DR-0051 to DR-0060 | [DR-verified-0051-0060.md](./DR-verified-0051-0060.md) | 🚧 In Progress (4/10 verified) |
+| Batch 7 | DR-0061 to DR-0070 | [DR-verified-0061-0070.md](./DR-verified-0061-0070.md) | 🚧 In Progress (8/10 verified, 1 closed/deferred) |
 
 ## DR Summary
 
@@ -95,7 +96,7 @@ Currently: **40 verified DRs** | Next available DR: **DR-0053**
 | DR-0029 | Base layer image recalculated on visibility toggle | BaseLayerImageCache | ✅ Verified |
 | DR-0030 | Missing "Add Card" UI on iOS/misplaced Settings | MainAppView, CumberlandApp | ✅ Verified |
 
-### DR-0031 to DR-0040 - Advanced Brushes, macOS Drawing, OpenAI Integration (Verified)
+### DR-0031 to DR-0056 - Advanced Brushes, macOS Drawing, OpenAI Integration, Relationships (Verified)
 
 | DR | Title | Component | Status |
 |----|-------|-----------|--------|
@@ -110,6 +111,24 @@ Currently: **40 verified DRs** | Next available DR: **DR-0053**
 | DR-0042 | Apple Pencil Not Working with Gesture-Based Brushes on iOS | DrawingCanvasView / UIPanGestureRecognizer | ✅ Verified |
 | DR-0050 | OpenAI Content Analysis Timeout with Default URLSession Settings | OpenAIProvider / Content Analysis | ✅ Verified |
 | DR-0052 | OpenAI Entity Extraction Has Two Critical Bugs (0 Entities + Wrong Card Types) | OpenAIProvider / Content Analysis | ✅ Verified |
+| DR-0056 | SuggestionEngine Only Creating Forward Relationships (Missing Reverse Edges) | SuggestionEngine, Phase 6 (ER-0010) | ✅ Verified |
+
+### DR-0057 to DR-0068 - Temporal Editor Phase 2 & AI Analysis Fixes (Verified)
+
+| DR | Title | Component | Status |
+|----|-------|-----------|--------|
+| DR-0057 | Calendar Extraction JSON Parser Fails on Null Length | CalendarSystemExtractor, AI Content Analysis | ✅ Verified |
+| DR-0058 | SceneTemporalPositionEditor Calendar Values Don't Persist | SceneTemporalPositionEditor, ER-0016 Phase 2 | ✅ Verified |
+| DR-0059 | SceneTemporalPositionEditor Duration Field Redesigned for Calendar Units | SceneTemporalPositionEditor, ER-0016 Phase 2 | ✅ Verified |
+| DR-0060 | Duration Presets Use "Hours" Instead of Calendar-Specific Term | SceneTemporalPositionEditor, ER-0016 Phase 2 | ✅ Verified (Superseded by DR-0059) |
+| DR-0061 | SceneTemporalPositionEditor Sheet Renders as Blank 100x100 Square (macOS) | SceneTemporalPositionEditor, TimelineChartView | ✅ Verified |
+| DR-0062 | SceneTemporalPositionEditor Has Duplicate Save Buttons | SceneTemporalPositionEditor, ER-0016 Phase 2 | ✅ Verified |
+| DR-0063 | Timeline Epoch Date UI Unclear/Not Persisting | CardEditorView, Timeline Configuration Panel | ✅ Verified |
+| DR-0064 | Timeline Tab Freezes When Epoch Date Far from Scene Dates | TimelineChartView, ER-0016 Phase 2 | ✅ Verified |
+| DR-0065 | Calendar Deletion Crash - Missing @Relationship Decorator | CalendarSystem Model, SwiftData Relationships | ✅ Verified |
+| DR-0066 | Relationships Not Created When Analyzing Existing (Saved) Cards | SuggestionReviewView, AI Content Analysis | ✅ Verified |
+| DR-0067 | Relationship Inference Not Detecting Patterns (Multiple Bugs) | RelationshipInference, AI Content Analysis Phase 6 | ⚪ Closed - Deferred to ER-0020 |
+| DR-0068 | Calendar Insertion Bug - Inserting Both Card and CalendarSystem | SuggestionReviewView, SwiftData Relationship Insertion | ✅ Verified |
 
 ## How to Use This Documentation
 
@@ -137,13 +156,34 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 52
-- **Verified:** 40 (77%) ✅
-- **Resolved - Not Verified:** 0 (0%) 🟡
-- **Open:** 6 (12%) 🔴
-- **Latest DR:** DR-0052 (2026-01-24 - OpenAI Entity Extraction Bugs)
+- **Total DRs:** 68 (documented)
+- **Verified:** 52 (76.5%) ✅
+- **Resolved - Not Verified:** 1 (1.5%) 🟡
+  - DR-0055 (in archive)
+- **Open:** 6 (8.8%) 🔴
+  - Active: DR-0054, DR-0040, DR-0041, DR-0043 (in archive)
+  - Archived: DR-0038, DR-0039
+- **Closed/Deferred:** 2 (2.9%) ⚪
+  - DR-0060 (superseded by DR-0059 redesign, now verified)
+  - DR-0067 (closed, deferred to ER-0020 - Dynamic AI Relationship Extraction)
+- **Latest DR:** DR-0068 (2026-01-30 - Calendar Insertion Bug) ✅ Verified (2026-01-31)
+
+**Recent Activity:**
+- 2026-01-31: **VERIFIED 3 DRs** (DR-0065, DR-0066, DR-0068) - Calendar and AI analysis fixes! 🎉
+- 2026-01-31: **CLOSED DR-0067** - Deferred to ER-0020 (Dynamic AI Relationship Extraction) - Proper long-term solution
+- 2026-01-31: Cleared DR-unverified.md - **ALL DRs resolved or archived!** 🎉
+- 2026-01-30: **CREATED & RESOLVED DR-0068** - Calendar insertion bug (double-insert causing crash) ⚠️ CRITICAL
+- 2026-01-30: **CREATED & RESOLVED DR-0067** - Relationship inference not detecting patterns (3 separate bugs) - HIGH severity
+- 2026-01-30: **CREATED & RESOLVED DR-0066** - Relationships not created when analyzing existing (saved) cards - HIGH severity bug in AI content analysis
+- 2026-01-30: **CREATED & RESOLVED DR-0065** - Calendar deletion crash (missing @Relationship decorator) ⚠️ CRITICAL
+- 2026-01-30: **VERIFIED 8 DRs** (DR-0057 through DR-0064) - Temporal Editor Phase 2 complete! 🎉
+- 2026-01-30: Created batch files DR-verified-0051-0060.md and DR-verified-0061-0070.md
+- 2026-01-30: Cleared DR-unverified.md after verifying DR-0057 through DR-0064
+- 2026-01-29: Created DR-0064 (timeline freeze with 179-year range) - **CRITICAL FIX**
+- 2026-01-29: DR-0063 root cause found - **DatePicker showing date but not setting property**
+- 2026-01-29: DR-0058 root cause identified - **timeline missing epoch date** (added critical warnings)
 
 ---
 
-*Last Updated: 2026-01-25*
-*Document Version: 4.8 (Verified DR-0042, DR-0050, DR-0052 - Batch 4 Complete)*
+*Last Updated: 2026-01-31*
+*Document Version: 7.0 (DR-0065, 0066, 0068 verified; DR-0067 closed/deferred to ER-0020)*

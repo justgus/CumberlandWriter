@@ -262,6 +262,8 @@ struct MultiTimelineGraphView: View {
 
         // Get date range across all enabled tracks
         let allScenes = tracks.flatMap(\.scenes)
+        let allChronicles = tracks.flatMap(\.chronicles)
+
         guard !allScenes.isEmpty else {
             return AnyView(noScenesState)
         }
@@ -269,9 +271,20 @@ struct MultiTimelineGraphView: View {
         let minDate = allScenes.map(\.position).min() ?? Date()
         let maxDate = allScenes.map(\.end).max() ?? Date()
 
-        // Ensure at least some range
-        let displayMinDate = minDate
-        let displayMaxDate = max(minDate.addingTimeInterval(86400), maxDate) // At least 1 day
+        // Also consider chronicles in the date range
+        if let chronicleMinDate = allChronicles.map(\.start).min() {
+            let _ = min(minDate, chronicleMinDate)
+        }
+        if let chronicleMaxDate = allChronicles.map(\.end).max() {
+            let _ = max(maxDate, chronicleMaxDate)
+        }
+
+        // Add padding to the display range to prevent label clipping
+        // Extend left by 5% and right by 5% of the total span
+        let totalSpan = maxDate.timeIntervalSince(minDate)
+        let padding = totalSpan * 0.05
+        let displayMinDate = minDate.addingTimeInterval(-padding)
+        let displayMaxDate = maxDate.addingTimeInterval(padding)
 
         // Date formatter
         let dateFormatter = temporalDateFormatter()
@@ -291,74 +304,15 @@ struct MultiTimelineGraphView: View {
 
         // Scroll position (default to midpoint)
         let scrollPos = scrollPosition ?? {
-            let midInterval = (displayMinDate.timeIntervalSinceReferenceDate + displayMaxDate.timeIntervalSinceReferenceDate) / 2
+            let midInterval = (minDate.timeIntervalSinceReferenceDate + maxDate.timeIntervalSinceReferenceDate) / 2
             return Date(timeIntervalSinceReferenceDate: midInterval)
         }()
 
         return AnyView(
-            Chart {
-                // Render in layers: Chronicles (background), then Scenes (foreground)
-                ForEach(tracks) { track in
-                    let key = laneKey(for: track.timeline)
-
-                    // Layer 1: Chronicle lozenges (rounded rectangles spanning temporal bounds)
-                    ForEach(track.chronicles) { chronicle in
-                        RectangleMark(
-                            xStart: .value("Start", chronicle.start),
-                            xEnd: .value("End", chronicle.end),
-                            y: .value("Lane", key)
-                        )
-                        .foregroundStyle(track.color.opacity(0.2))
-                        .cornerRadius(8)
-                        .annotation(position: .overlay, alignment: .center) {
-                            Text(chronicle.chronicle.name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 4))
-                                .lineLimit(1)
-                        }
-                    }
-
-                    // Layer 2: Scene markers (small bars or points)
-                    ForEach(track.scenes) { sceneMarker in
-                        let isInChronicle = sceneMarker.parentChronicle != nil
-
-                        // Scene as a small vertical bar
-                        BarMark(
-                            xStart: .value("Start", sceneMarker.position),
-                            xEnd: .value("End", sceneMarker.end),
-                            y: .value("Lane", key)
-                        )
-                        .foregroundStyle(isInChronicle ? track.color.opacity(0.8) : track.color)
-                        .cornerRadius(2)
-                        .annotation(position: .top, alignment: .center) {
-                            VStack(spacing: 2) {
-                                Image(systemName: "circle.fill")
-                                    .font(.system(size: 6))
-                                    .foregroundStyle(track.color)
-                                Text(sceneMarker.scene.name)
-                                    .font(.system(size: 8))
-                                    .foregroundStyle(.primary)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 2)
-                                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 3))
-                                    .lineLimit(1)
-                            }
-                        }
-                        .accessibilityLabel(sceneMarker.scene.name)
-                        .accessibilityValue("At \(dateFormatter.string(from: sceneMarker.position))")
-                    }
-
-                    // Lane labels on the left
-                    RectangleMark(
-                        xStart: .value("Start", displayMinDate.addingTimeInterval(-86400 * 30)), // Fake left column
-                        xEnd: .value("End", displayMinDate),
-                        y: .value("Lane", key)
-                    )
-                    .foregroundStyle(Color.clear)
-                    .annotation(position: .leading, alignment: .leading) {
+            HStack(spacing: 0) {
+                // Left column with timeline names
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(tracks) { track in
                         HStack(spacing: 6) {
                             Circle()
                                 .fill(track.color)
@@ -368,38 +322,125 @@ struct MultiTimelineGraphView: View {
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
-                        .padding(.trailing, 8)
+                        .frame(height: 80, alignment: .center)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, 8)
                     }
                 }
-            }
-            .chartYAxis(.hidden) // Custom lane labels
-            .chartXAxis {
-                AxisMarks { value in
-                    AxisGridLine()
-                    AxisTick()
-                    if let date = value.as(Date.self) {
-                        AxisValueLabel(dateFormatter.string(from: date))
+                .frame(width: 150)
+                .background(.thinMaterial)
+
+                Divider()
+
+                // Chart area
+                Chart {
+                    // Render in layers: Timeline tracks (background), Chronicles (mid), then Scenes (foreground)
+                    ForEach(tracks) { track in
+                        let key = laneKey(for: track.timeline)
+
+                        // Layer 0: Timeline track background (horizontal line)
+                        RuleMark(
+                            y: .value("Lane", key)
+                        )
+                        .foregroundStyle(track.color.opacity(0.1))
+                        .lineStyle(StrokeStyle(lineWidth: 60, lineCap: .round))
+
+                        // Layer 1: Chronicle lozenges (rounded rectangles spanning temporal bounds)
+                        ForEach(track.chronicles) { chronicle in
+                            RectangleMark(
+                                xStart: .value("Start", chronicle.start),
+                                xEnd: .value("End", chronicle.end),
+                                y: .value("Lane", key),
+                                height: .fixed(40)
+                            )
+                            .foregroundStyle(track.color.opacity(0.3))
+                            .cornerRadius(8)
+                            .annotation(position: .overlay, alignment: .center) {
+                                Text(chronicle.chronicle.name)
+                                    .font(.caption)
+                                    .foregroundStyle(.primary)
+                                    .fontWeight(.medium)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
+                                    .lineLimit(1)
+                            }
+                        }
+
+                        // Layer 2: Scene markers (small bars with minimum width)
+                        ForEach(track.scenes) { sceneMarker in
+                            let isInChronicle = sceneMarker.parentChronicle != nil
+
+                            // Calculate scene duration with minimum display width
+                            // Minimum of 2 hours for visibility, or actual duration if larger
+                            let minDisplayDuration: TimeInterval = 7200 // 2 hours
+                            let actualDuration = sceneMarker.duration ?? 3600
+                            let displayDuration = max(actualDuration, minDisplayDuration)
+                            let sceneEnd = sceneMarker.position.addingTimeInterval(displayDuration)
+
+                            // Scene as a small vertical bar with guaranteed minimum width
+                            BarMark(
+                                xStart: .value("Start", sceneMarker.position),
+                                xEnd: .value("End", sceneEnd),
+                                y: .value("Lane", key),
+                                height: .fixed(12)
+                            )
+                            .foregroundStyle(isInChronicle ? track.color.opacity(0.9) : track.color)
+                            .cornerRadius(3)
+                            .annotation(position: .top, alignment: .center) {
+                                VStack(spacing: 2) {
+                                    Image(systemName: "circle.fill")
+                                        .font(.system(size: 6))
+                                        .foregroundStyle(track.color)
+                                    Text(sceneMarker.scene.name)
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(.primary)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 3)
+                                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 4))
+                                        .lineLimit(1)
+                                }
+                            }
+                            .accessibilityLabel(sceneMarker.scene.name)
+                            .accessibilityValue("At \(dateFormatter.string(from: sceneMarker.position))")
+                        }
                     }
                 }
+                .chartYAxis {
+                    AxisMarks(values: yDomainKeys) { _ in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 2]))
+                            .foregroundStyle(.secondary.opacity(0.3))
+                        AxisValueLabel("")
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks { value in
+                        AxisGridLine()
+                        AxisTick()
+                        if let date = value.as(Date.self) {
+                            AxisValueLabel(dateFormatter.string(from: date))
+                        }
+                    }
+                }
+                .chartLegend(.hidden)
+                .chartScrollableAxes(.horizontal)
+                .chartScrollPosition(x: Binding(
+                    get: { scrollPosition ?? scrollPos },
+                    set: { scrollPosition = $0 }
+                ))
+                .chartXVisibleDomain(length: visibleTimeSpan)
+                .chartXScale(domain: displayMinDate...displayMaxDate)
+                .chartYScale(domain: yDomainKeys)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .chartPlotStyle { plot in
+                    plot.frame(minHeight: CGFloat(tracks.count * 80).clamped(to: 200...1000))
+                }
             }
-            .chartLegend(.hidden)
-            .chartScrollableAxes(.horizontal)
-            .chartScrollPosition(x: Binding(
-                get: { scrollPosition ?? scrollPos },
-                set: { scrollPosition = $0 }
-            ))
-            .chartXVisibleDomain(length: visibleTimeSpan)
-            .chartXScale(domain: displayMinDate...displayMaxDate)
-            .chartYScale(domain: yDomainKeys)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(.thinMaterial)
             )
-            .chartPlotStyle { plot in
-                plot.frame(minHeight: CGFloat(tracks.count * 80).clamped(to: 200...1000)) // Increased height for chronicles
-            }
         )
     }
 
@@ -547,16 +588,14 @@ struct MultiTimelineGraphView: View {
             enabledTrackIDs = Set(timelines.map(\.id))
         }
 
-        // Auto-select appropriate zoom level
-        let allScenes = tracks.flatMap(\.scenes)
-        if let minDate = allScenes.map(\.position).min(),
-           let maxDate = allScenes.map(\.end).max() {
-            let span = maxDate.timeIntervalSince(minDate)
-            zoomLevel = autoSelectZoomLevel(for: span)
+        // Use nominal zoom level (month view) instead of trying to fit all scenes
+        // User can use "Fit All" button if they want to see everything at once
+        zoomLevel = .month
 
-            // Set scroll position to middle
-            let midInterval = (minDate.timeIntervalSinceReferenceDate + maxDate.timeIntervalSinceReferenceDate) / 2
-            scrollPosition = Date(timeIntervalSinceReferenceDate: midInterval)
+        // Set scroll position to earliest event (left-aligned view)
+        let allScenes = tracks.flatMap(\.scenes)
+        if let minDate = allScenes.map(\.position).min() {
+            scrollPosition = minDate
         }
     }
 

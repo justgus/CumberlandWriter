@@ -61,6 +61,13 @@ struct SceneTemporalPositionEditor: View {
     @State private var durationInSmallestUnit: Int = 1 // e.g., 1 segment = 3600 seconds
 
     init(scene: Card, timeline: Card, edge: CardEdge) {
+        print("🔷 [SceneTemporalPositionEditor] === INITIALIZING EDITOR ===")
+        print("🔷 [SceneTemporalPositionEditor] Scene: \(scene.name) (ID: \(scene.id))")
+        print("🔷 [SceneTemporalPositionEditor] Timeline: \(timeline.name) (ID: \(timeline.id))")
+        print("🔷 [SceneTemporalPositionEditor] Edge exists: true")
+        print("🔷 [SceneTemporalPositionEditor] Edge.temporalPosition: \(edge.temporalPosition?.description ?? "nil")")
+        print("🔷 [SceneTemporalPositionEditor] Edge.duration: \(edge.duration?.description ?? "nil")")
+
         self.scene = scene
         self.timeline = timeline
         self.edge = edge
@@ -68,6 +75,9 @@ struct SceneTemporalPositionEditor: View {
         // Initialize state from edge
         let initialPosition = edge.temporalPosition ?? Date()
         let initialDuration = edge.duration ?? 3600 // Default 1 hour
+
+        print("🔷 [SceneTemporalPositionEditor] Initial position: \(initialPosition)")
+        print("🔷 [SceneTemporalPositionEditor] Initial duration: \(initialDuration) seconds")
 
         _temporalPosition = State(initialValue: initialPosition)
         _duration = State(initialValue: initialDuration)
@@ -83,9 +93,22 @@ struct SceneTemporalPositionEditor: View {
         let units = Int(initialDuration / smallestUnitSeconds)
         _durationInSmallestUnit = State(initialValue: max(1, units))
 
+        print("🔷 [SceneTemporalPositionEditor] Duration in smallest units: \(max(1, units))")
+
         // Initialize calendar-aware input
         let hasCustomCalendar = timeline.calendarSystem != nil
         _useCalendarInput = State(initialValue: hasCustomCalendar)
+
+        print("🔷 [SceneTemporalPositionEditor] Has custom calendar: \(hasCustomCalendar)")
+        if let calendar = timeline.calendarSystem {
+            print("🔷 [SceneTemporalPositionEditor] Calendar: \(calendar.name)")
+            print("🔷 [SceneTemporalPositionEditor] Divisions: \(calendar.divisions.count)")
+        }
+        if let epoch = timeline.epochDate {
+            print("🔷 [SceneTemporalPositionEditor] Timeline epoch: \(epoch)")
+        } else {
+            print("⚠️ [SceneTemporalPositionEditor] WARNING: Timeline has NO epoch date! Calendar conversion will not work!")
+        }
 
         // Initialize division values (start with zeros, user will set them)
         let divisionCount = timeline.calendarSystem?.divisions.count ?? 0
@@ -93,27 +116,19 @@ struct SceneTemporalPositionEditor: View {
 
         // Initialize displayed calculated date
         _displayedCalculatedDate = State(initialValue: initialPosition)
+
+        print("🔷 [SceneTemporalPositionEditor] === INITIALIZATION COMPLETE ===")
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Header
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Temporal Position")
-                        .font(.title2.bold())
-                    Text(scene.name.isEmpty ? "Untitled Scene" : scene.name)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Button("Done") {
-                    saveAndDismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Temporal Position")
+                    .font(.title2.bold())
+                Text(scene.name.isEmpty ? "Untitled Scene" : scene.name)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
 
             Divider()
@@ -339,11 +354,20 @@ struct SceneTemporalPositionEditor: View {
         .onChange(of: calendarDivisionValues) { _, newValues in
             // Recalculate temporal position when calendar values change
             print("📅 [SceneTemporalPositionEditor] Calendar values changed: \(newValues)")
+            print("📅 [SceneTemporalPositionEditor] useCalendarInput: \(useCalendarInput)")
+            print("📅 [SceneTemporalPositionEditor] Has calendar system: \(timeline.calendarSystem != nil)")
+            print("📅 [SceneTemporalPositionEditor] Has epoch date: \(timeline.epochDate != nil)")
+
             if useCalendarInput, let calendar = timeline.calendarSystem, let epoch = timeline.epochDate {
                 let calculated = convertCalendarUnitsToDate(divisions: calendar.divisions, values: newValues, epoch: epoch)
                 displayedCalculatedDate = calculated
                 temporalPosition = calculated
                 print("📅 [SceneTemporalPositionEditor] Updated displayed date to: \(calculated)")
+            } else {
+                print("⚠️ [SceneTemporalPositionEditor] Cannot convert calendar date - missing epoch!")
+                print("   - useCalendarInput: \(useCalendarInput)")
+                print("   - calendar exists: \(timeline.calendarSystem != nil)")
+                print("   - epoch exists: \(timeline.epochDate != nil)")
             }
         }
     }
@@ -528,29 +552,62 @@ struct SceneTemporalPositionEditor: View {
     // MARK: - Actions
 
     private func saveAndDismiss() {
+        print("💾 [SceneTemporalPositionEditor] === SAVE OPERATION STARTED ===")
+        print("💾 [SceneTemporalPositionEditor] Scene: \(scene.name) (ID: \(scene.id))")
+        print("💾 [SceneTemporalPositionEditor] Timeline: \(timeline.name) (ID: \(timeline.id))")
+        print("💾 [SceneTemporalPositionEditor] Edge reference is non-optional and present")
+        print("💾 [SceneTemporalPositionEditor] Edge context: \(edge.modelContext != nil ? "has context" : "NO CONTEXT")")
+        print("💾 [SceneTemporalPositionEditor] Save context: \(modelContext)")
+
         // Update edge with new temporal position and duration
         if useCalendarInput {
-            edge.temporalPosition = displayedCalculatedDate
-            print("💾 [SceneTemporalPositionEditor] Saving calendar date: \(displayedCalculatedDate)")
+            print("💾 [SceneTemporalPositionEditor] Using calendar input mode")
             print("💾 [SceneTemporalPositionEditor] Calendar values: \(calendarDivisionValues)")
+            print("💾 [SceneTemporalPositionEditor] Calculated date: \(displayedCalculatedDate)")
+
+            if timeline.epochDate == nil {
+                print("⚠️⚠️⚠️ [SceneTemporalPositionEditor] CRITICAL: Timeline has NO epoch date!")
+                print("⚠️⚠️⚠️ [SceneTemporalPositionEditor] Calendar conversion cannot work without an epoch!")
+                print("⚠️⚠️⚠️ [SceneTemporalPositionEditor] Please set the timeline's epoch date on its back face.")
+            } else {
+                print("💾 [SceneTemporalPositionEditor] Timeline epoch: \(timeline.epochDate!)")
+            }
+
             if let formatted = timeline.calendarSystem != nil ? formatDateInCalendar(displayedCalculatedDate) : nil {
                 print("💾 [SceneTemporalPositionEditor] As calendar: \(formatted)")
             }
+
+            let oldPosition = edge.temporalPosition
+            edge.temporalPosition = displayedCalculatedDate
+            print("💾 [SceneTemporalPositionEditor] Position changed: \(oldPosition ?? Date()) → \(displayedCalculatedDate)")
         } else {
+            print("💾 [SceneTemporalPositionEditor] Using standard date input mode")
+            print("💾 [SceneTemporalPositionEditor] Standard date: \(temporalPosition)")
+
+            let oldPosition = edge.temporalPosition
             edge.temporalPosition = temporalPosition
-            print("💾 [SceneTemporalPositionEditor] Saving standard date: \(temporalPosition)")
+            print("💾 [SceneTemporalPositionEditor] Position changed: \(oldPosition ?? Date()) → \(temporalPosition)")
         }
+
+        let oldDuration = edge.duration
         edge.duration = duration
-        print("💾 [SceneTemporalPositionEditor] Saving duration: \(duration) seconds")
+        print("💾 [SceneTemporalPositionEditor] Duration changed: \(oldDuration ?? 0) → \(duration) seconds")
+
+        // Verify the changes were applied
+        print("💾 [SceneTemporalPositionEditor] Edge.temporalPosition after assignment: \(edge.temporalPosition ?? Date())")
+        print("💾 [SceneTemporalPositionEditor] Edge.duration after assignment: \(edge.duration ?? 0)")
 
         // Save context
         do {
             try modelContext.save()
             print("✅ [SceneTemporalPositionEditor] Context saved successfully")
+            print("✅ [SceneTemporalPositionEditor] Edge.temporalPosition after save: \(edge.temporalPosition ?? Date())")
+            print("✅ [SceneTemporalPositionEditor] Edge.duration after save: \(edge.duration ?? 0)")
         } catch {
             print("❌ [SceneTemporalPositionEditor] Failed to save context: \(error)")
         }
 
+        print("💾 [SceneTemporalPositionEditor] === SAVE OPERATION COMPLETE ===")
         dismiss()
     }
 
@@ -602,3 +659,4 @@ struct SceneTemporalPositionEditor: View {
     return SceneTemporalPositionEditor(scene: scene, timeline: timeline, edge: edge)
         .modelContainer(container)
 }
+
