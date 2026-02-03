@@ -31,9 +31,12 @@ class EntityExtractor {
     // MARK: - Public API
 
     /// Result from entity and relationship extraction (ER-0020)
+    /// ER-0015: Extended with statistics for better empty state messaging
     struct ExtractionResult {
         let entities: [Entity]
         let relationships: [DetectedRelationship]
+        let totalEntitiesDetected: Int  // Before filtering
+        let entitiesFilteredAsExisting: Int  // Filtered because they already exist as cards
     }
 
     /// Extract entities AND relationships from text (ER-0020)
@@ -77,18 +80,30 @@ class EntityExtractor {
             #if DEBUG
             print("   No entities found")
             #endif
-            return ExtractionResult(entities: [], relationships: [])
+            return ExtractionResult(
+                entities: [],
+                relationships: [],
+                totalEntitiesDetected: 0,
+                entitiesFilteredAsExisting: 0
+            )
         }
 
         #if DEBUG
         print("   Raw entities found: \(entities.count)")
         #endif
 
+        // ER-0015: Track total before filtering
+        let totalDetected = entities.count
+
         // Apply filters
         entities = filterByConfidence(entities)
         entities = filterByEnabledTypes(entities)
         entities = deduplicateEntities(entities)
+
+        // ER-0015: Track count before filtering existing cards
+        let countBeforeExistingFilter = entities.count
         entities = filterAgainstExistingCards(entities, existingCards: existingCards)
+        let entitiesFiltered = countBeforeExistingFilter - entities.count
 
         // ER-0020: Extract relationships from AI provider
         let relationships = result.relationships ?? []
@@ -100,9 +115,15 @@ class EntityExtractor {
             print("   - \(entity.name) (\(entity.type.rawValue), \(String(format: "%.0f", entity.confidence * 100))%)")
         }
         print("   AI relationships extracted: \(relationships.count)")
+        print("   Entities filtered as existing: \(entitiesFiltered)")
         #endif
 
-        return ExtractionResult(entities: entities, relationships: relationships)
+        return ExtractionResult(
+            entities: entities,
+            relationships: relationships,
+            totalEntitiesDetected: totalDetected,
+            entitiesFilteredAsExisting: entitiesFiltered
+        )
     }
 
     // MARK: - Filtering

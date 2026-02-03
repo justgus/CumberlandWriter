@@ -94,8 +94,16 @@ struct CardEditorView: View {
     @State private var showAIImageGeneration: Bool = false
     @State private var showAIImageInfo: Bool = false
 
+    // Image History (ER-0017)
+    @State private var showImageHistory: Bool = false
+
     // Description analysis for smart prompts (ER-0009 Phase 3A)
     @State private var descriptionAnalysis: DescriptionAnalyzer.AnalysisResult?
+
+    // Image Copy/Paste (ER-0011 Phase 1)
+    @State private var showCopyFeedback: Bool = false
+    @State private var showPasteFeedback: Bool = false
+    @State private var clipboardHasImage: Bool = false
 
     // Content Analysis (ER-0010)
     @State private var showAnalysisSuggestions: Bool = false
@@ -230,98 +238,159 @@ struct CardEditorView: View {
     var body: some View {
         let kind = mode.kind
 
-        VStack(spacing: 16) {
-            // Flip container hosting front/back faces of the editor "card" surface
-            FlipCardContainer(isFlipped: $isFlipped) {
-                // FRONT: common fields
-                cardSurface(kind: kind) {
-                    frontCardFields
+        // DR-0054: Wrap in ScrollView so content is accessible on iOS when sheet is smaller than content
+        ScrollView {
+            VStack(spacing: 16) {
+                // Flip container hosting front/back faces of the editor "card" surface
+                FlipCardContainer(isFlipped: $isFlipped) {
+                    // FRONT: common fields
+                    cardSurface(kind: kind) {
+                        frontCardFields
+                    }
+                } back: {
+                    // BACK: kind-specific extras (only if available)
+                    cardSurface(kind: kind) {
+                        backExtrasContent
+                    }
                 }
-            } back: {
-                // BACK: kind-specific extras (only if available)
-                cardSurface(kind: kind) {
-                    backExtrasContent
+                // Ellipsis flip button (Wallet-like) only when extras exist
+                .overlay(alignment: .bottomTrailing) {
+                    if hasKindExtras {
+                        flipButton
+                            .padding(12)
+                            .offset(x: 8, y: 8) // let it protrude slightly like a badge
+                    }
                 }
+                .frame(maxWidth: maxCardWidth)
+                #if os(visionOS)
+                // On visionOS, ornament handles the size picker externally,
+                // so we apply it at the NavigationStack/window level in CardEditorWindowView
+                #endif
+
+                // Image actions
+                // DR-0040: On iOS, show icon-only buttons to save space
+                HStack(spacing: 12) {
+                    Button {
+                        isImportingImage = true
+                    } label: {
+                        #if os(iOS)
+                        Image(systemName: "photo.on.rectangle")
+                        #else
+                        Label("Choose Image…", systemImage: "photo.on.rectangle")
+                        #endif
+                    }
+                    .help("Choose Image")
+
+                    Button {
+                        showAIImageGeneration = true
+                    } label: {
+                        #if os(iOS)
+                        Image(systemName: "wand.and.stars")
+                        #else
+                        Label(hasAnyImage ? "Regenerate Image…" : "Generate Image…", systemImage: "wand.and.stars")
+                        #endif
+                    }
+                    .disabled(!(descriptionAnalysis?.isSufficient ?? true))
+                    .help(hasAnyImage ?
+                        (descriptionAnalysis?.recommendation ?? "Regenerate AI image from the card description") :
+                        (descriptionAnalysis?.recommendation ?? "Generate an AI image from the card description"))
+
+                    // ER-0011 Phase 1: Copy Image
+                    Button {
+                        copyImage()
+                    } label: {
+                        #if os(iOS)
+                        Image(systemName: "doc.on.doc")
+                        #else
+                        Label("Copy Image", systemImage: "doc.on.doc")
+                        #endif
+                    }
+                    .disabled(!hasAnyImage)
+                    .help("Copy image to clipboard")
+                    .keyboardShortcut("c", modifiers: [.command])
+
+                    // ER-0011 Phase 1: Paste Image
+                    Button {
+                        pasteImage()
+                    } label: {
+                        #if os(iOS)
+                        Image(systemName: "doc.on.clipboard")
+                        #else
+                        Label("Paste Image", systemImage: "doc.on.clipboard")
+                        #endif
+                    }
+                    .disabled(!clipboardHasImage)
+                    .help("Paste image from clipboard")
+                    .keyboardShortcut("v", modifiers: [.command])
+
+                    // ER-0017: Image History
+                    Button {
+                        showImageHistory = true
+                    } label: {
+                        #if os(iOS)
+                        Image(systemName: "clock.arrow.circlepath")
+                        #else
+                        Label("Image History…", systemImage: "clock.arrow.circlepath")
+                        #endif
+                    }
+                    .disabled(!hasAnyImage)
+                    .help("View and restore previous versions")
+
+                    Button(role: .destructive) {
+                        removeImage()
+                    } label: {
+                        #if os(iOS)
+                        Image(systemName: "trash")
+                        #else
+                        Label("Remove Image", systemImage: "trash")
+                        #endif
+                    }
+                    .disabled(!hasAnyImage)
+                    .help("Remove Image")
+
+                    Spacer()
+
+                    if isWorking {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+                .frame(maxWidth: maxCardWidth)
+                .fileImporter(isPresented: $isImportingImage, allowedContentTypes: [.image]) { result in
+                    if case let .success(url) = result,
+                       let data = try? Data(contentsOf: url) {
+                        imageData = data
+                        // Extract metadata for automatic attribution
+                        imageMetadata = ImageMetadataExtractor.extract(from: data)
+                        // Treat file-import as local; no URL attribution prompt needed.
+                    }
+                }
+
+                // Citations section (edit mode only)
+                if isEditing, case .edit(let card, _) = mode {
+                    CitationViewer(card: card)
+                        .frame(maxWidth: maxCardWidth)
+                }
+
+                // Note: The structure creation panel is now on the back face when creating a Project.
+
+                HStack {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .keyboardShortcut(.cancelAction)
+
+                    Spacer()
+
+                    Button(isEditing ? "Save" : "Create") {
+                        save()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .frame(maxWidth: maxCardWidth)
             }
-            // Ellipsis flip button (Wallet-like) only when extras exist
-            .overlay(alignment: .bottomTrailing) {
-                if hasKindExtras {
-                    flipButton
-                        .padding(12)
-                        .offset(x: 8, y: 8) // let it protrude slightly like a badge
-                }
-            }
-            .frame(maxWidth: maxCardWidth)
-            #if os(visionOS)
-            // On visionOS, ornament handles the size picker externally,
-            // so we apply it at the NavigationStack/window level in CardEditorWindowView
-            #endif
-
-            // Image actions
-            HStack(spacing: 12) {
-                Button {
-                    isImportingImage = true
-                } label: {
-                    Label("Choose Image…", systemImage: "photo.on.rectangle")
-                }
-
-                Button {
-                    showAIImageGeneration = true
-                } label: {
-                    Label("Generate Image…", systemImage: "wand.and.stars")
-                }
-                .disabled(!(descriptionAnalysis?.isSufficient ?? true))
-                .help(descriptionAnalysis?.recommendation ?? "Generate an AI image from the card description")
-
-                Button(role: .destructive) {
-                    removeImage()
-                } label: {
-                    Label("Remove Image", systemImage: "trash")
-                }
-                .disabled(!hasAnyImage)
-
-                Spacer()
-
-                if isWorking {
-                    ProgressView().controlSize(.small)
-                }
-            }
-            .frame(maxWidth: maxCardWidth)
-            .fileImporter(isPresented: $isImportingImage, allowedContentTypes: [.image]) { result in
-                if case let .success(url) = result,
-                   let data = try? Data(contentsOf: url) {
-                    imageData = data
-                    // Extract metadata for automatic attribution
-                    imageMetadata = ImageMetadataExtractor.extract(from: data)
-                    // Treat file-import as local; no URL attribution prompt needed.
-                }
-            }
-
-            // Citations section (edit mode only)
-            if isEditing, case .edit(let card, _) = mode {
-                CitationViewer(card: card)
-                    .frame(maxWidth: maxCardWidth)
-            }
-
-            // Note: The structure creation panel is now on the back face when creating a Project.
-
-            HStack {
-                Button("Cancel") {
-                    dismiss()
-                }
-                .keyboardShortcut(.cancelAction)
-
-                Spacer()
-
-                Button(isEditing ? "Save" : "Create") {
-                    save()
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-            .frame(maxWidth: maxCardWidth)
+            .padding()
         }
-        .padding()
         .frame(minWidth: 520)
         .navigationTitle(isEditing ? "Edit \(kind.title.dropLastIfPluralized())" : "New \(kind.title.dropLastIfPluralized())")
         #if os(visionOS)
@@ -384,6 +453,9 @@ struct CardEditorView: View {
         .onAppear {
             // Analyze on initial load
             descriptionAnalysis = DescriptionAnalyzer.analyze(detailedText)
+
+            // ER-0011: Check clipboard state for paste button
+            updateClipboardState()
         }
         // Present the quick attribution sheet right after text/image drop succeeds (edit mode only)
         .sheet(item: $pendingAttribution) { ctx in
@@ -424,16 +496,13 @@ struct CardEditorView: View {
                 cardName: name,
                 cardDescription: detailedText,
                 cardKind: mode.kind,
-                initialPrompt: {
-                    // Pre-fill with existing prompt if regenerating AI image
-                    if case .edit(let card, _) = mode,
-                       card.imageGeneratedByAI == true,
-                       let existingPrompt = card.imageAIPrompt {
-                        return existingPrompt
-                    }
-                    return nil
-                }(),
+                initialPrompt: nil, // Don't pre-fill - let it generate fresh suggestions from current description
                 onImageGenerated: { generatedData in
+                    // ER-0017: Save current image as version before regenerating
+                    if case .edit(let card, _) = mode {
+                        card.saveCurrentImageAsVersion(in: modelContext)
+                    }
+
                     // Embed EXIF/IPTC metadata into image
                     let imageDataWithMetadata = ImageMetadataWriter.embedMetadataForCard(
                         imageData: generatedData.imageData,
@@ -470,6 +539,12 @@ struct CardEditorView: View {
                 AIImageInfoView(card: card)
             }
         }
+        // Present Image History panel (ER-0017)
+        .sheet(isPresented: $showImageHistory) {
+            if case .edit(let card, _) = mode {
+                ImageHistoryView(card: card)
+            }
+        }
         // Present Suggestion Review panel (ER-0010)
         .sheet(isPresented: $showAnalysisSuggestions) {
             suggestionReviewSheet
@@ -480,6 +555,39 @@ struct CardEditorView: View {
         } message: {
             if let error = analysisError {
                 Text(error)
+            }
+        }
+        // Copy/Paste feedback overlays (ER-0011 Phase 1)
+        .overlay(alignment: .top) {
+            if showCopyFeedback {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Image copied to clipboard")
+                        .font(.subheadline)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                .shadow(radius: 4)
+                .padding(.top, 16)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .overlay(alignment: .top) {
+            if showPasteFeedback {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Image pasted from clipboard")
+                        .font(.subheadline)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                .shadow(radius: 4)
+                .padding(.top, 16)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
     }
@@ -1199,7 +1307,9 @@ struct CardEditorView: View {
                     relationships: extractionResult.relationships,  // ER-0020: AI-extracted relationships with dynamic verbs
                     sourceCard: currentCard,
                     existingCards: existingCards,
-                    provider: provider  // Phase 7: Pass provider for calendar extraction
+                    provider: provider,  // Phase 7: Pass provider for calendar extraction
+                    totalEntitiesDetected: extractionResult.totalEntitiesDetected,  // ER-0015: Stats for empty state
+                    entitiesFilteredAsExisting: extractionResult.entitiesFilteredAsExisting  // ER-0015
                 )
 
                 await MainActor.run {
@@ -1695,6 +1805,77 @@ struct CardEditorView: View {
             card.clearImageCaches()
             Task { await loadInitialThumbnailIfEditing() }
         }
+    }
+
+    // MARK: - Image Copy/Paste (ER-0011 Phase 1)
+
+    private func copyImage() {
+        let success: Bool
+
+        switch mode {
+        case .create:
+            // Copy from imageData in create mode
+            if let data = imageData {
+                success = ImageClipboardManager.shared.copyImageToClipboard(data)
+            } else {
+                success = false
+            }
+
+        case .edit(let card, _):
+            // Copy from card's image
+            success = ImageClipboardManager.shared.copyCardImage(card)
+        }
+
+        if success {
+            // Show brief feedback
+            showCopyFeedback = true
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.5))
+                showCopyFeedback = false
+            }
+        }
+    }
+
+    private func pasteImage() {
+        guard let pastedData = ImageClipboardManager.shared.pasteImageFromClipboard() else {
+            return
+        }
+
+        // Set the image data
+        switch mode {
+        case .create:
+            imageData = pastedData
+            // Clear any existing metadata since this is a pasted image
+            imageMetadata = nil
+
+        case .edit(let card, _):
+            do {
+                try card.setOriginalImageData(pastedData)
+
+                // Clear AI generation metadata (pasted image is not AI-generated)
+                card.imageGeneratedByAI = false
+                card.imageAIPrompt = nil
+                card.imageAIProvider = nil
+                card.imageAIGeneratedAt = nil
+
+                // Reload thumbnail
+                Task { await loadInitialThumbnailIfEditing() }
+            } catch {
+                print("⚠️ [Paste] Failed to set image data: \(error)")
+                return
+            }
+        }
+
+        // Show brief feedback
+        showPasteFeedback = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.5))
+            showPasteFeedback = false
+        }
+    }
+
+    private func updateClipboardState() {
+        clipboardHasImage = ImageClipboardManager.shared.hasImageInClipboard
     }
 
     // MARK: - Photos picker handling

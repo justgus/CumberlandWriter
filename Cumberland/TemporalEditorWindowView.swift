@@ -6,6 +6,7 @@
 //  DR-0061: Window wrapper for SceneTemporalPositionEditor on macOS
 //
 
+#if os(macOS)
 import SwiftUI
 import SwiftData
 
@@ -100,3 +101,4 @@ struct TemporalEditorWindowView: View {
         print("🪟 [TemporalEditorWindowView] === LOADING COMPLETE ===")
     }
 }
+#endif

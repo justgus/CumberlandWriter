@@ -71,7 +71,7 @@ enum AppSchemaV3: VersionedSchema {
 
 // V5: Current schema
 // Includes all models: Board/BoardNode
-// Optional properties added to Card (AI image metadata from ER-0009)
+// Optional properties added to Card (AI image metadata from ER-0009, image version history from ER-0017)
 // CloudKit auto-migrates all optional properties and new models
 enum AppSchemaV5: VersionedSchema {
     static var versionIdentifier = Schema.Version(5, 0, 0)
@@ -87,7 +87,8 @@ enum AppSchemaV5: VersionedSchema {
             StoryStructure.self,
             StructureElement.self,
             Board.self,
-            BoardNode.self
+            BoardNode.self,
+            ImageVersion.self  // ER-0017: Image version history
         ]
     }
 }

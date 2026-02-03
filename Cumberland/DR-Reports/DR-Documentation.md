@@ -17,20 +17,27 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **0 unverified DRs**
+Currently: **3 unverified DRs**
 
 **Archived Open DRs:**
-See: [DR-archive-0038-0056.md](./DR-archive-0038-0056.md) for older open/unresolved DRs:
-- DR-0055 (Resolved - Not Verified)
-- DR-0054, DR-0043, DR-0041, DR-0040 (Open)
-- DR-0038, DR-0039 (Archived Open)
+See: [DR-archive-0038-0056.md](./DR-archive-0038-0056.md) for older open/closed DRs:
+- DR-0043, DR-0041 (Open - deferred per user)
+- DR-0038 (Open - deferred per user)
+- DR-0039 (Closed - OBE)
+- DR-0040 (Resolved - expanded scope, awaiting verification)
 
 **Current Unverified DRs:**
 See: [DR-unverified.md](./DR-unverified.md)
 
+| DR | Title | Component | Status |
+|----|-------|-----------|--------|
+| DR-0070 | Image Generation Provider Picker Does Not Show Saved Setting | SettingsView, AISettingsPane | 🔴 Identified - Not Resolved |
+| DR-0071 | Apple Image Playground Requires Person Selection, Unsuitable for Non-Portrait Generation | AI Image Generation, AppleIntelligenceProvider | 🔴 Identified - Not Resolved |
+| DR-0069 | AI Provider Safety Filter False Positives on Character Names | AI Image Generation, ImageGenerator | 🔴 Identified - Not Resolved |
+
 ### Verified DRs (Resolved Issues)
 
-Currently: **52 verified DRs** (+ 1 closed/deferred) | Next available DR: **DR-0069**
+Currently: **53 verified DRs** (+ 1 closed/deferred) | Next available DR: **DR-0072**
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
@@ -39,7 +46,7 @@ Currently: **52 verified DRs** (+ 1 closed/deferred) | Next available DR: **DR-0
 | Batch 3 | DR-0021 to DR-0030 | [DR-verified-0021-0030.md](./DR-verified-0021-0030.md) | ✅ All Verified (10/10) |
 | Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | ✅ All Verified (10/10) |
 | Batch 5 | DR-0041 to DR-0050 | [DR-verified-0041-0050.md](./DR-verified-0041-0050.md) | 🚧 In Progress (1/10 verified) |
-| Batch 6 | DR-0051 to DR-0060 | [DR-verified-0051-0060.md](./DR-verified-0051-0060.md) | 🚧 In Progress (4/10 verified) |
+| Batch 6 | DR-0051 to DR-0060 | [DR-verified-0051-0060.md](./DR-verified-0051-0060.md) | 🚧 In Progress (8/10 verified) |
 | Batch 7 | DR-0061 to DR-0070 | [DR-verified-0061-0070.md](./DR-verified-0061-0070.md) | 🚧 In Progress (8/10 verified, 1 closed/deferred) |
 
 ## DR Summary
@@ -111,12 +118,17 @@ Currently: **52 verified DRs** (+ 1 closed/deferred) | Next available DR: **DR-0
 | DR-0042 | Apple Pencil Not Working with Gesture-Based Brushes on iOS | DrawingCanvasView / UIPanGestureRecognizer | ✅ Verified |
 | DR-0050 | OpenAI Content Analysis Timeout with Default URLSession Settings | OpenAIProvider / Content Analysis | ✅ Verified |
 | DR-0052 | OpenAI Entity Extraction Has Two Critical Bugs (0 Entities + Wrong Card Types) | OpenAIProvider / Content Analysis | ✅ Verified |
+| DR-0055 | Relationship Creation Timing Issue - Cancel Button Behaves Like Save | SuggestionReviewView, CardEditorView, Phase 6 (ER-0010) | ✅ Verified |
 | DR-0056 | SuggestionEngine Only Creating Forward Relationships (Missing Reverse Edges) | SuggestionEngine, Phase 6 (ER-0010) | ✅ Verified |
 
-### DR-0057 to DR-0068 - Temporal Editor Phase 2 & AI Analysis Fixes (Verified)
+### DR-0040 to DR-0068 - iOS Layout, Temporal Editor Phase 2 & AI Analysis Fixes (Verified)
 
 | DR | Title | Component | Status |
 |----|-------|-----------|--------|
+| DR-0040 | Button Text Overflow on iOS (Icon-Only Button Solution) | CardEditorView, BrushGridView / Tool Palette | ✅ Verified |
+| DR-0054 | Edit Card Sheet on iOS - Save/Cancel Buttons Pushed Off-Screen | CardEditorView | ✅ Verified |
+| DR-0055 | Relationship Creation Timing Issue - Cancel Button Behaves Like Save | SuggestionReviewView, CardEditorView, Phase 6 (ER-0010) | ✅ Verified |
+| DR-0056 | SuggestionEngine Only Creating Forward Relationships (Missing Reverse Edges) | SuggestionEngine, Phase 6 (ER-0010) | ✅ Verified |
 | DR-0057 | Calendar Extraction JSON Parser Fails on Null Length | CalendarSystemExtractor, AI Content Analysis | ✅ Verified |
 | DR-0058 | SceneTemporalPositionEditor Calendar Values Don't Persist | SceneTemporalPositionEditor, ER-0016 Phase 2 | ✅ Verified |
 | DR-0059 | SceneTemporalPositionEditor Duration Field Redesigned for Calendar Units | SceneTemporalPositionEditor, ER-0016 Phase 2 | ✅ Verified |
@@ -156,34 +168,52 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 68 (documented)
-- **Verified:** 52 (76.5%) ✅
-- **Resolved - Not Verified:** 1 (1.5%) 🟡
-  - DR-0055 (in archive)
-- **Open:** 6 (8.8%) 🔴
-  - Active: DR-0054, DR-0040, DR-0041, DR-0043 (in archive)
-  - Archived: DR-0038, DR-0039
-- **Closed/Deferred:** 2 (2.9%) ⚪
+- **Total DRs:** 71 (documented)
+- **Verified:** 56 (78.9%) ✅
+- **Resolved - Not Verified:** 0 (0%) 🟡
+- **Open:** 6 (8.5%) 🔴
+  - DR-0071 (Apple Image Playground portrait-only limitation) - identified 2026-02-03
+  - DR-0070 (Image provider picker doesn't show saved setting) - identified 2026-02-03
+  - DR-0069 (AI Provider Safety Filter False Positives) - identified 2026-02-03
+  - DR-0043 (Duplicate RelationType entries) - deferred per user
+  - DR-0041 (Vegetation brushes should render as area fills) - deferred per user
+  - DR-0038 (Draft interior drawing settings not remembered) - deferred per user
+  - Last 3 in archive
+- **Closed/Deferred:** 3 (4.2%) ⚪
   - DR-0060 (superseded by DR-0059 redesign, now verified)
   - DR-0067 (closed, deferred to ER-0020 - Dynamic AI Relationship Extraction)
-- **Latest DR:** DR-0068 (2026-01-30 - Calendar Insertion Bug) ✅ Verified (2026-01-31)
+  - DR-0039 (closed - OBE, fixed by draft persistence improvements)
+- **Latest DR:** DR-0071 (2026-02-03 - Apple Image Playground Portrait-Only Limitation) 🔴 Identified
 
 **Recent Activity:**
+- 2026-02-03: **IDENTIFIED 3 NEW DRs** (DR-0069, DR-0070, DR-0071) - AI Image Generation Issues 🔴
+  - **DR-0071:** Apple Image Playground requires person selection, unusable for landscapes/artifacts/vehicles
+    - High severity - Affects 70-80% of card types (non-character entities)
+    - Fundamental limitation of Apple's Image Playground design
+    - Proposed: Warning dialog, recommend OpenAI for non-portraits
+  - **DR-0070:** Image provider picker doesn't show saved setting in Settings UI
+    - Medium severity - UI binding bug (@State instead of @AppStorage)
+    - Setting works correctly, only display is wrong
+    - Simple fix: Change to @AppStorage in SettingsView.swift
+  - **DR-0069:** OpenAI safety filter rejects legitimate character names (e.g., "Evilin")
+    - High severity - Blocks content creation for certain character names
+    - Proposed: Enhanced error messages, multi-provider fallback, prompt preprocessing
+- 2026-02-02: **VERIFIED DR-0040** - Icon-only buttons on iOS! 🎉
+  - CardEditorView image action buttons now icon-only on iOS
+  - BrushGridView brush set picker uses Menu for proper icon-only display
+  - Files: CardEditorView.swift (lines 267-316), BrushGridView.swift (lines 59-110)
+- 2026-02-01: **VERIFIED DR-0054** - iOS Edit Sheet ScrollView fix! 🎉
+- 2026-02-01: **EXPANDED & RESOLVED DR-0040** - Icon-only buttons on iOS
+  - Scope expanded: CardEditorView image action buttons + BrushGridView brush set picker
+  - Solution: Icon-only buttons on iOS with tooltips, full labels on macOS
+  - BrushGridView: Changed from Picker to Menu on iOS for proper icon-only display
+- 2026-02-01: **VERIFIED 2 DRs** (DR-0055, DR-0056) - Relationship creation workflow fixes! 🎉
+- 2026-02-01: **CLOSED DR-0039** - OBE (fixed by draft persistence improvements DR-0011/0012/0013)
 - 2026-01-31: **VERIFIED 3 DRs** (DR-0065, DR-0066, DR-0068) - Calendar and AI analysis fixes! 🎉
-- 2026-01-31: **CLOSED DR-0067** - Deferred to ER-0020 (Dynamic AI Relationship Extraction) - Proper long-term solution
-- 2026-01-31: Cleared DR-unverified.md - **ALL DRs resolved or archived!** 🎉
-- 2026-01-30: **CREATED & RESOLVED DR-0068** - Calendar insertion bug (double-insert causing crash) ⚠️ CRITICAL
-- 2026-01-30: **CREATED & RESOLVED DR-0067** - Relationship inference not detecting patterns (3 separate bugs) - HIGH severity
-- 2026-01-30: **CREATED & RESOLVED DR-0066** - Relationships not created when analyzing existing (saved) cards - HIGH severity bug in AI content analysis
-- 2026-01-30: **CREATED & RESOLVED DR-0065** - Calendar deletion crash (missing @Relationship decorator) ⚠️ CRITICAL
+- 2026-01-31: **CLOSED DR-0067** - Deferred to ER-0020 (Dynamic AI Relationship Extraction)
 - 2026-01-30: **VERIFIED 8 DRs** (DR-0057 through DR-0064) - Temporal Editor Phase 2 complete! 🎉
-- 2026-01-30: Created batch files DR-verified-0051-0060.md and DR-verified-0061-0070.md
-- 2026-01-30: Cleared DR-unverified.md after verifying DR-0057 through DR-0064
-- 2026-01-29: Created DR-0064 (timeline freeze with 179-year range) - **CRITICAL FIX**
-- 2026-01-29: DR-0063 root cause found - **DatePicker showing date but not setting property**
-- 2026-01-29: DR-0058 root cause identified - **timeline missing epoch date** (added critical warnings)
 
 ---
 
-*Last Updated: 2026-01-31*
-*Document Version: 7.0 (DR-0065, 0066, 0068 verified; DR-0067 closed/deferred to ER-0020)*
+*Last Updated: 2026-02-03*
+*Document Version: 11.0 (DR-0069, DR-0070, DR-0071 identified - AI image generation issues)*

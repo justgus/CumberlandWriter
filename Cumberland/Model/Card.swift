@@ -140,6 +140,12 @@ final class Card: Identifiable {
     @Relationship(deleteRule: .cascade, inverse: \BoardNode.card)
     var boardNodes: [BoardNode]? = []
 
+    // MARK: - Image Version History (ER-0017)
+    // Previous versions of AI-generated images for this card
+    // Deleting the card removes all version history
+    @Relationship(deleteRule: .cascade, inverse: \ImageVersion.card)
+    var imageVersions: [ImageVersion]? = []
+
     init(
         id: UUID = UUID(),
         kind: Kinds = .projects,

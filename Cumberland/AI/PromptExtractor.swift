@@ -106,14 +106,25 @@ struct PromptExtractor {
 
     /// Build a detailed prompt with extracted keywords
     private static func buildPrompt(cardName: String, cardKind: Kinds, keywords: [VisualKeyword], fullDescription: String) -> String? {
-        // Get style prefix based on card kind
-        let stylePrefix = kindToPromptPrefix(cardKind)
+        // Check if card name might trigger content filters (weapon/violence terms)
+        let sensitivePrefixes = ["weapon", "gun", "rifle", "pistol", "sword", "blade", "knife", "axe", "bomb", "explosive"]
+        let nameWords = cardName.lowercased().split(separator: " ").map(String.init)
+        let hasSensitiveTerm = nameWords.contains { word in
+            sensitivePrefixes.contains(where: { word.contains($0) })
+        }
 
-        // Extract visual description (prioritize full description if reasonable length)
+        // Extract visual description
         let visualDescription = extractVisualDescription(from: fullDescription)
 
-        // Combine elements (skip keyword list - they're already in the description)
-        return "\(stylePrefix) \(cardName). \(visualDescription)"
+        // For artifacts with weapon terms, prioritize description to avoid content filters
+        if cardKind == .artifacts && hasSensitiveTerm && !visualDescription.isEmpty {
+            // Lead with description, no card name
+            return visualDescription
+        } else {
+            // Normal: style prefix + card name + description
+            let stylePrefix = kindToPromptPrefix(cardKind)
+            return "\(stylePrefix) \(cardName). \(visualDescription)"
+        }
     }
 
     /// Extract visual description from full text
@@ -171,12 +182,31 @@ struct PromptExtractor {
 
     /// Build a simple prompt without full description
     private static func buildSimplePrompt(cardName: String, cardKind: Kinds) -> String {
+        // Check for sensitive terms
+        let sensitivePrefixes = ["weapon", "gun", "rifle", "pistol", "sword", "blade", "knife", "axe", "bomb", "explosive"]
+        let nameWords = cardName.lowercased().split(separator: " ").map(String.init)
+        let hasSensitiveTerm = nameWords.contains { word in
+            sensitivePrefixes.contains(where: { word.contains($0) })
+        }
+
+        // For artifacts with weapon terms, use generic description
+        if cardKind == .artifacts && hasSensitiveTerm {
+            return "An artifact with intricate details, high quality professional artwork, detailed"
+        }
+
         let stylePrefix = kindToPromptPrefix(cardKind)
         return "\(stylePrefix) \(cardName), high quality professional artwork, detailed"
     }
 
     /// Build an atmospheric prompt focusing on mood
     private static func buildAtmosphericPrompt(cardName: String, cardKind: Kinds, keywords: [VisualKeyword], fullDescription: String) -> String? {
+        // Check for sensitive terms
+        let sensitivePrefixes = ["weapon", "gun", "rifle", "pistol", "sword", "blade", "knife", "axe", "bomb", "explosive"]
+        let nameWords = cardName.lowercased().split(separator: " ").map(String.init)
+        let hasSensitiveTerm = nameWords.contains { word in
+            sensitivePrefixes.contains(where: { word.contains($0) })
+        }
+
         let moodKeywords = keywords.filter {
             if case .mood = $0 { return true }
             return false
@@ -185,6 +215,20 @@ struct PromptExtractor {
         let lightingKeywords = keywords.filter {
             if case .lighting = $0 { return true }
             return false
+        }
+
+        // For artifacts with weapon terms, use description-based approach
+        if cardKind == .artifacts && hasSensitiveTerm {
+            let firstSentence = extractVisualSentence(from: fullDescription)
+            if !firstSentence.isEmpty {
+                let atmosphere = (moodKeywords + lightingKeywords).map(\.displayValue).joined(separator: ", ")
+                if !atmosphere.isEmpty {
+                    return "\(firstSentence), \(atmosphere) atmosphere, cinematic lighting"
+                } else {
+                    return "\(firstSentence), cinematic lighting, dramatic composition"
+                }
+            }
+            return nil // Can't build atmospheric prompt without description
         }
 
         // Require at least some mood/lighting keywords OR extract first sentence for context

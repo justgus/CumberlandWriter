@@ -61,11 +61,45 @@ class SuggestionEngine {
         }
     }
 
+    /// Statistics about what was detected vs what was new
+    /// ER-0015: Track filtering to provide better empty state messages
+    struct AnalysisStats {
+        let totalEntitiesDetected: Int
+        let totalRelationshipsDetected: Int
+        let entitiesFilteredAsExisting: Int
+        let relationshipsFilteredAsExisting: Int
+
+        var newEntities: Int {
+            totalEntitiesDetected - entitiesFilteredAsExisting
+        }
+
+        var newRelationships: Int {
+            totalRelationshipsDetected - relationshipsFilteredAsExisting
+        }
+
+        var totalDetected: Int {
+            totalEntitiesDetected + totalRelationshipsDetected
+        }
+
+        var totalNew: Int {
+            newEntities + newRelationships
+        }
+
+        var allAlreadyExist: Bool {
+            totalDetected > 0 && totalNew == 0
+        }
+
+        var nothingDetected: Bool {
+            totalDetected == 0
+        }
+    }
+
     /// Collection of all suggestions
     struct Suggestions {
         var cards: [CardSuggestion]
         var relationships: [RelationshipSuggestion]
         var calendars: [CalendarSuggestion]  // Phase 7
+        var stats: AnalysisStats  // ER-0015
 
         var totalCount: Int {
             cards.count + relationships.count + calendars.count
@@ -276,12 +310,15 @@ class SuggestionEngine {
     /// Phase 6: Added relationship inference
     /// Phase 7: Added calendar extraction
     /// ER-0020: Updated to use DetectedRelationship with dynamic verbs
+    /// ER-0015: Added stats tracking for better empty state messaging
     func generateAllSuggestions(
         entities: [Entity],
         relationships: [DetectedRelationship],
         sourceCard: Card,
         existingCards: [Card],
-        provider: AIProviderProtocol? = nil  // Phase 7: Optional for calendar extraction
+        provider: AIProviderProtocol? = nil,  // Phase 7: Optional for calendar extraction
+        totalEntitiesDetected: Int = 0,  // ER-0015: Total detected before filtering
+        entitiesFilteredAsExisting: Int = 0  // ER-0015: How many were filtered because they exist
     ) async -> Suggestions {
         #if DEBUG
         print("🎯 [SuggestionEngine] generateAllSuggestions called!")
@@ -368,10 +405,19 @@ class SuggestionEngine {
             return !isCalendar
         }
 
+        // ER-0015: Build analysis stats for better empty state messaging
+        let stats = AnalysisStats(
+            totalEntitiesDetected: totalEntitiesDetected,
+            totalRelationshipsDetected: relationships.count,
+            entitiesFilteredAsExisting: entitiesFilteredAsExisting,
+            relationshipsFilteredAsExisting: 0  // Relationships aren't filtered in Phase 6 design
+        )
+
         return Suggestions(
             cards: filteredCardSuggestions,
             relationships: allRelationshipSuggestions,
-            calendars: calendarSuggestions
+            calendars: calendarSuggestions,
+            stats: stats
         )
     }
 
@@ -718,7 +764,8 @@ class SuggestionEngine {
         return Suggestions(
             cards: filteredCards,
             relationships: filteredRelationships,
-            calendars: filteredCalendars
+            calendars: filteredCalendars,
+            stats: suggestions.stats  // Preserve original stats
         )
     }
 
@@ -742,7 +789,8 @@ class SuggestionEngine {
         return Suggestions(
             cards: highConfidenceCards,
             relationships: highConfidenceRelationships,
-            calendars: highConfidenceCalendars
+            calendars: highConfidenceCalendars,
+            stats: suggestions.stats  // Preserve original stats
         )
     }
 }

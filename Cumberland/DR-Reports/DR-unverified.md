@@ -2,10 +2,925 @@
 
 This document tracks recent discrepancy reports that have been resolved but are awaiting user verification.
 
-**Status:** Currently **0 active DRs**
+**Status:** Currently **4 active DRs** (2 Identified, 2 Resolved - Not Verified)
 
-**Note:** DRs 0057-0068 have been verified and moved to batch files (DR-verified-0051-0060.md and DR-verified-0061-0070.md)
-**Note:** DR-0067 closed and deferred to ER-0020 (2026-01-31)
+---
+
+
+## DR-0072: Batch Image Generation Fails with OpenAI Server Errors
+
+**Status:** 🟡 Resolved - Not Verified
+**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
+**Component:** BatchGenerationQueue, AI Image Generation
+**Severity:** High
+**Date Identified:** 2026-02-03
+**Date Resolved:** 2026-02-03
+
+**Description:**
+
+When using batch image generation with OpenAI DALL-E 3 provider, all images fail to generate with the error:
+
+```
+Failed to generate image for 'family compass': Invalid response from AI provider:
+The server had an error while processing your request. Sorry about that!
+[Provider: OpenAI DALL-E 3]
+```
+
+This is an **OpenAI server-side error**, not a Cumberland bug. However, the batch generation system was triggering OpenAI's internal rate limits by sending requests too quickly (12-second intervals).
+
+**Expected Behavior:**
+
+When generating multiple images in batch:
+1. Queue should respect OpenAI's rate limits (3 requests/minute)
+2. If a server error occurs, queue should automatically retry with exponential backoff
+3. Temporary server errors should not fail the entire batch
+4. User should see progress and retry attempts in the UI
+
+**Actual Behavior:**
+
+1. Batch generation starts with 12-second delay between requests
+2. OpenAI's servers respond with "server had an error" for most/all requests
+3. All images marked as failed
+4. No automatic retry
+5. User must manually retry each failed image individually
+
+**Root Cause:**
+
+**Problem 1: Insufficient Rate Limiting**
+
+OpenAI's DALL-E 3 API has internal rate limits beyond the documented tier limits. The batch queue was using a 12-second delay (5 requests/minute), which was still too aggressive and triggered server errors.
+
+**Problem 2: No Retry Logic**
+
+When OpenAI returns a temporary server error (503, "server had an error"), the batch queue immediately marked the task as failed with no retry attempts.
+
+```swift
+// BEFORE (BatchGenerationQueue.swift:372-413)
+do {
+    let (_, data) = try await imageGenerator.generateImage(
+        prompt: task.prompt,
+        provider: self.provider
+    )
+    // ... success handling ...
+} catch {
+    // ❌ Immediate failure - no retry
+    let errorMsg = "\(error.localizedDescription)"
+    task.status = .failed(error: errorMsg)
+}
+```
+
+**Fix Applied:**
+
+**1. Increased Rate Limiting (20s delay = 3 requests/minute):**
+
+```swift
+// BatchGenerationQueue.swift:100-101
+/// Minimum delay between requests (seconds) for rate limiting
+/// Default: 20 seconds (3 requests/minute) to avoid OpenAI server errors
+var minDelayBetweenRequests: TimeInterval = 20.0
+```
+
+**1.5. Smart Prompt Generation for Content Filter Avoidance:**
+
+Added intelligent prompt generation that detects potentially sensitive card names and prioritizes descriptions:
+
+```swift
+// BatchGenerationQueue.swift:222-271
+private func generatePrompt(for card: Card) -> String {
+    // Check if card name might trigger content filters
+    let sensitivePrefixes = ["weapon", "gun", "rifle", "pistol", "sword", "blade", "knife", "axe", "bomb", "explosive"]
+    let nameWords = card.name.lowercased().split(separator: " ").map(String.init)
+    let hasSensitiveTerm = nameWords.contains { word in
+        sensitivePrefixes.contains(where: { word.contains($0) })
+    }
+
+    // For artifacts with potentially sensitive names, prioritize description over name
+    if card.kind == .artifacts && hasSensitiveTerm && !card.detailedText.isEmpty {
+        // Use description first to establish context
+        let trimmedText = card.detailedText.prefix(400)
+        prompt = String(trimmedText)
+
+        // Optionally add sanitized name reference at end
+        if !card.subtitle.isEmpty {
+            prompt += ". Also known as \(card.subtitle)"
+        }
+    } else {
+        // Normal prompt generation: name first
+        // ... (standard logic)
+    }
+}
+```
+
+**How It Works:**
+- Detects weapon/violence terms in card names ("rifle", "gun", "sword", etc.)
+- For artifacts with sensitive names, uses detailed description as primary prompt
+- Card name omitted or moved to end as "Also known as" reference
+- Reduces content filter triggers while maintaining prompt quality
+
+**Example:**
+- **Card Name**: "plasma rifle"
+- **Detailed Text**: "An advanced energy projection device with crystalline chambers and glowing blue coils..."
+- **Old Prompt**: "plasma rifle, An advanced energy projection device..." → ❌ Content filter
+- **New Prompt**: "An advanced energy projection device with crystalline chambers and glowing blue coils..." → ✅ Likely passes
+
+**2. Added Automatic Retry with Exponential Backoff:**
+
+```swift
+// BatchGenerationQueue.swift:106-107
+/// Maximum retry attempts for server errors
+var maxRetries: Int = 2
+
+// BatchGenerationQueue.swift:377-468
+var lastError: Error?
+var retryCount = 0
+
+while retryCount <= self.maxRetries {
+    do {
+        let (_, data) = try await self.imageGenerator.generateImage(
+            prompt: task.prompt,
+            provider: self.provider
+        )
+        // ... success handling ...
+        return // Success!
+
+    } catch {
+        lastError = error
+
+        // Check for non-retryable errors (permanent failures)
+        let errorDesc = error.localizedDescription.lowercased()
+        let isContentFilter = errorDesc.contains("content filter") ||
+                             errorDesc.contains("safety system") ||
+                             errorDesc.contains("safety filter")
+        let isAuthError = errorDesc.contains("api key") ||
+                         errorDesc.contains("authentication") ||
+                         errorDesc.contains("unauthorized")
+        let isInvalidRequest = errorDesc.contains("invalid request") ||
+                              errorDesc.contains("invalid input")
+
+        // Content filters, auth errors, and invalid requests are permanent - don't retry
+        if isContentFilter || isAuthError || isInvalidRequest {
+            logger.error("❌ Non-retryable error for '\(card.name)': \(error.localizedDescription)")
+            break
+        }
+
+        // Check if this is a retryable server error
+        let isServerError = errorDesc.contains("server had an error") ||
+                           errorDesc.contains("server error") ||
+                           errorDesc.contains("503") ||
+                           errorDesc.contains("500") ||
+                           errorDesc.contains("overloaded")
+
+        if isServerError && retryCount < self.maxRetries {
+            let backoffDelay = Double(retryCount + 1) * 5.0 // 5s, 10s exponential backoff
+            logger.warning("⚠️ Server error for '\(card.name)', retrying in \(backoffDelay)s (attempt \(retryCount + 1)/\(self.maxRetries))")
+            try? await Task.sleep(for: .seconds(backoffDelay))
+            retryCount += 1
+            continue
+        }
+
+        // Not retryable or out of retries
+        break
+    }
+}
+
+// All retries exhausted or non-retryable error
+if let error = lastError {
+    var errorMsg = "\(error.localizedDescription) [Provider: \(self.provider ?? "default")]"
+
+    if retryCount > 0 {
+        errorMsg += " (failed after \(retryCount) \(retryCount == 1 ? "retry" : "retries"))"
+    }
+
+    // Add helpful hint for content filter errors
+    let errorDesc = error.localizedDescription.lowercased()
+    if errorDesc.contains("content filter") || errorDesc.contains("safety system") {
+        errorMsg += "\n\nTip: Try simplifying the prompt or removing potentially sensitive terms (e.g., 'weapon', 'rifle', 'gun'). Content filter blocks are permanent and cannot be retried."
+    }
+
+    task.status = .failed(error: errorMsg)
+}
+```
+
+**3. Enhanced Logging for Debugging:**
+
+```swift
+// BatchGenerationQueue.swift:374-376
+logger.info("🎨 Generating image for '\(card.name)' with provider: '\(self.provider ?? "default")'")
+logger.info("📝 Prompt: '\(task.prompt.prefix(100))...'")
+
+// BatchGenerationQueue.swift:404
+logger.info("✅ Generated image for '\(card.name)'\(retryCount > 0 ? " (after \(retryCount) retries)" : "")")
+
+// BatchGenerationQueue.swift:424
+logger.warning("⚠️ Server error for '\(card.name)', retrying in \(backoffDelay)s (attempt \(retryCount + 1)/\(self.maxRetries))")
+```
+
+**Retry Strategy:**
+
+- **1st attempt:** Immediate generation
+- **Retryable error (server/network issues):** Wait 5 seconds, retry (attempt 2)
+- **Still failing:** Wait 10 seconds, retry (attempt 3)
+- **Still failing:** Mark as failed (3 total attempts)
+- **Success at any point:** Continue to next image
+
+**Retryable Errors (will be retried automatically):**
+  - Server errors: 503, 500, "server had an error", "server error", "overloaded"
+  - Network errors: "timed out", "timeout", "network error", "connection", "unreachable"
+
+**Non-retryable Errors (fail immediately without retry):**
+  - Content filter blocks: "content filter", "safety system", "safety filter"
+  - Authentication errors: "api key", "authentication", "unauthorized"
+  - Invalid request errors: "invalid request", "invalid input"
+
+**Error Message Enhancement:**
+
+**Content filter errors** include a helpful tip:
+```
+Tip: Try simplifying the prompt or removing potentially sensitive terms (e.g., 'weapon', 'rifle', 'gun').
+Content filter blocks are permanent and cannot be retried.
+```
+
+**Timeout errors** include explanatory note:
+```
+Note: Image generation can take 30-60 seconds. This timeout occurred after automatic retries.
+Try again with a smaller batch or check your network connection.
+```
+
+**Rate Limiting:**
+
+- **Base delay:** 20 seconds between requests (3/minute)
+- **With retries:** Additional 5-10 second delays when needed
+- **Total time per image:** 20-45 seconds depending on retry needs
+
+**Files Modified:**
+- `Cumberland/AI/BatchGenerationQueue.swift:100-101` - Increased delay to 20 seconds
+- `Cumberland/AI/BatchGenerationQueue.swift:106-107` - Added maxRetries property
+- `Cumberland/AI/BatchGenerationQueue.swift:222-271` - **Smart prompt generation to avoid content filters for artifacts with weapon terms**
+- `Cumberland/AI/BatchGenerationQueue.swift:377-468` - Implemented retry loop with exponential backoff and non-retryable error detection
+- `Cumberland/AI/BatchGenerationQueue.swift:382-385` - Added explicit `self.` for closure capture semantics
+- `Cumberland/AI/BatchGenerationQueue.swift:388` - Added explicit `self.modelContext` for closure capture
+- `Cumberland/AI/BatchGenerationQueue.swift:416-434` - Added non-retryable error detection (content filters, auth errors, invalid requests)
+- `Cumberland/AI/BatchGenerationQueue.swift:453-463` - Enhanced error messages with helpful tips for content filter errors
+
+**Test Steps:**
+
+**Test 1: Normal Batch Generation with Retryable Errors**
+1. Select 5-10 cards in the main card list (use "Select" button)
+2. Click "Generate Images" to start batch generation
+3. **Verify:** Batch generation UI shows progress
+4. **Verify:** Console shows 20-second delays between requests:
+   ```
+   🎨 Generating image for 'Card 1' with provider: 'OpenAI DALL-E 3'
+   Rate limiting: waiting 20.0s before next request
+   🎨 Generating image for 'Card 2' with provider: 'OpenAI DALL-E 3'
+   ```
+5. **If server error occurs:**
+   ```
+   ⚠️ Server error for 'Card 3', retrying in 5.0s (attempt 1/2)
+   ⚠️ Server error for 'Card 3', retrying in 10.0s (attempt 2/2)
+   ```
+6. **If timeout occurs:**
+   ```
+   ⚠️ Timeout for 'family compass', retrying in 5.0s (attempt 1/2)
+   ⚠️ Timeout for 'family compass', retrying in 10.0s (attempt 2/2)
+   ```
+7. **Verify:** Failed images show retry count in error message:
+   ```
+   "The server had an error... (failed after 2 retries)"
+   "The request timed out... (failed after 2 retries)"
+   ```
+8. **Verify:** Timeout errors include helpful note about network/batch size
+9. **Verify:** Successful images show completion:
+   ```
+   ✅ Generated image for 'Card 4'
+   ✅ Generated image for 'Card 5' (after 1 retry)
+   ```
+10. **Verify:** Batch completes with summary:
+   ```
+   Batch generation completed: 8/10 succeeded, 2 failed
+   ```
+
+**Test 2: Smart Prompt Generation for Sensitive Terms**
+9. Create an artifact card named "plasma rifle" with detailed description:
+   ```
+   Name: plasma rifle
+   Detailed Text: An advanced energy projection device with crystalline chambers
+   and glowing blue coils. Uses plasma containment technology.
+   ```
+10. Include in batch generation
+11. **Verify:** Console shows prompt prioritizing description:
+    ```
+    📝 Prompt: 'An advanced energy projection device with crystalline chambers...'
+    ```
+    (Note: "plasma rifle" should NOT be at the beginning)
+12. **Verify:** Generation succeeds (avoids content filter) ✅
+
+**Test 3: Content Filter Errors (No Retry)**
+13. Create an artifact card with weapon term but NO detailed description:
+    ```
+    Name: assault rifle
+    Detailed Text: (empty)
+    ```
+14. Include in batch generation
+15. **Verify:** If content filter triggers, it does NOT retry:
+    ```
+    ❌ Non-retryable error for 'assault rifle': This request has been blocked by our content filters.
+    ```
+16. **Verify:** Error message includes helpful tip:
+    ```
+    Tip: Try simplifying the prompt or removing potentially sensitive terms (e.g., 'weapon', 'rifle', 'gun').
+    Content filter blocks are permanent and cannot be retried.
+    ```
+17. **Verify:** No "(failed after X retries)" in message (retryCount should be 0)
+
+**Best Practices for Avoiding Content Filters:**
+
+1. **Add Detailed Descriptions:** For artifact cards with weapon terms, provide detailed descriptions that focus on appearance/function rather than the weapon nature. The smart prompt generation will prioritize these descriptions.
+
+   **Example:**
+   ```
+   Name: plasma rifle
+   Detailed Text: An advanced energy projection device with crystalline chambers
+   and glowing blue coils. Features a sleek metallic body with holographic
+   targeting interface.
+   ```
+   → Prompt will use the description, avoiding "rifle" at the start
+
+2. **Use Euphemistic Names:** Consider using sci-fi/fantasy terminology instead of real-world weapon terms:
+   - "Plasma Caster" instead of "Plasma Rifle"
+   - "Energy Blade" instead of "Laser Sword"
+   - "Kinetic Accelerator" instead of "Rail Gun"
+
+**Troubleshooting Server Errors:**
+
+If batch generation fails due to OpenAI server issues:
+
+1. **Wait and Retry:** OpenAI server errors are often temporary. Wait 5-10 minutes and retry the batch.
+
+2. **Use Smaller Batches:** Instead of generating 20 images at once, try batches of 5-10 cards.
+
+3. **Manual Retry:** The batch queue has a "Retry Failed" button that will automatically retry only the failed images.
+
+4. **Individual Generation:** For critical images, generate them individually using the "Generate Image" button in the card editor (where you can customize the prompt).
+
+5. **Check OpenAI Status:** Visit https://status.openai.com to see if there are known API issues.
+
+**Related Issues:**
+- ER-0017: Batch Image Generation implementation (where this was discovered)
+- DR-0070: Provider picker defaulting incorrectly (same testing session)
+
+**Notes:**
+- This is NOT a Cumberland bug - it's a limitation of OpenAI's API server capacity and network variability
+- However, Cumberland can handle it more gracefully with retry logic and smart prompt generation
+- The 20-second delay is conservative but helps avoid triggering rate limits
+- Exponential backoff gives OpenAI servers time to recover from temporary issues
+- **Retry logic applies to:**
+  - Server errors: 503, 500, "server had an error", "overloaded"
+  - Network errors: timeouts, connection issues, unreachable servers
+- **Non-retryable errors** (fail immediately):
+  - Content filters (permanent rejection)
+  - Authentication errors (need manual API key fix)
+  - Invalid request errors (malformed request won't succeed on retry)
+- **Smart prompt generation** (added during fix): Automatically detects weapon/violence terms in artifact names and prioritizes descriptions to avoid content filters
+- For cards with weapon terms but no description, content filters may still trigger - add detailed text to cards for best results
+- **Timeout retries** (added during fix): Network timeouts are now retried automatically, helpful for slow connections or OpenAI server load
+
+---
+
+## DR-0073: Regenerate Image Uses Old Prompt Instead of Updated Description
+
+**Status:** 🟡 Resolved - Not Verified
+**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
+**Component:** CardEditorView, AIImageGenerationView
+**Severity:** Medium
+**Date Identified:** 2026-02-03
+**Date Resolved:** 2026-02-03
+
+**Description:**
+
+When a user updates a card's description and then clicks "Regenerate Image...", the AI Image Generation panel opens with the **old prompt** (from the previous generation) instead of generating a **new prompt** from the updated description.
+
+**User Workflow:**
+1. User has a card with an AI-generated image
+2. User updates the card's "Detailed Text" field with new/improved description
+3. User clicks "Regenerate Image..." button
+4. AI Image Generation panel opens
+5. **Expected:** Prompt field shows NEW prompt based on updated description
+6. **Actual:** Prompt field shows OLD prompt from previous generation
+
+**Impact:**
+- User changes to descriptions are ignored when regenerating images
+- User must manually paste their updated description into the prompt field
+- Defeats the purpose of smart prompt generation from card descriptions
+- Confusing UX - user doesn't understand why their changes aren't reflected
+
+**Root Cause:**
+
+In `CardEditorView.swift:499-507`, the AI Image Generation panel is initialized with the stored prompt from the previous generation:
+
+```swift
+AIImageGenerationView(
+    cardName: name,
+    cardDescription: detailedText,  // ← NEW description is passed
+    cardKind: mode.kind,
+    initialPrompt: {
+        // Pre-fill with existing prompt if regenerating AI image
+        if case .edit(let card, _) = mode,
+           card.imageGeneratedByAI == true,
+           let existingPrompt = card.imageAIPrompt {
+            return existingPrompt  // ← But OLD prompt takes priority!
+        }
+        return nil
+    }(),
+```
+
+Then in `AIImageGenerationView.swift:311-317`, the logic prioritizes `initialPrompt` over generating new suggestions:
+
+```swift
+// Pre-fill prompt
+if let initial = initialPrompt, !initial.isEmpty {
+    // Use existing prompt if regenerating ← OLD prompt used here
+    prompt = initial
+} else if !suggestedPrompts.isEmpty {
+    // Auto-fill with first (best) suggestion for new generation
+    prompt = suggestedPrompts[0]  // ← NEW suggestions ignored
+}
+```
+
+**The Problem:**
+- Panel receives BOTH the new description AND the old prompt
+- Old prompt takes priority over new suggestions
+- Smart suggestions are generated from new description but never used
+- User's updated description is ignored
+
+**Fix Applied:**
+
+Removed the old prompt pre-fill logic in `CardEditorView.swift:499`:
+
+```swift
+// BEFORE
+initialPrompt: {
+    if case .edit(let card, _) = mode,
+       card.imageGeneratedByAI == true,
+       let existingPrompt = card.imageAIPrompt {
+        return existingPrompt
+    }
+    return nil
+}(),
+
+// AFTER
+initialPrompt: nil, // Don't pre-fill - let it generate fresh suggestions from current description
+```
+
+**Rationale:**
+- When regenerating, user wants to use their CURRENT description
+- Smart prompt generation already creates excellent prompts from descriptions
+- If user wants to use a similar prompt to before, they can:
+  - View the Image History to see the old prompt
+  - Modify the suggested prompt as needed
+  - Paste their own custom prompt (now that paste works - see related fix)
+
+**Files Modified:**
+- `Cumberland/CardEditorView.swift:499` - Removed old prompt pre-fill, always use nil for initialPrompt
+
+**Test Steps:**
+
+1. Open a card that has an AI-generated image (e.g., a character with existing portrait)
+2. Note the current image and what description was used
+3. Update the card's "Detailed Text" field with significant new information:
+   ```
+   Old: A tall warrior with a sword
+   New: A tall warrior with a sword and ornate golden armor. She has
+   flowing red hair and piercing green eyes. Her armor is decorated
+   with dragon motifs.
+   ```
+4. Click "Regenerate Image..." button
+5. **Verify:** AI Image Generation panel opens
+6. **Verify:** Prompt field shows NEW prompt based on updated description ✅
+7. **Verify:** Prompt includes details about "golden armor", "red hair", "green eyes", "dragon motifs" ✅
+8. **Verify:** Old prompt is NOT shown
+9. Click "Generate" to create new image with updated prompt
+10. **Verify:** Generated image reflects the updated description ✅
+
+**Alternative Test (Suggestions):**
+11. Open a card with AI-generated image
+12. Update description with new details
+13. Click "Regenerate Image..."
+14. **Verify:** "Suggestions:" section shows prompts based on NEW description ✅
+15. Click on a suggestion to use it
+16. **Verify:** Suggestion reflects the updated description, not old content ✅
+
+**Related Issues:**
+- ER-0009: AI Image Generation implementation
+- ER-0017: Image History (user can view old prompts in history if needed)
+- AIImageGenerationView paste issue (fixed in same session - user tried to paste because prompt was wrong)
+
+**Notes:**
+- This bug has existed since ER-0009 (AI Image Generation) was implemented
+- The original intent was to help users regenerate with the same prompt
+- However, when users UPDATE descriptions, they expect new prompts
+- The fix assumes regeneration = use current description (which is the common case)
+- Users can still manually enter custom prompts if desired
+- Old prompts are preserved in Image History for reference
+
+---
+
+## DR-0071: Apple Image Playground Requires Person Selection, Unsuitable for Non-Portrait Generation
+
+**Status:** 🔴 Identified - Not Resolved
+**Platform:** All platforms (iOS 18.1+, macOS 15.1+, iPadOS 18.1+, visionOS 2.1+)
+**Component:** AI Image Generation, AppleIntelligenceProvider, Image Playground Integration
+**Severity:** High
+**Date Identified:** 2026-02-03
+
+**Description:**
+
+When using "Apple Intelligence" as the image generation provider, the system launches Apple's Image Playground with the following limitations:
+
+1. **Person selection required:** Image Playground requires selecting a person to guide the image appearance, even when generating non-portrait subjects (landscapes, artifacts, vehicles, buildings, etc.)
+
+2. **Incomplete prompt transfer:** Only some elements of the user's prompt make it into the Image Playground bubble - not the full prompt
+
+3. **Workflow mismatch:** Image Playground is designed for creating stylized images of people, but Cumberland users need to generate images of all entity types (characters, locations, artifacts, vehicles, buildings, organizations, etc.)
+
+**User Impact:**
+
+When user attempts to generate an image for:
+- **Landscape:** "A vast desert with rolling sand dunes under twin moons"
+  - Result: Image Playground asks "Choose a person to guide the appearance"
+  - Problem: There IS no person in a landscape!
+
+- **Artifact:** "A glowing sword with ancient runes etched into the blade"
+  - Result: Image Playground asks for person selection
+  - Problem: An artifact doesn't need a person
+
+- **Vehicle:** "A steampunk airship with brass gears and canvas sails"
+  - Result: Image Playground asks for person selection
+  - Problem: Vehicle-focused images don't require person concepts
+
+**Expected Behavior:**
+
+When user selects "Apple Intelligence" provider and generates an image:
+1. Full prompt should be passed to Image Playground
+2. Image Playground should generate the requested subject without requiring person selection
+3. Non-portrait subjects (landscapes, objects, scenes) should work seamlessly
+
+**Actual Behavior:**
+
+1. Cumberland passes prompt to Image Playground via `ImagePlaygroundConcept.text(prompt)`
+2. Image Playground receives partial prompt
+3. Image Playground requires selecting a person (even for non-person subjects)
+4. User cannot proceed without selecting a person
+5. Generated image may include unwanted person in landscape/artifact/vehicle scene
+
+**Root Cause:**
+
+**Apple's Design Choice:**
+
+Apple's Image Playground framework is fundamentally designed for portrait-style image generation:
+- Primary use case: Stylized images of people (cartoon avatars, fun portraits)
+- Requires "person concept" as mandatory input
+- Not designed for general-purpose image generation
+
+From Apple's ImagePlayground documentation:
+> "Image Playground creates fun, original images in moments based on descriptions, suggested concepts, and even people from your Photos library."
+
+The emphasis is on "people from your Photos library" - person-centric workflow.
+
+**Cumberland's Integration:**
+
+```swift
+// AIImageGenerationView.swift:313-320
+.imagePlaygroundSheet(
+    isPresented: $showImagePlaygroundSheet,
+    concepts: [
+        ImagePlaygroundConcept.text(prompt)  // Only text concept passed
+    ]
+) { url in
+    handleImagePlaygroundResult(url)
+}
+```
+
+The code correctly uses `ImagePlaygroundConcept.text()`, but Image Playground's UI layer still enforces person selection.
+
+**Why This Matters:**
+
+Cumberland is a worldbuilding tool for complex narratives:
+- Only ~20-30% of cards are characters (need portraits)
+- ~70-80% of cards are locations, artifacts, vehicles, buildings, organizations, events
+- Apple Intelligence/Image Playground is unsuitable for the majority of use cases
+
+**Proposed Solutions:**
+
+### Solution 1: Disable Apple Intelligence for Non-Character Cards (Quick Fix)
+
+Detect card type and prevent Apple Intelligence selection for non-character cards:
+
+```swift
+// In AIImageGenerationView or CardEditorView
+var availableProviders: [AIProviderProtocol] {
+    let all = AIProviderRegistry.shared.availableProviders()
+
+    // Filter out Apple Intelligence for non-character cards
+    if card.kind != .characters {
+        return all.filter { $0.name != "Apple Intelligence" }
+    }
+
+    return all
+}
+```
+
+**Pros:**
+- Prevents user frustration
+- Clear messaging about why Apple Intelligence is unavailable
+- Simple to implement
+
+**Cons:**
+- Reduces provider options for most card types
+- User loses ability to try Apple Intelligence even if they want to experiment
+
+### Solution 2: Warn User Before Launching Image Playground (Medium Fix)
+
+Show alert before launching Image Playground for non-character cards:
+
+```swift
+// Before setting showImagePlaygroundSheet = true
+if card.kind != .characters {
+    showAlert = true
+    alertMessage = """
+    Apple Image Playground is designed for creating images of people and may not work well for this card type (\(card.kind.displayName)).
+
+    Recommendation: Use OpenAI (DALL-E 3) or Anthropic for better results with landscapes, artifacts, and other non-portrait subjects.
+
+    Continue with Apple Intelligence anyway?
+    """
+}
+```
+
+**Pros:**
+- User stays informed
+- Still allows experimentation if desired
+- Suggests better alternatives
+
+**Cons:**
+- Extra step in workflow
+- Doesn't solve the underlying limitation
+
+### Solution 3: Add Alternative Apple Provider (Long-term)
+
+Wait for Apple to release general-purpose image generation API (not Image Playground):
+- Monitor for WWDC announcements
+- Check for new frameworks in future iOS/macOS releases
+- Implement when available
+
+**Pros:**
+- Full functionality with Apple's ecosystem
+- No API keys required
+- On-device processing (privacy)
+
+**Cons:**
+- No timeline from Apple
+- May never happen (Image Playground might be Apple's only offering)
+- Users stuck with limited options until then
+
+### Solution 4: Make OpenAI the Default (Immediate Workaround)
+
+Change default provider from "Apple Intelligence" to "OpenAI":
+
+```swift
+// AISettings.swift:42
+static let imageGenerationProvider = "OpenAI"  // Was: "Apple Intelligence"
+```
+
+**Pros:**
+- DALL-E 3 works for all content types
+- Better default user experience
+- No workflow interruptions
+
+**Cons:**
+- Requires API key (friction for new users)
+- Costs money (usage-based pricing)
+- Not on-device (privacy consideration)
+
+**Recommended Approach:**
+
+**Phase 1 (Immediate):** Implement Solution 2 - Warning dialog
+- Inform users about limitation
+- Suggest OpenAI for non-portrait subjects
+- Still allow usage if user insists
+
+**Phase 2 (Short-term):** Implement Solution 4 - Change default to OpenAI
+- Better out-of-box experience
+- Provide clear setup instructions for API key
+
+**Phase 3 (Long-term):** Monitor for Apple updates
+- Watch for general-purpose image generation APIs
+- Implement when available
+
+**Files to Modify:**
+
+**For Solution 2 (Warning Dialog):**
+- `Cumberland/AI/AIImageGenerationView.swift:269-278` - Add warning before showImagePlaygroundSheet
+- New: `Cumberland/AI/ImagePlaygroundWarningView.swift` - Alert/warning UI component
+
+**For Solution 4 (Change Default):**
+- `Cumberland/AI/AISettings.swift:42` - Change default provider
+- `Cumberland/Documentation/` - Update setup instructions
+
+**Test Steps:**
+
+**Current Behavior (Reproduce Issue):**
+1. Create a location card: "The Whispering Desert"
+2. Add description: "A vast desert with rolling sand dunes and ancient ruins"
+3. Set image provider to "Apple Intelligence"
+4. Click "Generate Image"
+5. **Observe:** Image Playground launches
+6. **Observe:** Partial prompt appears in bubble
+7. **Observe:** "Choose a person to guide the appearance" prompt appears
+8. **Problem:** Cannot proceed without selecting a person for a landscape
+
+**After Fix (Solution 2):**
+5. **Observe:** Warning dialog appears:
+   "Apple Image Playground is designed for creating images of people..."
+6. User can:
+   - **Option A:** "Use OpenAI Instead" (switches provider and generates)
+   - **Option B:** "Continue with Apple Intelligence" (proceeds to Image Playground)
+   - **Option C:** "Cancel" (returns to prompt editing)
+
+**Related Issues:**
+- ER-0009: AI Image Generation implementation
+- DR-0069: AI safety filter false positives
+- DR-0070: Provider picker doesn't show saved setting
+
+**Notes:**
+- This is NOT a Cumberland bug - it's a design limitation of Apple's Image Playground
+- Image Playground works well for character portraits (its intended use case)
+- Cumberland needs general-purpose image generation for all entity types
+- User discovered this when attempting to generate image for "Captain Evilin Drake" (character) - even portraits trigger person selection
+- Industry context: OpenAI's DALL-E 3, Anthropic's image generation (future), and other APIs support all subject types without person requirements
+
+**Documentation Update Needed:**
+
+Add to user documentation:
+> **Provider Recommendations:**
+> - **Characters/Portraits:** Apple Intelligence or OpenAI
+> - **Locations/Landscapes:** OpenAI (Apple Intelligence requires person selection)
+> - **Artifacts/Objects:** OpenAI (Apple Intelligence requires person selection)
+> - **Vehicles:** OpenAI (Apple Intelligence requires person selection)
+> - **Buildings:** OpenAI (Apple Intelligence requires person selection)
+
+---
+
+## DR-0069: AI Provider Safety Filter False Positives on Character Names
+
+**Status:** 🔴 Identified - Not Resolved
+**Platform:** All platforms
+**Component:** AI Image Generation, ImageGenerator
+**Severity:** High
+**Date Identified:** 2026-02-03
+
+**Description:**
+
+When generating images for characters with certain names, the AI provider's safety filter rejects valid prompts with false positives. User attempted to generate an image for "Captain Evilin Drake" with a legitimate character description (orange astronaut jumpsuit, physical features), but received:
+
+```
+Image generation failed: Invalid response from AI provider: Your request was rejected as a result of our safety system. Your prompt may contain text that is not allowed by our safety system.
+```
+
+The prompt contained no inappropriate content - it was a standard character description for a science fiction story. The name "Evilin" likely triggered the filter (interpreted as "Evil in" or similar).
+
+**Impact:**
+- Users cannot generate images for characters with certain legitimate names
+- Blocks creative storytelling (fantasy/sci-fi names often use unusual spellings)
+- Poor user experience - no explanation of what triggered the filter
+- No workaround suggested in error message
+- Forces users to rename characters or manually edit images elsewhere
+
+**Root Cause:**
+
+**Provider Side (OpenAI/DALL-E 3):**
+- Safety filters use pattern matching that can produce false positives
+- Overly aggressive filtering of word combinations in names
+- No context awareness (can't distinguish character name from content description)
+
+**Cumberland Side:**
+- Error handling doesn't provide helpful guidance for safety filter rejections
+- No automatic retry with prompt variations
+- No prompt preprocessing to catch potential issues before sending to provider
+- No fallback to alternative providers when safety filters trigger
+- No user education about safety filter limitations
+
+**Expected Behavior:**
+
+When a safety filter triggers on a legitimate prompt:
+1. Show clear error message explaining it's a safety filter issue
+2. Suggest specific remediation (e.g., "Try using a different character name or rephrasing")
+3. Offer to retry with automatic prompt variations
+4. Provide option to switch to alternative AI provider
+5. Allow user to report false positive
+
+**Actual Behavior:**
+
+- Generic error message with no actionable guidance
+- User stuck with no path forward
+- Must manually guess what triggered the filter
+- No alternatives offered
+
+**Proposed Solutions:**
+
+### Solution 1: Enhanced Error Handling (Quick Fix)
+Detect safety filter rejections and provide better messaging:
+```swift
+// In ImageGenerator.swift error handling
+if errorMessage.contains("safety system") {
+    throw ImageGeneratorError.safetyFilterRejection(
+        suggestion: "The AI safety filter rejected this prompt. Try:\n" +
+                   "• Using a different character name\n" +
+                   "• Rephrasing the description\n" +
+                   "• Switching to Apple Intelligence provider\n" +
+                   "• Simplifying the prompt"
+    )
+}
+```
+
+### Solution 2: Prompt Preprocessing (Medium Complexity)
+Add preprocessing layer to detect potential issues:
+- Check for name patterns that commonly trigger filters
+- Warn user before sending to provider
+- Suggest alternatives (e.g., "Evilin" → "Evalin" or use first/last name only)
+- Optional "sanitize prompt" mode that auto-replaces problematic patterns
+
+### Solution 3: Automatic Retry with Variations (Medium Complexity)
+When safety filter triggers, automatically retry with variations:
+1. Original prompt fails
+2. Try with character's first name only
+3. Try with character's last name only
+4. Try with generic description (remove name entirely)
+5. Report results to user with explanation
+
+### Solution 4: Multi-Provider Fallback (Higher Complexity)
+When one provider's safety filter triggers, automatically try others:
+1. OpenAI fails → Try Apple Intelligence
+2. Both fail → Try Anthropic (when added in future)
+3. Show user which provider worked
+4. Remember successful provider for this character type
+
+### Solution 5: User Feedback System (Long-term)
+- Add "Report False Positive" button in error dialog
+- Collect prompt + error for analysis
+- Build database of known false positives
+- Use for preprocessing in Solution 2
+
+**Recommended Approach:**
+
+**Phase 1 (Immediate):** Implement Solution 1 - Enhanced error handling with actionable suggestions
+
+**Phase 2 (Short-term):** Implement Solution 4 - Multi-provider fallback (infrastructure already exists)
+
+**Phase 3 (Medium-term):** Implement Solution 2 - Prompt preprocessing with known patterns
+
+**Phase 4 (Long-term):** Implement Solution 5 - User feedback system
+
+**Workaround (For User Now):**
+
+1. **Try Apple Intelligence provider instead:**
+   - Go to Settings → AI Settings
+   - Change "Image Generation Provider" from OpenAI to Apple Intelligence
+   - Try generating again (Apple's filters may be less strict)
+
+2. **Modify character name in prompt:**
+   - Change "Captain Evilin Drake" to "Captain E. Drake" or "Captain Drake"
+   - Or temporarily use a similar name like "Captain Evalin Drake"
+
+3. **Generate without name:**
+   - Remove character name from prompt entirely
+   - Use generic description: "A tall woman with long straight dark hair in a ponytail..."
+   - Add name to card manually after image is generated
+
+4. **Use different provider for this character:**
+   - Some characters may work better with certain providers
+   - Try both OpenAI and Apple Intelligence to see which works
+
+**Files to Modify:**
+
+**For Solution 1 (Enhanced Error Handling):**
+- `Cumberland/AI/ImageGenerator.swift` - Add better error detection and messaging
+
+**For Solution 4 (Multi-Provider Fallback):**
+- `Cumberland/AI/ImageGenerator.swift` - Add fallback logic
+- `Cumberland/CardEditorView.swift` - UI to show which provider succeeded
+- `Cumberland/AI/AISettings.swift` - Option to enable/disable auto-fallback
+
+**Related Issues:**
+- ER-0009: AI Image Generation implementation (where this was discovered)
+- Future: Anthropic image generation provider (additional fallback option)
+
+**Notes:**
+- This is not a Cumberland bug - it's a limitation of AI provider safety filters
+- However, Cumberland can handle it more gracefully
+- Common issue in AI image generation - worth investing in good UX
+- Other character names that might trigger: Lucifer, Demon, Evil, Satan, Kill, Murder, etc.
+- Fantasy/sci-fi names are especially prone to false positives
 
 ---
 

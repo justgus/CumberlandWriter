@@ -234,22 +234,123 @@ struct SuggestionReviewView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
+            // ER-0015: Show different icons/messages based on what happened
+            if mutableSuggestions.stats.allAlreadyExist {
+                // All entities/relationships already exist - success!
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.green)
+            } else {
+                // Nothing detected - need better text
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.secondary)
+            }
 
             Text("No Suggestions Found")
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("The AI couldn't find any entities or relationships in the text.\n\nTry adding more descriptive details to your card.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+            // ER-0015: Context-aware message based on analysis stats
+            let stats = mutableSuggestions.stats
+            if stats.allAlreadyExist {
+                // Case 1: Everything detected already exists
+                allAlreadyExistMessage(stats: stats)
+            } else if stats.nothingDetected {
+                // Case 2: AI found nothing
+                nothingDetectedMessage
+            } else {
+                // Case 3: Shouldn't happen, but just in case
+                nothingDetectedMessage
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.top, 60)
+    }
+
+    // MARK: - Empty State Messages
+
+    /// Message when all detected entities/relationships already exist as cards
+    private func allAlreadyExistMessage(stats: SuggestionEngine.AnalysisStats) -> some View {
+        VStack(spacing: 12) {
+            Text("All entities and relationships from this text have already been created!")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            VStack(alignment: .leading, spacing: 6) {
+                if stats.totalEntitiesDetected > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle")
+                            .foregroundStyle(.green)
+                        Text("\(stats.totalEntitiesDetected) \(stats.totalEntitiesDetected == 1 ? "entity" : "entities") detected (all already exist as cards)")
+                            .font(.caption)
+                    }
+                }
+
+                if stats.totalRelationshipsDetected > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle")
+                            .foregroundStyle(.green)
+                        Text("\(stats.totalRelationshipsDetected) \(stats.totalRelationshipsDetected == 1 ? "relationship" : "relationships") detected")
+                            .font(.caption)
+                    }
+                }
+            }
+            .foregroundStyle(.secondary)
+            .padding(12)
+            .background(Color.green.opacity(0.1))
+            .cornerRadius(8)
+
+            Text("This means you've already analyzed this passage. Nothing new to create!")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .italic()
+                .padding(.top, 4)
+        }
+        .padding(.horizontal)
+    }
+
+    /// Message when AI found nothing in the text
+    private var nothingDetectedMessage: some View {
+        VStack(spacing: 12) {
+            Text("The AI analysis didn't detect any entities or relationships in your text.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("To improve results:")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Include specific names (characters, locations, artifacts)", systemImage: "person.fill")
+                    Label("Describe relationships between entities", systemImage: "arrow.left.and.right")
+                    Label("Ensure text is at least 25 words", systemImage: "text.alignleft")
+                    Label("Mention events, organizations, or historical periods", systemImage: "calendar")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                Text("Example:")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
+
+                Text("\"Captain Aria discovered the ancient Codex in the ruins beneath Silverkeep.\"")
+                    .font(.caption)
+                    .italic()
+                    .foregroundStyle(.tertiary)
+                    .padding(.leading, 8)
+            }
+            .padding(12)
+            .background(Color.secondary.opacity(0.1))
+            .cornerRadius(8)
+        }
+        .padding(.horizontal)
     }
 
     // MARK: - Buttons
@@ -802,7 +903,17 @@ private struct ConfidenceBadge: View {
     let suggestions = suggestionEngine.generateCardSuggestions(from: sampleEntities, sourceCard: card)
 
     SuggestionReviewView(
-        suggestions: SuggestionEngine.Suggestions(cards: suggestions, relationships: [], calendars: []),
+        suggestions: SuggestionEngine.Suggestions(
+            cards: suggestions,
+            relationships: [],
+            calendars: [],
+            stats: SuggestionEngine.AnalysisStats(
+                totalEntitiesDetected: suggestions.count,
+                totalRelationshipsDetected: 0,
+                entitiesFilteredAsExisting: 0,
+                relationshipsFilteredAsExisting: 0
+            )
+        ),
         sourceCard: card,
         existingCards: [],
         pendingRelationships: $pendingRelationships

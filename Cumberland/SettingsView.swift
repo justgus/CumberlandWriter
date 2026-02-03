@@ -847,10 +847,13 @@ private struct BatchAttributionSheet: View {
 // MARK: - AI Settings Pane
 
 private struct AISettingsPane: View {
+    // DR-0070: Use @State with onAppear to sync from UserDefaults
     @State private var analysisProvider: String = AISettings.shared.analysisProvider
     @State private var imageGenerationProvider: String = AISettings.shared.imageGenerationProvider
+    @State private var needsInitialLoad: Bool = true
     @State private var apiKeys: [String: String] = [:] // providerKey -> entered text
     @State private var showAPIKey: [String: Bool] = [:] // providerKey -> show/hide
+    @State private var hasAPIKey: [String: Bool] = [:] // providerKey -> has key in keychain (reactive)
     @State private var savedMessage: String?
     @State private var savedMessageTimer: Timer?
 
@@ -875,6 +878,7 @@ private struct AISettingsPane: View {
                     }
                 }
                 .onChange(of: analysisProvider) { _, newValue in
+                    // DR-0070: Write to AISettings to persist to UserDefaults
                     AISettings.shared.analysisProvider = newValue
                     showSavedMessage("Analysis provider updated")
                 }
@@ -899,6 +903,7 @@ private struct AISettingsPane: View {
                     }
                 }
                 .onChange(of: imageGenerationProvider) { _, newValue in
+                    // DR-0070: Write to AISettings to persist to UserDefaults
                     AISettings.shared.imageGenerationProvider = newValue
                     showSavedMessage("Image generation provider updated")
                 }
@@ -932,6 +937,21 @@ private struct AISettingsPane: View {
             }
         }
         .formStyle(.grouped)
+        // DR-0070: Reload from UserDefaults and keychain when view appears
+        .task {
+            if needsInitialLoad {
+                analysisProvider = AISettings.shared.analysisProvider
+                imageGenerationProvider = AISettings.shared.imageGenerationProvider
+                loadAPIKeyStatus()
+                needsInitialLoad = false
+            }
+        }
+        .onAppear {
+            // Also reload on subsequent appearances
+            analysisProvider = AISettings.shared.analysisProvider
+            imageGenerationProvider = AISettings.shared.imageGenerationProvider
+            loadAPIKeyStatus()
+        }
     }
 
     @ViewBuilder
@@ -985,7 +1005,7 @@ private struct AISettingsPane: View {
     @ViewBuilder
     private func apiKeySection(for provider: AIProviderProtocol) -> some View {
         let providerKey = providerKey(for: provider)
-        let hasKey = KeychainHelper.shared.hasAPIKey(for: providerKey)
+        let hasKey = hasAPIKey[providerKey] ?? false
 
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -1122,6 +1142,13 @@ private struct AISettingsPane: View {
         )
     }
 
+    private func loadAPIKeyStatus() {
+        for provider in providers {
+            let key = providerKey(for: provider)
+            hasAPIKey[key] = KeychainHelper.shared.hasAPIKey(for: key)
+        }
+    }
+
     private func saveAPIKey(for provider: AIProviderProtocol, providerKey: String) {
         guard let key = apiKeys[providerKey]?.trimmingCharacters(in: .whitespacesAndNewlines),
               !key.isEmpty else {
@@ -1130,6 +1157,7 @@ private struct AISettingsPane: View {
 
         do {
             try KeychainHelper.shared.saveAPIKey(key, for: providerKey)
+            hasAPIKey[providerKey] = true // Update state
             showSavedMessage("API key saved for \(provider.name)")
             // Clear the text field after successful save
             apiKeys[providerKey] = ""
@@ -1141,6 +1169,7 @@ private struct AISettingsPane: View {
     private func deleteAPIKey(for providerKey: String) {
         do {
             try KeychainHelper.shared.deleteAPIKey(for: providerKey)
+            hasAPIKey[providerKey] = false // Update state
             apiKeys[providerKey] = ""
             showSavedMessage("API key deleted")
         } catch {

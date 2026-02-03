@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0051 through DR-0060.
 
-**Batch Status:** 🚧 In Progress (4/10 verified)
+**Batch Status:** 🚧 In Progress (8/10 verified)
 
 ---
 
@@ -184,5 +184,290 @@ Duration presets used generic "hours" terminology instead of calendar-specific u
 
 ---
 
-*Last Updated: 2026-01-30*
-*Status: 4/10 DRs verified in this batch*
+## DR-0055: Relationship Creation Timing Issue - Cancel Button Behaves Like Save
+
+**Status:** ✅ Verified
+**Platform:** All platforms
+**Component:** SuggestionReviewView, CardEditorView, Phase 6 (ER-0010)
+**Severity:** Critical
+**Date Identified:** 2026-01-26
+**Date Resolved:** 2026-01-26
+**Date Verified:** 2026-02-01
+
+**Description:**
+
+In Phase 6 (ER-0010) implementation, a critical workflow bug caused the "Cancel" button in CardEditorView to behave identically to the "Save" button when creating cards with pending relationships from AI content analysis.
+
+**Root Cause:**
+
+The relationship creation timing was incorrect - relationships were being created immediately when the card editor opened, rather than when the user clicked "Save". This meant that clicking "Cancel" still left the relationships in the database, making Cancel behave like Save.
+
+**Fix Applied:**
+
+Modified the workflow to properly defer relationship creation until save:
+
+1. **SuggestionReviewView** - Pass pending relationships to CardEditorView via closure
+2. **CardEditorView** - Accept `pendingRelationships` parameter and store them
+3. **Save Logic** - Create relationships only when user clicks "Save" button
+4. **Cancel Logic** - Discard pending relationships when user clicks "Cancel"
+
+**Files Modified:**
+- `Cumberland/AI/SuggestionReviewView.swift:15-31, 253-282, 479-498` - Pass pending relationships
+- `Cumberland/CardEditorView.swift:107-109, 1187-1198, 1336-1393` - Handle deferred relationships
+
+**Verification:**
+✅ Cancel button properly discards relationships
+✅ Save button creates relationships as expected
+✅ Workflow matches user expectations
+✅ No orphaned relationships created
+
+---
+
+## DR-0056: SuggestionEngine Only Creating Forward Relationships (Missing Reverse Edges)
+
+**Status:** ✅ Verified
+**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
+**Component:** SuggestionEngine, Phase 6 (ER-0010)
+**Severity:** High
+**Date Identified:** 2026-01-26
+**Date Resolved:** 2026-01-26
+**Date Verified:** 2026-02-01
+
+**Description:**
+
+The `SuggestionEngine.createRelationships()` function was only creating forward edges (source → target) and not creating the corresponding reverse edges (target → source). This is inconsistent with how `CardRelationshipView` creates relationships, which always creates bidirectional pairs.
+
+**Current Behavior (BEFORE FIX):**
+
+When creating Captain Drake with analysis detecting 5 relationships:
+1. Creates 5 entity cards (Voyager, New Haven Station, plasma rifle, compass)
+2. Creates only 5 forward CardEdge entries:
+   - Drake → pilots → Voyager
+   - Drake → enters → New Haven Station
+   - Drake → uses → plasma rifle
+   - Drake → owns → compass
+3. **Missing 5 reverse CardEdge entries** ❌
+4. Captain Drake shows 0 relationships in UI
+5. Voyager shows 1 relationship to Drake (forward edge exists)
+
+**Expected Behavior:**
+
+For 5 suggested relationships, create 10 total CardEdge entries (bidirectional):
+
+**Forward edges (5):**
+- Drake → [pilots] → Voyager
+- Drake → [enters] → New Haven Station
+- Drake → [uses] → plasma rifle
+- Drake → [owns] → compass
+- (5th relationship)
+
+**Reverse edges (5) using mirror types:**
+- Voyager → [piloted-by] → Drake
+- New Haven Station → [is-entered-by] → Drake
+- plasma rifle → [used-by] → Drake
+- compass → [owned-by] → Drake
+- (5th reverse)
+
+**Root Cause:**
+
+`SuggestionEngine.createRelationships()` in `Cumberland/AI/SuggestionEngine.swift:346-418` was only creating the forward CardEdge and did not implement the reverse edge creation that `CardRelationshipView` uses.
+
+**Fix Applied:**
+
+Added bidirectional relationship creation to match `CardRelationshipView` pattern:
+
+1. For each relationship suggestion, create both forward and reverse CardEdge entries
+2. Use mirror RelationType for reverse edges
+3. Ensure both cards show the relationship from their perspective
+4. Maintain consistency with manual relationship creation
+
+**Files Modified:**
+- `Cumberland/AI/SuggestionEngine.swift:346-495` - Added bidirectional edge creation
+
+**Verification:**
+✅ Forward relationships created correctly
+✅ Reverse relationships created with mirror types
+✅ Both source and target cards show relationships in UI
+✅ Relationship count matches expected (2× suggestions)
+✅ Consistent with manual relationship creation workflow
+
+---
+
+## DR-0054: Edit Card Sheet on iOS - Save/Cancel Buttons Pushed Off-Screen
+
+**Status:** ✅ Verified
+**Platform:** iOS/iPadOS
+**Component:** CardEditorView
+**Severity:** High
+**Date Identified:** 2026-01-25
+**Date Resolved:** 2026-02-01
+**Date Verified:** 2026-02-01
+
+**Description:**
+
+On iOS/iPadOS, when editing a card via the Edit Card sheet, the Save and Cancel buttons were pushed off the bottom of the sheet and were not accessible. The buttons existed in the code but the sheet layout was broken, making them impossible to reach.
+
+**Root Cause:**
+
+The `CardEditorView` body wrapped all content in a `VStack` (line 238) with Save/Cancel buttons at the bottom (lines 334-347), but there was no `ScrollView` wrapper. When the content exceeded the iOS sheet height (set to `.presentationDetents([.large])`), the bottom buttons were pushed outside the visible area.
+
+**Fix Applied:**
+
+Wrapped the entire `VStack` in a `ScrollView` so content becomes scrollable when it's taller than the sheet:
+
+```swift
+var body: some View {
+    let kind = mode.kind
+
+    // DR-0054: Wrap in ScrollView so content is accessible on iOS when sheet is smaller than content
+    ScrollView {
+        VStack(spacing: 16) {
+            // ... all content ...
+
+            HStack {
+                Button("Cancel") { dismiss() }
+                Spacer()
+                Button(isEditing ? "Save" : "Create") { save() }
+            }
+        }
+        .padding()
+    }
+    .frame(minWidth: 520)
+    // ...
+}
+```
+
+**Files Modified:**
+- `Cumberland/CardEditorView.swift:235-350` - Wrapped VStack in ScrollView
+
+**Verification:**
+✅ Sheet opens with card content visible on iOS
+✅ Scrolling reveals Save and Cancel buttons at bottom
+✅ All content is accessible via scrolling
+✅ Buttons function correctly (Save persists changes, Cancel dismisses)
+
+---
+
+## DR-0040: Button Text Overflow on iOS (Icon-Only Button Solution)
+
+**Status:** ✅ Verified
+**Platform:** iOS/iPadOS only
+**Component:** CardEditorView, BrushGridView / Tool Palette
+**Severity:** Medium
+**Date Identified:** 2026-01-19
+**Date Resolved:** 2026-02-01
+**Date Verified:** 2026-02-02
+**Scope Expanded:** 2026-02-01
+
+**Description:**
+
+On iOS/iPadOS, button text labels are too long to fit in the limited space (20-50 pixels) allocated to buttons in compact UI areas. This affects:
+
+1. **CardEditorView**: Image action buttons ("Choose Image", "Generate Image", "Copy Image", "Paste Image", "Remove Image")
+2. **BrushGridView**: Brush set picker showing brush set names ("Basic Tools", "Exterior Maps", "Interior Maps")
+
+The problem is not text wrapping, but that there's simply too much text for the available space.
+
+**Root Cause:**
+
+Buttons were using full text labels (`Label("Choose Image…", systemImage: "photo.on.rectangle")`) on iOS where screen space is limited. The buttons already have appropriate SF Symbols icons, making the text redundant on small screens.
+
+**Fix Applied:**
+
+### 1. CardEditorView - Icon-Only Image Action Buttons (lines 267-316)
+
+Made image action buttons icon-only on iOS while keeping full labels on macOS:
+
+```swift
+Button {
+    isImportingImage = true
+} label: {
+    #if os(iOS)
+    Image(systemName: "photo.on.rectangle")
+    #else
+    Label("Choose Image…", systemImage: "photo.on.rectangle")
+    #endif
+}
+.help("Choose Image")
+```
+
+Applied to all five image action buttons:
+- Choose Image → `photo.on.rectangle`
+- Generate Image → `wand.and.stars`
+- Copy Image → `doc.on.doc`
+- Paste Image → `doc.on.clipboard`
+- Remove Image → `trash`
+
+### 2. BrushGridView - Icon-Only Brush Set Picker (lines 59-110)
+
+Replaced Picker with Menu on iOS to show icon-only button, using `MapType.icon` property:
+
+```swift
+HStack {
+    #if !os(iOS)
+    Text("Brush Set:")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    #endif
+
+    #if os(iOS)
+    // Use Menu instead of Picker on iOS for icon-only button
+    Menu {
+        ForEach(availableBrushSets()) { brushSet in
+            Button {
+                brushRegistry.setActiveBrushSet(id: brushSet.id)
+                // Update canvas state if needed
+                if let selectedBrush = brushRegistry.selectedBrush {
+                    canvasState.updateToolFromBrush(selectedBrush)
+                }
+            } label: {
+                Label(brushSet.name, systemImage: brushSet.mapType.icon)
+            }
+        }
+    } label: {
+        // Show only the icon for the selected brush set
+        Image(systemName: brushSet.mapType.icon)
+            .font(.subheadline)
+    }
+    #else
+    // Use Picker on macOS with full labels
+    Picker("", selection: ...) {
+        ForEach(availableBrushSets()) { brushSet in
+            Label(brushSet.name, systemImage: brushSet.mapType.icon)
+                .tag(brushSet.id)
+        }
+    }
+    .pickerStyle(.menu)
+    #endif
+}
+```
+
+**Why Menu instead of Picker**: SwiftUI's Picker with `.pickerStyle(.menu)` always displays the selected item's full label, even with `.labelsHidden()`. Using Menu gives us full control over the button appearance (icon-only) while menu items still show full text.
+
+Brush set icons (from `MapType.icon`):
+- Exterior Maps → `map.fill`
+- Interior Maps → `house.fill`
+- Hybrid → `square.split.2x2.fill`
+- Custom → `paintpalette.fill`
+
+### 3. Retained Line Wrapping for Filter Text
+
+Kept the earlier line wrapping fix for the "Filtered for [layer] layer" text as additional safety.
+
+**Files Modified:**
+- `Cumberland/CardEditorView.swift:267-316` - Icon-only image action buttons on iOS
+- `Cumberland/DrawCanvas/BrushGridView.swift:59-110` - Icon-only brush set picker on iOS (Menu instead of Picker)
+
+**Verification:**
+✅ CardEditorView image buttons show only icons on iOS (no text labels)
+✅ BrushGridView brush set picker shows only icon on iOS (no text)
+✅ All five image action buttons are visible and properly spaced
+✅ Brush set picker icon updates to match selected brush set type
+✅ Menu items show icons with names in dropdown when opened
+✅ Layout is clean with no text overflow
+✅ All buttons function correctly
+
+---
+
+*Last Updated: 2026-02-02*
+*Status: 8/10 DRs verified in this batch*

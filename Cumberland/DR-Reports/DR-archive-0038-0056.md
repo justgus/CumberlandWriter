@@ -1,84 +1,11 @@
 # Discrepancy Reports (DR) - Archive 0038-0056
 
-This document contains older DRs that are still open or awaiting verification. Moved from DR-unverified.md on 2026-01-29 to reduce file size.
+This document contains older DRs that are still open or closed. Moved from DR-unverified.md on 2026-01-29 to reduce file size.
 
-**Status:** 9 DRs in this archive (1 Verified, 1 Resolved, 7 Open)
+**Status:** 6 DRs in this archive (5 Open, 1 Closed)
 
----
-
-## DR-0056: SuggestionEngine Only Creating Forward Relationships (Missing Reverse Edges)
-
-**Status:** ✅ Verified
-**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
-**Component:** SuggestionEngine, Phase 6 (ER-0010)
-**Severity:** High
-**Date Identified:** 2026-01-26
-**Date Resolved:** 2026-01-26
-
-**Description:**
-
-The `SuggestionEngine.createRelationships()` function was only creating forward edges (source → target) and not creating the corresponding reverse edges (target → source). This is inconsistent with how `CardRelationshipView` creates relationships, which always creates bidirectional pairs.
-
-**Current Behavior (BEFORE FIX):**
-
-When creating Captain Drake with analysis detecting 5 relationships:
-1. Creates 5 entity cards (Voyager, New Haven Station, plasma rifle, compass)
-2. Creates only 5 forward CardEdge entries:
-   - Drake → pilots → Voyager
-   - Drake → enters → New Haven Station
-   - Drake → uses → plasma rifle
-   - Drake → owns → compass
-3. **Missing 5 reverse CardEdge entries** ❌
-4. Captain Drake shows 0 relationships in UI
-5. Voyager shows 1 relationship to Drake (forward edge exists)
-
-**Expected Behavior:**
-
-For 5 suggested relationships, create 10 total CardEdge entries (bidirectional):
-
-**Forward edges (5):**
-- Drake → [pilots] → Voyager
-- Drake → [enters] → New Haven Station
-- Drake → [uses] → plasma rifle
-- Drake → [owns] → compass
-- (5th relationship)
-
-**Reverse edges (5) using mirror types:**
-- Voyager → [piloted-by] → Drake
-- New Haven Station → [is-entered-by] → Drake
-- plasma rifle → [used-by] → Drake
-- compass → [owned-by] → Drake
-- (5th reverse)
-
-**Root Cause:**
-
-`SuggestionEngine.createRelationships()` in `Cumberland/AI/SuggestionEngine.swift:346-418` was only creating the forward CardEdge and did not implement the reverse edge creation that `CardRelationshipView` uses.
-
-**Resolution:**
-
-Added bidirectional relationship creation to match `CardRelationshipView` pattern. See full details in original DR documentation.
-
-**Files Modified:**
-- `Cumberland/AI/SuggestionEngine.swift:346-495`
-
----
-
-## DR-0055: Relationship Creation Timing Issue - Cancel Button Behaves Like Save
-
-**Status:** 🟡 Resolved - Not Verified
-**Platform:** All platforms
-**Component:** SuggestionReviewView, CardEditorView, Phase 6 (ER-0010)
-**Severity:** Critical
-**Date Identified:** 2026-01-26
-**Date Resolved:** 2026-01-26
-
-**Description:**
-
-In Phase 6 (ER-0010) implementation, a critical workflow bug caused the "Cancel" button in CardEditorView to behave identically to the "Save" button when creating relationships. See full details in original DR documentation.
-
-**Files Modified:**
-- `Cumberland/AI/SuggestionReviewView.swift:15-31, 253-282, 479-498`
-- `Cumberland/CardEditorView.swift:107-109, 1187-1198, 1336-1393`
+**Note:** DR-0055 and DR-0056 verified and moved to DR-verified-0051-0060.md (2026-02-01)
+**Note:** DR-0039 closed as OBE - fixed by draft persistence improvements (2026-02-01)
 
 ---
 
@@ -173,17 +100,22 @@ When working on interior/architectural maps in the Map Wizard, drawing settings 
 
 ## DR-0039: Saved Strokes/Settings Failed to Restore During Drawing Canvas Restoration
 
-**Status:** 🔴 Open
+**Status:** ⚪ Closed - OBE (Overtaken By Events)
 **Platform:** macOS (likely affects all platforms)
 **Component:** DrawCanvas / Draft Persistence / LayerManager
-**Severity:** High
+**Severity:** High (when active)
 **Date Identified:** 2026-01-11
+**Date Closed:** 2026-02-01
 
 **Description:**
 
-When restoring a draft interior/architectural map, the saved drawing strokes are not being properly decoded and restored. The draft restoration process shows that stroke data exists (LayerManager with 2 layers is decoded) but the strokes themselves are lost during the import process.
+When restoring a draft interior/architectural map, the saved drawing strokes were not being properly decoded and restored. The draft restoration process showed that stroke data exists (LayerManager with 2 layers is decoded) but the strokes themselves were lost during the import process.
 
-**Impact:** **Critical workflow blocker** - users cannot save work, data loss issue.
+**Resolution:**
+
+Closed as OBE (Overtaken By Events). This issue was resolved by subsequent draft persistence improvements implemented in DR-0011, DR-0012, DR-0013, and related draft restoration work. The current draft persistence system successfully saves and restores strokes, settings, and layer data.
+
+**Impact:** Issue no longer present in current codebase.
 
 ---
 

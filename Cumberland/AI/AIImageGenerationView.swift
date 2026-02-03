@@ -89,12 +89,16 @@ struct AIImageGenerationView: View {
 
                     TextEditor(text: $prompt)
                         .frame(minHeight: 100)
+                        .scrollContentBackground(.hidden)
                         .padding(8)
-                        .background(.background)
-                        .cornerRadius(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .textBackgroundColor))
+                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                                .allowsHitTesting(false) // Allow text interactions through the overlay
                         )
                         .disabled(generator.isGenerating)
 
@@ -297,6 +301,9 @@ struct AIImageGenerationView: View {
             }
         }
         .onAppear {
+            // Reload provider from settings (DR-0070: ensure picker shows saved value)
+            selectedProvider = AISettings.shared.imageGenerationProvider
+
             // Generate smart suggestions based on card description
             generateSuggestedPrompts()
 
@@ -427,11 +434,28 @@ struct AIImageGenerationView: View {
             suggestedPrompts = variations
         } else {
             // Fallback to simple prompts if description is insufficient
-            suggestedPrompts = [
-                "A detailed illustration of \(cardName)",
-                "Concept art for \(cardName)",
-                PromptExtractor.kindToPromptPrefix(cardKind) + " \(cardName)"
-            ]
+            // Check for weapon terms to avoid content filters
+            let sensitivePrefixes = ["weapon", "gun", "rifle", "pistol", "sword", "blade", "knife", "axe", "bomb", "explosive"]
+            let nameWords = cardName.lowercased().split(separator: " ").map(String.init)
+            let hasSensitiveTerm = nameWords.contains { word in
+                sensitivePrefixes.contains(where: { word.contains($0) })
+            }
+
+            if cardKind == .artifacts && hasSensitiveTerm {
+                // Generic fallback for artifacts with weapon terms
+                suggestedPrompts = [
+                    "An intricate artifact with detailed craftsmanship",
+                    "A detailed object with unique design elements",
+                    "Concept art of an artifact, high quality detailed rendering"
+                ]
+            } else {
+                // Normal fallback prompts
+                suggestedPrompts = [
+                    "A detailed illustration of \(cardName)",
+                    "Concept art for \(cardName)",
+                    PromptExtractor.kindToPromptPrefix(cardKind) + " \(cardName)"
+                ]
+            }
         }
     }
 }

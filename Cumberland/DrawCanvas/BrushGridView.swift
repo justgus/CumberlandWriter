@@ -59,11 +59,35 @@ struct BrushGridView: View {
     private func headerView(for brushSet: BrushSet) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             // Brush set picker
+            // DR-0040: On iOS, show icon-only to save space
             HStack {
+                #if !os(iOS)
                 Text("Brush Set:")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                #endif
 
+                #if os(iOS)
+                // Use Menu instead of Picker on iOS for icon-only button
+                Menu {
+                    ForEach(availableBrushSets()) { brushSet in
+                        Button {
+                            brushRegistry.setActiveBrushSet(id: brushSet.id)
+                            // Update canvas state if needed
+                            if let selectedBrush = brushRegistry.selectedBrush {
+                                canvasState.updateToolFromBrush(selectedBrush)
+                            }
+                        } label: {
+                            Label(brushSet.name, systemImage: brushSet.mapType.icon)
+                        }
+                    }
+                } label: {
+                    // Show only the icon for the selected brush set
+                    Image(systemName: brushSet.mapType.icon)
+                        .font(.subheadline)
+                }
+                #else
+                // Use Picker on macOS with full labels
                 Picker("", selection: Binding(
                     get: { brushRegistry.activeBrushSetID ?? UUID() },
                     set: { newID in
@@ -75,12 +99,13 @@ struct BrushGridView: View {
                     }
                 )) {
                     ForEach(availableBrushSets()) { brushSet in
-                        Text(brushSet.name)
+                        Label(brushSet.name, systemImage: brushSet.mapType.icon)
                             .tag(brushSet.id)
                     }
                 }
                 .pickerStyle(.menu)
                 .font(.subheadline)
+                #endif
 
                 Spacer()
 
@@ -101,9 +126,12 @@ struct BrushGridView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 } else {
+                    // DR-0040: Allow text to wrap on multiple lines to prevent overflow on iOS
                     Text("Filtered for \(activeLayer.layerType.rawValue) layer")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }

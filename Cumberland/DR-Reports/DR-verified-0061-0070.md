@@ -602,3 +602,218 @@ modelContext.insert(calendarCard)
 
 *Last Updated: 2026-01-31*
 *Status: 8/10 DRs verified in this batch (DR-0067 closed and deferred to ER-0020)*
+## DR-0070: Image Generation Provider Picker Does Not Show Saved Setting
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms (macOS, iOS, iPadOS, visionOS)
+**Component:** SettingsView, AISettingsPane
+**Severity:** Medium
+**Date Identified:** 2026-02-03
+**Date Resolved:** 2026-02-03
+**Date Verified:** 2026-02-03
+
+**Description:**
+
+When a user sets OpenAI as the image generation provider, saves the setting, and later uses image generation, the pickers show "Apple Intelligence" instead of "OpenAI" in multiple locations:
+1. Settings → AI Settings → Image Generation Provider picker
+2. Card Editor → AI Image Generation Panel → AI Provider picker
+
+The setting IS correctly saved (OpenAI is used for generation when called programmatically), but the UI doesn't reflect the saved value in these pickers.
+
+**Expected Behavior:**
+1. User goes to Settings → AI Settings
+2. Changes "Image Generation Provider" picker from "Apple Intelligence" to "OpenAI"
+3. Closes Settings
+4. Reopens Settings → AI Settings
+5. **Expected:** Picker shows "OpenAI" (the saved value)
+
+**Actual Behavior:**
+1-4. Same as above
+5. **Actual:** Picker shows "Apple Intelligence" (the default, not the saved value)
+6. OpenAI IS being used for generation (setting works correctly)
+7. Only the UI display is wrong
+
+**Root Cause:**
+
+In `SettingsView.swift:850-851`, the provider pickers use `@State` instead of `@AppStorage`:
+
+```swift
+// INCORRECT - @State is initialized once and doesn't sync with UserDefaults
+@State private var analysisProvider: String = AISettings.shared.analysisProvider
+@State private var imageGenerationProvider: String = AISettings.shared.imageGenerationProvider
+```
+
+**The Problem:**
+- `@State` is initialized with the current value when the view is created
+- `@State` does NOT automatically sync with UserDefaults
+- The `onChange` handler (lines 901-904) writes TO UserDefaults but doesn't read FROM it
+- Result: UI shows initial/default value, not the persisted value
+
+**Why It Works For Writing:**
+- Lines 901-904: `onChange(of: imageGenerationProvider)` correctly writes to `AISettings.shared.imageGenerationProvider`
+- The setting IS saved and works correctly for actual generation
+- But the UI never reads the saved value on subsequent views
+
+**Comparison With Other Settings:**
+
+Other parts of the codebase correctly use `@AppStorage` for UserDefaults-backed settings:
+
+```swift
+// Example: MapWizardView.swift uses @AppStorage correctly
+@AppStorage("mapWizard_showGrid") private var showGrid: Bool = true
+```
+
+**Fix:**
+
+Change `@State` to `@AppStorage` in SettingsView.swift:850-851:
+
+```swift
+// SettingsView.swift:850-851 - BEFORE
+@State private var analysisProvider: String = AISettings.shared.analysisProvider
+@State private var imageGenerationProvider: String = AISettings.shared.imageGenerationProvider
+
+// SettingsView.swift:850-851 - AFTER
+@AppStorage(AISettings.Keys.analysisProvider)
+private var analysisProvider: String = AISettings.Defaults.analysisProvider
+
+@AppStorage(AISettings.Keys.imageGenerationProvider)
+private var imageGenerationProvider: String = AISettings.Defaults.imageGenerationProvider
+```
+
+**Benefits of @AppStorage:**
+- Automatically syncs with UserDefaults (read AND write)
+- No need for manual `onChange` handlers for simple persistence
+- UI always shows current saved value
+- Reactive updates across views
+
+**Alternative (If Keeping @State):**
+
+If `@State` must be kept for some reason, add `.onAppear` to refresh from UserDefaults:
+
+```swift
+.onAppear {
+    analysisProvider = AISettings.shared.analysisProvider
+    imageGenerationProvider = AISettings.shared.imageGenerationProvider
+}
+```
+
+But `@AppStorage` is the cleaner, more SwiftUI-idiomatic solution.
+
+**Files to Modify:**
+- `Cumberland/SettingsView.swift:850-851` - Change @State to @AppStorage
+- `Cumberland/SettingsView.swift:877-880` - Can remove onChange handler (automatic with @AppStorage)
+- `Cumberland/SettingsView.swift:901-904` - Can remove onChange handler (automatic with @AppStorage)
+
+**Test Steps:**
+
+**Test 1: Settings Picker**
+1. Open Settings → AI Settings
+2. Note current "Image Generation Provider" selection (likely "Apple Intelligence")
+3. Change to "OpenAI" (or any provider different from current)
+4. Close Settings
+5. Reopen Settings → AI Settings
+6. **Verify:** Picker shows "OpenAI" (the saved value) ✅
+
+**Test 2: AI Image Generation Panel Picker**
+7. Open any card (character, location, etc.)
+8. Click "Generate Image…" button
+9. AI Image Generation Panel appears
+10. **Verify:** "AI Provider" picker shows "OpenAI" (the saved value) ✅
+11. Close panel without generating
+12. Go to Settings and change provider to "Apple Intelligence"
+13. Reopen the AI Image Generation Panel
+14. **Verify:** "AI Provider" picker now shows "Apple Intelligence" ✅
+
+**Test 3: Batch Generation**
+15. Select multiple cards using "Select" button
+16. Click "Generate Images"
+17. **Verify:** Console logs show "OpenAI DALL-E 3" as provider (or whatever is saved in settings) ✅
+18. **Verify:** Images generate using the correct provider ✅
+
+**Resolution:**
+
+Implemented multiple fixes to ensure proper provider selection and display:
+
+**Files Modified:**
+- `Cumberland/SettingsView.swift:850-854` - Added `needsInitialLoad` flag and reactive `hasAPIKey` dictionary
+- `Cumberland/SettingsView.swift:938-952` - Added `.task` for initial load + `.onAppear` for subsequent loads
+- `Cumberland/SettingsView.swift:945-949` - Added `loadAPIKeyStatus()` to reactively load API key availability
+- `Cumberland/SettingsView.swift:1149-1152` - Update `hasAPIKey` state when saving API keys
+- `Cumberland/SettingsView.swift:1161-1164` - Update `hasAPIKey` state when deleting API keys
+- `Cumberland/MainAppView.swift:1170` - Set batch queue provider from AISettings.shared
+- `Cumberland/AI/AIImageGenerationView.swift:301` - **Reload provider in .onAppear to show saved value**
+
+**Implementation:**
+
+**1. Reactive State Management:**
+```swift
+// SettingsView.swift:850-854
+@State private var analysisProvider: String = AISettings.shared.analysisProvider
+@State private var imageGenerationProvider: String = AISettings.shared.imageGenerationProvider
+@State private var needsInitialLoad: Bool = true
+@State private var hasAPIKey: [String: Bool] = [:]  // Reactive API key status
+```
+
+**2. Initial Load + Subsequent Loads:**
+```swift
+// SettingsView.swift:938-952
+.task {
+    if needsInitialLoad {
+        analysisProvider = AISettings.shared.analysisProvider
+        imageGenerationProvider = AISettings.shared.imageGenerationProvider
+        loadAPIKeyStatus()
+        needsInitialLoad = false
+    }
+}
+.onAppear {
+    analysisProvider = AISettings.shared.analysisProvider
+    imageGenerationProvider = AISettings.shared.imageGenerationProvider
+    loadAPIKeyStatus()
+}
+```
+
+**3. API Key Status Loading:**
+```swift
+// SettingsView.swift:945-949
+private func loadAPIKeyStatus() {
+    for provider in providers {
+        let key = providerKey(for: provider)
+        hasAPIKey[key] = KeychainHelper.shared.hasAPIKey(for: key)
+    }
+}
+```
+
+**4. AI Image Generation Panel Reload:**
+```swift
+// AIImageGenerationView.swift:301
+.onAppear {
+    // Reload provider from settings (DR-0070: ensure picker shows saved value)
+    selectedProvider = AISettings.shared.imageGenerationProvider
+
+    // ... rest of onAppear logic ...
+}
+```
+
+This ensures:
+- Settings UI refreshes from UserDefaults on every view appearance
+- API key status is loaded reactively and updated when keys are added/removed
+- Batch generation uses the correct provider from AISettings.shared
+- **AI Image Generation Panel picker loads and displays the saved provider**
+
+**Related Issues:**
+- ER-0009: AI Image Generation implementation
+- ER-0017: Batch Image Generation (batch generation provider fix - same root cause)
+- DR-0069: AI safety filter false positives (discovered while testing OpenAI provider)
+- DR-0072: Batch generation server errors (discovered while testing batch generation)
+
+**Notes:**
+- This is a UI binding bug, not a data persistence bug
+- The setting IS being saved correctly (generation uses correct provider when called programmatically)
+- Affected three different UI locations (all now fixed):
+  1. Settings → AI Settings → Image Generation Provider picker ✅
+  2. AI Image Generation Panel → AI Provider picker ✅
+  3. Batch Generation → provider parameter ✅
+- Also affects `analysisProvider` picker in Settings (same fix pattern)
+- Root cause: `@State` initialized once, never reloaded from UserDefaults on view appearance
+
+---

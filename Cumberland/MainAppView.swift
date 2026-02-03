@@ -64,6 +64,12 @@ struct MainAppView: View {
     @State private var showingDeveloperTools = false
     #endif
 
+    // ER-0017: Batch image generation
+    @State private var isMultiSelectMode = false
+    @State private var selectedCardIDs: Set<UUID> = []
+    @State private var showingBatchGeneration = false
+    @State private var batchGenerationQueue: BatchGenerationQueue?
+
     // Three-pane split visibility (keep all visible on macOS by default)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
@@ -315,6 +321,37 @@ struct MainAppView: View {
             #endif
         }
         #endif
+        // ER-0017: Batch Image Generation sheet
+        .sheet(isPresented: $showingBatchGeneration) {
+            if let queue = batchGenerationQueue {
+                #if os(iOS)
+                NavigationStack {
+                    BatchGenerationView(queue: queue)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Done") {
+                                    showingBatchGeneration = false
+                                }
+                            }
+                        }
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #elseif os(visionOS)
+                NavigationStack {
+                    BatchGenerationView(queue: queue)
+                }
+                .frame(minWidth: 640, minHeight: 480)
+                .glassBackgroundEffect()
+                #else
+                NavigationView {
+                    BatchGenerationView(queue: queue)
+                }
+                .frame(minWidth: 640, minHeight: 480)
+                .presentationSizing(.fitted)
+                #endif
+            }
+        }
     }
 
     // MARK: - Lifecycle Handlers (extracted to fix compiler timeout)
@@ -537,17 +574,42 @@ struct MainAppView: View {
         }
         .navigationTitle(contentNavigationTitle)
         // DR-0030: Add New Card button to iOS toolbar
+        // ER-0017: Add batch image generation toolbar buttons
         .toolbar {
             #if os(iOS)
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    showingCardEditor = true
-                } label: {
-                    Label("New Card", systemImage: "plus")
+                if !isMultiSelectMode {
+                    Button {
+                        showingCardEditor = true
+                    } label: {
+                        Label("New Card", systemImage: "plus")
+                    }
+                    .disabled(isStructureSelected) // New Card doesn't apply to Structure directly
                 }
-                .disabled(isStructureSelected) // New Card doesn't apply to Structure directly
             }
             #endif
+
+            // ER-0017: Batch generation toolbar buttons (all platforms)
+            if !isStructureSelected && !filteredCards.isEmpty {
+                ToolbarItem(placement: .primaryAction) {
+                    if isMultiSelectMode {
+                        Button {
+                            startBatchGeneration()
+                        } label: {
+                            Label("Generate Images", systemImage: "wand.and.stars")
+                        }
+                        .disabled(selectedCardIDs.isEmpty)
+                    }
+                }
+
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        toggleMultiSelectMode()
+                    } label: {
+                        Text(isMultiSelectMode ? "Cancel" : "Select")
+                    }
+                }
+            }
         }
     }
 
@@ -668,12 +730,40 @@ struct MainAppView: View {
     // MARK: - Card list
 
     private var cardList: some View {
-        // Bind selection of the list to our selectedCardID to control the detail pane.
-        List(selection: $selectedCardID) {
+        // ER-0017: In multi-select mode, don't use List selection - handle taps manually
+        // In single-select mode, use standard List selection binding
+        List(selection: isMultiSelectMode ? .constant(Set<UUID>()) : Binding(
+            get: { selectedCardID.map { Set([$0]) } ?? [] },
+            set: { selectedCardID = $0.first }
+        )) {
             ForEach(filteredCards) { card in
                 // Selectable row; selection drives detailColumn.
-                CardListRow(card: card)
-                    .tag(card.id as UUID?)
+                HStack {
+                    // ER-0017: Show selection indicator in multi-select mode
+                    if isMultiSelectMode {
+                        Image(systemName: selectedCardIDs.contains(card.id) ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(selectedCardIDs.contains(card.id) ? .blue : .secondary)
+                            .imageScale(.large)
+                    }
+                    CardListRow(card: card)
+                }
+                .tag(card.id)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if isMultiSelectMode {
+                        // Toggle selection in multi-select mode
+                        withAnimation {
+                            if selectedCardIDs.contains(card.id) {
+                                selectedCardIDs.remove(card.id)
+                            } else {
+                                selectedCardIDs.insert(card.id)
+                            }
+                        }
+                    } else {
+                        // Normal single selection
+                        selectedCardID = card.id
+                    }
+                }
                 // iOS-style swipe-to-delete (all kinds)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
@@ -1053,6 +1143,56 @@ struct MainAppView: View {
             }
         }
         return result
+    }
+
+    // MARK: - Batch Image Generation (ER-0017)
+
+    private func toggleMultiSelectMode() {
+        withAnimation {
+            isMultiSelectMode.toggle()
+            if !isMultiSelectMode {
+                // Exiting multi-select mode - clear selection
+                selectedCardIDs.removeAll()
+            }
+        }
+    }
+
+    private func startBatchGeneration() {
+        // Get the selected cards
+        let cardsToGenerate = filteredCards.filter { selectedCardIDs.contains($0.id) }
+
+        guard !cardsToGenerate.isEmpty else {
+            print("⚠️ No cards selected for batch generation")
+            return
+        }
+
+        // Initialize queue if needed and set provider
+        if batchGenerationQueue == nil {
+            batchGenerationQueue = BatchGenerationQueue(modelContext: modelContext)
+        }
+
+        // Set the provider to the user's preferred image generation provider
+        let selectedProvider = AISettings.shared.imageGenerationProvider
+        print("🔧 Starting batch generation with provider: '\(selectedProvider)'")
+        print("🔧 Selected \(cardsToGenerate.count) cards: \(cardsToGenerate.map { $0.name }.joined(separator: ", "))")
+
+        batchGenerationQueue?.provider = selectedProvider
+
+        // Reset queue and add cards
+        batchGenerationQueue?.reset()
+        batchGenerationQueue?.addCards(cardsToGenerate)
+
+        // Start generation automatically
+        Task { @MainActor in
+            await batchGenerationQueue?.start()
+        }
+
+        // Show the batch generation view
+        showingBatchGeneration = true
+
+        // Exit multi-select mode
+        isMultiSelectMode = false
+        selectedCardIDs.removeAll()
     }
 
     // MARK: - Detail tabs helpers
