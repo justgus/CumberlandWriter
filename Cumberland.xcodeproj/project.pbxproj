@@ -488,6 +488,7 @@
 				"DR-Reports/DR-verified-0041-0050.md",
 				"DR-Reports/DR-verified-0051-0060.md",
 				"DR-Reports/DR-verified-0061-0070.md",
+				"DR-Reports/DR-verified-0071-0080.md",
 				"DR-Reports/ER-0007-IMPLEMENTATION-PLAN.md",
 				"DR-Reports/ER-0016-MANUAL-SETUP-GUIDE.md",
 				"DR-Reports/ER-0016-TEST-PROMPT.md",

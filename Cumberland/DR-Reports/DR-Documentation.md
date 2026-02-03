@@ -17,7 +17,7 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **3 unverified DRs**
+Currently: **2 unverified DRs** (2 Identified, 0 Resolved - Not Verified)
 
 **Archived Open DRs:**
 See: [DR-archive-0038-0056.md](./DR-archive-0038-0056.md) for older open/closed DRs:
@@ -31,13 +31,12 @@ See: [DR-unverified.md](./DR-unverified.md)
 
 | DR | Title | Component | Status |
 |----|-------|-----------|--------|
-| DR-0070 | Image Generation Provider Picker Does Not Show Saved Setting | SettingsView, AISettingsPane | 🔴 Identified - Not Resolved |
 | DR-0071 | Apple Image Playground Requires Person Selection, Unsuitable for Non-Portrait Generation | AI Image Generation, AppleIntelligenceProvider | 🔴 Identified - Not Resolved |
 | DR-0069 | AI Provider Safety Filter False Positives on Character Names | AI Image Generation, ImageGenerator | 🔴 Identified - Not Resolved |
 
 ### Verified DRs (Resolved Issues)
 
-Currently: **53 verified DRs** (+ 1 closed/deferred) | Next available DR: **DR-0072**
+Currently: **59 verified DRs** (+ 1 closed/deferred) | Next available DR: **DR-0074**
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
@@ -47,7 +46,8 @@ Currently: **53 verified DRs** (+ 1 closed/deferred) | Next available DR: **DR-0
 | Batch 4 | DR-0031 to DR-0040 | [DR-verified-0031-0040.md](./DR-verified-0031-0040.md) | ✅ All Verified (10/10) |
 | Batch 5 | DR-0041 to DR-0050 | [DR-verified-0041-0050.md](./DR-verified-0041-0050.md) | 🚧 In Progress (1/10 verified) |
 | Batch 6 | DR-0051 to DR-0060 | [DR-verified-0051-0060.md](./DR-verified-0051-0060.md) | 🚧 In Progress (8/10 verified) |
-| Batch 7 | DR-0061 to DR-0070 | [DR-verified-0061-0070.md](./DR-verified-0061-0070.md) | 🚧 In Progress (8/10 verified, 1 closed/deferred) |
+| Batch 7 | DR-0061 to DR-0070 | [DR-verified-0061-0070.md](./DR-verified-0061-0070.md) | 🚧 In Progress (6/10 verified) |
+| Batch 8 | DR-0071 to DR-0080 | [DR-verified-0071-0080.md](./DR-verified-0071-0080.md) | 🚧 In Progress (2/10 verified) |
 
 ## DR Summary
 
@@ -168,33 +168,54 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 71 (documented)
-- **Verified:** 56 (78.9%) ✅
-- **Resolved - Not Verified:** 0 (0%) 🟡
-- **Open:** 6 (8.5%) 🔴
+- **Total DRs:** 73 (documented)
+- **Verified:** 59 (80.8%) ✅
+- **Resolved - Not Verified:** 0 (0.0%) 🟡
+- **Open:** 6 (8.2%) 🔴
   - DR-0071 (Apple Image Playground portrait-only limitation) - identified 2026-02-03
-  - DR-0070 (Image provider picker doesn't show saved setting) - identified 2026-02-03
   - DR-0069 (AI Provider Safety Filter False Positives) - identified 2026-02-03
   - DR-0043 (Duplicate RelationType entries) - deferred per user
   - DR-0041 (Vegetation brushes should render as area fills) - deferred per user
   - DR-0038 (Draft interior drawing settings not remembered) - deferred per user
   - Last 3 in archive
-- **Closed/Deferred:** 3 (4.2%) ⚪
+- **Closed/Deferred:** 3 (4.1%) ⚪
   - DR-0060 (superseded by DR-0059 redesign, now verified)
   - DR-0067 (closed, deferred to ER-0020 - Dynamic AI Relationship Extraction)
   - DR-0039 (closed - OBE, fixed by draft persistence improvements)
-- **Latest DR:** DR-0071 (2026-02-03 - Apple Image Playground Portrait-Only Limitation) 🔴 Identified
+- **Latest DR:** DR-0073 (2026-02-03 - Regenerate Image Uses Old Prompt) ✅ Verified
 
 **Recent Activity:**
-- 2026-02-03: **IDENTIFIED 3 NEW DRs** (DR-0069, DR-0070, DR-0071) - AI Image Generation Issues 🔴
+- 2026-02-03: **VERIFIED 6 ISSUES** (ER-0017, DR-0070, DR-0072, DR-0073, DR-0066, DR-0068) - Batch Image Generation and AI Analysis Complete! 🎉
+  - **DR-0073:** Regenerate Image Uses Old Prompt Instead of Updated Description
+    - Fixed prompt pre-fill logic in CardEditorView to always generate fresh prompts from current description
+    - Users' updated descriptions now properly reflected in regeneration prompts
+  - **DR-0066:** Relationships Not Created When Analyzing Existing (Saved) Cards
+    - Fixed relationship deferral logic to check if source card is persistent
+    - Existing cards now create relationships immediately instead of deferring indefinitely
+  - **DR-0068:** Calendar Insertion Bug - Inserting Both Card and CalendarSystem
+    - Fixed SwiftData cascade relationship insertion pattern
+    - Removed double-insertion that caused calendar deletion crashes
+- 2026-02-03: **VERIFIED 3 ISSUES** (ER-0017, DR-0070, DR-0072) - Batch Image Generation Complete! 🎉
+  - **ER-0017:** AI Image Generation - Batch Processing and History Management
+    - All 3 phases verified and working (multi-select, version history, history UI)
+    - Batch generation with queue management and rate limiting
+    - Image version history with restore/compare/export features
+  - **DR-0070:** Image Generation Provider Picker Does Not Show Saved Setting
+    - Fixed provider picker display in Settings, AI Image Generation Panel, and batch generation
+    - Added reactive state management with .onAppear handlers
+  - **DR-0072:** Batch Image Generation Fails with OpenAI Server Errors
+    - Implemented 20-second rate limiting (3 requests/minute)
+    - Added automatic retry logic with exponential backoff for server/network errors
+    - Smart prompt generation avoids content filters for weapon-named artifacts
+    - Enhanced error messages with helpful tips
+- 2026-02-03: **IDENTIFIED 3 NEW DRs** (DR-0069, DR-0070, DR-0071, DR-0072, DR-0073) - AI Image Generation Issues 🔴
+  - **DR-0073:** Regenerate image uses old prompt instead of updated description - 🟡 Resolved
+  - **DR-0072:** Batch generation server errors/timeouts - ✅ Verified
   - **DR-0071:** Apple Image Playground requires person selection, unusable for landscapes/artifacts/vehicles
     - High severity - Affects 70-80% of card types (non-character entities)
     - Fundamental limitation of Apple's Image Playground design
     - Proposed: Warning dialog, recommend OpenAI for non-portraits
-  - **DR-0070:** Image provider picker doesn't show saved setting in Settings UI
-    - Medium severity - UI binding bug (@State instead of @AppStorage)
-    - Setting works correctly, only display is wrong
-    - Simple fix: Change to @AppStorage in SettingsView.swift
+  - **DR-0070:** Image provider picker doesn't show saved setting - ✅ Verified
   - **DR-0069:** OpenAI safety filter rejects legitimate character names (e.g., "Evilin")
     - High severity - Blocks content creation for certain character names
     - Proposed: Enhanced error messages, multi-provider fallback, prompt preprocessing
@@ -216,4 +237,4 @@ When a verified batch file contains 10 DRs, create a new batch file:
 ---
 
 *Last Updated: 2026-02-03*
-*Document Version: 11.0 (DR-0069, DR-0070, DR-0071 identified - AI image generation issues)*
+*Document Version: 12.0 (ER-0017, DR-0070, DR-0072 verified - Batch image generation complete! DR-0073 resolved)*

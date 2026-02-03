@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0061 through DR-0070.
 
-**Batch Status:** 🚧 In Progress (4/10 verified)
+**Batch Status:** 🚧 In Progress (6/10 verified)
 
 ---
 
@@ -817,3 +817,309 @@ This ensures:
 - Root cause: `@State` initialized once, never reloaded from UserDefaults on view appearance
 
 ---
+## DR-0066: Relationships Not Created When Analyzing Existing (Saved) Cards
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** SuggestionReviewView, AI Content Analysis
+**Severity:** High
+**Date Identified:** 2026-01-30
+**Date Resolved:** 2026-01-30
+**Date Verified:** 2026-02-03
+
+**Description:**
+
+When running AI content analysis on an **existing, already-saved card**, detected relationships are not being created. User reported analyzing "Professor Elara Moonwhisper" scene text and accepting all suggestions - entity cards and calendar were created successfully, but **zero relationships were created**.
+
+**Root Cause:**
+
+The relationship creation logic in `SuggestionReviewView.swift` (lines 415-450) has a bug where it **always defers** relationships involving the source card, regardless of whether that card already exists in the database or is being newly created.
+
+**Original Logic:**
+```swift
+// Always defers relationships involving source card
+let sourceCardName = sourceCard.name.lowercased()
+for relationship in selectedRelationships {
+    if sourceMatches || targetMatches {
+        deferredRelationships.append(relationship)  // Always deferred!
+    }
+}
+```
+
+**The Issue:**
+- Deferral was designed for when you're **creating a new card** and analyzing its text **before saving**
+- In that case, the source card doesn't exist yet, so relationships must wait until card is saved
+- However, the code **also defers** when analyzing an **existing card** that's already in the database
+- Since the card is never "saved again" (it's already saved), the deferred relationships are **never created**
+
+**Example Scenario (Bug):**
+1. User creates and saves a scene card: "Professor Elara's First Lecture"
+2. User adds detailed text about Elara, students, location, etc.
+3. User clicks "Analyze Content with AI"
+4. AI detects: Professor Elara (character), Lecture Hall (location), relationships
+5. User accepts all suggestions via "Select All" → "Create Selected"
+6. **Result:** Entity cards created ✅, Calendar created ✅, **Relationships NOT created** ❌
+7. **Why:** Relationships like "Professor Elara appears-in Professor Elara's First Lecture" were deferred
+8. **Problem:** Scene card already exists - it won't be saved again, so deferred relationships never execute
+
+**Fix Applied:**
+
+Modified `SuggestionReviewView.swift:415-456` to check if source card is persistent before deferring:
+
+```swift
+// Check if source card already exists in database
+let sourceCardIsPersistent = existingCards.contains(where: { $0.id == sourceCard.id })
+
+if sourceCardIsPersistent {
+    // Source card already exists - all relationships can be created immediately
+    immediateRelationships = selectedRelationships
+} else {
+    // Source card hasn't been saved yet - defer relationships involving it
+    for relationship in selectedRelationships {
+        if sourceMatches || targetMatches {
+            deferredRelationships.append(relationship)
+        } else {
+            immediateRelationships.append(relationship)
+        }
+    }
+}
+```
+
+**Logic After Fix:**
+- **If source card exists** (in `existingCards` array) → Create ALL relationships immediately ✅
+- **If source card doesn't exist** (being created) → Defer relationships involving source card, create others immediately ✅
+
+**Files Modified:**
+- `Cumberland/AI/SuggestionReviewView.swift:415-456` - Fixed relationship deferral logic
+
+**Test Steps:**
+
+1. Create a scene card: "Test Scene" with detailed text about characters/locations
+2. **Save the card** (critical - card must already exist)
+3. Click "Analyze Content with AI" from the toolbar
+4. Review suggestions panel appears with entities and relationships
+5. Click "Select All" → "Create Selected"
+6. Check the Relationships tab on the scene card
+7. **Verify:** Relationships were created (e.g., "Character X appears-in Test Scene")
+8. Check created entity cards (characters, locations)
+9. **Verify:** They have reverse relationships back to the scene
+
+**Debug Output:**
+
+When analyzing existing card:
+```
+ℹ️ [SuggestionReviewView] Source card 'Professor Elara's First Lecture' is persistent - creating all relationships immediately
+✅ [SuggestionReviewView] Created 5 entity cards
+✅ [SuggestionReviewView] Created 1 calendar cards
+✅ [SuggestionReviewView] Created 12 immediate relationships
+📋 [SuggestionReviewView] Stored 0 pending relationships
+```
+
+When analyzing new (unsaved) card:
+```
+ℹ️ [SuggestionReviewView] Source card 'New Scene' not yet saved - deferring 8 relationships
+✅ [SuggestionReviewView] Created 5 entity cards
+✅ [SuggestionReviewView] Created 0 calendar cards
+✅ [SuggestionReviewView] Created 4 immediate relationships
+📋 [SuggestionReviewView] Stored 8 pending relationships (involve 'New Scene')
+```
+
+**Related Issues:**
+- ER-0010: AI Content Analysis implementation
+- ER-0019: Select All button (used to trigger this discovery)
+- Phase 6: Bidirectional relationship creation
+
+**Notes:**
+
+- This bug has existed since Phase 6 relationship creation was implemented
+- Only affects analysis of **existing, saved cards** - new cards work correctly
+- Bug discovered when user tested with "Professor Elara Moonwhisper" test text
+- User correctly identified: "no pending should have been necessary"
+- Fix ensures relationships are created based on source card persistence, not just involvement
+
+---
+
+## DR-0068: Calendar Insertion Bug - Inserting Both Card and CalendarSystem
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** SuggestionReviewView, SwiftData Relationship Insertion
+**Severity:** Critical
+**Date Identified:** 2026-01-30
+**Date Resolved:** 2026-01-30
+**Date Verified:** 2026-02-03
+
+**Description:**
+
+**NEW calendars** created after DR-0065 fix still crash when deleted! User reported:
+
+> "motherfucker! Thread 1: Fatal error... This one was created after the fix! just last round."
+
+Same error as DR-0065:
+```
+Thread 1: Fatal error: Unexpected backing data for snapshot creation:
+SwiftData._FullFutureBackingData<Cumberland.CalendarSystem>
+```
+
+This revealed DR-0065's fix (relationship declarations) was correct, but there was a **second bug** in how calendars are **inserted** into the database.
+
+**Root Cause:**
+
+The calendar creation code in `SuggestionReviewView.swift` was **explicitly inserting both** the `Card` AND the `CalendarSystem`:
+
+```swift
+// INCORRECT (SuggestionReviewView.swift:385-404 - before fix)
+let calendarSystem = CalendarSystem(...)
+let calendarCard = Card(...)
+
+calendarCard.calendarSystemRef = calendarSystem  // Link them
+
+modelContext.insert(calendarCard)      // Insert card
+modelContext.insert(calendarSystem)    // ❌ ALSO insert system - WRONG!
+```
+
+**The Problem:**
+
+In SwiftData, when you have a **cascade relationship**, you should only insert the **owning entity**. SwiftData automatically handles inserting related entities through the relationship.
+
+From `Card.swift:113-114`:
+```swift
+@Relationship(deleteRule: .cascade, inverse: \CalendarSystem.calendarCard)
+var calendarSystemRef: CalendarSystem?
+```
+
+The `.cascade` delete rule means:
+- Card **owns** CalendarSystem
+- When Card is deleted, CalendarSystem is also deleted
+- When Card is **inserted**, CalendarSystem should be **automatically inserted** via the relationship
+
+**What Was Happening:**
+1. Code creates `CalendarSystem` object
+2. Code creates `Card` object
+3. Code sets `calendarCard.calendarSystemRef = calendarSystem` (establishes relationship)
+4. Code calls `modelContext.insert(calendarCard)` → SwiftData inserts Card AND CalendarSystem (via cascade)
+5. Code calls `modelContext.insert(calendarSystem)` → SwiftData tries to insert CalendarSystem AGAIN
+6. Result: CalendarSystem is in inconsistent state with duplicate insertion
+7. Later deletion fails because SwiftData can't create snapshot for deletion
+
+**Why DR-0065 Fix Didn't Prevent This:**
+- DR-0065 fixed the relationship **declarations** (missing deleteRule, proper inverse setup)
+- But the **insertion code** was still wrong (double-inserting)
+- Both bugs needed to be fixed for calendars to work correctly
+
+**Fix Applied:**
+
+Modified `SuggestionReviewView.swift:385-404` to insert only the Card:
+
+```swift
+// Phase 7.5: Create CalendarSystem
+let calendarSystem = CalendarSystem(
+    name: detected.name,
+    divisions: divisions
+)
+
+// Phase 7.5: Create Calendar CARD
+let calendarCard = Card(
+    kind: .calendars,
+    name: detected.name,
+    subtitle: "\(detected.monthsPerYear) months, \(detected.daysPerMonth ?? 0) days/month",
+    detailedText: detected.context
+)
+
+// Link card to system (sets up bidirectional relationship)
+calendarCard.calendarSystemRef = calendarSystem
+
+// Insert ONLY the card - SwiftData will automatically insert the related CalendarSystem
+// This is correct because Card has the @Relationship decorator with cascade delete
+modelContext.insert(calendarCard)
+
+// ❌ REMOVED: modelContext.insert(calendarSystem)
+```
+
+**Pattern:**
+- **Create both objects** ✅
+- **Link them via relationship property** ✅
+- **Insert ONLY the owning object** ✅
+- **SwiftData handles cascade insertion** ✅
+
+**Files Modified:**
+- `Cumberland/AI/SuggestionReviewView.swift:385-404` - Removed explicit CalendarSystem insertion
+
+**Test Steps:**
+
+1. Create a scene card with text mentioning a calendar system
+2. Add this text:
+   ```
+   The Lunara Calendar has 13 months of 28 days each. The year begins with the Festival of New Stars.
+   Each month is named after a constellation visible during that time.
+   ```
+3. Click "Analyze Content with AI" (use Anthropic provider)
+4. Review Suggestions panel should show calendar in "Calendar Systems to Add" section
+5. Select all and create
+6. **Verify:** Calendar card appears in Calendars sidebar
+7. Navigate to the calendar card
+8. **CRITICAL TEST:** Delete the calendar card (Cmd+Delete or Delete menu)
+9. **Verify:** App does NOT crash ✅
+10. **Verify:** Calendar is removed from the list ✅
+
+**User Verification:**
+User tested immediately after fix and confirmed:
+> "verified. it didn't crash!"
+
+**Related Issues:**
+- DR-0065: Calendar deletion crash (relationship declarations fix)
+- ER-0008: Timeline System implementation (introduced CalendarSystem model)
+- ER-0016: Temporal Editor (uses CalendarSystem for scene dating)
+
+**Implementation Notes:**
+
+**Why This Bug Was Separate from DR-0065:**
+- DR-0065 was about **relationship structure** (missing deleteRule, proper inverse)
+- DR-0068 is about **insertion logic** (double-inserting related entities)
+- Both bugs independently caused the same crash symptom
+- Fixing DR-0065 alone didn't fix the problem - insertion logic also needed correction
+
+**SwiftData Pattern:**
+This fix follows the standard SwiftData pattern for cascade relationships used throughout the codebase:
+
+**Example 1: Board/BoardNode (Board.swift:40-42)**
+```swift
+// Board side (owning)
+@Relationship(deleteRule: .cascade, inverse: \BoardNode.board)
+var nodes: [BoardNode]? = []
+
+// Insertion code (BoardView.swift)
+let board = Board(...)
+let node = BoardNode(...)
+board.nodes?.append(node)  // Link them
+modelContext.insert(board) // Insert ONLY board
+// ❌ NOT: modelContext.insert(node)
+```
+
+**Example 2: Card/Citation (Card.swift:90-91)**
+```swift
+// Card side (owning)
+@Relationship(deleteRule: .cascade, inverse: \Citation.card)
+var citations: [Citation]? = []
+
+// Insertion code (CitationGenerator.swift)
+let card = Card(...)
+let citation = Citation(...)
+card.citations?.append(citation)  // Link them
+modelContext.insert(card)          // Insert ONLY card
+// ❌ NOT: modelContext.insert(citation)
+```
+
+**Rule:** When you have a cascade relationship, insert only the parent/owning entity. SwiftData handles the rest.
+
+**Notes:**
+
+- This bug was discovered immediately after DR-0065 fix when testing with a newly created calendar
+- User correctly identified: "This one was created after the fix! just last round."
+- This demonstrates that DR-0065 fix was necessary but not sufficient
+- Calendar functionality now requires BOTH fixes to work correctly:
+  - DR-0065: Proper relationship declarations
+  - DR-0068: Correct insertion pattern
+
+---
+
