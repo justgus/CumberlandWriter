@@ -63,7 +63,7 @@ struct CardEditorView: View {
     // Track focus so we only handle the shortcut when the Author field is focused
     @FocusState private var focusedField: Field?
 
-    private enum Field: Hashable {
+    enum Field: Hashable {
         case name, subtitle, author, details
     }
 
@@ -154,47 +154,77 @@ struct CardEditorView: View {
     }
 
     var body: some View {
+        let _ = mode.kind
+
+        // Break down the body into smaller components to help the compiler
+        mainContent
+            .padding()
+            .frame(minWidth: 520)
+            .navigationTitle(navigationTitle)
+            #if os(visionOS)
+            .ornament(attachmentAnchor: .scene(.trailing)) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Size")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+
+                    Picker("Size", selection: $viewModel.sizeCategory) {
+                        ForEach(SizeCategory.allCases, id: \.self) { sc in
+                            Text(sc.displayName).tag(sc)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .labelsHidden()
+                }
+                .padding()
+                .glassBackgroundEffect()
+            }
+            #endif
+            .applyImageTasks(viewModel: viewModel, loadThumbnailPreview: loadThumbnailPreview, loadInitialThumbnailIfEditing: loadInitialThumbnailIfEditing)
+            .applyDropDestinations(viewModel: viewModel)
+            .applyMacOSFocusedValue(focusedField: focusedField, defaultAuthorTrimmed: defaultAuthorTrimmed, insertDefaultAuthor: insertDefaultAuthorIfAvailable)
+            .applyOnChangeHandlers(
+                viewModel: viewModel,
+                mode: mode,
+                loadStructure: loadStructureStateForEditIfNeeded,
+                updateAnalysis: { newText in
+                    descriptionAnalysis = DescriptionAnalyzer.analyze(newText)
+                }
+            )
+            .onAppear {
+                setupOnAppear()
+            }
+            .sheet(item: $pendingAttribution) { ctx in
+                attributionSheet(for: ctx)
+            }
+            .cardEditorSheets(
+                viewModel: viewModel,
+                mode: mode,
+                modelContext: modelContext,
+                onAIImageGenerated: handleAIImageGenerated
+            )
+    }
+    
+    // MARK: - Body Sub-Views
+    
+    private var navigationTitle: String {
         let kind = mode.kind
-
-        // DR-0054: Wrap in ScrollView so content is accessible on iOS when sheet is smaller than content
-        ScrollView {
+        return isEditing ? "Edit \(kind.title.dropLastIfPluralized())" : "New \(kind.title.dropLastIfPluralized())"
+    }
+    
+    private var mainContent: some View {
+        let kind = mode.kind
+        
+        return ScrollView {
             VStack(spacing: 16) {
-                // Flip container hosting front/back faces of the editor "card" surface
-                FlipCardContainer(isFlipped: $viewModel.isFlipped) {
-                    // FRONT: common fields
-                    cardSurface(kind: kind) {
-                        frontCardFields
-                    }
-                } back: {
-                    // BACK: kind-specific extras (only if available)
-                    cardSurface(kind: kind) {
-                        backExtrasContent
-                    }
-                }
-                // Ellipsis flip button (Wallet-like) only when extras exist
-                .overlay(alignment: .bottomTrailing) {
-                    if hasKindExtras {
-                        flipButton
-                            .padding(12)
-                            .offset(x: 8, y: 8) // let it protrude slightly like a badge
-                    }
-                }
-                .frame(maxWidth: maxCardWidth)
-
-                // Image actions
-                CardEditorImageControls(
-                    viewModel: viewModel,
-                    hasAnyImage: hasAnyImage,
-                    descriptionAnalysis: descriptionAnalysis,
-                    onImportImage: { viewModel.isImportingImage = true },
-                    onGenerateImage: { viewModel.showAIImageGeneration = true },
-                    onShowHistory: { viewModel.showImageHistory = true },
-                    onRemoveImage: { viewModel.removeImage() }
-                )
-                .frame(maxWidth: maxCardWidth)
-
+                cardFlipContainer(kind: kind)
+                    .frame(maxWidth: maxCardWidth)
+                
+                imageControls
+                    .frame(maxWidth: maxCardWidth)
+                
                 Spacer()
-
+                
                 if isWorking {
                     ProgressView().controlSize(.small)
                 }
@@ -203,122 +233,91 @@ struct CardEditorView: View {
             .fileImporter(isPresented: $viewModel.isImportingImage, allowedContentTypes: [.image]) { result in
                 handleFileImport(result)
             }
-
-            // Citations section (edit mode only)
-            if isEditing, case .edit(let card, _) = mode {
-                CitationViewer(card: card)
-                    .frame(maxWidth: maxCardWidth)
+            
+            citationsSection
+            
+            actionButtons(kind: kind)
+        }
+    }
+    
+    private func cardFlipContainer(kind: Kinds) -> some View {
+        FlipCardContainer(isFlipped: $viewModel.isFlipped) {
+            cardSurface(kind: kind) {
+                frontCardFields
             }
-
-            // Cancel/Save buttons
-            HStack {
-                Button("Cancel") {
-                    dismiss()
-                }
-                .keyboardShortcut(.cancelAction)
-
-                Spacer()
-
-                Button(isEditing ? "Save" : "Create") {
-                    save()
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!viewModel.validate(for: kind))
-            }
-            .frame(maxWidth: maxCardWidth)
-        }
-        .padding()
-        .frame(minWidth: 520)
-        .navigationTitle(isEditing ? "Edit \(kind.title.dropLastIfPluralized())" : "New \(kind.title.dropLastIfPluralized())")
-        #if os(visionOS)
-        .ornament(attachmentAnchor: .scene(.trailing)) {
-            sizeCategoryOrnament
-        }
-        #endif
-        .task(id: viewModel.imageData) {
-            await loadThumbnailPreview()
-        }
-        .task {
-            if viewModel.thumbnail == nil {
-                await loadInitialThumbnailIfEditing()
+        } back: {
+            cardSurface(kind: kind) {
+                backExtrasContent
             }
         }
-        .onChange(of: viewModel.selectedPhotoItem) { _, newItem in
-            Task { await viewModel.processSelectedPhoto() }
-        }
-        .dropDestination(for: Data.self) { items, _ in
-            if let data = items.first, Self.isSupportedImageData(data) {
-                viewModel.imageData = data
-                return true
-            }
-            return false
-        }
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first, Self.isSupportedImageURL(url),
-                  let data = try? Data(contentsOf: url) else { return false }
-            viewModel.imageData = data
-            return true
-        }
-        #if os(macOS)
-        // Expose a focused action so the app-level Commands can trigger it with a shortcut.
-        .focusedValue(
-            \.insertDefaultAuthor,
-            (focusedField == .author && !defaultAuthorTrimmed.isEmpty) ? { insertDefaultAuthorIfAvailable() } : nil
-        )
-        #endif
-        // When flipping to the back in edit mode, load existing structure (if any).
-        .onChange(of: viewModel.isFlipped) { _, flipped in
-            if flipped {
-                Task { await loadStructureStateForEditIfNeeded() }
+        .overlay(alignment: .bottomTrailing) {
+            if hasKindExtras {
+                flipButton
+                    .padding(12)
+                    .offset(x: 8, y: 8)
             }
         }
-        // Keep structureName in sync with template selection if user hasn't edited it.
-        .onChange(of: viewModel.selectedTemplateIndex) { _, newIndex in
-            guard case .create(let createKind, _) = mode, createKind == .projects else { return }
-            guard viewModel.structureSource == .template else { return }
-            let templates = StoryStructure.predefinedTemplates
-            guard templates.indices.contains(newIndex) else { return }
-            let t = templates[newIndex]
-            viewModel.structureName = t.name
-            viewModel.editableElements = t.elements.map { EditableElement(name: $0) }
-        }
-        // Analyze description quality for smart AI image generation (ER-0009 Phase 3A)
-        .onChange(of: viewModel.detailedText) { _, newText in
-            descriptionAnalysis = DescriptionAnalyzer.analyze(newText)
-        }
-        .onAppear {
-            // Inject modelContext into ViewModel
-            if viewModel.modelContext == nil {
-                viewModel.setModelContext(modelContext)
-            }
-
-            // Analyze on initial load
-            descriptionAnalysis = DescriptionAnalyzer.analyze(viewModel.detailedText)
-
-            // ER-0011: Check clipboard state for paste button
-            viewModel.checkClipboard()
-        }
-        // Present the quick attribution sheet right after text/image drop succeeds (edit mode only)
-        .sheet(item: $pendingAttribution) { ctx in
-            if case .edit(let card, _) = mode {
-                QuickAttributionSheetEditor(
-                    card: card,
-                    kind: ctx.kind,
-                    suggestedURL: ctx.suggestedURL,
-                    prefilledExcerpt: ctx.prefilledExcerpt,
-                    onSave: { _ in },
-                    onSkip: { }
-                )
-                .frame(minWidth: 420, minHeight: 360)
-            }
-        }
-        // All other sheets and overlays
-        .cardEditorSheets(
+    }
+    
+    private var imageControls: some View {
+        CardEditorImageControls(
             viewModel: viewModel,
-            mode: mode,
-            modelContext: modelContext,
-            onAIImageGenerated: handleAIImageGenerated
+            hasAnyImage: hasAnyImage,
+            descriptionAnalysis: descriptionAnalysis,
+            onImportImage: { viewModel.isImportingImage = true },
+            onGenerateImage: { viewModel.showAIImageGeneration = true },
+            onShowHistory: { viewModel.showImageHistory = true },
+            onRemoveImage: { viewModel.removeImage() }
         )
+    }
+    
+    @ViewBuilder
+    private var citationsSection: some View {
+        if isEditing, case .edit(let card, _) = mode {
+            CitationViewer(card: card)
+                .frame(maxWidth: maxCardWidth)
+        }
+    }
+    
+    private func actionButtons(kind: Kinds) -> some View {
+        HStack {
+            Button("Cancel") {
+                dismiss()
+            }
+            .keyboardShortcut(.cancelAction)
+            
+            Spacer()
+            
+            Button(isEditing ? "Save" : "Create") {
+                save()
+            }
+            .keyboardShortcut(.defaultAction)
+            .disabled(!viewModel.validate(for: kind))
+        }
+        .frame(maxWidth: maxCardWidth)
+    }
+    
+    @ViewBuilder
+    private func attributionSheet(for ctx: PendingAttribution) -> some View {
+        if case .edit(let card, _) = mode {
+            QuickAttributionSheetEditor(
+                card: card,
+                kind: ctx.kind,
+                suggestedURL: ctx.suggestedURL,
+                prefilledExcerpt: ctx.prefilledExcerpt,
+                onSave: { _ in },
+                onSkip: { }
+            )
+            .frame(minWidth: 420, minHeight: 360)
+        }
+    }
+    
+    private func setupOnAppear() {
+        if viewModel.modelContext == nil {
+            viewModel.setModelContext(modelContext)
+        }
+        descriptionAnalysis = DescriptionAnalyzer.analyze(viewModel.detailedText)
+        viewModel.checkClipboard()
     }
 
     // MARK: - Front Card Fields
@@ -508,27 +507,7 @@ struct CardEditorView: View {
         .accessibilityLabel("Card size")
     }
 
-    #if os(visionOS)
-    /// visionOS ornament view for the size category picker
-    @ViewBuilder
-    private var sizeCategoryOrnament: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Size")
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
 
-            Picker("Size", selection: $viewModel.sizeCategory) {
-                ForEach(SizeCategory.allCases, id: \.self) { sc in
-                    Text(sc.displayName).tag(sc)
-                }
-            }
-            .pickerStyle(.wheel)
-            .labelsHidden()
-        }
-        .padding()
-        .glassBackgroundEffect()
-    }
-    #endif
 
     // MARK: - Derived Properties
 
@@ -755,7 +734,7 @@ struct CardEditorView: View {
             .map { el in
                 EditableElement(
                     name: el.name,
-                    description: el.elementDescription ?? "",
+                    description: el.elementDescription,
                     colorHue: el.colorHue
                 )
             }
@@ -763,12 +742,12 @@ struct CardEditorView: View {
 
     // MARK: - Static Utilities
 
-    private static func isSupportedImageURL(_ url: URL) -> Bool {
+    public static func isSupportedImageURL(_ url: URL) -> Bool {
         let ext = url.pathExtension.lowercased()
         return ["jpg", "jpeg", "png", "gif", "heic", "heif", "bmp", "tiff", "tif"].contains(ext)
     }
 
-    private static func isSupportedImageData(_ data: Data) -> Bool {
+    public static func isSupportedImageData(_ data: Data) -> Bool {
         return makeCGImage(from: data) != nil
     }
 
@@ -782,6 +761,88 @@ struct CardEditorView: View {
               let uti = CGImageSourceGetType(source) else { return nil }
         let ext = (uti as String).split(separator: ".").last.map(String.init)
         return ext
+    }
+}
+
+// MARK: - View Modifier Extensions
+
+extension View {
+    func applyImageTasks(
+        viewModel: CardEditorViewModel,
+        loadThumbnailPreview: @escaping () async -> Void,
+        loadInitialThumbnailIfEditing: @escaping () async -> Void
+    ) -> some View {
+        self
+            .task(id: viewModel.imageData) {
+                await loadThumbnailPreview()
+            }
+            .task {
+                if viewModel.thumbnail == nil {
+                    await loadInitialThumbnailIfEditing()
+                }
+            }
+            .onChange(of: viewModel.selectedPhotoItem) { _, newItem in
+                Task { await viewModel.processSelectedPhoto() }
+            }
+    }
+    
+    func applyDropDestinations(viewModel: CardEditorViewModel) -> some View {
+        self
+            .dropDestination(for: Data.self) { items, _ in
+                if let data = items.first, CardEditorView.isSupportedImageData(data) {
+                    viewModel.imageData = data
+                    return true
+                }
+                return false
+            }
+            .dropDestination(for: URL.self) { urls, _ in
+                guard let url = urls.first, CardEditorView.isSupportedImageURL(url),
+                      let data = try? Data(contentsOf: url) else { return false }
+                viewModel.imageData = data
+                return true
+            }
+    }
+    
+    @ViewBuilder
+    func applyMacOSFocusedValue(
+        focusedField: CardEditorView.Field?,
+        defaultAuthorTrimmed: String,
+        insertDefaultAuthor: @escaping () -> Void
+    ) -> some View {
+        #if os(macOS)
+        self.focusedValue(
+            \.insertDefaultAuthor,
+            (focusedField == .author && !defaultAuthorTrimmed.isEmpty) ? insertDefaultAuthor : nil
+        )
+        #else
+        self
+        #endif
+    }
+    
+    func applyOnChangeHandlers(
+        viewModel: CardEditorViewModel,
+        mode: CardEditorView.Mode,
+        loadStructure: @escaping () async -> Void,
+        updateAnalysis: @escaping (String) -> Void
+    ) -> some View {
+        self
+            .onChange(of: viewModel.isFlipped) { _, flipped in
+                if flipped {
+                    Task { await loadStructure() }
+                }
+            }
+            .onChange(of: viewModel.selectedTemplateIndex) { _, newIndex in
+                guard case .create(let createKind, _) = mode, createKind == .projects else { return }
+                guard viewModel.structureSource == .template else { return }
+                let templates = StoryStructure.predefinedTemplates
+                guard templates.indices.contains(newIndex) else { return }
+                let t = templates[newIndex]
+                viewModel.structureName = t.name
+                viewModel.editableElements = t.elements.map { EditableElement(name: $0) }
+            }
+            .onChange(of: viewModel.detailedText) { _, newText in
+                updateAnalysis(newText)
+            }
     }
 }
 

@@ -38,8 +38,8 @@ class AppModel {
     var pendingCardEditorRequest: CardEditorRequest?
     #endif
 
-    #if os(macOS)
-    /// Tracks temporal editor presentation for macOS window management
+    #if os(macOS) || os(visionOS)
+    /// Tracks temporal editor presentation for macOS and visionOS window management
     /// This resolves DR-0061: Sheet rendering issues on macOS
     struct TemporalEditorRequest: Identifiable, Hashable, Codable {
         let id: UUID

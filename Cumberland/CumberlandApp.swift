@@ -286,7 +286,8 @@ struct CumberlandApp: App {
         }
         .windowResizability(.contentSize)
 
-        // Temporal editor window for macOS
+        #if os(macOS) || os(visionOS)
+        // Temporal editor window for macOS and visionOS
         // DR-0061: Using window instead of sheet to fix rendering issues
         WindowGroup(for: AppModel.TemporalEditorRequest.self) { $request in
             if let request {
@@ -296,6 +297,7 @@ struct CumberlandApp: App {
             }
         }
         .defaultSize(width: 560, height: 640)
+        #endif
 
         // Developer diagnostic windows (DEBUG only, some use in-memory samples, some live)
         #if DEBUG

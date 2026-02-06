@@ -177,7 +177,7 @@ final class CardEditorSaveHandler {
         guard let primaryPrompt = prompts.first else { return }
 
         // Get AI provider
-        guard let provider = AISettings.shared.currentProvider else { return }
+        guard let provider = AISettings.shared.currentImageGenerationProvider else { return }
 
         do {
             let imageData = try await provider.generateImage(prompt: primaryPrompt)

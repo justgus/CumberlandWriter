@@ -98,7 +98,9 @@ final class CardEditorDropHandler {
             // 0) Try object-based images first (UIKit/AppKit)
             #if canImport(UIKit)
             if provider.canLoadObject(ofClass: UIImage.self) {
-                provider.loadObject(ofClass: UIImage.self) { obj, _ in
+                nonisolated(unsafe) let provider = provider
+                provider.loadObject(ofClass: UIImage.self) { [weak self] obj, _ in
+                    guard let self else { return }
                     if let ui = obj as? UIImage {
                         let data = ui.pngData() ?? ui.jpegData(compressionQuality: 0.9)
                         if let data {
@@ -114,7 +116,9 @@ final class CardEditorDropHandler {
                             }
                         }
                     } else {
-                        self.tryURLOrData(provider: provider)
+                        Task { @MainActor in
+                            self.tryURLOrData(provider: provider)
+                        }
                     }
                 }
                 continue
@@ -122,7 +126,9 @@ final class CardEditorDropHandler {
             #endif
             #if canImport(AppKit)
             if provider.canLoadObject(ofClass: NSImage.self) {
-                provider.loadObject(ofClass: NSImage.self) { obj, _ in
+                nonisolated(unsafe) let provider = provider
+                provider.loadObject(ofClass: NSImage.self) { [weak self] obj, _ in
+                    guard let self else { return }
                     if let img = obj as? NSImage {
                         var outData: Data?
                         if let tiff = img.tiffRepresentation,
@@ -143,7 +149,9 @@ final class CardEditorDropHandler {
                             }
                         }
                     } else {
-                        self.tryURLOrData(provider: provider)
+                        Task { @MainActor in
+                            self.tryURLOrData(provider: provider)
+                        }
                     }
                 }
                 continue
@@ -161,7 +169,9 @@ final class CardEditorDropHandler {
                provider.hasItemConformingToTypeIdentifier(UTType.heif.identifier) ||
                provider.hasItemConformingToTypeIdentifier(UTType.bmp.identifier)
             {
-                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                nonisolated(unsafe) let provider = provider
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { [weak self] data, _ in
+                    guard let self else { return }
                     if let data, !data.isEmpty {
                         Task { @MainActor in
                             self.setImageData(data)
@@ -174,7 +184,9 @@ final class CardEditorDropHandler {
                             }
                         }
                     } else {
-                        self.tryURLOrData(provider: provider)
+                        Task { @MainActor in
+                            self.tryURLOrData(provider: provider)
+                        }
                     }
                 }
                 continue

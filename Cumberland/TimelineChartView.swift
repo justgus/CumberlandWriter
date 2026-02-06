@@ -13,7 +13,7 @@ struct TimelineChartView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
-    #if os(macOS)
+    #if os(macOS) || os(visionOS)
     @Environment(\.openWindow) private var openWindow
     #endif
 
@@ -235,7 +235,7 @@ struct TimelineChartView: View {
             }
         }
         #else
-        // macOS: Use window instead of sheet to fix DR-0061
+        // macOS and visionOS: Use window instead of sheet to fix DR-0061
         .onChange(of: isPresentingTemporalEditor) { _, isPresenting in
             if isPresenting {
                 if let sceneRow = selectedSceneForEdit,
