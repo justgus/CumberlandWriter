@@ -17,7 +17,7 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **2 unverified DRs** (2 Identified, 0 Resolved - Not Verified)
+Currently: **0 active DRs** ✅
 
 **Archived Open DRs:**
 See: [DR-archive-0038-0056.md](./DR-archive-0038-0056.md) for older open/closed DRs:
@@ -29,14 +29,14 @@ See: [DR-archive-0038-0056.md](./DR-archive-0038-0056.md) for older open/closed 
 **Current Unverified DRs:**
 See: [DR-unverified.md](./DR-unverified.md)
 
-| DR | Title | Component | Status |
-|----|-------|-----------|--------|
-| DR-0071 | Apple Image Playground Requires Person Selection, Unsuitable for Non-Portrait Generation | AI Image Generation, AppleIntelligenceProvider | 🔴 Identified - Not Resolved |
-| DR-0069 | AI Provider Safety Filter False Positives on Character Names | AI Image Generation, ImageGenerator | 🔴 Identified - Not Resolved |
-
 ### Verified DRs (Resolved Issues)
 
-Currently: **59 verified DRs** (+ 1 closed/deferred) | Next available DR: **DR-0074**
+Currently: **61 verified DRs** | Next available DR: **DR-0076**
+
+**Latest DRs:**
+- DR-0075: Cannot Reuse Original Prompt After Failed Visual Element Extraction (2026-02-05) - ✅ Verified
+- DR-0074: Image Views Not Refreshing When Image Updated or Switched from History (2026-02-05) - ✅ Verified
+- DR-0073: VisualElementReviewView Sheet Does Not Resize When Advanced Options Expanded (2026-02-04) - ✅ Verified
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
@@ -47,7 +47,18 @@ Currently: **59 verified DRs** (+ 1 closed/deferred) | Next available DR: **DR-0
 | Batch 5 | DR-0041 to DR-0050 | [DR-verified-0041-0050.md](./DR-verified-0041-0050.md) | 🚧 In Progress (1/10 verified) |
 | Batch 6 | DR-0051 to DR-0060 | [DR-verified-0051-0060.md](./DR-verified-0051-0060.md) | 🚧 In Progress (8/10 verified) |
 | Batch 7 | DR-0061 to DR-0070 | [DR-verified-0061-0070.md](./DR-verified-0061-0070.md) | 🚧 In Progress (6/10 verified) |
-| Batch 8 | DR-0071 to DR-0080 | [DR-verified-0071-0080.md](./DR-verified-0071-0080.md) | 🚧 In Progress (2/10 verified) |
+| Batch 8 | DR-0071 to DR-0080 | [DR-verified-0071-0080.md](./DR-verified-0071-0080.md) | 🚧 In Progress (4/10 verified) |
+
+### Closed DRs (Not Verified)
+
+These DRs were closed without verification for various reasons (external limitations, design changes, superseded by other work).
+
+Currently: **4 closed DRs**
+
+| Batch | DRs | File | Reason |
+|-------|-----|------|--------|
+| Closed 061-070 | DR-0069 | [DR-closed-061-070.md](./DR-closed-061-070.md) | External limitation (AI provider safety filters) |
+| Closed 071-080 | DR-0071, DR-0072, DR-0073 | [DR-closed-071-080.md](./DR-closed-071-080.md) | Will be addressed by ER-0021 (DR-0071), Verified and closed (DR-0072, DR-0073) |
 
 ## DR Summary
 
@@ -171,20 +182,53 @@ When a verified batch file contains 10 DRs, create a new batch file:
 - **Total DRs:** 73 (documented)
 - **Verified:** 59 (80.8%) ✅
 - **Resolved - Not Verified:** 0 (0.0%) 🟡
-- **Open:** 6 (8.2%) 🔴
-  - DR-0071 (Apple Image Playground portrait-only limitation) - identified 2026-02-03
-  - DR-0069 (AI Provider Safety Filter False Positives) - identified 2026-02-03
+- **Open:** 4 (5.5%) 🔴
   - DR-0043 (Duplicate RelationType entries) - deferred per user
   - DR-0041 (Vegetation brushes should render as area fills) - deferred per user
   - DR-0038 (Draft interior drawing settings not remembered) - deferred per user
   - Last 3 in archive
-- **Closed/Deferred:** 3 (4.1%) ⚪
+- **Closed/Deferred:** 5 (6.8%) ⚪
+  - DR-0071 (closed 2026-02-03 - Will be addressed by ER-0021: AI Visual Element Extraction)
+  - DR-0069 (closed 2026-02-03 - Known Issue: OpenAI safety filter limitation, external)
   - DR-0060 (superseded by DR-0059 redesign, now verified)
   - DR-0067 (closed, deferred to ER-0020 - Dynamic AI Relationship Extraction)
   - DR-0039 (closed - OBE, fixed by draft persistence improvements)
 - **Latest DR:** DR-0073 (2026-02-03 - Regenerate Image Uses Old Prompt) ✅ Verified
 
 **Recent Activity:**
+- 2026-02-04: **VERIFIED DR-0072 & DR-0073** - ER-0021 Extraction Quality & UI Issues Complete! ✅
+  - **DR-0072:** Visual element extraction returning full sentences instead of targeted phrases
+    - Phase 1: Rewrote with specific patterns (too aggressive - missed details)
+    - Phase 2: Added fallback extraction (issues: eyes included "nose,", facial features blank)
+    - Phase 3: Refined boundary detection and comma-list handling (partial fix)
+    - Phase 4 (CURRENT): Found root cause - facial features extraction was never implemented!
+      - Added missing facial features extraction with keywords (chin, nose, jaw, etc.)
+      - Eyes: Stops at comma before "eyes" to extract "bright green eyes" correctly
+      - Fallback: Recognizes comma-separated lists for "strong chin, short nose"
+      - All visual elements now extracted properly
+  - **DR-0073:** VisualElementReviewView sheet not resizing when advanced options expanded
+    - Phase 1 (failed): Frame sizing only
+    - Phase 2 (failed): Presentation sizing modifiers (sheets are modal, cannot resize)
+    - Phase 3 (CURRENT): Re-laid out UI to fit in standard modal sheet
+      - Changed segmented pickers to compact menu pickers (dropdown style)
+      - Horizontal layout: labels left, pickers right
+      - Fits in 600×650pt sheet without clipping
+  - BUILD SUCCEEDED - ✅ BOTH DRs VERIFIED AND CLOSED
+- 2026-02-03: **CLOSED 2 DRs** (DR-0071, DR-0069) - All Active DRs Now Resolved! 🎊
+  - **DR-0071:** Apple Image Playground portrait-only limitation
+    - Closed as "Will be addressed by ER-0021" (AI-Powered Visual Element Extraction)
+    - ER-0021 will provide cinematic framing and visual element extraction to work around Image Playground limitations
+    - Fundamental Apple API limitation, cannot be fixed in Cumberland alone
+  - **DR-0069:** AI Provider Safety Filter False Positives
+    - Closed as "Known Issue (External Limitation)"
+    - OpenAI's DALL-E 3 safety filters are external to Cumberland
+    - Cannot be fixed by user or developer - requires OpenAI changes
+    - Workarounds documented: use different character names, switch to Apple Intelligence, or remove name from prompt
+  - **ALL ACTIVE DRS NOW CLOSED OR VERIFIED!** 🎊
+    - 59 verified (80.8%)
+    - 5 closed/deferred (6.8%)
+    - 4 open (deferred per user request, archived)
+    - **0 active unresolved issues**
 - 2026-02-03: **VERIFIED 6 ISSUES** (ER-0017, DR-0070, DR-0072, DR-0073, DR-0066, DR-0068) - Batch Image Generation and AI Analysis Complete! 🎉
   - **DR-0073:** Regenerate Image Uses Old Prompt Instead of Updated Description
     - Fixed prompt pre-fill logic in CardEditorView to always generate fresh prompts from current description
@@ -236,5 +280,5 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ---
 
-*Last Updated: 2026-02-03*
-*Document Version: 12.0 (ER-0017, DR-0070, DR-0072 verified - Batch image generation complete! DR-0073 resolved)*
+*Last Updated: 2026-02-04*
+*Document Version: 13.0 (DR-0072, DR-0073 verified - ER-0021 visual element extraction complete!)*

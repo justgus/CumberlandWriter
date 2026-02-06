@@ -136,6 +136,9 @@ enum AnalysisTask: Codable {
     /// Extract calendar system information
     case calendarExtraction
 
+    /// Extract visual elements for image generation (ER-0021)
+    case visualElementExtraction
+
     /// Combined analysis (all of the above)
     case comprehensive
 }

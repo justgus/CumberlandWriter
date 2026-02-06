@@ -525,3 +525,113 @@ initialPrompt: nil, // Don't pre-fill - let it generate fresh suggestions from c
 
 ---
 
+## DR-0074: Image Views Not Refreshing When Image Updated or Switched from History
+
+**Status:** ✅ Resolved - Verified
+**Date Reported:** 2026-02-05
+**Date Resolved:** 2026-02-05
+**Date Verified:** 2026-02-05
+**Platform:** All platforms
+**Component:** Image Display, CardSheetView, CardEditorView, Image History
+**Severity:** High
+**Related:** ER-0017 (Image Version History), ER-0009 (AI Image Generation)
+
+**Description:**
+
+When a card's image is updated (regenerated or switched from history), the image correctly updates in the cards list view, but does NOT refresh in CardSheetView, CardEditorView, CardRelationshipView, or FullSizeImageViewer. The views continue showing the old cached image until the view is closed and reopened.
+
+The most critical manifestation: When regenerating an image and double-clicking the thumbnail BEFORE saving the card, FullSizeImageViewer showed the OLD image, not the new one displayed in the thumbnail.
+
+**Root Cause Analysis:**
+
+Multiple issues were discovered during investigation:
+
+1. **ImageVersionManager and BatchGenerationQueue** directly set `originalImageData` instead of calling `card.setOriginalImageData()`, bypassing the proper update mechanism that triggers view refresh
+2. **CardRelationshipView** missing `imageFileURL` watcher
+3. **Card.swift cache key** for full-size images never changed (always `"UUID-full"`), so in-memory cache returned stale images
+4. **FullSizeImageViewer** read from `card.originalImageData` which wasn't updated until card was saved, while CardEditorView held new image in local `@State var imageData`
+
+**Resolution:**
+
+**Fix 1:** ImageVersionManager.swift & BatchGenerationQueue.swift - Use `setOriginalImageData()`
+**Fix 2:** CardRelationshipView.swift - Add `imageFileURL` task watcher  
+**Fix 3:** Card.swift - Include `originalImageData?.count` in cache key
+**Fix 4:** FullSizeImageViewer.swift - Accept `pendingImageData` parameter, prefer it over saved data
+**Fix 5:** CardEditorView.swift & CardSheetView.swift - Pass pending image data and update `.id()` modifiers
+
+**Files Modified:**
+
+- `Cumberland/AI/ImageVersionManager.swift` (lines 117-127)
+- `Cumberland/AI/BatchGenerationQueue.swift` (lines 416-422)
+- `Cumberland/CardRelationshipView.swift` (lines 201-203, 313, 317)
+- `Cumberland/Model/Card.swift` (lines 477-480)
+- `Cumberland/Images/FullSizeImageViewer.swift` (lines 7, 38-51, 147-170, 216, 221, 256)
+- `Cumberland/CardEditorView.swift` (lines 484, 491)
+- `Cumberland/CardSheetView.swift` (lines 403, 408)
+
+**Result:**
+
+- ✅ Image regeneration refreshes all views immediately
+- ✅ Switching images from history updates all views immediately
+- ✅ FullSizeImageViewer shows current image when opened (even before saving card)
+- ✅ No need to close/reopen views to see updated image
+
+---
+
+## DR-0075: Cannot Reuse Original Prompt After Failed Visual Element Extraction
+
+**Status:** ✅ Resolved - Verified
+**Date Reported:** 2026-02-05
+**Date Resolved:** 2026-02-05
+**Date Verified:** 2026-02-05
+**Platform:** All platforms
+**Component:** AI Image Generation, Visual Element Extraction (ER-0021)
+**Severity:** Medium
+**Related:** ER-0021 (AI-Powered Visual Element Extraction)
+
+**Description:**
+
+When regenerating an image with an existing prompt, if the user clicks "Extract & Review" and the extraction returns blank/insufficient fields (common for artifacts), the user cannot proceed with the original prompt. The Generate button becomes disabled, and there's no way to go back to using the original prompt that was working.
+
+**Expected Behavior:**
+
+- When extraction fails or returns insufficient data, user should be able to cancel back to original prompt
+- Original prompt should be preserved if user cancels out of review sheet
+- User should be able to use existing prompt as fallback when extraction doesn't work
+- Workflow: Try extraction → If fails → Use original prompt → Generate
+
+**Root Cause Analysis:**
+
+The `AIImageGenerationView` had no mechanism to preserve the original prompt when showing the visual element review sheet. When extraction returned insufficient data (e.g., artifact with no clear object type), and the user canceled the review sheet, the prompt would remain empty or be overwritten with blank extraction results.
+
+**Resolution:**
+
+**Fix 1:** AIImageGenerationView.swift - Save original prompt before extraction and pass it to review sheet
+**Fix 2:** VisualElementReviewView.swift - Enable Generate button with original prompt fallback via `canGenerate` computed property
+**Fix 3:** VisualElements.swift & VisualElementReviewView.swift - Add `useOriginalPrompt` flag to signal using original prompt
+**Fix 4:** AIImageGenerationView.swift - Handle fallback flag in parent view
+
+**Logic Flow:**
+
+1. User clicks "Extract & Review": Original prompt saved
+2. Review sheet opens: Shows extracted fields + original prompt passed
+3. Extraction insufficient: Generate button enabled IF original prompt exists
+4. User clicks "Generate Image": Sets `useOriginalPrompt = true` flag
+5. Parent receives callback: Sees flag, uses original prompt instead
+6. Generation proceeds: With original working prompt
+
+**Files Modified:**
+
+- `Cumberland/AI/VisualElements.swift` (line 32)
+- `Cumberland/AI/VisualElementReviewView.swift` (lines 32, 49-60, 87, 905-918)
+- `Cumberland/AI/AIImageGenerationView.swift` (lines 67-68, 287-289, 351, 448-452)
+
+**Result:**
+
+- ✅ "Generate Image" button enabled when original prompt exists (even if extraction blank)
+- ✅ User can click Generate directly from review sheet to use original prompt
+- ✅ No need to fill in fields just to enable the button
+- ✅ Workflow: Click "Extract & Review" → See blank fields → Click "Generate Image" → Uses original prompt
+
+---
+

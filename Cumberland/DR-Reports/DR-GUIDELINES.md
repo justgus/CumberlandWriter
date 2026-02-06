@@ -171,8 +171,37 @@ When DR-00X0 (the 10th DR in a batch) is verified:
 - **DR-Documentation.md** - Quick reference index (all DRs, always up-to-date)
 - **DR-unverified.md** - Active issues awaiting resolution or verification
 - **DR-verified-XXXX-YYYY.md** - Verified issues in batches of 10
+- **DR-closed-XXXX-YYYY.md** - Closed issues (not verified, will not be verified)
+- **DR-archive-XXXX-YYYY.md** - Archived open/deferred issues
 - **DR-GUIDELINES.md** - This file (documentation standards)
 - **ER-Documentation.md** - Enhancement Requests index (see ER-Guidelines.md)
+
+### File Purpose Details
+
+**DR-unverified.md:**
+- Contains only active DRs (Open, In Progress, or Resolved-Not-Verified)
+- Updated frequently as work progresses
+- Should never contain "Closed" or "Verified" DRs
+
+**DR-verified-XXXX-YYYY.md:**
+- Contains DRs that have been resolved and verified
+- Organized in batches of 10
+- Once a DR is here, it's considered complete and successful
+
+**DR-closed-XXXX-YYYY.md:** (Added 2026-02-05)
+- Contains DRs that were closed WITHOUT verification
+- Used for:
+  - External limitations (e.g., AI provider safety filters)
+  - Issues superseded by other work (e.g., "Will be addressed by ER-XXXX")
+  - Design decisions to not fix
+  - Known issues with documented workarounds
+- These DRs will NEVER be verified but should be preserved for historical reference
+- Organized by batch ranges (matching verified batches)
+
+**DR-archive-XXXX-YYYY.md:**
+- Contains older open or deferred DRs
+- Issues that remain open but are not actively being worked on
+- Preserved for historical tracking
 
 ---
 
@@ -204,6 +233,23 @@ When DR-00X0 (the 10th DR in a batch) is verified:
 - [ ] "Verified" incremented, "Resolved - Not Verified" decremented in Statistics
 - [ ] Percentages recalculated
 - [ ] "Last Updated" date updated
+
+### When Closing a DR Without Verification: (Added 2026-02-05)
+- [ ] DR moved from DR-unverified.md to appropriate DR-closed-XXXX-YYYY.md file
+- [ ] DR removed from "Unverified DRs (Active Issues)" table (if it was there)
+- [ ] DR added to "Closed DRs (Not Verified)" section in DR-Documentation.md
+- [ ] "Reason for Closure" documented in the closed DR file
+- [ ] Closed count incremented in DR-Documentation.md
+- [ ] Unverified count decremented (if applicable)
+- [ ] "Last Updated" date updated
+
+**Reasons for Closing Without Verification:**
+- **External Limitation:** Issue is in third-party code/service (e.g., AI provider behavior)
+- **Superseded:** Work will be done in different ER (e.g., "Will be addressed by ER-0021")
+- **Design Decision:** Team/user decides not to fix
+- **Known Issue:** Issue acknowledged with documented workaround, fix deferred indefinitely
+
+**Important:** Closed DRs should still include full documentation (description, root cause, proposed solutions, workarounds) for future reference. They are closed due to circumstances, not lack of documentation.
 
 ---
 

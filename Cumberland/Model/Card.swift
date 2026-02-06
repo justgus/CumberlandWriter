@@ -475,7 +475,8 @@ private extension Card {
     }()
 
     var cacheKeyFull: String {
-        "\(id.uuidString)-full"
+        let v = originalImageData?.count ?? 0
+        return "\(id.uuidString)-full-\(v)"
     }
 
     var cacheKeyThumb: String {

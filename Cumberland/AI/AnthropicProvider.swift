@@ -91,6 +91,11 @@ class AnthropicProvider: AIProviderProtocol {
             return try await inferRelationships(from: text, apiKey: apiKey)
         case .calendarExtraction:
             return try await extractCalendar(from: text, apiKey: apiKey)
+        case .visualElementExtraction:
+            // ER-0021: Visual element extraction
+            // Placeholder - actual extraction will be done by VisualElementExtractor
+            // Future: Could use Claude for sophisticated visual element extraction
+            return AnalysisResult(entities: nil, relationships: nil, calendars: nil, metadata: nil)
         case .comprehensive:
             return try await performComprehensiveAnalysis(of: text, apiKey: apiKey)
         }

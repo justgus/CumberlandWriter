@@ -399,11 +399,13 @@ struct CardSheetView: View {
             // Full-size image viewer
             #if os(macOS)
             .sheet(isPresented: $showFullSizeImage) {
-                FullSizeImageViewer(card: card)
+                FullSizeImageViewer(card: card, pendingImageData: nil)
+                    .id(card.originalImageData?.count ?? 0)
             }
             #else
             .fullScreenCover(isPresented: $showFullSizeImage) {
-                FullSizeImageViewer(card: card)
+                FullSizeImageViewer(card: card, pendingImageData: nil)
+                    .id(card.originalImageData?.count ?? 0)
             }
             #endif
             // Present AI Image Info panel (ER-0009)

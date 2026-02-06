@@ -5,24 +5,22 @@ import SwiftData
 /// A full-screen viewer for high-resolution card images with zoom and pan support.
 struct FullSizeImageViewer: View {
     let card: Card
+    let pendingImageData: Data? // Optional pending image data from editor (not yet saved to card)
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
-    
+    @State private var loadedImage: CGImage?
+
     var body: some View {
         ZStack {
             // Black background for photo viewing
             Color.black.ignoresSafeArea()
-            
+
             Group {
-                if let _ = card.imageFileURL,
-                   let cgImage = card.cgImageFromFileURL() {
-                    imageView(cgImage: cgImage)
-                } else if let data = card.originalImageData,
-                          let cgImage = Self.makeCGImage(from: data) {
+                if let cgImage = loadedImage {
                     imageView(cgImage: cgImage)
                 } else {
                     unavailableView
@@ -37,6 +35,24 @@ struct FullSizeImageViewer: View {
                 }
                 Spacer()
             }
+        }
+        .task {
+            // Always load on appear
+            await loadImage()
+        }
+        .task(id: pendingImageData?.count) {
+            // Watch pending image data (from editor, not yet saved)
+            await loadImage()
+        }
+        .task(id: card.originalImageData?.count) {
+            // Watch originalImageData size as primary change indicator
+            // This changes immediately when image is regenerated
+            await loadImage()
+        }
+        .task(id: card.thumbnailData?.count) {
+            // Watch thumbnail data as backup indicator
+            // This also changes when image is updated
+            await loadImage()
         }
         #if os(macOS)
         .frame(minWidth: 600, minHeight: 400)
@@ -130,7 +146,34 @@ struct FullSizeImageViewer: View {
     }
     
     // MARK: - Helpers
-    
+
+    @MainActor
+    private func loadImage() async {
+        // Prefer pending image data (from editor, not yet saved to card)
+        if let data = pendingImageData,
+           let cgImage = Self.makeCGImage(from: data) {
+            loadedImage = cgImage
+            return
+        }
+
+        // Then try originalImageData from card
+        if let data = card.originalImageData,
+           let cgImage = Self.makeCGImage(from: data) {
+            loadedImage = cgImage
+            return
+        }
+
+        // Fallback to file URL if no originalImageData
+        if card.imageFileURL != nil,
+           let cgImage = card.cgImageFromFileURL() {
+            loadedImage = cgImage
+            return
+        }
+
+        // No image available
+        loadedImage = nil
+    }
+
     private static func makeCGImage(from data: Data) -> CGImage? {
         guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         return CGImageSourceCreateImageAtIndex(src, 0, nil)
@@ -170,12 +213,12 @@ struct FullSizeImageGestureModifier: ViewModifier {
             }
             // Present full-size viewer
             .sheet(isPresented: $showingFullSize) {
-                FullSizeImageViewer(card: card)
+                FullSizeImageViewer(card: card, pendingImageData: nil)
             }
             #else
             // Present full-size viewer
             .fullScreenCover(isPresented: $showingFullSize) {
-                FullSizeImageViewer(card: card)
+                FullSizeImageViewer(card: card, pendingImageData: nil)
             }
             #endif
     }
@@ -209,6 +252,6 @@ extension View {
         sizeCategory: .standard
     )
     
-    return FullSizeImageViewer(card: sample)
+    return FullSizeImageViewer(card: sample, pendingImageData: nil)
         .modelContainer(for: Card.self, inMemory: true)
 }

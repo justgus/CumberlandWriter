@@ -114,17 +114,20 @@ final class ImageVersionManager {
         // Save current image as a version first (to preserve it)
         saveCurrentAsVersion(for: card, in: context)
 
-        // Restore the version
-        card.originalImageData = imageData
+        // Restore the version using setOriginalImageData to properly update imageFileURL
+        // This ensures views watching imageFileURL will refresh
+        do {
+            try card.setOriginalImageData(imageData)
+        } catch {
+            logger.error("Failed to set image data: \(error.localizedDescription)")
+            return
+        }
+
+        // Update AI metadata
         card.imageAIProvider = version.provider
         card.imageAIPrompt = version.prompt
         card.imageAIGeneratedAt = version.generatedAt
         card.imageGeneratedByAI = true
-
-        // Regenerate thumbnail
-        if let thumbnail = generateThumbnail(from: imageData) {
-            card.thumbnailData = thumbnail
-        }
 
         logger.info("Restored version \(version.versionNumber) for card '\(card.name)'")
     }

@@ -58,6 +58,15 @@ struct AIImageGenerationView: View {
     /// Generated image URL from ImagePlayground
     @State private var imagePlaygroundURL: URL?
 
+    /// Show visual element review sheet (ER-0021 Phase 2)
+    @State private var showVisualElementReview: Bool = false
+
+    /// Extracted visual elements for review (ER-0021 Phase 2)
+    @State private var reviewedElements: VisualElements?
+
+    /// Original prompt before extraction (preserved for fallback)
+    @State private var originalPromptBeforeExtraction: String?
+
     /// Available providers
     private var availableProviders: [String] {
         AIProviderRegistry.shared.availableProviders().map { $0.name }
@@ -93,7 +102,11 @@ struct AIImageGenerationView: View {
                         .padding(8)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
+                                #if os(macOS)
                                 .fill(Color(nsColor: .textBackgroundColor))
+                                #else
+                                .fill(Color(uiColor: .systemBackground))
+                                #endif
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
@@ -271,7 +284,12 @@ struct AIImageGenerationView: View {
                         Spacer()
 
                         Button {
-                            if usesSheetBasedUI {
+                            // ER-0021 Phase 2: Show visual element review if we have a description
+                            if shouldShowVisualElementReview {
+                                // Preserve original prompt before extraction
+                                originalPromptBeforeExtraction = prompt
+                                showVisualElementReview = true
+                            } else if usesSheetBasedUI {
                                 // Show ImagePlayground sheet
                                 showImagePlaygroundSheet = true
                             } else {
@@ -281,7 +299,7 @@ struct AIImageGenerationView: View {
                                 }
                             }
                         } label: {
-                            Label("Generate", systemImage: "wand.and.stars")
+                            Label(shouldShowVisualElementReview ? "Extract & Review" : "Generate", systemImage: "wand.and.stars")
                         }
                         .keyboardShortcut(.defaultAction)
                         .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !canGenerate)
@@ -319,13 +337,32 @@ struct AIImageGenerationView: View {
         #if canImport(ImagePlayground)
         .imagePlaygroundSheet(
             isPresented: $showImagePlaygroundSheet,
-            concepts: [
-                ImagePlaygroundConcept.text(prompt)
-            ]
+            concepts: generateImagePlaygroundConcepts()
         ) { url in
             handleImagePlaygroundResult(url)
         }
         #endif
+        .sheet(isPresented: $showVisualElementReview) {
+            // ER-0021 Phase 2: Visual element review & editing UI
+            if let provider = AIProviderRegistry.shared.provider(named: selectedProvider) {
+                VisualElementReviewView(
+                    cardDescription: cardDescription,
+                    cardKind: cardKind,
+                    cardName: cardName,
+                    provider: provider,
+                    originalPrompt: originalPromptBeforeExtraction
+                ) { elements in
+                    handleReviewedElements(elements)
+                }
+            }
+        }
+        .onChange(of: showVisualElementReview) { _, isShowing in
+            // When review sheet is dismissed without generating, restore original prompt
+            if !isShowing, reviewedElements == nil, let original = originalPromptBeforeExtraction {
+                prompt = original
+                originalPromptBeforeExtraction = nil
+            }
+        }
     }
 
     // MARK: - Computed Properties
@@ -336,6 +373,19 @@ struct AIImageGenerationView: View {
             return false
         }
         return provider.usesSheetBasedUI
+    }
+
+    /// Whether to show visual element review before generation (ER-0021 Phase 2)
+    /// Show review if: description is not empty, word count >= 10, and prompt is empty/auto-generated
+    private var shouldShowVisualElementReview: Bool {
+        // Don't show if user manually entered a custom prompt (different from suggestions)
+        if !prompt.isEmpty && !suggestedPrompts.contains(prompt) {
+            return false
+        }
+
+        // Check if we have enough description text
+        let wordCount = cardDescription.split(separator: " ").count
+        return wordCount >= 10
     }
 
     /// Whether generation can proceed (valid provider with API key if needed)
@@ -393,6 +443,60 @@ struct AIImageGenerationView: View {
         dismiss()
     }
 
+    /// Handle reviewed visual elements from VisualElementReviewView (ER-0021 Phase 2)
+    @MainActor
+    private func handleReviewedElements(_ elements: VisualElements) {
+        logger.info("Received reviewed visual elements with confidence \(elements.extractionConfidence)")
+
+        // Store reviewed elements
+        self.reviewedElements = elements
+
+        // Check if user wants to use original prompt (extraction insufficient)
+        if elements.useOriginalPrompt, let original = originalPromptBeforeExtraction {
+            logger.info("Using original prompt as fallback (extraction insufficient)")
+            self.prompt = original
+            originalPromptBeforeExtraction = nil
+        } else {
+            // Clear saved original prompt since we're proceeding with extraction
+            originalPromptBeforeExtraction = nil
+
+            // Generate optimized prompt based on provider
+            let optimizedPrompt: String
+            if let provider = AIProviderRegistry.shared.provider(named: selectedProvider) {
+                if provider.name.contains("Apple") {
+                    // For Apple Intelligence, use concepts joined
+                    let concepts = elements.generateConceptsForAppleIntelligence()
+                    optimizedPrompt = concepts.joined(separator: " | ")
+                } else if provider.name.contains("OpenAI") {
+                    optimizedPrompt = elements.generatePromptForOpenAI()
+                } else if provider.name.contains("Anthropic") {
+                    optimizedPrompt = elements.generatePromptForAnthropic()
+                } else {
+                    // Default to OpenAI format
+                    optimizedPrompt = elements.generatePromptForOpenAI()
+                }
+            } else {
+                optimizedPrompt = elements.generatePromptForOpenAI()
+            }
+
+            // Update prompt with optimized version
+            self.prompt = optimizedPrompt
+
+            logger.info("Generated optimized prompt (\(optimizedPrompt.count) chars)")
+        }
+
+        // Proceed with generation
+        Task {
+            if usesSheetBasedUI {
+                // For Apple Intelligence with ImagePlayground
+                showImagePlaygroundSheet = true
+            } else {
+                // For programmatic APIs (OpenAI, Anthropic)
+                await generate()
+            }
+        }
+    }
+
     /// Handle image URL from ImagePlayground
     @MainActor
     private func handleImagePlaygroundResult(_ url: URL) {
@@ -420,6 +524,26 @@ struct AIImageGenerationView: View {
             dismiss()
         }
     }
+
+    /// Generate ImagePlaygroundConcept array from prompt or visual elements
+    #if canImport(ImagePlayground)
+    private func generateImagePlaygroundConcepts() -> [ImagePlaygroundConcept] {
+        // If we have reviewed visual elements, use those
+        if let elements = reviewedElements {
+            let concepts = elements.generateConceptsForAppleIntelligence()
+            return concepts.map { ImagePlaygroundConcept.text($0) }
+        }
+
+        // Otherwise, check if prompt looks like it has multiple concepts (separated by |)
+        if prompt.contains("|") {
+            let conceptStrings = prompt.split(separator: "|").map { String($0.trimmingCharacters(in: .whitespaces)) }
+            return conceptStrings.map { ImagePlaygroundConcept.text($0) }
+        }
+
+        // Single prompt - send as one concept
+        return [ImagePlaygroundConcept.text(prompt)]
+    }
+    #endif
 
     /// Generate suggested prompts based on card description and type (Phase 3A)
     private func generateSuggestedPrompts() {

@@ -110,6 +110,11 @@ class AppleIntelligenceProvider: AIProviderProtocol {
             result = try await inferRelationships(from: text)
         case .calendarExtraction:
             result = try await extractCalendar(from: text)
+        case .visualElementExtraction:
+            // ER-0021: Visual element extraction
+            // Apple Intelligence's NaturalLanguage framework isn't ideal for visual extraction
+            // Return minimal result - actual extraction will be done by VisualElementExtractor
+            result = AnalysisResult(entities: nil, relationships: nil, calendars: nil, metadata: nil)
         case .comprehensive:
             result = try await performComprehensiveAnalysis(of: text)
         }

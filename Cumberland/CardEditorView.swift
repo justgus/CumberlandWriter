@@ -480,13 +480,15 @@ struct CardEditorView: View {
         #if os(macOS)
         .sheet(isPresented: $showFullSizeImage) {
             if case .edit(let card, _) = mode {
-                FullSizeImageViewer(card: card)
+                FullSizeImageViewer(card: card, pendingImageData: imageData)
+                    .id(imageData?.count ?? card.originalImageData?.count ?? 0)
             }
         }
         #else
         .fullScreenCover(isPresented: $showFullSizeImage) {
             if case .edit(let card, _) = mode {
-                FullSizeImageViewer(card: card)
+                FullSizeImageViewer(card: card, pendingImageData: imageData)
+                    .id(imageData?.count ?? card.originalImageData?.count ?? 0)
             }
         }
         #endif

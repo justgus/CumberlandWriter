@@ -2,7 +2,7 @@
 
 This document tracks enhancement requests that are proposed, in progress, or implemented but awaiting user verification.
 
-**Status:** Currently **1 active ER** (1 Proposed, 0 In Progress, 0 Implemented - Not Verified)
+**Status:** Currently **7 active ERs** (7 Proposed, 0 In Progress, 0 Implemented - Not Verified)
 
 **Note:** ER-0008, ER-0009, ER-0010 verified and moved to `ER-verified-0008.md`
 **Note:** ER-0012, ER-0013, ER-0014, ER-0016 verified and moved to `ER-verified-0012.md`
@@ -14,940 +14,1097 @@ This document tracks enhancement requests that are proposed, in progress, or imp
 
 ---
 
-## ER-0021: AI-Powered Visual Element Extraction for Image Generation
+## ER-0022: Code Maintainability Refactoring - Data Layer Abstraction and Code Consolidation
 
 **Status:** 🔵 Proposed
-**Component:** AI Image Generation, All Providers, Visual Analysis System
-**Priority:** Critical
+**Component:** Architecture, SwiftData Layer, All Views, Services
+**Priority:** High
 **Date Requested:** 2026-02-03
-**Date Updated:** 2026-02-03 (expanded scope)
-**Related:** DR-0071 (Apple Image Playground portrait-only limitation), ER-0010 (AI Content Analysis)
 
 **Rationale:**
 
-**This is a core Cumberland feature - automatic, intelligent image generation from card descriptions.**
+Cumberland has grown into a solid multi-platform application with many stellar features. However, as the codebase scales, maintainability challenges are emerging that need to be addressed:
 
-Currently, image generation uses the raw card description as the prompt. This has multiple problems:
+1. **No Data Access Abstraction Layer:** SwiftData `@Query` declarations and `modelContext` operations are scattered across 17+ view files. This makes it difficult to test, maintain, and evolve the data layer independently of the UI.
 
-1. **Narrative descriptions aren't visual prompts:** Character descriptions like "Captain Evilin Drake is a tall woman with long straight dark hair that she wears in a ponytail most days" contain narrative elements that don't translate well to image generation.
+2. **Duplicate Code:** Critical duplication exists in:
+   - Thumbnail generation (2 exact copies)
+   - Image loading/conversion (3-4 implementations)
+   - Card deletion logic (scattered across multiple files)
+   - Relationship management (3+ different implementations)
 
-2. **Important visual details get lost:** Mixed with personality traits, backstory, and context that image generators can't use.
+3. **Business Logic in Views:** Large view files (CardEditorView: 2,664 lines, CardSheetView: 2,254 lines) contain significant business logic mixed with presentation code, making them hard to maintain and test.
 
-3. **Provider-specific optimization needed:**
-   - Apple Intelligence needs multiple short concepts (~100 chars each)
-   - OpenAI works better with structured prompts
-   - Anthropic (future) may have different requirements
+4. **Scattered Database Operations:** 571+ direct `modelContext` operations across 30+ files with no centralized coordination.
 
-4. **User shouldn't need to write two descriptions:** Writers want to focus on worldbuilding, not crafting image generation prompts.
-
-**User Vision:**
-> "Our input for characters will be based on the single description on the card. I think we should expand ER-0021 for apple intelligence (and possibly the other providers as well) to include AI analysis of the text to extract the specific descriptive elements for character portraits. This will be one of the primary features of Cumberland and I would like it to work flawlessly."
-
-**Core Principle:** Cumberland should intelligently extract visual elements from narrative descriptions and generate optimized prompts for any provider.
+5. **Future Modularization Blocked:** Without a proper abstraction layer, extracting features like Map Generation, AI Image Generation, or Murderboard into separate modules/apps will require extensive refactoring.
 
 **Current Behavior:**
 
-**What happens now:**
-1. User writes narrative character description in card's detailed text
-2. User clicks "Generate Image"
-3. Cumberland passes raw description text directly to provider
-4. Image generator receives narrative prose (not optimized visual prompt)
-5. Results are suboptimal:
-   - Apple Intelligence: truncates at ~100 chars, loses details
-   - OpenAI: processes narrative prose, results may miss key visual details
-   - All providers: personality traits like "quick to laugh" don't translate visually
+**Data Access Pattern:**
+- Views directly declare `@Query` properties
+- Views directly call `modelContext.insert()`, `.delete()`, etc.
+- No abstraction between SwiftData and UI layer
+- Example:
+  ```swift
+  // In CardEditorView.swift
+  @Query(FetchDescriptor<AppSettings>()) private var allSettings: [AppSettings]
+  // Later in the same file...
+  modelContext.insert(newCard)
+  modelContext.delete(oldCard)
+  ```
 
-**Example Card Description:**
-```
-Captain Evilin Drake is a tall woman with long straight dark hair that she
-wears in a ponytail most days. Lithe and thin, she can be seen most days
-wearing her orange astronaut's jumpsuit. She is quick to laugh, with a
-strong chin, short nose, bright green eyes. She grew up on Mars Colony
-Seven and spent ten years commanding deep space missions before retiring
-to teach at the Interplanetary Academy.
-```
+**Duplicate Functions:**
+- `generateThumbnail()` implemented in:
+  - `BatchGenerationQueue.swift:516-550`
+  - `ImageVersionManager.swift:196+`
+- Image conversion functions duplicated across:
+  - `CardSheetView.swift` (nsImageToPngData, nsImageToJpegData)
+  - `BatchGenerationQueue.swift`
+  - `ImageVersionManager.swift`
+  - `Card.swift` model extensions
 
-**Problems:**
-- **Narrative prose:** "grew up on Mars Colony Seven" is backstory, not visual
-- **Temporal qualifiers:** "most days" is unnecessary for image generation
-- **Non-visual traits:** "quick to laugh" doesn't directly translate to appearance
-- **Length:** 450+ characters with mixed visual and non-visual content
-- **Unstructured:** Visual details scattered throughout text
-- **No provider optimization:** Same raw text sent to all providers
+**Business Logic in Views:**
+- `CardEditorView.swift` (2,664 lines): Contains image handling, AI generation, analysis, thumbnail loading, card creation
+- `CardSheetView.swift` (2,254 lines): Image import/export, clipboard ops, attribution, thumbnail loading
+- `MurderBoardView.swift` (1,386 lines): Canvas gestures, node management, edge rendering, relationship CRUD
 
 **Desired Behavior:**
 
-**AI-Powered Visual Element Extraction:**
+### Architecture Goal: Layered Architecture with Clear Separation
 
-1. **Automatic Analysis:**
-   - When user clicks "Generate Image", Cumberland automatically analyzes the card description
-   - Uses AI (Apple Intelligence or OpenAI) to extract visual elements only
-   - Identifies: physical build, hair, facial features, clothing, expression, props, setting
-   - Filters out: backstory, personality traits (unless expressible visually), temporal qualifiers
-
-2. **Provider-Specific Optimization:**
-
-**For Apple Intelligence:**
-```swift
-// Extracted visual elements split into multiple concepts
-.imagePlaygroundSheet(
-    isPresented: $showImagePlaygroundSheet,
-    concepts: [
-        ImagePlaygroundConcept.text("tall woman, lithe and thin build"),
-        ImagePlaygroundConcept.text("long straight dark hair in ponytail"),
-        ImagePlaygroundConcept.text("bright green eyes, strong chin, short nose"),
-        ImagePlaygroundConcept.text("orange astronaut jumpsuit"),
-        ImagePlaygroundConcept.text("confident friendly expression")
-    ]
-)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    PRESENTATION LAYER                        │
+│  (SwiftUI Views - Pure UI, no business logic or DB access)  │
+├─────────────────────────────────────────────────────────────┤
+│                      SERVICE LAYER                           │
+│    (Business Logic Managers - @Observable classes)          │
+│  - CardOperationManager                                      │
+│  - RelationshipManager                                       │
+│  - ImageProcessingService                                    │
+│  - BoardCanvasManager                                        │
+├─────────────────────────────────────────────────────────────┤
+│                    DATA ACCESS LAYER                         │
+│         (Repositories - SwiftData abstraction)               │
+│  - CardRepository                                            │
+│  - EdgeRepository                                            │
+│  - StructureRepository                                       │
+│  - QueryService (common @Query patterns)                     │
+├─────────────────────────────────────────────────────────────┤
+│                     PERSISTENCE LAYER                        │
+│              (SwiftData Models and Context)                  │
+│  - Card, CardEdge, StoryStructure, Board, etc.              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**For OpenAI (DALL-E 3):**
-```swift
-// Extracted visual elements combined into optimized prompt
-let optimizedPrompt = """
-Portrait of a tall, lithe woman with long straight dark hair worn in a ponytail.
-Bright green eyes, strong chin, short nose. Wearing an orange astronaut jumpsuit.
-Confident, friendly expression.
-"""
-```
-
-**For Anthropic (future):**
-```swift
-// Provider-specific format optimization
-// Adapt to Anthropic's prompt engineering best practices
-```
-
-3. **Transparent Process:**
-   - User sees extracted visual elements before generation (review step)
-   - Can edit or approve
-   - System learns from user corrections (optional)
-
-4. **Visual Translation:**
-   - "quick to laugh" → "friendly expression, warm smile"
-   - "commanding presence" → "confident posture, direct gaze"
-   - Non-visual elements → filtered out or translated
-
-**Benefits:**
-- ✅ **Single source of truth:** User writes one description, system handles optimization
-- ✅ **Provider-agnostic:** Works optimally with any image generation provider
-- ✅ **Intelligent filtering:** Removes backstory, keeps visual elements
-- ✅ **Visual translation:** Converts personality traits to visual cues
-- ✅ **Preserves all visual details:** Nothing lost in character limit constraints
-- ✅ **Professional results:** Optimized prompts = better image quality
-- ✅ **Writer-friendly:** No need to learn prompt engineering
+**Key Principles:**
+1. **Views call Services** - Never directly access modelContext or @Query
+2. **Services call Repositories** - Business logic coordinates data operations
+3. **Repositories encapsulate SwiftData** - Single place for all database operations
+4. **Services are @Observable** - Views react to state changes
+5. **Repositories are injected** - Better testability and flexibility
 
 **Requirements:**
 
-**Phase 1: AI-Powered Visual Analysis**
+### Phase 1: Eliminate Critical Duplication (Weeks 1-2)
 
-1. **New Analysis Task: Visual Element Extraction**
-   - Add to `AnalysisTask` enum (alongside entityExtraction, relationshipInference, etc.)
-   - Create `VisualElementExtractor` class (similar to `EntityExtractor`)
-   - Integrate with existing AI provider infrastructure
+**R1.1: Create ImageProcessingService (Singleton)**
+- Consolidate all thumbnail generation into single implementation
+- Consolidate all image format conversion (PNG, JPEG, platform-specific)
+- Consolidate all image loading from Data/URLs
+- File: `Cumberland/Services/ImageProcessingService.swift`
+- Public API:
+  ```swift
+  class ImageProcessingService {
+      static let shared = ImageProcessingService()
 
-2. **Visual Element Categories:**
+      func generateThumbnail(from imageData: Data, size: CGSize = CGSize(width: 200, height: 200)) -> Data?
+      func convertToPNG(_ imageData: Data) -> Data?
+      func convertToJPEG(_ imageData: Data, compressionQuality: CGFloat = 0.9) -> Data?
+      func loadImage(from data: Data) async -> CGImage?
+      func loadImage(from url: URL) async -> CGImage?
+  }
+  ```
+- **Replace all duplicate implementations:**
+  - `BatchGenerationQueue.swift:516-550` → call `ImageProcessingService.shared`
+  - `ImageVersionManager.swift:196+` → call `ImageProcessingService.shared`
+  - `CardSheetView.swift` (nsImageToPngData, nsImageToJpegData) → call service
+  - All thumbnail generation in `Card.swift` extensions → call service
 
-   **For Characters/Portraits:**
-   - Physical build (height, body type, distinctive features)
-   - Hair (color, length, style)
-   - Eyes (color, shape, expression)
-   - Face (structure, distinctive features)
-   - Skin tone (if specified)
-   - Clothing/costume (style, color, material)
-   - Accessories/props (jewelry, weapons, tools)
-   - Expression/demeanor (translated from personality)
-   - Pose/composition (standing, sitting, action pose)
-   - Background/setting (if relevant to character)
-   - **Framing:** Portrait (head/shoulders), medium shot, full body
+**R1.2: Create RelationshipManager (@Observable)**
+- Consolidate all relationship (CardEdge) operations
+- File: `Cumberland/Services/RelationshipManager.swift`
+- Public API:
+  ```swift
+  @Observable
+  @MainActor
+  class RelationshipManager {
+      func createRelationship(from sourceCard: Card, to targetCard: Card, type: RelationType) throws
+      func removeRelationship(_ edge: CardEdge) throws
+      func updateRelationshipType(_ edge: CardEdge, newType: RelationType) throws
+      func getRelationships(for card: Card) -> [CardEdge]
+      func validateRelationship(from: Card, to: Card, type: RelationType) -> Bool
+  }
+  ```
+- **Consolidate from:**
+  - `CardRelationshipView.swift:1057` (removeRelationship)
+  - `MurderBoardView.swift` (edge creation/deletion)
+  - `SuggestionEngine.swift` (AI-suggested relationship creation)
 
-   **For Locations (Neutral View):**
-   - Primary features (mountains, water, buildings)
-   - Architectural style (if buildings present)
-   - Scale indicators (vast, intimate, expansive)
-   - Vegetation/terrain
-   - Physical characteristics only (no mood/lighting)
-   - **Default framing:** Establishing shot, neutral perspective
-   - **Examples:** "Alys' Apartment", "La Porte Cafe" (as places, no emotion)
+**R1.3: Create CardOperationManager (@Observable)**
+- Consolidate all card CRUD operations
+- File: `Cumberland/Services/CardOperationManager.swift`
+- Public API:
+  ```swift
+  @Observable
+  @MainActor
+  class CardOperationManager {
+      func createCard(kind: Kinds, name: String, detailText: String) throws -> Card
+      func deleteCard(_ card: Card) throws
+      func deleteCards(_ cards: [Card]) throws
+      func duplicateCard(_ card: Card) throws -> Card
+      func changeCardType(_ card: Card, to newKind: Kinds) throws
+  }
+  ```
+- **Consolidate from:**
+  - `MainAppView.swift:943` (deleteCard), `MainAppView.swift:925` (deleteCards)
+  - `CardEditorView.swift` (card creation logic)
+  - `MurderBoardView.swift:1212` (removeCardFromBoard)
 
-   **For Scenes (Location + Mood):**
-   - All location elements PLUS:
-   - Lighting (time of day, quality of light)
-   - Weather/atmospheric conditions
-   - Mood/atmosphere (bright and humorous, dark and foreboding)
-   - Emotional tone (derived from scene events)
-   - Colors/palette (influenced by mood)
-   - **Framing:** Based on narrative importance and emotional intent
-   - **Examples:** "The tense confrontation at La Porte Cafe" (location + dark mood)
+### Phase 2: Data Access Abstraction Layer (Weeks 3-4)
 
-   **For Artifacts/Objects:**
-   - Object type (sword, amulet, book, etc.)
-   - **Partial vs Complete:** Only show described parts (sword hilt if blade not mentioned)
-   - Size and scale
-   - Materials (metal, wood, crystal)
-   - Colors and textures
-   - Condition (ancient, pristine, worn)
-   - Distinctive features (runes, gems, patterns)
-   - **Framing:** Close-up if detail-focused, medium if showing full object
-   - **Lighting:** Dramatic lighting to emphasize importance
-   - Background/context (neutral or relevant setting)
+**R2.1: Create CardRepository**
+- Encapsulate all SwiftData @Query operations for Card
+- File: `Cumberland/Data/CardRepository.swift`
+- Public API:
+  ```swift
+  @Observable
+  @MainActor
+  class CardRepository {
+      private let modelContext: ModelContext
 
-   **For Buildings:**
-   - Architectural style and features
-   - Size and scale (from description)
-   - Materials and construction
-   - Condition (maintained, ruined, ancient)
-   - Distinctive features (towers, gates, decorations)
-   - **Narrative importance determines perspective:**
-     - **Grand/Impressive:** Low angle, looking up (Magic Academy of Felthome)
-     - **Humble/Small:** High angle, looking down (thatched shack on outskirts)
-     - **Neutral:** Eye-level perspective (typical building)
-   - Setting/surroundings
+      init(modelContext: ModelContext)
 
-   **For Vehicles:**
-   - Vehicle type (ship, airship, carriage, dragon)
-   - Size and scale
-   - Design and construction
-   - Materials and textures
-   - Condition and age
-   - Distinctive features (sails, armor, decorations)
-   - **Framing:** Based on narrative role (heroic ship = dynamic angle, transport = neutral)
-   - Motion implied if appropriate
+      func fetchAll() -> [Card]
+      func fetch(byKind kind: Kinds) -> [Card]
+      func fetch(byID id: PersistentIdentifier) -> Card?
+      func search(query: String) -> [Card]
+      func insert(_ card: Card) throws
+      func delete(_ card: Card) throws
+      func save() throws
+  }
+  ```
+- **Replace @Query declarations in:**
+  - `MainAppView.swift:43-44`
+  - `CardRelationshipView.swift:67`
+  - `MurderBoardView.swift`
+  - 14 other files
 
-3. **Cinematic Framing and Narrative Perspective (NEW):**
+**R2.2: Create EdgeRepository**
+- Encapsulate all CardEdge operations
+- File: `Cumberland/Data/EdgeRepository.swift`
+- Public API:
+  ```swift
+  @Observable
+  @MainActor
+  class EdgeRepository {
+      func fetchEdges(for card: Card) -> [CardEdge]
+      func fetchEdges(ofType relationType: RelationType) -> [CardEdge]
+      func insert(_ edge: CardEdge) throws
+      func delete(_ edge: CardEdge) throws
+  }
+  ```
 
-   **CRITICAL INSIGHT:** The visualization should reflect the narrative importance and emotional intent, not just physical description.
+**R2.3: Create StructureRepository**
+- Encapsulate all StoryStructure operations
+- File: `Cumberland/Data/StructureRepository.swift`
 
-   **Camera Angles/Perspectives in Image Generation:**
-   Modern image generators (DALL-E 3, Midjourney, Stable Diffusion) understand cinematic language:
-   - ✅ "low angle shot looking up" - Makes subject appear grand/imposing
-   - ✅ "high angle shot looking down" - Makes subject appear small/vulnerable
-   - ✅ "eye-level perspective" - Neutral, documentary view
-   - ✅ "aerial view" - God's eye view, shows layout
-   - ✅ "close-up of" - Focus on specific detail
-   - ✅ "wide establishing shot" - Shows full context
-   - ✅ "dramatic angle" - Dynamic, cinematic composition
-   - ✅ "from below" / "from above" - Directional perspective
+**R2.4: Create QueryService**
+- Provide common @Query patterns as injectable service
+- File: `Cumberland/Data/QueryService.swift`
+- Public API:
+  ```swift
+  @Observable
+  @MainActor
+  class QueryService {
+      func getAllCards() -> [Card]
+      func getAllStructures() -> [StoryStructure]
+      func getSettings() -> AppSettings
+      func getAllSources() -> [Source]
+      func getAllRelationTypes() -> [RelationType]
+  }
+  ```
 
-   **Framing Inference Rules:**
+### Phase 3: Extract Business Logic from Views (Weeks 5-6)
 
-   **For Buildings:**
-   - **Narrative indicators for perspective:**
-     - "grand", "impressive", "towering", "majestic", "imposing" → **Low angle, looking up**
-       - Example: "The Magic Academy of Felthome, with its grand gates and soaring towers"
-       - Prompt includes: "low angle shot looking up at grand gates"
-     - "humble", "small", "modest", "simple", "tiny" → **High angle, looking down**
-       - Example: "A thatched shack on the outskirts of the village"
-       - Prompt includes: "aerial view looking down at small thatched shack"
-     - No size indicators → **Eye-level perspective**
+**R3.1: Extract from CardEditorView (2,664 lines → target <800 lines)**
+- Create `CardImageEditor.swift` - Extract image handling
+- Create `CardAIGenerationCoordinator.swift` - Extract AI generation
+- Create `CardAnalysisCoordinator.swift` - Extract AI analysis
+- Keep CardEditorView for layout and presentation only
 
-   **For Artifacts:**
-   - **Only show what's described:**
-     - If description mentions hilt but not blade → "close-up of ornate sword hilt"
-     - If full sword described → "full length view of ancient sword"
-     - Don't hallucinate missing details
-   - **Importance determines framing:**
-     - Legendary artifact → "dramatic lighting, close-up emphasizing details"
-     - Common object → "neutral lighting, clear view"
+**R3.2: Extract from CardSheetView (2,254 lines → target <800 lines)**
+- Create `CardImagePanel.swift` - Extract image tab
+- Create `CardRelationshipPanel.swift` - Extract relationship tab
+- Create `CardTimelinePanel.swift` - Extract timeline tab
+- Create `CardCitationPanel.swift` - Extract citation tab
+- Keep CardSheetView for layout and tab coordination
 
-   **For Scenes vs Locations:**
-   - **Location Card (neutral):** "La Porte Cafe, interior view, warm lighting, cozy atmosphere"
-   - **Scene Card (with mood):** Analyze scene events:
-     - Tense confrontation → "dark shadows, dramatic lighting, tense atmosphere"
-     - Romantic moment → "soft lighting, warm colors, intimate framing"
-     - Action sequence → "dynamic angle, motion implied, intense lighting"
+**R3.3: Extract from MurderBoardView (1,386 lines → target <600 lines)**
+- Create `BoardCanvasManager.swift` (@Observable) - Extract gesture handling, canvas state, node management
+- Keep MurderBoardView for rendering only
 
-   **Mood/Lighting Inference from Scene Context:**
-   - If card kind is `.scenes`, analyze the scene description for emotional indicators
-   - "confrontation", "battle", "argument" → dark, dramatic lighting
-   - "celebration", "party", "joy" → bright, warm lighting
-   - "mystery", "investigation", "discovery" → atmospheric, shadowy lighting
-   - "romance", "tender", "intimate" → soft, warm lighting
+### Phase 4: Dependency Injection Infrastructure (Week 7)
 
-4. **AI-Powered Extraction Logic:**
-   - Use NaturalLanguage framework for parsing (Apple Intelligence)
-   - Use OpenAI structured output for complex extraction (OpenAI provider)
-   - Extract visual elements with confidence scores
-   - **NEW:** Analyze narrative context for framing/perspective inference
-   - **NEW:** Distinguish between neutral location vs scene-with-mood
-   - **NEW:** Identify narrative importance indicators (grand, humble, legendary, etc.)
-   - Filter out non-visual content (backstory, relationships, internal states)
-   - Translate abstract traits to visual cues:
-     - "quick to laugh" → "warm smile, friendly expression"
-     - "commanding" → "confident posture, direct gaze"
-     - "mysterious" → "shadowed features, enigmatic expression"
-   - **NEW:** Translate narrative importance to camera angles:
-     - "grand entrance" → "low angle shot"
-     - "humble dwelling" → "aerial view"
-     - "legendary sword" → "dramatic lighting, close-up"
+**R4.1: Create ServiceContainer**
+- File: `Cumberland/Infrastructure/ServiceContainer.swift`
+- Centralized service registration and resolution
+- Example:
+  ```swift
+  @Observable
+  class ServiceContainer {
+      static let shared = ServiceContainer()
 
-4. **Provider-Specific Prompt Generation:**
-   - **Apple Intelligence:** Split into multiple ~95 char concepts
-   - **OpenAI:** Single structured prompt with optimal formatting
-   - **Anthropic (future):** Provider-specific format
-   - Use provider metadata to determine best format
+      // Repositories
+      let cardRepository: CardRepository
+      let edgeRepository: EdgeRepository
+      let structureRepository: StructureRepository
 
-5. **User Review & Correction:**
-   - Show extracted visual elements before generation
-   - Allow editing/adding/removing elements
-   - "Generate with these visual elements" vs "Edit visual elements"
-   - Optional: Learn from user corrections (ML improvement)
+      // Services
+      let cardOperationManager: CardOperationManager
+      let relationshipManager: RelationshipManager
+      let imageProcessingService: ImageProcessingService
 
-6. **Fallback Handling:**
-   - If visual extraction fails, fall back to smart text cleanup
-   - Remove obvious non-visual content (dates, relationships, backstory)
-   - Warn user if extraction confidence is low
+      init(modelContext: ModelContext)
+  }
+  ```
+
+**R4.2: Inject Services into Views**
+- Replace direct @Environment(\.modelContext) with injected repositories
+- Replace direct @Query with calls to QueryService or Repositories
+- Example refactor:
+  ```swift
+  // BEFORE:
+  struct CardEditorView: View {
+      @Environment(\.modelContext) private var modelContext
+      @Query private var allCards: [Card]
+
+      func deleteCard() {
+          modelContext.delete(card)
+      }
+  }
+
+  // AFTER:
+  struct CardEditorView: View {
+      @Environment(\.serviceContainer) private var services
+
+      func deleteCard() {
+          try? services.cardOperationManager.deleteCard(card)
+      }
+  }
+  ```
+
+### Phase 5: Testing and Validation (Week 8)
+
+**R5.1: Unit Tests for Services**
+- Test ImageProcessingService
+- Test CardOperationManager
+- Test RelationshipManager
+- Test all Repositories with mock ModelContext
+
+**R5.2: Integration Tests**
+- Test view layer with injected services
+- Test service coordination
+- Test data flow from View → Service → Repository → SwiftData
+
+**R5.3: Regression Testing**
+- Verify all existing functionality works
+- Test on all platforms (macOS, iOS, iPadOS, visionOS)
+- Performance testing (ensure no regressions)
 
 **Design Approach:**
 
-### Architecture Overview
+### Strategy: Incremental Refactoring with No Breaking Changes
 
+**Approach:**
+1. **Add New Services First** - Create new manager/service classes without removing existing code
+2. **Dual Implementation** - Temporarily support both old pattern (direct modelContext) and new pattern (through services)
+3. **Migrate View by View** - Update each view to use new services one at a time
+4. **Remove Old Pattern Last** - Once all views migrated, remove direct modelContext access
+
+**Benefits of This Approach:**
+- ✅ No "big bang" refactor - incremental changes
+- ✅ Can test each migration independently
+- ✅ Easy to roll back if issues arise
+- ✅ App remains functional throughout refactoring
+- ✅ Can merge to main branch incrementally
+
+### File Organization
+
+**New Directory Structure:**
 ```
-Card Description (Narrative)
-    ↓
-Visual Element Extractor (AI-powered)
-    ↓
-Visual Element Model (Structured data)
-    ↓
-Provider-Specific Formatter
-    ↓
-Optimized Prompt (Provider-specific format)
-    ↓
-Image Generation
+Cumberland/
+├── Data/                           # NEW - Data Access Layer
+│   ├── Repositories/
+│   │   ├── CardRepository.swift
+│   │   ├── EdgeRepository.swift
+│   │   ├── StructureRepository.swift
+│   │   └── QueryService.swift
+│   └── README.md                   # Explains repository pattern
+├── Services/                       # NEW - Business Logic Layer
+│   ├── CardOperationManager.swift
+│   ├── RelationshipManager.swift
+│   ├── ImageProcessingService.swift
+│   ├── BoardCanvasManager.swift
+│   └── README.md                   # Explains service layer
+├── Infrastructure/                 # NEW - Cross-cutting concerns
+│   ├── ServiceContainer.swift
+│   └── DependencyInjection.swift
+├── Model/                          # EXISTING - SwiftData Models
+│   └── (existing model files)
+├── Views/                          # REFACTORED - Pure presentation
+│   └── (existing view files, refactored to use services)
+└── (other existing folders)
 ```
-
-### Component Design
-
-**1. Visual Element Model**
-
-```swift
-/// Represents extracted visual elements from a description
-struct VisualElements {
-    // Metadata
-    var sourceText: String
-    var cardType: Kinds
-    var extractionConfidence: Double
-    var extractedAt: Date
-
-    // Character-specific
-    var physicalBuild: String?           // "tall, lithe, athletic"
-    var hair: String?                    // "long straight dark hair in ponytail"
-    var eyes: String?                    // "bright green eyes"
-    var facialFeatures: String?          // "strong chin, short nose"
-    var skinTone: String?                // "pale", "olive", "dark brown"
-    var clothing: String?                // "orange astronaut jumpsuit"
-    var accessories: [String]?           // ["silver necklace", "leather gloves"]
-    var expression: String?              // "friendly smile, warm expression"
-    var pose: String?                    // "standing confidently", "seated"
-
-    // Location-specific
-    var primaryFeatures: [String]?       // ["twin moons", "rolling sand dunes"]
-    var scale: String?                   // "vast", "intimate"
-    var lighting: String?                // "sunset", "ethereal glow"
-    var atmosphere: String?              // "mysterious", "welcoming"
-    var isSceneWithMood: Bool            // true if scene card with emotional context
-
-    // Artifact-specific
-    var objectType: String?              // "sword", "amulet"
-    var materials: [String]?             // ["ancient metal", "glowing crystal"]
-    var condition: String?               // "pristine", "battle-worn"
-    var showPartial: String?             // "hilt only" if blade not described
-
-    // Building-specific
-    var architecturalStyle: String?      // "gothic", "modern", "fantasy"
-    var narrativeImportance: String?     // "grand", "humble", "neutral"
-
-    // Common to all types
-    var colors: [String]?                // ["orange", "silver", "green"]
-    var mood: String?                    // "heroic", "mysterious", "tense"
-    var backgroundSetting: String?       // "throne room", "desert landscape"
-
-    // **NEW: Cinematic Framing**
-    var cameraAngle: CameraAngle?        // Inferred from narrative context
-    var framing: Framing?                // Close-up, medium, wide, etc.
-    var lighting: LightingStyle?         // Dramatic, soft, neutral, dark
-
-    /// Generate provider-specific prompt with cinematic framing
-    func generatePrompt(for provider: AIProviderProtocol) -> String {
-        // Provider-specific logic with framing included
-    }
-
-    /// Generate multiple concepts for Apple Intelligence
-    func generateConcepts(maxLength: Int = 95) -> [String] {
-        // Split into appropriate concepts
-    }
-}
-
-/// Camera angle for cinematic framing
-enum CameraAngle {
-    case lowAngleLookingUp      // Grand, impressive subjects
-    case highAngleLookingDown   // Humble, small subjects
-    case eyeLevel               // Neutral perspective
-    case aerialView             // Bird's eye view
-    case dramaticAngle          // Dynamic, cinematic
-}
-
-/// Shot framing
-enum Framing {
-    case closeUp                // Detail focus (artifact hilt, facial features)
-    case mediumShot             // Character upper body, partial object
-    case fullShot               // Full character, complete object
-    case wideEstablishing       // Full scene, location context
-}
-
-/// Lighting style
-enum LightingStyle {
-    case dramatic               // High contrast, shadows
-    case soft                   // Warm, gentle, romantic
-    case neutral                // Even, documentary
-    case dark                   // Moody, mysterious, foreboding
-    case bright                 // Cheerful, optimistic, clear
-}
-```
-
-**2. Visual Element Extractor**
-
-Create `VisualElementExtractor.swift` (similar to `EntityExtractor.swift`):
-
-```swift
-class VisualElementExtractor {
-
-    /// Extract visual elements from card description using AI
-    func extractVisualElements(
-        from text: String,
-        cardType: Kinds,
-        provider: AIProviderProtocol
-    ) async throws -> VisualElements {
-
-        // Build extraction prompt based on card type
-        let extractionPrompt = buildExtractionPrompt(for: cardType, text: text)
-
-        // Use AI to extract structured visual data
-        let result = try await provider.analyzeText(
-            extractionPrompt,
-            for: .visualElementExtraction  // New analysis task
-        )
-
-        // Parse response into VisualElements model
-        let elements = parseVisualElements(from: result, cardType: cardType)
-
-        return elements
-    }
-
-    /// Build card-type-specific extraction prompt
-    private func buildExtractionPrompt(for cardType: Kinds, text: String) -> String {
-        switch cardType {
-        case .characters:
-            return """
-            Analyze this character description and extract ONLY the visual elements that would appear in a portrait.
-            Ignore backstory, relationships, personality traits unless they translate to visible expression.
-
-            Extract:
-            - Physical build (height, body type)
-            - Hair (color, length, style)
-            - Eyes (color, distinctive features)
-            - Facial features
-            - Clothing and costume
-            - Accessories or props
-            - Expression/demeanor (visual only)
-            - Pose or composition
-
-            Description: \(text)
-
-            Return structured data with confidence scores.
-            """
-
-        case .locations:
-            return """
-            Analyze this location description and extract visual elements for a landscape/scene image.
-            Focus on what would be visible in the image.
-
-            Extract:
-            - Primary landscape features
-            - Scale and scope
-            - Time of day / lighting
-            - Weather conditions
-            - Color palette
-            - Mood and atmosphere
-            - Architectural elements if any
-
-            Description: \(text)
-            """
-
-        case .artifacts, .vehicles, .buildings:
-            return """
-            Analyze this object description and extract visual elements.
-
-            Extract:
-            - Object type and form
-            - Size and scale
-            - Materials and textures
-            - Colors and finish
-            - Condition (age, wear)
-            - Distinctive features (decorations, markings)
-            - Lighting/presentation
-
-            Description: \(text)
-            """
-
-        default:
-            return """
-            Extract visual elements from this description for image generation.
-            Focus only on what would be visible in an image.
-
-            Description: \(text)
-            """
-        }
-    }
-}
-```
-
-**3. Provider-Specific Prompt Formatter**
-
-```swift
-extension VisualElements {
-
-    /// Generate optimized prompt for OpenAI DALL-E 3
-    func generatePromptForOpenAI() -> String {
-        guard cardType == .characters else {
-            return generateGenericPrompt()
-        }
-
-        var parts: [String] = []
-
-        // Start with portrait format
-        parts.append("Portrait of")
-
-        // Physical description
-        if let build = physicalBuild {
-            parts.append(build)
-        }
-
-        if let hair = hair {
-            parts.append("with \(hair)")
-        }
-
-        if let eyes = eyes {
-            parts.append(eyes)
-        }
-
-        if let facial = facialFeatures {
-            parts.append(facial)
-        }
-
-        // Clothing
-        if let clothing = clothing {
-            parts.append("wearing \(clothing)")
-        }
-
-        // Expression
-        if let expression = expression {
-            parts.append(expression)
-        }
-
-        // Setting
-        if let setting = backgroundSetting {
-            parts.append("in \(setting)")
-        }
-
-        return parts.joined(separator: ". ") + "."
-    }
-
-    /// Generate multiple concepts for Apple Intelligence Image Playground
-    func generateConceptsForAppleIntelligence(maxLength: Int = 95) -> [String] {
-        var concepts: [String] = []
-
-        // Physical build
-        if let build = physicalBuild, build.count <= maxLength {
-            concepts.append(build)
-        }
-
-        // Hair
-        if let hair = hair, hair.count <= maxLength {
-            concepts.append(hair)
-        }
-
-        // Facial features (combine if short enough)
-        var facialConcept = ""
-        if let eyes = eyes {
-            facialConcept = eyes
-        }
-        if let facial = facialFeatures {
-            let combined = facialConcept.isEmpty ? facial : "\(facialConcept), \(facial)"
-            if combined.count <= maxLength {
-                facialConcept = combined
-            }
-        }
-        if !facialConcept.isEmpty {
-            concepts.append(facialConcept)
-        }
-
-        // Clothing
-        if let clothing = clothing, clothing.count <= maxLength {
-            concepts.append(clothing)
-        }
-
-        // Expression
-        if let expression = expression, expression.count <= maxLength {
-            concepts.append(expression)
-        }
-
-        // Ensure we have at least one concept
-        if concepts.isEmpty {
-            concepts.append(String(sourceText.prefix(maxLength)))
-        }
-
-        return concepts
-    }
-}
-```
-
-### Approach: AI-Powered Extraction (Recommended)
-
-**Leverage Cumberland's existing AI infrastructure:**
-
-**For Apple Intelligence Provider:**
-- Use NaturalLanguage framework + custom prompt to extract visual elements
-- Already integrated, on-device, no API key required
-- Fast and private
-
-**For OpenAI Provider:**
-- Use structured output (JSON mode) for precise extraction
-- More sophisticated understanding of complex descriptions
-- Handles edge cases better (unusual descriptions, mixed content)
-
-**Hybrid Approach (Best):**
-- Try Apple Intelligence first (fast, free, private)
-- Fall back to OpenAI if confidence is low or Apple Intelligence unavailable
-- Use whichever provider user has configured for content analysis
-
-**Benefits:**
-- ✅ Sophisticated understanding of narrative descriptions
-- ✅ Can handle complex, mixed content (visual + non-visual)
-- ✅ Learns patterns (visual vs. non-visual)
-- ✅ Provider-agnostic (works with any AI backend)
-- ✅ Future-proof (can add more sophisticated extraction as AI improves)
-
-### Concrete Examples: How Framing Works in Practice
-
-**Example 1: Grand Building**
-
-**Card Description:**
-```
-The Magic Academy of Felthome rises majestically from the clifftop, its
-grand gates flanked by towering statues of ancient mages. The entrance hall
-features soaring marble columns that reach toward a vaulted ceiling painted
-with constellations. Students approaching the academy for the first time are
-always struck by its imposing presence.
-```
-
-**Extracted Visual Elements:**
-- Primary Features: "grand gates", "towering statues", "marble columns"
-- Architectural Style: "majestic classical architecture"
-- Scale: "soaring", "towering"
-- **Narrative Importance: "grand", "imposing"**
-- **Camera Angle: lowAngleLookingUp** (inferred from "grand", "imposing", "soaring")
-- **Framing: wideEstablishing**
-- **Lighting: dramatic** (emphasizes grandeur)
-
-**Generated Prompt (OpenAI):**
-```
-Wide establishing shot from low angle looking up at the grand gates of a
-majestic magic academy. Towering marble statues of ancient mages flank the
-entrance. Soaring columns visible beyond gates. Classical fantasy
-architecture. Dramatic lighting emphasizing imposing presence.
-```
-
-**Result:** Image shows academy from student's perspective, looking up at the impressive gates, conveying narrative intent of grandeur.
-
----
-
-**Example 2: Humble Building**
-
-**Card Description:**
-```
-A small thatched shack sits on the outskirts of the village, barely visible
-behind overgrown brambles. The roof sags in the middle, and one window has
-been patched with old boards. Smoke rises weakly from a crooked chimney.
-```
-
-**Extracted Visual Elements:**
-- Primary Features: "thatched shack", "sagging roof", "patched window"
-- Condition: "old", "worn", "overgrown"
-- Scale: "small", "barely visible"
-- **Narrative Importance: "humble", "small"**
-- **Camera Angle: highAngleLookingDown** (inferred from "small", "outskirts")
-- **Framing: wideEstablishing** (shows context)
-- **Lighting: neutral** (documentary view)
-
-**Generated Prompt (OpenAI):**
-```
-Aerial view looking down at a small thatched shack on village outskirts.
-Sagging roof with crooked chimney. Overgrown brambles around building.
-Patched window. Shows humble, worn condition. Neutral lighting.
-```
-
-**Result:** Image shows shack from above, emphasizing its small, neglected state, conveying narrative intent of humbleness.
-
----
-
-**Example 3: Artifact (Partial View)**
-
-**Card Description:**
-```
-The Sword of Dawn's hilt is wrapped in ancient leather, still soft despite
-centuries of age. An enormous ruby sits at the pommel, catching light with
-inner fire. Runes spiral down the grip, their meaning lost to time.
-```
-
-**Extracted Visual Elements:**
-- Object Type: "sword"
-- **Show Partial: "hilt only"** (blade not mentioned in description)
-- Materials: "ancient leather wrap", "ruby pommel"
-- Distinctive Features: "spiral runes", "ruby with inner fire"
-- Condition: "ancient but well-preserved"
-- **Camera Angle: eyeLevel**
-- **Framing: closeUp** (detail focus)
-- **Lighting: dramatic** (emphasizes ruby's inner fire)
-
-**Generated Prompt (OpenAI):**
-```
-Close-up of ancient sword hilt only. Leather-wrapped grip with spiral runes.
-Large ruby pommel glowing with inner fire. Dramatic lighting catching the
-ruby's glow. Ancient but well-preserved. Do not show blade.
-```
-
-**Result:** Image shows ONLY the hilt (as described), with dramatic lighting on the ruby. Doesn't hallucinate a blade that wasn't described.
-
----
-
-**Example 4: Scene with Mood (vs Neutral Location)**
-
-**Location Card: "La Porte Cafe"**
-```
-La Porte Cafe occupies a corner building with tall windows overlooking the
-harbor. Inside, small round tables are arranged between support columns.
-The bar runs along the back wall, bottles gleaming on glass shelves.
-```
-
-**Generated Prompt (Neutral Location View):**
-```
-Interior view of corner cafe with tall harbor-facing windows. Small round
-tables between columns. Bar along back wall with gleaming bottles on glass
-shelves. Warm, welcoming atmosphere. Eye-level perspective.
-```
-
-**Scene Card: "Tense Confrontation at La Porte Cafe"**
-```
-[Same location description as above, BUT card is kind=.scenes, and scene
-description includes: "Marcus slammed his hand on the table. 'You're lying,'
-he growled. The other patrons fell silent, watching nervously."]
-```
-
-**Extracted Visual Elements:**
-- All location elements PLUS:
-- **isSceneWithMood: true**
-- **Mood: "tense", "confrontational"**
-- **Lighting: dark** (inferred from "tense confrontation")
-- **Atmosphere: "dramatic tension"**
-
-**Generated Prompt (Scene with Mood):**
-```
-Interior of corner cafe, dark dramatic lighting creating shadows. Small
-tables between columns. Bar in background. Tense, confrontational atmosphere.
-Dark moody lighting emphasizing dramatic tension. One table in focus with
-harsh lighting.
-```
-
-**Result:** SAME physical space, but scene version has dark, dramatic lighting to match the tense confrontation, whereas location version is warm and welcoming.
-
----
-
-These examples demonstrate the **sophisticated visual storytelling** that ER-0021 will enable.
-
-**Implementation Plan:**
-
-**Phase 1: Core Infrastructure (1-2 weeks)**
-1. Create `VisualElements` model with card-type-specific properties
-2. Create `VisualElementExtractor` class
-3. Add `.visualElementExtraction` to `AnalysisTask` enum
-4. Implement extraction prompts for each card type
-5. Integrate with existing AIProviderProtocol
-6. Unit tests for extraction logic
-
-**Phase 2: Provider-Specific Formatting (1 week)**
-1. Implement `generateConceptsForAppleIntelligence()` in VisualElements
-2. Implement `generatePromptForOpenAI()` in VisualElements
-3. Add provider detection in AIImageGenerationView
-4. Route to appropriate formatter based on provider
-5. Test with all providers
-
-**Phase 3: User Review & Editing (1 week)**
-1. Create `VisualElementReviewView` UI
-2. Show extracted elements before generation
-3. Allow editing individual elements
-4. "Generate with these elements" action
-5. Save user corrections for learning (optional)
-
-**Phase 4: Integration & Polish (1 week)**
-1. Integrate into AIImageGenerationView workflow
-2. Add fallback for extraction failures
-3. Performance optimization
-4. Handle edge cases (very long descriptions, minimal descriptions)
-5. Cross-platform testing (macOS, iOS, iPadOS, visionOS)
-
-**Phase 5: Testing & Refinement (1-2 weeks)**
-1. Comprehensive testing with real character descriptions
-2. Test all card types (characters, locations, artifacts, vehicles, buildings)
-3. Validate generation quality improvements
-4. User acceptance testing
-5. Documentation updates
 
 **Components Affected:**
 
-**New Files:**
-- `Cumberland/AI/VisualElements.swift` - Visual element model (~200 lines)
-- `Cumberland/AI/VisualElementExtractor.swift` - Extraction logic (~400 lines)
-- `Cumberland/AI/VisualElementReviewView.swift` - Review/edit UI (~300 lines)
+### New Files (To Be Created):
 
-**Modified Files:**
-- `Cumberland/AI/AIProviderProtocol.swift` - Add .visualElementExtraction task
-- `Cumberland/AI/AIImageGenerationView.swift` - Integration with extraction workflow
-- `Cumberland/AI/AppleIntelligenceProvider.swift` - Handle new analysis task
-- `Cumberland/AI/OpenAIProvider.swift` - Handle new analysis task with structured output
-- `Cumberland/AI/AnalysisTask.swift` - Add visualElementExtraction case
-- `Cumberland/AI/AISettings.swift` - Optional: Add visual extraction settings
+**Phase 1 - Services (~3 files, ~600 lines):**
+- `Cumberland/Services/ImageProcessingService.swift` (~200 lines)
+- `Cumberland/Services/RelationshipManager.swift` (~200 lines)
+- `Cumberland/Services/CardOperationManager.swift` (~200 lines)
+
+**Phase 2 - Repositories (~4 files, ~800 lines):**
+- `Cumberland/Data/CardRepository.swift` (~250 lines)
+- `Cumberland/Data/EdgeRepository.swift` (~200 lines)
+- `Cumberland/Data/StructureRepository.swift` (~200 lines)
+- `Cumberland/Data/QueryService.swift` (~150 lines)
+
+**Phase 3 - Extracted Views (~6 files, ~1,200 lines):**
+- `Cumberland/Views/CardImageEditor.swift` (~200 lines)
+- `Cumberland/Views/CardAIGenerationCoordinator.swift` (~200 lines)
+- `Cumberland/Views/CardImagePanel.swift` (~300 lines)
+- `Cumberland/Views/CardRelationshipPanel.swift` (~200 lines)
+- `Cumberland/Views/CardTimelinePanel.swift` (~150 lines)
+- `Cumberland/Views/CardCitationPanel.swift` (~150 lines)
+- `Cumberland/Services/BoardCanvasManager.swift` (~250 lines)
+
+**Phase 4 - Infrastructure (~2 files, ~300 lines):**
+- `Cumberland/Infrastructure/ServiceContainer.swift` (~200 lines)
+- `Cumberland/Infrastructure/DependencyInjection.swift` (~100 lines)
+
+**Total New Code:** ~15 files, ~2,900 lines
+
+### Modified Files (To Be Refactored):
+
+**Phase 1 - Remove Duplicate Code:**
+- `Cumberland/AI/BatchGenerationQueue.swift` - Remove generateThumbnail (lines 516-550)
+- `Cumberland/AI/ImageVersionManager.swift` - Remove generateThumbnail (lines 196+)
+- `Cumberland/CardSheetView.swift` - Remove nsImageToPngData, nsImageToJpegData
+- `Cumberland/Model/Card.swift` - Refactor thumbnail methods to call service
+
+**Phase 2 - Migrate to Repositories:**
+- 17 files with @Query declarations (see architectural analysis)
+- 30+ files with modelContext operations (see architectural analysis)
+
+**Phase 3 - Extract Business Logic:**
+- `Cumberland/CardEditorView.swift` (2,664 lines → ~800 lines after extraction)
+- `Cumberland/CardSheetView.swift` (2,254 lines → ~800 lines after extraction)
+- `Cumberland/Murderboard/MurderBoardView.swift` (1,386 lines → ~600 lines after extraction)
+- `Cumberland/MainAppView.swift` - Refactor to use CardOperationManager
+- `Cumberland/CardRelationshipView.swift` - Refactor to use RelationshipManager
+
+**Phase 4 - Dependency Injection:**
+- `Cumberland/CumberlandApp.swift` - Initialize ServiceContainer
+- All view files - Inject services instead of @Environment(\.modelContext)
+
+**Estimated Impact:**
+- **New Files:** 15 files, ~2,900 lines of new code
+- **Modified Files:** 50+ files (views and existing services)
+- **Net Lines Added:** +2,900 new, ~-500 duplicate removal = **+2,400 lines total**
+- **Code Reduction in Views:** -3,000 lines moved from views to services (better separation)
+
+**Implementation Plan:**
+
+### Week 1-2: Phase 1 - Critical Duplication Elimination
+1. Create `ImageProcessingService.swift`
+2. Migrate all thumbnail generation calls to service
+3. Create `RelationshipManager.swift`
+4. Migrate relationship operations to manager
+5. Create `CardOperationManager.swift`
+6. Migrate card CRUD to manager
+7. **Testing:** Verify all image, relationship, and card operations work
+
+### Week 3-4: Phase 2 - Data Access Layer
+1. Create repository classes (CardRepository, EdgeRepository, etc.)
+2. Create QueryService
+3. Add dual support (old @Query + new repositories)
+4. Migrate MainAppView to use repositories
+5. Migrate 2-3 other high-traffic views
+6. **Testing:** Verify data operations work through repositories
+
+### Week 5-6: Phase 3 - Extract Business Logic
+1. Extract image handling from CardEditorView
+2. Extract AI coordination from CardEditorView
+3. Extract panels from CardSheetView
+4. Extract canvas management from MurderBoardView
+5. **Testing:** Verify all extracted functionality works
+
+### Week 7: Phase 4 - Dependency Injection
+1. Create ServiceContainer
+2. Initialize in CumberlandApp
+3. Add @Environment key for ServiceContainer
+4. Migrate remaining views to injected services
+5. **Testing:** Verify dependency injection works
+
+### Week 8: Phase 5 - Testing and Cleanup
+1. Write unit tests for all new services
+2. Write integration tests for data flow
+3. Remove old dual-implementation code
+4. Performance testing
+5. Cross-platform testing (macOS, iOS, iPadOS, visionOS)
+6. Documentation updates
 
 **Test Steps:**
 
-**Phase 1: Visual Element Extraction (Character)**
-1. Create character card: "Captain Evilin Drake"
-2. Add narrative description:
-   ```
-   Captain Evilin Drake is a tall woman with long straight dark hair that she
-   wears in a ponytail most days. Lithe and thin, she can be seen most days
-   wearing her orange astronaut's jumpsuit. She is quick to laugh, with a
-   strong chin, short nose, bright green eyes. She grew up on Mars Colony
-   Seven and spent ten years commanding deep space missions before retiring
-   to teach at the Interplanetary Academy.
-   ```
-3. Click "Generate Image"
-4. **Verify:** Visual Element Review sheet appears (not immediate generation)
-5. **Verify:** Extracted elements shown with categories:
-   - Physical Build: "tall, lithe and thin"
-   - Hair: "long straight dark hair in ponytail"
-   - Eyes: "bright green eyes"
-   - Facial Features: "strong chin, short nose"
-   - Clothing: "orange astronaut jumpsuit"
-   - Expression: "confident friendly expression" (translated from "quick to laugh")
-6. **Verify:** Backstory filtered out: "Mars Colony Seven", "Interplanetary Academy" NOT in elements
-7. User can edit any element
-8. Click "Generate with these elements"
+### Phase 1 Testing - Service Consolidation
 
-**Phase 2: Apple Intelligence Provider**
-9. With provider set to "Apple Intelligence"
-10. **Verify:** Image Playground launches with multiple concepts:
-    - "tall, lithe and thin"
-    - "long straight dark hair in ponytail"
-    - "bright green eyes, strong chin, short nose"
-    - "orange astronaut jumpsuit"
-    - "confident friendly expression"
-11. **Verify:** Each concept ≤95 characters
-12. Complete generation
-13. **Verify:** Generated image includes all visual elements
+**Test ImageProcessingService:**
+1. Generate image for a character card using AI
+2. Verify thumbnail is correctly generated
+3. Open ImageHistoryView
+4. Verify all historical images have correct thumbnails
+5. Export image from history
+6. Verify image conversion works correctly
 
-**Phase 3: OpenAI Provider**
-14. Change provider to "OpenAI"
-15. Generate same card
-16. **Verify:** Visual Element Review shows same extracted elements
-17. Click "Generate with these elements"
-18. **Verify:** Single optimized prompt sent to OpenAI:
-    ```
-    Portrait of a tall, lithe woman with long straight dark hair in a ponytail.
-    Bright green eyes, strong chin, short nose. Wearing an orange astronaut
-    jumpsuit. Confident, friendly expression.
-    ```
-19. **Verify:** Generation succeeds, image quality high
+**Test RelationshipManager:**
+1. Open CardRelationshipView
+2. Create new relationship between two cards
+3. Verify relationship appears in graph
+4. Delete relationship
+5. Verify relationship removed from graph
+6. Open MurderBoardView
+7. Create relationship by dragging edge between nodes
+8. Verify relationship appears in CardRelationshipView
+9. Run AI content analysis with relationship extraction
+10. Accept suggested relationships
+11. Verify relationships created correctly
 
-**Phase 4: Non-Character Cards (Location)**
-20. Create location card: "The Whispering Desert"
-21. Add description:
-    ```
-    The Whispering Desert stretches for hundreds of miles under twin moons.
-    Rolling sand dunes shimmer with an ethereal blue glow at night. Ancient
-    ruins dot the landscape, half-buried temples from the Silver Era
-    civilization. The desert earned its name from the haunting sounds the
-    wind makes through the stone archways. Travelers report feeling watched
-    by unseen eyes.
-    ```
-22. Click "Generate Image"
-23. **Verify:** Extracted elements:
-    - Primary Features: "rolling sand dunes", "ancient ruins", "half-buried temples"
-    - Lighting: "ethereal blue glow", "twin moons"
-    - Atmosphere: "mysterious, haunting"
-    - Colors: "blue", "sand"
-24. **Verify:** Subjective content filtered: "travelers report feeling watched" (not visual)
-25. Generate and verify quality
+**Test CardOperationManager:**
+1. Create new card in MainAppView
+2. Verify card appears in sidebar
+3. Select multiple cards
+4. Delete selected cards
+5. Verify cards removed from sidebar and database
+6. Verify no crashes or data corruption
 
-**Phase 5: Non-Character Cards (Artifact)**
-26. Create artifact card: "The Codex of Forgotten Winds"
-27. Add description: "An ancient leather-bound tome with silver runes etched into the cover..."
-28. **Verify:** Extraction works for artifacts
-29. **Verify:** Object-specific elements extracted (materials, condition, distinctive features)
+### Phase 2 Testing - Repository Layer
 
-**Phase 6: Edge Cases**
-30. Create card with minimal description: "A tall elf."
-31. **Verify:** Extraction handles short descriptions gracefully
-32. **Verify:** Low confidence warning shown
-33. Create card with very long description (1000+ words)
-34. **Verify:** Extraction prioritizes most important visual details
-35. **Verify:** Generation succeeds with key elements preserved
+**Test CardRepository:**
+1. Open MainAppView
+2. Filter by different card kinds (Characters, Locations, etc.)
+3. Verify correct cards displayed
+4. Search for card by name
+5. Verify search results correct
+6. Create new card
+7. Verify card persisted and appears in sidebar
 
-**Phase 7: User Editing**
-36. Extract elements from any character
-37. In review UI, click "Edit" on "Hair" element
-38. Change from "long dark hair" to "short silver hair"
-39. Click "Generate with these elements"
-40. **Verify:** Modified element used in generation
-41. **Verify:** Generated image reflects user's edit
+**Test EdgeRepository:**
+1. Open CardRelationshipView for card with relationships
+2. Verify all relationships loaded
+3. Filter by relationship type
+4. Verify correct edges displayed
 
-**Priority:** Critical - Core Cumberland feature for flawless image generation
+### Phase 3 Testing - Extracted Views
 
-**Complexity:** High - Requires new AI analysis task, models, UI, provider integration
+**Test CardEditorView Extraction:**
+1. Open CardEditorView
+2. Add/remove images
+3. Generate AI image
+4. Run AI content analysis
+5. Verify all functionality works as before
+6. Check that CardEditorView file is significantly shorter
 
-**Dependencies:**
-- ER-0009 (builds on existing image generation system)
-- ER-0010 (leverages existing AI content analysis infrastructure)
-- DR-0071 (partially addresses Image Playground limitations)
+**Test CardSheetView Extraction:**
+1. Open card sheet on iOS/iPadOS
+2. Navigate through all tabs (Details, Relationships, Timeline, Citations)
+3. Verify all functionality works as before
+4. Add image, create relationship, set timeline position, add citation
+5. Verify all actions work correctly
 
-**Benefits:**
-- ✅ **Writer-friendly:** Single narrative description, automatic visual extraction
-- ✅ **Provider-agnostic:** Works optimally with any image provider
-- ✅ **Intelligent filtering:** Removes backstory, keeps only visual elements
-- ✅ **Visual translation:** Converts personality to visual expression
-- ✅ **Quality improvement:** Optimized prompts = better images
-- ✅ **Professional workflow:** Review extracted elements before generation
-- ✅ **Learning system:** Can improve from user corrections
-- ✅ **Handles all card types:** Characters, locations, artifacts, vehicles, buildings
+**Test MurderBoardView Extraction:**
+1. Open MurderBoardView
+2. Pan and zoom canvas
+3. Drag nodes around
+4. Create relationships by dragging edges
+5. Select nodes and edges
+6. Verify all gestures work correctly
+
+### Phase 4 Testing - Dependency Injection
+
+**Test Service Injection:**
+1. Launch app on all platforms (macOS, iOS, iPadOS, visionOS)
+2. Verify app initializes correctly
+3. Test all major features (card creation, image generation, relationships)
+4. Verify no crashes or missing services
+5. Verify performance is not degraded
+
+### Phase 5 Testing - Final Validation
+
+**Regression Testing:**
+1. Run full test suite (unit + integration tests)
+2. Test all features documented in CLAUDE.md
+3. Verify no regressions in:
+   - Card CRUD operations
+   - Relationship management
+   - Image generation and history
+   - Map generation
+   - AI content analysis
+   - Timeline system
+   - Murderboard
+   - Structure board
+4. Performance testing:
+   - Time card creation/deletion operations
+   - Time relationship creation operations
+   - Time image thumbnail generation
+   - Compare with baseline (before refactor)
+   - Verify no performance regressions
+
+**Cross-Platform Testing:**
+1. Test on macOS 26.2+
+2. Test on iOS 26.2+ (iPhone and iPad)
+3. Test on visionOS 26.2+
+4. Verify all features work correctly on all platforms
+5. Verify platform-specific code (conditional compilation) still works
 
 **Notes:**
-- User vision: "This will be one of the primary features of Cumberland and I would like it to work flawlessly."
-- **EXPANDED SCOPE (2026-02-03):** Added cinematic framing and narrative perspective analysis
-- User desirement: "What I'm describing here may not be possible, but it is a 'desirement'"
-  - **Good news: It IS possible!** Modern image generators understand camera angles and cinematic language
-  - Low angle/high angle, close-up/wide, dramatic lighting all work in DALL-E 3, Midjourney, etc.
-- Scope expanded from simple prompt splitting → full AI-powered visual analysis → cinematic storytelling
-- Key distinctions:
-  - **Location vs Scene:** Neutral view vs mood-infused view
-  - **Narrative importance:** Grand buildings = low angle, humble shacks = high angle
-  - **Partial views:** Only show what's described (sword hilt without blade if blade not mentioned)
-  - **Mood inference:** Scene events influence lighting and atmosphere
-- Discovered through user observation during DR-0069/DR-0071 investigation
-- Apple's Image Playground supports multiple concepts but needs intelligent extraction
-- This is the "killer feature" that differentiates Cumberland from generic worldbuilding tools
-- Allows writers to focus on narrative, system handles sophisticated visual generation automatically
-- Requires deep understanding of both visual elements AND narrative intent
+
+**Benefits of This Refactoring:**
+- ✅ **Testability:** Services and repositories can be unit tested independently
+- ✅ **Maintainability:** Clear separation of concerns makes code easier to understand
+- ✅ **Scalability:** Easy to add new features without touching existing code
+- ✅ **Code Reuse:** Eliminates duplicate code (thumbnail generation, card operations)
+- ✅ **Future Modularization:** Abstracts data layer for easy feature extraction
+- ✅ **Performance:** Centralized operations enable optimization opportunities
+- ✅ **Error Handling:** Centralized error handling in services
+- ✅ **CloudKit Compatibility:** Repository layer can handle sync coordination
+
+**Why This Matters:**
+- Cumberland is growing rapidly (23 verified ERs, 78 verified DRs)
+- Current architecture will become increasingly difficult to maintain
+- Future modularization (Map Generation → Storyscapes, etc.) will require this foundation
+- Better testing will catch bugs earlier and reduce verification time
+- Clear architecture makes it easier for future developers to contribute
+
+**Related to Future Modularization:**
+- This ER creates the foundation for extracting features into separate apps/frameworks
+- See "Modularization Recommendations" (separate document) for next steps
+- Services and repositories will become the APIs for extracted modules
+
+**Complexity:** Very High - Multi-phase refactor touching 50+ files over 8 weeks
+
+**Risk:** Medium - Incremental approach mitigates risk, but extensive testing required
+
+**Dependencies:**
+- No blocking dependencies - can start immediately
+- Will enable future ERs for feature modularization
+
+---
+
+## ER-0023: Extract Image Processing to Swift Package
+
+**Status:** 🔵 Proposed
+**Component:** Image Processing, Swift Package
+**Priority:** Medium
+**Date Requested:** 2026-02-03
+**Dependencies:** ER-0022 Phase 1 (ImageProcessingService must exist first)
+
+**Summary:**
+
+Extract all image processing utilities (thumbnail generation, format conversion, image loading) into a reusable Swift Package that can be shared between Cumberland, Storyscapes, and future applications.
+
+**Current Problem:**
+- Thumbnail generation duplicated in 2 locations (BatchGenerationQueue:516-550, ImageVersionManager:196+)
+- Image conversion functions duplicated across 3-4 files
+- ~145 lines of duplicate code across codebase
+
+**Solution:**
+Create `ImageProcessing` Swift Package with unified API:
+- `generateThumbnail(from:size:)` - Single implementation
+- `convertToPNG(_:)` / `convertToJPEG(_:compressionQuality:)` - Format conversion
+- `loadImage(from:)` - Async image loading from Data/URL
+- Platform-agnostic (macOS, iOS, visionOS)
+
+**Benefits:**
+- Eliminate ~145 lines of duplicate code
+- Reusable across all applications
+- Better testability (90%+ coverage target)
+- Single source of truth for image operations
+
+**Timeline:** 2 weeks
+
+**Detailed Build Plan:** See `ER-0023-BuildPlan.md`
+
+---
+
+## ER-0024: Extract Brush Engine to Swift Package
+
+**Status:** 🔵 Proposed
+**Component:** Drawing System, Procedural Generation, Swift Package
+**Priority:** High
+**Date Requested:** 2026-02-03
+**Dependencies:** None
+
+**Summary:**
+
+Extract the brush rendering engine and procedural terrain generation system (~5,600 lines) into a reusable Swift Package. This enables the same powerful map generation capabilities to be used in Storyscapes, game development tools, and other creative applications.
+
+**What's Extracted:**
+- `BrushEngine.swift` (2,401 lines) - Core rendering
+- `BrushEngine+Patterns.swift` (1,000 lines) - Pattern generation
+- `TerrainPattern.swift` - Procedural algorithms
+- `ProceduralPatternGenerator.swift` - Pattern utilities
+- `BaseLayerPatterns.swift` - Base layer fills
+- `BrushRegistry.swift` - Brush management
+- `MapBrush.swift` - Brush definitions
+- Interior/Exterior brush sets
+
+**What Stays in Cumberland:**
+- UI components (DrawingCanvasView, tool palettes, layer tabs)
+- Integration with Card model
+- Draft persistence via SwiftData
+
+**Abstraction Strategy:**
+- Remove SwiftData dependency → use `Codable` for layers
+- Replace Card dependency → use `LayerPersistenceDelegate` protocol
+- Make BrushRegistry configurable (not singleton)
+
+**Benefits:**
+- ~5,600 lines moved to reusable package
+- Powers Storyscapes map generation
+- Potential for game dev tools usage
+- Improvements benefit all apps using package
+
+**Timeline:** 3 weeks
+
+**Detailed Build Plan:** See `ER-0024-BuildPlan.md`
+
+---
+
+## ER-0025: Integrate Map Generation into Storyscapes with Workspace
+
+**Status:** 🔵 Proposed
+**Component:** Map Generation, Storyscapes Integration, Xcode Workspace
+**Priority:** High
+**Date Requested:** 2026-02-03
+**Dependencies:** ER-0024 (BrushEngine package must be created first)
+
+**Summary:**
+
+Integrate Cumberland's powerful map generation capabilities into the existing Storyscapes application by creating a unified Xcode workspace. Storyscapes can leverage the BrushEngine package while maintaining its own independent data model and release cycle.
+
+**Workspace Structure:**
+```
+CumberlandWorkspace/
+├── CumberlandWorkspace.xcworkspace
+├── Cumberland/                  # Worldbuilding app
+├── Storyscapes/                 # Map generation app (existing)
+└── Packages/
+    ├── ImageProcessing/         # Shared
+    └── BrushEngine/             # Shared
+```
+
+**Storyscapes Data Model:**
+- Independent `MapProject` model (not Card-based)
+- Conforms to `LayerPersistenceDelegate` protocol
+- SwiftData with CloudKit sync
+- Own project management UI
+
+**Key Abstraction:**
+```swift
+class MapProject: LayerPersistenceDelegate {
+    var draftLayerData: Data?  // BrushEngine layer persistence
+
+    func save(layerData: Data) {
+        self.draftLayerData = layerData
+    }
+}
+```
+
+**Benefits:**
+- Storyscapes gains full map generation with ~1,450 lines of new code
+- Shares ~6,000 lines via packages (BrushEngine + ImageProcessing)
+- Independent development and releases
+- Improvements flow bidirectionally
+- Clear separation of concerns
+
+**Timeline:** 3 weeks
+
+**Detailed Build Plan:** See `ER-0025-BuildPlan.md`
+
+---
+
+## ER-0026: Extract Murderboard to Standalone Target
+
+**Status:** 🔵 Proposed
+**Component:** Murderboard, Relationship Visualization, Workspace Target
+**Priority:** Low
+**Date Requested:** 2026-02-03
+**Dependencies:** ER-0022 (Code refactoring must be complete first)
+
+**Summary:**
+
+Extract the Murderboard relationship visualization system into a standalone application. Murderboard is currently tightly coupled to Cumberland's Card/CardEdge models, but has potential as a general-purpose visual investigation and relationship mapping tool.
+
+**Market Potential:** Law enforcement, journalism, research, investigation, genealogy, network analysis
+
+**Challenge:**
+Murderboard is heavily dependent on Cumberland's data model. Requires significant abstraction work:
+
+**Abstraction Strategy:**
+Create `BoardEngine` Swift Package with protocols:
+- `BoardNode` protocol - Generic node representation
+- `BoardEdge` protocol - Generic edge representation
+- `BoardDataSource` protocol - Data access abstraction
+
+Then:
+- Cumberland's `Card` conforms to `BoardNode`
+- Cumberland's `CardEdge` conforms to `BoardEdge`
+- Standalone Murderboard has `InvestigationNode` / `InvestigationEdge`
+
+**Features:**
+- Force-directed graph auto-layout
+- Pan and zoom canvas
+- Drag nodes to position
+- Create edges between nodes
+- Customizable edge types
+- Node library sidebar
+
+**Benefits:**
+- Reusable relationship visualization engine
+- Potential broader market (beyond worldbuilding)
+- Improvements benefit Cumberland
+
+**Complexity:** Very High (most complex ER)
+- ~1,386 lines in MurderBoardView need abstraction
+- Protocol-based design required
+- Gesture handling extraction needed
+
+**Timeline:** 5 weeks
+
+**Priority Recommendation:** **LOW** - Do after ERs 0022-0025
+
+**Rationale:** Most complex extraction with uncertain market value. Focus on higher-ROI extractions first (Map Generation → Storyscapes has clear demand).
+
+**Detailed Build Plan:** See `ER-0026-BuildPlan.md`
+
+---
+
+## ER-0027: Reorganize AI Module into Subfolders
+
+**Status:** 🔵 Proposed
+**Component:** AI Module Organization
+**Priority:** Low
+**Date Requested:** 2026-02-03
+**Dependencies:** None
+
+**Rationale:**
+
+The AI module currently contains 24 files in a flat structure (`Cumberland/AI/`), making navigation difficult. Reorganizing into logical subfolders will improve code discoverability and maintainability.
+
+**Current State:**
+```
+Cumberland/AI/ (24 files, mixed)
+- AIImageGenerator.swift
+- AppleIntelligenceProvider.swift
+- EntityExtractor.swift
+- BatchGenerationQueue.swift
+- SuggestionReviewView.swift
+- ... (19 more files)
+```
+
+**Desired State:**
+```
+Cumberland/AI/
+├── Providers/                # AI service providers
+│   ├── AIProviderProtocol.swift
+│   ├── AIProviderRegistry.swift
+│   ├── AppleIntelligenceProvider.swift
+│   ├── AnthropicProvider.swift
+│   ├── OpenAIProvider.swift
+│   └── AIProviderMetadata.swift
+├── ImageGeneration/          # Image generation
+│   ├── AIImageGenerator.swift
+│   ├── BatchGenerationQueue.swift
+│   ├── ImageVersionManager.swift
+│   └── ImageMetadataWriter.swift
+├── ContentAnalysis/          # Text analysis
+│   ├── DescriptionAnalyzer.swift
+│   ├── EntityExtractor.swift
+│   ├── RelationshipInference.swift
+│   ├── SuggestionEngine.swift
+│   ├── TextPreprocessor.swift
+│   └── PromptExtractor.swift
+├── Views/                    # AI UI components
+│   ├── AIImageGenerationView.swift
+│   ├── BatchGenerationView.swift
+│   ├── ImageHistoryView.swift
+│   └── SuggestionReviewView.swift
+├── Models/                   # AI-specific models
+│   ├── SuggestionFeedback.swift
+│   └── AnalysisTask.swift
+└── Utilities/                # AI utilities
+    ├── CalendarSystemExtractor.swift
+    └── KeychainHelper.swift
+```
+
+**Requirements:**
+
+**R1: Create Subfolder Structure**
+- Create 6 subfolders: Providers, ImageGeneration, ContentAnalysis, Views, Models, Utilities
+
+**R2: Move Files to Appropriate Folders**
+- Move provider files to `Providers/`
+- Move image generation files to `ImageGeneration/`
+- Move analysis files to `ContentAnalysis/`
+- Move UI files to `Views/`
+- Move models to `Models/`
+- Move utilities to `Utilities/`
+
+**R3: Update Import Statements**
+- Update all files that import from AI module
+- Xcode should auto-update most imports
+- Manual verification of any broken imports
+
+**Implementation Plan:**
+
+**Week 1:**
+1. Create subfolder structure in Xcode
+2. Move files to appropriate folders (drag & drop in Xcode)
+3. Update project.pbxproj automatically
+4. Build and verify no import errors
+5. Test all AI features (image generation, content analysis)
+6. Commit changes
+
+**Test Steps:**
+1. Build Cumberland successfully
+2. Generate AI image → verify works
+3. Run AI content analysis → verify works
+4. Open batch generation → verify works
+5. View image history → verify works
+6. All AI features functional
+
+**Benefits:**
+- ✅ Easier navigation (6 folders instead of 24 files)
+- ✅ Clear separation of concerns
+- ✅ Foundation for future extraction (if needed)
+- ✅ New developers onboard faster
+
+**Complexity:** Low (file moves + import updates)
+
+**Risk:** Very Low (mechanical refactor, Xcode handles most updates)
+
+**Timeline:** 1 day
+
+---
+
+## ER-0028: Consolidate Timeline System into Dedicated Folder
+
+**Status:** 🔵 Proposed
+**Component:** Timeline System Organization
+**Priority:** Low
+**Date Requested:** 2026-02-03
+**Dependencies:** None
+
+**Rationale:**
+
+Timeline-related files are currently scattered across multiple folders. Consolidating into a dedicated `Cumberland/Timeline/` folder will improve organization and make the timeline system easier to maintain.
+
+**Current State:**
+- `TimelineChartView.swift` - Main folder
+- `MultiTimelineGraphView.swift` - Main folder
+- `CalendarDetailEditor.swift` - Main folder
+- `SceneTemporalPositionEditor.swift` - Main folder
+- `CalendarSystem.swift` - Model folder
+- `CalendarSystemCleanup.swift` - Model folder
+- `CalendarSystemMigrationHelper.swift` - Model folder
+
+**Desired State:**
+```
+Cumberland/Timeline/
+├── Models/
+│   └── CalendarSystem.swift (move from Model/)
+├── Views/
+│   ├── TimelineChartView.swift
+│   ├── MultiTimelineGraphView.swift
+│   ├── CalendarDetailEditor.swift
+│   └── SceneTemporalPositionEditor.swift
+├── Services/
+│   ├── TimelinePositioningService.swift (extract from views)
+│   └── CalendarSystemManager.swift
+└── Utilities/
+    ├── CalendarSystemCleanup.swift
+    └── CalendarSystemMigrationHelper.swift
+```
+
+**Requirements:**
+
+**R1: Create Timeline Folder Structure**
+- Create `Cumberland/Timeline/` folder
+- Create subfolders: Models, Views, Services, Utilities
+
+**R2: Move Existing Files**
+- Move timeline views to `Views/`
+- Move CalendarSystem model to `Models/`
+- Move utilities to `Utilities/`
+
+**R3: Extract Timeline Services (Optional)**
+- Extract timeline positioning logic from TimelineChartView → TimelinePositioningService
+- Extract calendar operations → CalendarSystemManager
+
+**Implementation Plan:**
+
+**Week 1:**
+1. Create folder structure
+2. Move files
+3. Update imports
+4. Build and test
+5. (Optional) Extract services if time permits
+
+**Test Steps:**
+1. Open TimelineChartView → verify renders correctly
+2. Create chronicle card → assign to timeline
+3. Adjust temporal position → verify updates
+4. View multi-timeline graph → verify displays
+5. Edit calendar system → verify changes save
+
+**Benefits:**
+- ✅ Timeline system self-contained
+- ✅ Easier to find timeline-related code
+- ✅ Foundation for future timeline improvements
+
+**Complexity:** Low-Medium (file moves + optional service extraction)
+
+**Risk:** Low
+
+**Timeline:** 1-2 days
+
+---
+
+## ER-0029: Consolidate Citation System with Service Layer
+
+**Status:** 🔵 Proposed
+**Component:** Citation System Organization
+**Priority:** Low
+**Date Requested:** 2026-02-03
+**Dependencies:** ER-0022 Phase 1 (service layer pattern established)
+
+**Rationale:**
+
+The Citation system is partially organized in `Cumberland/Citation/` folder, but citation models are in `Cumberland/Model/` and citation operations are scattered across views. Consolidating with a proper service layer will improve maintainability.
+
+**Current State:**
+```
+Cumberland/Citation/ (partially organized)
+- CitationEditor.swift
+- CitationViewer.swift
+- CitationGenerator.swift
+- ImageAttributionEditor.swift
+- ImageAttributionViewer.swift
+
+Cumberland/Model/ (citation models scattered)
+- Citation.swift
+- Source.swift
+- CitationKind.swift
+```
+
+**Desired State:**
+```
+Cumberland/Citation/
+├── Models/
+│   ├── Citation.swift (move from Model/)
+│   ├── Source.swift (move from Model/)
+│   └── CitationKind.swift (move from Model/)
+├── Services/
+│   ├── CitationManager.swift (NEW - extract citation operations)
+│   └── CitationGenerator.swift (existing)
+├── Views/
+│   ├── CitationEditor.swift
+│   ├── CitationViewer.swift
+│   ├── ImageAttributionEditor.swift
+│   └── ImageAttributionViewer.swift
+└── README.md (NEW - explains citation system)
+```
+
+**Requirements:**
+
+**R1: Move Citation Models**
+- Move Citation.swift from Model/ to Citation/Models/
+- Move Source.swift from Model/ to Citation/Models/
+- Move CitationKind.swift from Model/ to Citation/Models/
+
+**R2: Create CitationManager Service**
+- Extract citation CRUD operations from views
+- Centralize citation validation logic
+- Public API:
+  ```swift
+  @Observable
+  @MainActor
+  class CitationManager {
+      func createCitation(for card: Card, source: Source, ...) throws -> Citation
+      func updateCitation(_ citation: Citation, ...) throws
+      func deleteCitation(_ citation: Citation) throws
+      func findCitations(for card: Card) -> [Citation]
+      func generateAttribution(for citation: Citation) -> String
+  }
+  ```
+
+**R3: Refactor Views to Use CitationManager**
+- Update CitationEditor to use CitationManager
+- Update ImageAttributionEditor to use CitationManager
+- Remove direct modelContext operations
+
+**Implementation Plan:**
+
+**Week 1:**
+1. Create folder structure
+2. Move model files
+3. Create CitationManager service
+4. Extract operations from views
+5. Update views to use CitationManager
+6. Test citation functionality
+
+**Test Steps:**
+1. Create new card
+2. Add citation → verify creates correctly
+3. Edit citation → verify updates
+4. Delete citation → verify removes
+5. View image attribution → verify displays
+6. Generate attribution text → verify formats correctly
+
+**Benefits:**
+- ✅ Citation system self-contained
+- ✅ Business logic extracted from views
+- ✅ Follows service layer pattern (from ER-0022)
+- ✅ Easier to test citation operations
+
+**Complexity:** Medium (service extraction + file moves)
+
+**Risk:** Low-Medium (requires ER-0022 service layer pattern)
+
+**Timeline:** 1 week
+
+**Dependencies:**
+- ER-0022 Phase 1 (service layer pattern should be established)
 
 ---
 
 
+
+---
+
+*Last Updated: 2026-02-05*
+*ER-0021 verified and moved to ER-verified-0021.md*

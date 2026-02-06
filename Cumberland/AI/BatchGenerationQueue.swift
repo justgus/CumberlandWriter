@@ -413,17 +413,20 @@ final class BatchGenerationQueue {
 
                 // Save to card
                 if let context = self.modelContext {
-                    // Set image data and metadata
-                    card.originalImageData = data
+                    // Set image data using setOriginalImageData to properly update imageFileURL
+                    // This ensures views watching imageFileURL will refresh
+                    do {
+                        try card.setOriginalImageData(data)
+                    } catch {
+                        logger.error("Failed to set image data: \(error.localizedDescription)")
+                        throw error
+                    }
+
+                    // Set AI metadata
                     card.imageGeneratedByAI = true
                     card.imageAIProvider = self.provider ?? AISettings.shared.imageGenerationProvider
                     card.imageAIPrompt = task.prompt
                     card.imageAIGeneratedAt = Date()
-
-                    // Generate thumbnail
-                    if let thumbnail = generateThumbnail(from: data) {
-                        card.thumbnailData = thumbnail
-                    }
 
                     // Save
                     try context.save()

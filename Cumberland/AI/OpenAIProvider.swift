@@ -177,6 +177,11 @@ class OpenAIProvider: AIProviderProtocol {
             result = try await inferRelationships(from: text, apiKey: apiKey)
         case .calendarExtraction:
             result = try await extractCalendar(from: text, apiKey: apiKey)
+        case .visualElementExtraction:
+            // ER-0021: Visual element extraction
+            // Placeholder - actual extraction will be done by VisualElementExtractor
+            // Future: Could use GPT-4 for sophisticated visual element extraction
+            result = AnalysisResult(entities: nil, relationships: nil, calendars: nil, metadata: nil)
         case .comprehensive:
             result = try await performComprehensiveAnalysis(of: text, apiKey: apiKey)
         }

@@ -198,6 +198,9 @@ struct CardRelationshipView: View {
         .task(id: primary.id) {
             await loadHeaderImage()
         }
+        .task(id: primary.imageFileURL) {
+            await loadHeaderImage()
+        }
         .sheet(isPresented: $isPresentingAddCard) {
             CardEditorView(mode: .create(kind: selectedKind) { newCard in
                 isPresentingAddCard = false
@@ -307,11 +310,11 @@ struct CardRelationshipView: View {
         // Full-size image viewer
         #if os(macOS)
         .sheet(isPresented: $showFullSizeImage) {
-            FullSizeImageViewer(card: primary)
+            FullSizeImageViewer(card: primary, pendingImageData: nil)
         }
         #else
         .fullScreenCover(isPresented: $showFullSizeImage) {
-            FullSizeImageViewer(card: primary)
+            FullSizeImageViewer(card: primary, pendingImageData: nil)
         }
         #endif
         .onChange(of: isPresentingCreateRelationType) { _, isPresented in
