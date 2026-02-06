@@ -113,7 +113,7 @@ final class StructureRepository {
     /// - Parameter element: The structure element
     /// - Returns: Array of cards assigned to this element
     func fetchCards(assignedTo element: StructureElement) -> [Card] {
-        return element.cards ?? []
+        return element.assignedCards ?? []
     }
 
     /// Insert a new element
@@ -144,16 +144,16 @@ final class StructureRepository {
         if card.structureElements == nil {
             card.structureElements = []
         }
-        if element.cards == nil {
-            element.cards = []
+        if element.assignedCards == nil {
+            element.assignedCards = []
         }
 
         // Add to both sides of the many-to-many relationship
         if !(card.structureElements?.contains(where: { $0.id == element.id }) ?? false) {
             card.structureElements?.append(element)
         }
-        if !(element.cards?.contains(where: { $0.id == card.id }) ?? false) {
-            element.cards?.append(card)
+        if !(element.assignedCards?.contains(where: { $0.id == card.id }) ?? false) {
+            element.assignedCards?.append(card)
         }
 
         try modelContext.save()
@@ -167,7 +167,7 @@ final class StructureRepository {
     func unassignCard(_ card: Card, from element: StructureElement) throws {
         // Remove from both sides of the many-to-many relationship
         card.structureElements?.removeAll(where: { $0.id == element.id })
-        element.cards?.removeAll(where: { $0.id == card.id })
+        element.assignedCards?.removeAll(where: { $0.id == card.id })
 
         try modelContext.save()
     }
@@ -179,7 +179,7 @@ final class StructureRepository {
         let elements = card.structureElements ?? []
 
         for element in elements {
-            element.cards?.removeAll(where: { $0.id == card.id })
+            element.assignedCards?.removeAll(where: { $0.id == card.id })
         }
 
         card.structureElements = []
@@ -210,7 +210,7 @@ final class StructureRepository {
     /// - Parameter element: The structure element
     /// - Returns: Count of assigned cards
     func countCards(in element: StructureElement) -> Int {
-        return element.cards?.count ?? 0
+        return element.assignedCards?.count ?? 0
     }
 
     /// Count elements in a structure

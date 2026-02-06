@@ -100,21 +100,13 @@ final class QueryService {
     ///   - targetKind: The target card kind
     /// - Returns: Array of applicable relation types
     func getRelationTypes(from sourceKind: Kinds, to targetKind: Kinds) -> [RelationType] {
-        let srcRaw = sourceKind.rawValue
-        let dstRaw = targetKind.rawValue
-
-        let fetch = FetchDescriptor<RelationType>(
-            predicate: #Predicate { rt in
-                // Type applies if sourceKindRaw is nil (any) or matches srcRaw
-                let sourceOK = (rt.sourceKindRaw == nil) || (rt.sourceKindRaw == srcRaw)
-                // Type applies if targetKindRaw is nil (any) or matches dstRaw
-                let targetOK = (rt.targetKindRaw == nil) || (rt.targetKindRaw == dstRaw)
-                return sourceOK && targetOK
-            },
-            sortBy: [SortDescriptor(\.forwardLabel)]
-        )
-
-        return (try? modelContext.fetch(fetch)) ?? []
+        // Fetch all and filter in Swift (predicate too complex for compiler)
+        let allTypes = getAllRelationTypes()
+        return allTypes.filter { rt in
+            let sourceOK = (rt.sourceKindRaw == nil) || (rt.sourceKindRaw == sourceKind.rawValue)
+            let targetOK = (rt.targetKindRaw == nil) || (rt.targetKindRaw == targetKind.rawValue)
+            return sourceOK && targetOK
+        }
     }
 
     // MARK: - Boards

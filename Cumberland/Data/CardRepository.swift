@@ -109,14 +109,8 @@ final class CardRepository {
     /// - Parameter element: The structure element
     /// - Returns: Array of cards assigned to this element
     func fetch(assignedTo element: StructureElement) -> [Card] {
-        let elementID: UUID? = element.id
-        let fetch = FetchDescriptor<Card>(
-            predicate: #Predicate { card in
-                card.structureElements?.contains { $0.id == elementID } ?? false
-            },
-            sortBy: [SortDescriptor(\.name)]
-        )
-        return (try? modelContext.fetch(fetch)) ?? []
+        // Return cards from the element's relationship directly
+        return element.assignedCards ?? []
     }
 
     /// Fetch cards not assigned to any structure (backlog cards)
