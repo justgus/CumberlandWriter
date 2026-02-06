@@ -2176,29 +2176,15 @@ private extension View {
 }
 
 #if canImport(AppKit)
-// NSImage data conversion helpers
+// NSImage data conversion helpers (ER-0022 Phase 1: Using ImageProcessingService)
 private func nsImageToPngData(_ image: NSImage) -> Data? {
-    // First try native method if available (macOS 12.0+)
-    if image.responds(to: Selector(("pngData"))) {
-        return image.perform(Selector(("pngData")))?.takeUnretainedValue() as? Data
-    }
-    
-    // Fallback for older macOS versions
-    guard let tiff = image.tiffRepresentation,
-          let rep = NSBitmapImageRep(data: tiff) else { return nil }
-    return rep.representation(using: .png, properties: [:])
+    guard let tiff = image.tiffRepresentation else { return nil }
+    return ImageProcessingService.shared.convertToPNG(tiff)
 }
 
 private func nsImageToJpegData(_ image: NSImage, compression: CGFloat) -> Data? {
-    // First try native method if available (macOS 12.0+)
-    if image.responds(to: Selector(("jpegDataWithCompressionQuality:"))) {
-        return image.perform(Selector(("jpegDataWithCompressionQuality:")), with: compression)?.takeUnretainedValue() as? Data
-    }
-    
-    // Fallback for older macOS versions
-    guard let tiff = image.tiffRepresentation,
-          let rep = NSBitmapImageRep(data: tiff) else { return nil }
-    return rep.representation(using: .jpeg, properties: [.compressionFactor: compression])
+    guard let tiff = image.tiffRepresentation else { return nil }
+    return ImageProcessingService.shared.convertToJPEG(tiff, compressionQuality: compression)
 }
 #endif
 

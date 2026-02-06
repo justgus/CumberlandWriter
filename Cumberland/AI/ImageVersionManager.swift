@@ -196,40 +196,9 @@ final class ImageVersionManager {
 
     // MARK: - Thumbnail Generation
 
+    /// Generate thumbnail using ImageProcessingService (ER-0022 Phase 1)
     private func generateThumbnail(from imageData: Data) -> Data? {
-        #if os(macOS)
-        guard let nsImage = NSImage(data: imageData) else { return nil }
-        let targetSize = CGSize(width: 200, height: 200)
-
-        let ratio = min(targetSize.width / nsImage.size.width, targetSize.height / nsImage.size.height)
-        let newSize = CGSize(width: nsImage.size.width * ratio, height: nsImage.size.height * ratio)
-
-        let thumbnail = NSImage(size: newSize)
-        thumbnail.lockFocus()
-        nsImage.draw(in: CGRect(origin: .zero, size: newSize))
-        thumbnail.unlockFocus()
-
-        // Convert to PNG data
-        guard let tiffData = thumbnail.tiffRepresentation,
-              let bitmapRep = NSBitmapImageRep(data: tiffData) else {
-            return nil
-        }
-        return bitmapRep.representation(using: NSBitmapImageRep.FileType.png, properties: [:])
-
-        #else
-        guard let uiImage = UIImage(data: imageData) else { return nil }
-        let targetSize = CGSize(width: 200, height: 200)
-
-        let ratio = min(targetSize.width / uiImage.size.width, targetSize.height / uiImage.size.height)
-        let newSize = CGSize(width: uiImage.size.width * ratio, height: uiImage.size.height * ratio)
-
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
-        uiImage.draw(in: CGRect(origin: .zero, size: newSize))
-        let thumbnail = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-
-        return thumbnail?.pngData()
-        #endif
+        return ImageProcessingService.shared.generateThumbnail(from: imageData)
     }
 }
 
