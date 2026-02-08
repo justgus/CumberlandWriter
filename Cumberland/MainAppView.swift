@@ -15,6 +15,8 @@ import UIKit
 
 struct MainAppView: View {
     @Environment(\.modelContext) private var modelContext
+    // ER-0022 Phase 4: Service container for dependency injection (optional during migration)
+    @Environment(\.services) private var services
     #if os(visionOS)
     @Environment(\.openWindow) private var openWindow
     @Environment(AppModel.self) private var appModel
@@ -946,12 +948,15 @@ struct MainAppView: View {
             selectedCardID = nil
         }
 
-        // Clean up associated image files/caches and context-local related rows first
-        card.cleanupBeforeDeletion(in: modelContext)
-
-        // Delete the card; cascades remove edges/citations as modeled
-        modelContext.delete(card)
-        try? modelContext.save()
+        // ER-0022 Phase 4: Use CardOperationManager if available
+        if let services = services {
+            try? services.cardOperations.deleteCard(card)
+        } else {
+            // Fallback: Direct modelContext operation (legacy path)
+            card.cleanupBeforeDeletion(in: modelContext)
+            modelContext.delete(card)
+            try? modelContext.save()
+        }
     }
 
     private func deleteStructures(offsets: IndexSet) {

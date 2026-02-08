@@ -159,7 +159,17 @@
 				CardEditor/CardEditorTimelineSection.swift,
 				CardEditorView.swift,
 				CardEditorWindowView.swift,
+				CardRelationship/CardRelationshipArea.swift,
+				CardRelationship/CardRelationshipHeader.swift,
+				CardRelationship/CardRelationshipOperations.swift,
+				CardRelationship/CardRelationshipSheets.swift,
+				CardRelationship/CardRelationshipToolbar.swift,
 				CardRelationshipView.swift,
+				CardSheet/CardSheetDropHandler.swift,
+				CardSheet/CardSheetEditorArea.swift,
+				CardSheet/CardSheetFocusMode.swift,
+				CardSheet/CardSheetHeaderView.swift,
+				CardSheet/MarkdownFormatting.swift,
 				CardSheetView.swift,
 				CardView.swift,
 				CardViewer.swift,
@@ -168,6 +178,8 @@
 				Citation/ImageAttributionEditor.swift,
 				Citation/ImageAttributionViewer.swift,
 				Citation/QuickAttributionSheetEditor.swift,
+				Components/AdaptiveToolbar.swift,
+				Components/GlassCard.swift,
 				ContentPlaceholderView.swift,
 				ContentView.swift,
 				CumberlandApp.swift,
@@ -181,7 +193,6 @@
 				"Diagnostic Views/RecentEdgesDiagnosticsView.swift",
 				"Diagnostic Views/RelationTypesDiagnosticsView.swift",
 				"Diagnostic Views/StoryStructureDiagnosticsView.swift",
-				Documentation/FullSizeImageViewer.swift,
 				DrawCanvas/BaseLayerButton.swift,
 				DrawCanvas/BaseLayerFill.swift,
 				DrawCanvas/BaseLayerImageCache.swift,
@@ -209,17 +220,18 @@
 				DrawCanvas/TerrainPattern.swift,
 				DrawCanvas/ToolPaletteState.swift,
 				DrawCanvas/ToolsTabView.swift,
-				FocusFullScreen.swift,
 				FocusOverlayPresenter.swift,
 				GlassDropZone.swift,
 				GlassEffects.swift,
 				GlassKit.swift,
 				GlassSurfaceStyle.swift,
 				GlassToolbarStyle.swift,
+				Images/FullSizeImageViewer.swift,
 				Images/ImageClipboardManager.swift,
 				Images/ImageMetadataExtractor.swift,
 				Images/ImageStore.swift,
 				Images/QuickAttributionSheet.swift,
+				Infrastructure/ServiceContainer.swift,
 				MainAppView.swift,
 				ManuscriptAssembler.swift,
 				MapWizardView.swift,
@@ -245,8 +257,11 @@
 				MultiTimelineGraphView.swift,
 				Murderboard/BacklogSidebarPanel.swift,
 				Murderboard/EdgesLayer.swift,
+				Murderboard/MurderBoardGestureTargets.swift,
 				Murderboard/MurderBoardNodesLayer.swift,
 				Murderboard/MurderBoardNodeView.swift,
+				Murderboard/MurderBoardOperations.swift,
+				Murderboard/MurderBoardToolbar.swift,
 				Murderboard/MurderBoardView.swift,
 				Murderboard/RelatedEdgesList.swift,
 				RealityKit/ImmersiveView.swift,
@@ -362,7 +377,17 @@
 				CardEditor/CardEditorTimelineSection.swift,
 				CardEditorView.swift,
 				CardEditorWindowView.swift,
+				CardRelationship/CardRelationshipArea.swift,
+				CardRelationship/CardRelationshipHeader.swift,
+				CardRelationship/CardRelationshipOperations.swift,
+				CardRelationship/CardRelationshipSheets.swift,
+				CardRelationship/CardRelationshipToolbar.swift,
 				CardRelationshipView.swift,
+				CardSheet/CardSheetDropHandler.swift,
+				CardSheet/CardSheetEditorArea.swift,
+				CardSheet/CardSheetFocusMode.swift,
+				CardSheet/CardSheetHeaderView.swift,
+				CardSheet/MarkdownFormatting.swift,
 				CardSheetView.swift,
 				CardView.swift,
 				CardViewer.swift,
@@ -371,6 +396,8 @@
 				Citation/ImageAttributionEditor.swift,
 				Citation/ImageAttributionViewer.swift,
 				Citation/QuickAttributionSheetEditor.swift,
+				Components/AdaptiveToolbar.swift,
+				Components/GlassCard.swift,
 				ContentPlaceholderView.swift,
 				ContentView.swift,
 				CumberlandApp.swift,
@@ -384,7 +411,6 @@
 				"Diagnostic Views/RecentEdgesDiagnosticsView.swift",
 				"Diagnostic Views/RelationTypesDiagnosticsView.swift",
 				"Diagnostic Views/StoryStructureDiagnosticsView.swift",
-				Documentation/FullSizeImageViewer.swift,
 				DrawCanvas/BaseLayerButton.swift,
 				DrawCanvas/BaseLayerFill.swift,
 				DrawCanvas/BaseLayerImageCache.swift,
@@ -412,17 +438,18 @@
 				DrawCanvas/TerrainPattern.swift,
 				DrawCanvas/ToolPaletteState.swift,
 				DrawCanvas/ToolsTabView.swift,
-				FocusFullScreen.swift,
 				FocusOverlayPresenter.swift,
 				GlassDropZone.swift,
 				GlassEffects.swift,
 				GlassKit.swift,
 				GlassSurfaceStyle.swift,
 				GlassToolbarStyle.swift,
+				Images/FullSizeImageViewer.swift,
 				Images/ImageClipboardManager.swift,
 				Images/ImageMetadataExtractor.swift,
 				Images/ImageStore.swift,
 				Images/QuickAttributionSheet.swift,
+				Infrastructure/ServiceContainer.swift,
 				MainAppView.swift,
 				ManuscriptAssembler.swift,
 				MapWizardView.swift,
@@ -448,8 +475,11 @@
 				MultiTimelineGraphView.swift,
 				Murderboard/BacklogSidebarPanel.swift,
 				Murderboard/EdgesLayer.swift,
+				Murderboard/MurderBoardGestureTargets.swift,
 				Murderboard/MurderBoardNodesLayer.swift,
 				Murderboard/MurderBoardNodeView.swift,
+				Murderboard/MurderBoardOperations.swift,
+				Murderboard/MurderBoardToolbar.swift,
 				Murderboard/MurderBoardView.swift,
 				Murderboard/RelatedEdgesList.swift,
 				ReassignRelationTypeSheet.swift,
@@ -489,6 +519,8 @@
 				Archive.zip,
 				Documentation/CLOUDKIT_SYNC_FIX.md,
 				Documentation/DragDropIntegrationSolutions.md,
+				"Documentation/ER-0022-Phase5-Manual-Testing-Checklist.md",
+				"Documentation/ER-0022-Phase5-Testing-Status.md",
 				"Documentation/FULL_SIZE_IMAGE_GESTURE_GUIDE 2.md",
 				Documentation/FULL_SIZE_IMAGE_GESTURE_GUIDE.md,
 				"Documentation/FULL_SIZE_IMAGE_IMPLEMENTATION 2.md",
@@ -1768,8 +1800,9 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
@@ -1780,7 +1813,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Cumberland/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Cumberland;
@@ -1833,8 +1866,9 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
@@ -1845,7 +1879,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Cumberland/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Cumberland;

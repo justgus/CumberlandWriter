@@ -24,6 +24,9 @@ struct CumberlandApp: App {
     @AppStorage("AppSettings.colorSchemePreferenceRaw")
     private var colorSchemeRaw: String = ColorSchemePreference.system.rawValue
 
+    // ER-0022 Phase 4: Service container for dependency injection
+    @State private var serviceContainer: ServiceContainer?
+
     // Build the app's SwiftData container using your schema.
     // If opening the on-disk store fails, we fall back to local on-disk, then in-memory.
     private static func makeContainer() -> ModelContainer {
@@ -159,6 +162,7 @@ struct CumberlandApp: App {
             ContentView()
                 .environment(appModel)
                 .modelContainer(modelContainer)
+                .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
                 .preferredColorScheme(appPreferredColorScheme)
                 #if os(macOS)
                 .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
@@ -172,6 +176,11 @@ struct CumberlandApp: App {
                 .background(UndoBridge(modelContext: modelContainer.mainContext))
                 // Post-upgrade backfill and seed data once the container is available
                 .task {
+                    // ER-0022 Phase 4: Initialize service container if not already done
+                    if serviceContainer == nil {
+                        serviceContainer = ServiceContainer(modelContext: modelContainer.mainContext)
+                    }
+
                     await CumberlandApp.backfillOriginalImagesIfNeeded(container: modelContainer)
                     await CumberlandApp.seedRelationTypesIfNeeded(container: modelContainer)
                     // Ensure Scene→Project "stories" edges exist by backfilling from current part-of chains
@@ -249,17 +258,19 @@ struct CumberlandApp: App {
                 CardEditorWindowView(editorRequest: request)
                     .environment(appModel)
                     .modelContainer(modelContainer)
+                    .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
                     .preferredColorScheme(appPreferredColorScheme)
             }
         }
         .defaultSize(width: 840, height: 780)
         #endif
-        
+
         #if os(visionOS) && DEBUG
         // Developer Tools window for visionOS
         Window("Developer Tools", id: "dev.tools") {
             DeveloperToolsView()
                 .modelContainer(modelContainer)
+                .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 520, minHeight: 480)
         }
@@ -273,6 +284,7 @@ struct CumberlandApp: App {
         Window("Preferences", id: "settings") {
             SettingsView()
                 .modelContainer(modelContainer)
+                .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 520, minHeight: 380)
         }
@@ -293,6 +305,7 @@ struct CumberlandApp: App {
             if let request {
                 TemporalEditorWindowView(editorRequest: request)
                     .modelContainer(modelContainer)
+                    .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
                     .preferredColorScheme(appPreferredColorScheme)
             }
         }
