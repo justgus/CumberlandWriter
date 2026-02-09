@@ -9,6 +9,15 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - Pending Edge Creation
+
+/// Identifiable struct for sheet(item:) presentation - ensures data is available when sheet renders
+struct PendingEdgeCreation: Identifiable {
+    let id = UUID()
+    let sourceCardID: UUID
+    let targetCardID: UUID
+}
+
 // MARK: - Edge Creation State
 
 /// Observable state for edge creation drag operation
@@ -64,7 +73,9 @@ final class EdgeCreationState {
 
 // MARK: - Edge Handle View
 
-/// A draggable handle on the trailing edge of a node for creating edges
+/// A visual handle on the trailing edge of a node for creating edges
+/// Note: Drag handling is done via MultiGestureHandler (EdgeHandleGestureTarget) on macOS
+/// because SwiftUI DragGesture doesn't work with .dropDestination() present
 struct EdgeHandle: View {
     let cardID: UUID
     let cardKind: Kinds
@@ -75,16 +86,18 @@ struct EdgeHandle: View {
 
     @Bindable var edgeCreationState: EdgeCreationState
 
+    // Not used on macOS (gesture handled by MultiGestureHandler), but kept for iOS compatibility
     let onEdgeCreated: (UUID, UUID) -> Void
 
     // Handle appearance
     private let handleSize: CGFloat = 20
-    private let handleOffset: CGFloat = 2 // Small gap from card edge
 
-    /// Position of the handle in view coordinates (center of trailing edge)
+    /// Position of the handle in view coordinates (straddling the trailing edge - half on, half off the card)
     private var handleViewPosition: CGPoint {
+        // Position so handle center is exactly on the card's trailing edge
+        // This puts half the handle inside the card and half outside
         CGPoint(
-            x: nodeViewCenter.x + nodeViewSize.width / 2 + (handleSize * zoomScale / 2) + handleOffset,
+            x: nodeViewCenter.x + nodeViewSize.width / 2,
             y: nodeViewCenter.y
         )
     }
@@ -107,23 +120,19 @@ struct EdgeHandle: View {
             )
             .shadow(color: .black.opacity(0.3), radius: 3 * zoomScale, x: 0, y: 1 * zoomScale)
             .position(handleViewPosition)
-            .contentShape(Circle())
-            .gesture(
-                DragGesture(minimumDistance: 5, coordinateSpace: .named("MurderBoardCanvasSpace"))
-                    .onChanged { value in
-                        if !edgeCreationState.isDragging {
-                            edgeCreationState.startDrag(from: cardID, at: value.location)
-                        } else {
-                            edgeCreationState.updateDrag(to: value.location)
-                        }
-                    }
-                    .onEnded { _ in
-                        if let targetID = edgeCreationState.endDrag() {
-                            onEdgeCreated(cardID, targetID)
-                        }
-                    }
+            // Note: On macOS, hit testing and drag handling is done by EdgeHandleGestureTarget
+            // via NSEvent monitors in MultiGestureHandler. SwiftUI gestures don't work here
+            // due to .dropDestination() intercepting events.
+            .allowsHitTesting(false)  // Let MultiGestureHandler handle all input
+            // Highlight when active with glow instead of scale to avoid position jump
+            .overlay(
+                Circle()
+                    .stroke(cardKind.accentColor(for: scheme), lineWidth: isActive ? 3 * zoomScale : 0)
+                    .blur(radius: isActive ? 4 * zoomScale : 0)
+                    .frame(width: scaledSize + 8 * zoomScale, height: scaledSize + 8 * zoomScale)
+                    .position(handleViewPosition)
+                    .allowsHitTesting(false)
             )
-            .scaleEffect(isActive ? 1.2 : 1.0)
             .animation(.easeInOut(duration: 0.15), value: isActive)
     }
 }
@@ -153,6 +162,7 @@ struct EdgeCreationLineLayer: View {
                 path.move(to: sourceCenter)
                 path.addLine(to: dragPosition)
 
+                // Draw simple line without arrowhead (relationships are bidirectional)
                 context.stroke(
                     path,
                     with: .color(lineColor),
@@ -162,31 +172,6 @@ struct EdgeCreationLineLayer: View {
                         lineJoin: .round,
                         dash: isValidTarget ? [] : [8, 4]
                     )
-                )
-
-                // Draw arrow at end
-                let angle = atan2(dragPosition.y - sourceCenter.y, dragPosition.x - sourceCenter.x)
-                let arrowLength: CGFloat = 12
-                let arrowAngle: CGFloat = .pi / 6
-
-                let arrowP1 = CGPoint(
-                    x: dragPosition.x - arrowLength * cos(angle - arrowAngle),
-                    y: dragPosition.y - arrowLength * sin(angle - arrowAngle)
-                )
-                let arrowP2 = CGPoint(
-                    x: dragPosition.x - arrowLength * cos(angle + arrowAngle),
-                    y: dragPosition.y - arrowLength * sin(angle + arrowAngle)
-                )
-
-                var arrowPath = Path()
-                arrowPath.move(to: arrowP1)
-                arrowPath.addLine(to: dragPosition)
-                arrowPath.addLine(to: arrowP2)
-
-                context.stroke(
-                    arrowPath,
-                    with: .color(lineColor),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
                 )
             }
             .allowsHitTesting(false)
@@ -288,8 +273,12 @@ struct EdgeCreationRelationTypeSheet: View {
             GroupBox("Connecting") {
                 HStack(spacing: 12) {
                     if let source = sourceCard {
-                        Label(source.name, systemImage: source.kind.systemImage)
-                            .foregroundStyle(source.kind.accentColor(for: scheme))
+                        HStack(spacing: 6) {
+                            Image(systemName: source.kind.systemImage)
+                                .foregroundStyle(source.kind.accentColor(for: scheme))
+                            Text(source.name)
+                                .foregroundStyle(.primary)
+                        }
                     } else {
                         Text("Unknown")
                     }
@@ -298,8 +287,12 @@ struct EdgeCreationRelationTypeSheet: View {
                         .foregroundStyle(.secondary)
 
                     if let target = targetCard {
-                        Label(target.name, systemImage: target.kind.systemImage)
-                            .foregroundStyle(target.kind.accentColor(for: scheme))
+                        HStack(spacing: 6) {
+                            Image(systemName: target.kind.systemImage)
+                                .foregroundStyle(target.kind.accentColor(for: scheme))
+                            Text(target.name)
+                                .foregroundStyle(.primary)
+                        }
                     } else {
                         Text("Unknown")
                     }

@@ -25,7 +25,7 @@ struct MurderBoardView: View {
     @Environment(\.colorScheme) var scheme
 
     // Query for all cards (used by backlog)
-    @Query(sort: \Card.name) private var allCards: [Card]
+    @Query(sort: \Card.name) var allCards: [Card]
 
     // Persisted board for this primary
     @State var board: Board?
@@ -74,6 +74,18 @@ struct MurderBoardView: View {
     @State var gestureHandler: MultiGestureHandler? = nil
     @State var canvasGestureTarget: CanvasGestureTarget? = nil
     @State var nodeGestureTargets: [UUID: NodeGestureTarget] = [:]
+
+    // MARK: - Edge Creation (DR-0076)
+
+    // Query for all relation types (used by edge creation sheet)
+    @Query(sort: \RelationType.code) private var allRelationTypes: [RelationType]
+
+    // Edge creation state
+    @State var edgeCreationState = EdgeCreationState()
+
+    // Sheet presentation for RelationType selection using item-based sheet
+    // This ensures the data is available when the sheet content renders
+    @State var pendingEdgeCreation: PendingEdgeCreation? = nil
 
     init(primary: Card) {
         self.primary = primary
@@ -151,6 +163,10 @@ struct MurderBoardView: View {
                         },
                         onSelectCard: { id in
                             $selectedCardID.wrappedValue = id
+                        },
+                        edgeCreationState: edgeCreationState,
+                        onEdgeCreated: { sourceID, targetID in
+                            handleEdgeCreationRequest(sourceCardID: sourceID, targetCardID: targetID)
                         }
                     )
                 }
@@ -179,7 +195,11 @@ struct MurderBoardView: View {
                     viewCanvasRect: { viewCanvasRect(worldForWindowSize: contentSize) },
                     persistTransform: persistTransformNow,
                     removeCardFromBoard: removeCardFromBoard,
-                    nodesKey: nodesKey
+                    nodesKey: nodesKey,
+                    edgeCreationState: edgeCreationState,
+                    onEdgeCreated: { sourceID, targetID in
+                        handleEdgeCreationRequest(sourceCardID: sourceID, targetCardID: targetID)
+                    }
                 ))
 
                 if isContentReady == false {
@@ -241,6 +261,23 @@ struct MurderBoardView: View {
             print("[MB] Selection changed: \(o) → \(n)")
         }
         #endif
+        // Edge creation RelationType selection sheet (DR-0076)
+        // Using sheet(item:) ensures data is available when sheet content renders
+        .sheet(item: $pendingEdgeCreation) { pending in
+            EdgeCreationRelationTypeSheet(
+                sourceCardID: pending.sourceCardID,
+                targetCardID: pending.targetCardID,
+                allRelationTypes: allRelationTypes,
+                allCards: allCards,
+                onSelect: { relationType in
+                    createEdge(from: pending.sourceCardID, to: pending.targetCardID, type: relationType)
+                },
+                onCancel: {
+                    // Sheet dismisses automatically when item is set to nil
+                }
+            )
+            .frame(minWidth: 420, minHeight: 340)
+        }
     }
 
     // MARK: - Progress Overlay

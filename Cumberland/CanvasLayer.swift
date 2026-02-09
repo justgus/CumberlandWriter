@@ -47,6 +47,10 @@ struct CanvasLayer: View {
     let onCardDrop: ([CardTransferData], CGPoint) -> Bool
     let onRemoveCard: (UUID) -> Void
     let onSelectCard: (UUID) -> Void
+
+    // Edge creation state (DR-0076)
+    @Bindable var edgeCreationState: EdgeCreationState
+    let onEdgeCreated: (UUID, UUID) -> Void
     
     var body: some View {
         // Attach coordinate space on the SAME view (CA-13.2).
@@ -117,8 +121,39 @@ struct CanvasLayer: View {
                         .allowsHitTesting(false)
                         .accessibilityLabel("Drop target for adding cards to board")
                 }  //end if isDropTargetActive
-                
-                
+
+                // DR-0076: Edge creation layers (in view coordinates, not transformed)
+                if isContentReady {
+                    // Edge handles layer - small circles on the trailing edge of each node
+                    EdgeHandlesLayer(
+                        board: board,
+                        scheme: scheme,
+                        zoomScale: zoomScale,
+                        edgeCreationState: edgeCreationState,
+                        nodeSizes: nodeVisualSizes,
+                        worldToView: worldToView,
+                        onEdgeCreated: onEdgeCreated
+                    )
+
+                    // Edge creation line layer - draws the temporary line during drag
+                    EdgeCreationLineLayer(
+                        edgeCreationState: edgeCreationState,
+                        scheme: scheme,
+                        worldToView: worldToView,
+                        getSourceCenter: { cardID in
+                            // Return the edge handle position (straddling the trailing edge of node)
+                            guard let node = board?.nodes?.first(where: { $0.card?.id == cardID }) else {
+                                return nil
+                            }
+                            let nodeSize = nodeVisualSizes[cardID] ?? CGSize(width: 240, height: 160)
+                            // Handle center is at the card's trailing edge (straddling position)
+                            let handleWorldX = node.posX + nodeSize.width / 2
+                            let handleWorldY = node.posY
+                            return worldToView(CGPoint(x: handleWorldX, y: handleWorldY))
+                        }
+                    )
+                }
+
             } //end ZStack
             // Untransformed, stable view-space named for future gesture sources (CA-13.2)
             .coordinateSpace(name: canvasCoordSpace)

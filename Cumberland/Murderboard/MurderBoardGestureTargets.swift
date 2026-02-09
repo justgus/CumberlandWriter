@@ -173,6 +173,89 @@ final class NodeGestureTarget: GestureTarget {
     }
 }
 
+// MARK: - Edge Handle Gesture Target (DR-0076)
+
+/// Gesture target for edge creation handles
+@MainActor
+final class EdgeHandleGestureTarget: GestureTarget {
+    let gestureID = UUID()
+    let cardID: UUID
+
+    // Edge creation state reference
+    var edgeCreationState: EdgeCreationState?
+
+    // Callbacks
+    var onEdgeCreated: ((UUID, UUID) -> Void)?
+
+    // Position and size access - returns bounds in WORLD coordinates
+    var getHandleWorldBounds: ((UUID) -> CGRect)?
+
+    // Hit test all nodes to find which one we're hovering over (takes VIEW coordinates)
+    var hitTestNodes: ((CGPoint) -> UUID?)?
+
+    init(cardID: UUID) {
+        self.cardID = cardID
+    }
+
+    var worldBounds: CGRect {
+        // Get handle bounds directly in WORLD coordinates
+        getHandleWorldBounds?(cardID) ?? CGRect.zero
+    }
+
+    func canHandleGesture(_ gesture: GestureType) -> Bool {
+        switch gesture {
+        case .drag:
+            return true
+        case .tap, .doubleTap, .rightClick, .pinch, .twoFingerPan:
+            return false
+        }
+    }
+
+    func handleGesture(_ gesture: GestureEvent) {
+        guard let state = edgeCreationState else { return }
+
+        switch gesture {
+        case .dragBegan(let startLocation, _):
+            // Start edge creation drag
+            state.startDrag(from: cardID, at: startLocation)
+            #if DEBUG
+            print("[EdgeHandle] Drag began from card \(cardID) at \(startLocation)")
+            #endif
+
+        case .dragChanged(let location, _, _):
+            // Update drag position and check for hover target
+            state.updateDrag(to: location)
+
+            // Hit test to find what node we're over
+            if let targetID = hitTestNodes?(location), targetID != cardID {
+                state.setHoveredTarget(targetID)
+            } else {
+                state.setHoveredTarget(nil)
+            }
+
+        case .dragEnded(let location, _, _, _):
+            // Check for valid target and trigger edge creation
+            if let targetID = hitTestNodes?(location), targetID != cardID {
+                state.setHoveredTarget(targetID)
+            }
+
+            if let targetID = state.endDrag() {
+                #if DEBUG
+                print("[EdgeHandle] Drag ended on target \(targetID)")
+                #endif
+                onEdgeCreated?(cardID, targetID)
+            } else {
+                #if DEBUG
+                print("[EdgeHandle] Drag ended with no valid target")
+                #endif
+            }
+
+        default:
+            break
+        }
+    }
+}
+
 // MARK: - Gesture Handler Integration ViewModifier
 
 struct GestureHandlerIntegration: ViewModifier {
@@ -196,6 +279,13 @@ struct GestureHandlerIntegration: ViewModifier {
     let persistTransform: () -> Void
     let removeCardFromBoard: (UUID) -> Void
     let nodesKey: [UUID]
+
+    // Edge creation (DR-0076)
+    var edgeCreationState: EdgeCreationState?
+    var onEdgeCreated: ((UUID, UUID) -> Void)?
+
+    // Internal storage for edge handle targets (not exposed to parent)
+    @State private var edgeHandleGestureTargets: [UUID: EdgeHandleGestureTarget] = [:]
 
     // Check if we have visual sizes for all nodes on the board
     private var hasAllVisualSizes: Bool {
@@ -426,6 +516,90 @@ struct GestureHandlerIntegration: ViewModifier {
                 #endif
                 handler.registerTarget(nodeTarget)
                 nodeGestureTargets[card.id] = nodeTarget
+            }
+        }
+
+        // DR-0076: Setup edge handle gesture targets
+        #if DEBUG
+        print("Edge creation state: \(edgeCreationState == nil ? "nil" : "present"), board nodes: \(board?.nodes?.count ?? 0)")
+        #endif
+        if let edgeState = edgeCreationState, let nodeArray = board?.nodes {
+            edgeHandleGestureTargets.removeAll()
+
+            for node in nodeArray {
+                guard let card = node.card else { continue }
+
+                let edgeHandleTarget = EdgeHandleGestureTarget(cardID: card.id)
+
+                // Configure edge handle callbacks
+                edgeHandleTarget.edgeCreationState = edgeState
+                edgeHandleTarget.onEdgeCreated = onEdgeCreated
+
+                // Provide hit bounds for the edge handle in WORLD coordinates
+                edgeHandleTarget.getHandleWorldBounds = { [self] cardID in
+                    guard let targetNode = board?.nodes?.first(where: { $0.card?.id == cardID }) else {
+                        return CGRect.zero
+                    }
+
+                    // Node center in WORLD coordinates
+                    let worldCenter = CGPoint(x: targetNode.posX, y: targetNode.posY)
+
+                    // Get node size (these are in view/layout units, need to use as-is for world bounds)
+                    let nodeSize = nodeVisualSizes[cardID] ?? CGSize(width: 240, height: 160)
+
+                    // Edge handle straddles the trailing edge of the node (half on, half off)
+                    // Visual handle is 20pt, but use larger hit area (80x80) for easier clicking
+                    let handleSize: CGFloat = 80
+
+                    // Handle center is at the card's trailing edge (straddling position)
+                    let handleCenterX = worldCenter.x + nodeSize.width / 2
+                    let handleCenterY = worldCenter.y
+
+                    return CGRect(
+                        x: handleCenterX - handleSize / 2,
+                        y: handleCenterY - handleSize / 2,
+                        width: handleSize,
+                        height: handleSize
+                    )
+                }
+
+                // Provide hit test for nodes during drag
+                edgeHandleTarget.hitTestNodes = { [self] viewLocation in
+                    // Check each node to see if the point is inside
+                    for testNode in (board?.nodes ?? []) {
+                        guard let testCard = testNode.card else { continue }
+
+                        let worldCenter = CGPoint(x: testNode.posX, y: testNode.posY)
+                        let viewCenter = CGPoint(
+                            x: worldCenter.x * zoomScale + panX,
+                            y: worldCenter.y * zoomScale + panY
+                        )
+
+                        let nodeSize = nodeVisualSizes[testCard.id] ?? CGSize(width: 240, height: 160)
+                        let scaledWidth = nodeSize.width * zoomScale
+                        let scaledHeight = nodeSize.height * zoomScale
+
+                        let nodeRect = CGRect(
+                            x: viewCenter.x - scaledWidth / 2,
+                            y: viewCenter.y - scaledHeight / 2,
+                            width: scaledWidth,
+                            height: scaledHeight
+                        )
+
+                        if nodeRect.contains(viewLocation) {
+                            return testCard.id
+                        }
+                    }
+                    return nil
+                }
+
+                // Register edge handle target BEFORE node target so it wins hit testing
+                // (Targets registered later have higher priority)
+                #if DEBUG
+                print("Registering edge handle target for card \(card.name)")
+                #endif
+                handler.registerTarget(edgeHandleTarget)
+                edgeHandleGestureTargets[card.id] = edgeHandleTarget
             }
         }
     }

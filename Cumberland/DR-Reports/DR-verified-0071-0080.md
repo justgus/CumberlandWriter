@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0071 through DR-0080.
 
-**Batch Status:** 🚧 In Progress (6/10 verified)
+**Batch Status:** 🚧 In Progress (9/10 verified)
 
 ---
 
@@ -741,6 +741,184 @@ Features:
 - ✅ All card properties copied correctly (name, subtitle, description, image)
 
 **Note:** Resolved together with DR-0079 (expanded multi-select actions).
+
+---
+
+## DR-0076: No Edge Creation UI in MurderBoardView
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** MurderBoardView
+**Severity:** High
+**Date Identified:** 2026-02-08
+**Date Resolved:** 2026-02-09
+**Date Verified:** 2026-02-09
+
+**Description:**
+The MurderBoardView displays existing relationships (CardEdges) between cards but provides no user interface to create new edges directly on the board. Users expect to be able to drag from one node to another to create a relationship, but the node dragging gesture for repositioning supersedes any potential edge-creation gesture.
+
+**Resolution:**
+Implemented **Edge Handles** solution with full gesture integration via NSEvent monitors (macOS):
+
+### Edge Handle
+- Small circular handle **straddling the trailing edge** of each node (half inside, half outside card)
+- Shows the card's kind accent color with an arrow icon
+- Does not interfere with node dragging (separate gesture target)
+- Glow effect when active (no scale to prevent position jump)
+
+### Drag Interaction
+- Dragging from the edge handle initiates edge creation
+- A **simple reference line** (no arrowhead - relationships are bidirectional) draws from the source card to the cursor
+- Line is **dashed** when over invalid targets, **solid green** when over valid targets
+- Valid targets are highlighted with a colored border during drag
+
+### RelationType Selection
+- On drop over a valid target, a **RelationType picker sheet** appears using `.sheet(item:)` pattern
+- Shows applicable relation types for the source→target kind combination
+- Option to create a new RelationType if none are suitable
+- **Bidirectional edges created** - both forward and reverse edges created automatically
+
+### Technical Implementation
+- Used NSEvent monitors in MultiGestureHandler for gesture handling (SwiftUI DragGesture doesn't work with `.dropDestination()`)
+- Created `EdgeHandleGestureTarget` class implementing `GestureTarget` protocol
+- Used `.sheet(item:)` with `PendingEdgeCreation` Identifiable struct (critical fix for sheet rendering)
+
+**Files Created:**
+- `Cumberland/Murderboard/EdgeCreationSystem.swift` - Edge creation state, handles, line layer, sheet, and `PendingEdgeCreation` struct
+
+**Files Modified:**
+- `Cumberland/Murderboard/MurderBoardView.swift` - Added edge creation state, RelationType query, sheet presentation with `.sheet(item:)`
+- `Cumberland/Murderboard/MurderBoardOperations.swift` - Added edge creation handler functions, bidirectional edge creation
+- `Cumberland/Murderboard/MurderBoardGestureTargets.swift` - Added `EdgeHandleGestureTarget` class and integration
+- `Cumberland/CanvasLayer.swift` - Added edge handles layer and creation line layer
+
+**Critical Fix - SwiftUI Sheet Pattern:**
+
+⚠️ **IMPORTANT FOR FUTURE REFERENCE:** When presenting a sheet that depends on data, use `.sheet(item:)` with an `Identifiable` struct, NOT `.sheet(isPresented:)` with an `if let` inside the sheet content.
+
+**Wrong (causes empty sheet):**
+```swift
+@State var showSheet: Bool = false
+@State var pendingSource: UUID? = nil
+@State var pendingTarget: UUID? = nil
+
+.sheet(isPresented: $showSheet) {
+    if let source = pendingSource, let target = pendingTarget {
+        MySheetView(source: source, target: target)  // ❌ May render empty!
+    }
+}
+```
+
+**Correct (data always available):**
+```swift
+struct PendingData: Identifiable {
+    let id = UUID()
+    let source: UUID
+    let target: UUID
+}
+
+@State var pendingData: PendingData? = nil
+
+.sheet(item: $pendingData) { data in
+    MySheetView(source: data.source, target: data.target)  // ✅ Data guaranteed
+}
+```
+
+The issue occurs because with `.sheet(isPresented:)`, SwiftUI may present the sheet container before the state variables are readable by the sheet's view builder, resulting in an empty sheet that only renders content after a view refresh.
+
+**Test Verification:**
+- ✅ Edge handle appears on right side of each node (half overlapping card edge)
+- ✅ Drag from edge handle draws reference line (no arrowhead)
+- ✅ Hover over valid target shows green highlight
+- ✅ Drop on target shows RelationType picker sheet immediately with content
+- ✅ Selecting type creates both forward and reverse edges
+- ✅ Edge handle glows when active (no position jump)
+- ✅ Text readable in dark mode (card names use .primary color)
+
+---
+
+## DR-0077: No Search or Filter UI in All Cards List
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** MainAppView
+**Severity:** High
+**Date Identified:** 2026-02-08
+**Date Resolved:** 2026-02-09
+**Date Verified:** 2026-02-09
+
+**Description:**
+The "All Cards" view in the sidebar does not provide search or filter controls. Users cannot filter cards by type (Character, Location, etc.) or search by name/content. As the database grows, finding specific cards becomes increasingly difficult.
+
+**Resolution:**
+Replaced `.searchable()` modifier with custom inline header containing:
+
+1. **Search TextField**: Custom search field in list header
+   - Appears at top of ALL card lists (not just All Cards)
+   - Magnifying glass icon, text field, clear button
+   - Styled with rounded background
+   - Searches name, subtitle, detailedText, author
+
+2. **Kind Filter** (All Cards view only):
+   - Filter icon (line.3.horizontal.decrease.circle) next to search field
+   - Icon is filled when a filter is active
+   - Dropdown menu shows "All Types" plus all card kinds
+   - Checkmark indicates current selection
+   - Filter works in combination with search
+
+**Files Modified:**
+- `Cumberland/MainAppView.swift:80` - Added `allCardsKindFilter` state variable
+- `Cumberland/MainAppView.swift:213-216` - Removed `.searchable()` modifier
+- `Cumberland/MainAppView.swift:783-790` - Added `cardsListHeader` section header to all card lists
+- `Cumberland/MainAppView.swift:1044-1110` - Added `cardsListHeader` with TextField and filter Menu
+
+**Test Verification:**
+- ✅ Search field appears at top of all card lists
+- ✅ Type to search filters cards in real-time
+- ✅ X button clears search
+- ✅ All Cards view shows filter icon
+- ✅ Filter dropdown works, icon fills when active
+- ✅ Search and filter can combine
+
+---
+
+## DR-0078: No Image Export UI
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** CardEditorView / Image Views
+**Severity:** Medium
+**Date Identified:** 2026-02-08
+**Date Resolved:** 2026-02-08
+**Date Verified:** 2026-02-09
+
+**Description:**
+Users cannot export card images to files (PNG, JPEG). The ImageProcessingService has export capabilities per ER-0022 Phase 1, but no UI exposes this functionality.
+
+**Resolution:**
+Added export button to FullSizeImageViewer with platform-specific implementations:
+
+**macOS:**
+- Export menu with PNG and JPEG options
+- NSSavePanel for file location selection
+- Uses ImageProcessingService for format conversion
+
+**iOS:**
+- Export menu with PNG and JPEG options (saves to Photos)
+- Share button for standard iOS share sheet
+- UIActivityViewController for sharing
+
+**Files Modified:**
+- `Cumberland/Images/FullSizeImageViewer.swift:4-11` - Added imports for UniformTypeIdentifiers, AppKit/UIKit
+- `Cumberland/Images/FullSizeImageViewer.swift:20-22` - Added export state variables
+- `Cumberland/Images/FullSizeImageViewer.swift:37-47` - Added export button to toolbar overlay
+- `Cumberland/Images/FullSizeImageViewer.swift:130-211` - Added exportButton view, exportImage(), shareImage(), currentImageData
+
+**Test Verification:**
+- ✅ Export button appears in FullSizeImageViewer
+- ✅ macOS: Export as PNG/JPEG opens save panel
+- ✅ iOS: Export saves to Photos, Share opens share sheet
+- ✅ Exported images open correctly in external apps
 
 ---
 

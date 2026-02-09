@@ -336,6 +336,89 @@ extension MurderBoardView {
     }
 }
 
+// MARK: - Edge Creation (DR-0076)
+
+extension MurderBoardView {
+    /// Called when an edge handle drag completes over a valid target
+    func handleEdgeCreationRequest(sourceCardID: UUID, targetCardID: UUID) {
+        #if DEBUG
+        print("[MB] Edge creation requested: \(sourceCardID) → \(targetCardID)")
+        #endif
+
+        // Set the pending edge creation item - this triggers the sheet via sheet(item:)
+        // Using an Identifiable item ensures data is available when sheet content renders
+        pendingEdgeCreation = PendingEdgeCreation(
+            sourceCardID: sourceCardID,
+            targetCardID: targetCardID
+        )
+    }
+
+    /// Create the actual edge after RelationType is selected
+    func createEdge(from sourceID: UUID, to targetID: UUID, type: RelationType) {
+        // Find the cards
+        guard let sourceCard = allCards.first(where: { $0.id == sourceID }),
+              let targetCard = allCards.first(where: { $0.id == targetID }) else {
+            #if DEBUG
+            print("[MB] Edge creation failed: could not find cards")
+            #endif
+            return
+        }
+
+        // Check if forward edge already exists
+        let forwardExists = sourceCard.outgoingEdges?.contains { edge in
+            edge.to?.id == targetID && edge.type?.code == type.code
+        } ?? false
+
+        // Check if reverse edge already exists
+        let reverseExists = targetCard.outgoingEdges?.contains { edge in
+            edge.to?.id == sourceID && edge.type?.code == type.code
+        } ?? false
+
+        if forwardExists && reverseExists {
+            #if DEBUG
+            print("[MB] Both edges already exist, skipping creation")
+            #endif
+            return
+        }
+
+        // Create the forward edge (source → target) if needed
+        if !forwardExists {
+            let forwardEdge = CardEdge(from: sourceCard, to: targetCard, type: type)
+            modelContext.insert(forwardEdge)
+        }
+
+        // Create the reverse edge (target → source) if needed
+        // The relationship is bidirectional - the type's inverseLabel describes the reverse direction
+        if !reverseExists {
+            let reverseEdge = CardEdge(from: targetCard, to: sourceCard, type: type)
+            modelContext.insert(reverseEdge)
+        }
+
+        do {
+            try modelContext.save()
+            #if DEBUG
+            print("[MB] Edges created: \(sourceCard.name) ↔ \(targetCard.name) [\(type.forwardLabel)/\(type.inverseLabel)]")
+            #endif
+        } catch {
+            #if DEBUG
+            print("[MB] Edge creation save failed: \(error)")
+            #endif
+        }
+
+        // Clear pending state - this also dismisses the sheet
+        pendingEdgeCreation = nil
+    }
+
+    /// Get the view-space center of a node by card ID
+    func getNodeViewCenter(for cardID: UUID) -> CGPoint? {
+        guard let node = board?.nodes?.first(where: { $0.card?.id == cardID }) else {
+            return nil
+        }
+        let worldCenter = CGPoint(x: node.posX, y: node.posY)
+        return worldToView(worldCenter)
+    }
+}
+
 // MARK: - Border Overlay
 
 extension MurderBoardView {

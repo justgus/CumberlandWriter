@@ -311,14 +311,32 @@ class MultiGestureHandler: ObservableObject {
     
     private func findTarget(at location: CGPoint, coordinateInfo: CoordinateSpaceInfo, for gestureType: GestureType) -> GestureTarget? {
         cleanupWeakReferences()
-        
+
+        #if DEBUG
+        // Debug: show the world point being tested
+        let worldPoint = coordinateInfo.toWorldSpace(location)
+        print("[HitTest] View: \(pointString(location)) -> World: \(pointString(worldPoint))")
+        #endif
+
         // Test targets in reverse order (topmost first)
         for weakTarget in targets.reversed() {
             guard let target = weakTarget.target,
-                  target.canHandleGesture(gestureType),
-                  coordinateInfo.hitTest(point: location, worldRect: target.worldBounds) else { continue }
-            debug("Hit target id=\(target.gestureID) for \(gestureTypeString(gestureType)) at \(pointString(location))")
-            return target
+                  target.canHandleGesture(gestureType) else { continue }
+
+            let bounds = target.worldBounds
+            let hit = coordinateInfo.hitTest(point: location, worldRect: bounds)
+
+            #if DEBUG
+            // Only show edge handle targets for debugging (they have small bounds)
+            if bounds.width <= 50 && bounds.height <= 50 {
+                print("[HitTest] EdgeHandle bounds: \(Int(bounds.minX))-\(Int(bounds.maxX)), \(Int(bounds.minY))-\(Int(bounds.maxY)) hit=\(hit)")
+            }
+            #endif
+
+            if hit {
+                debug("Hit target id=\(target.gestureID) for \(gestureTypeString(gestureType)) at \(pointString(location))")
+                return target
+            }
         }
         debug("No target for \(gestureTypeString(gestureType)) at \(pointString(location))")
         return nil
