@@ -4,6 +4,7 @@ import SwiftUI
 enum CardDetailTab: String, CaseIterable, Identifiable {
     case details = "Details"
     case relationships = "Relationships"
+    case citations = "Citations" // DR-0082: Citation management for all card types
     case aggregateText = "Aggregate" // New: AggregateTextView for Chapters
     case board = "Board" // Structural Spine (Projects) or Murder Board (Worlds/Characters/Scenes)
     case timeline = "Timeline" // Timeline chart (Timelines) or Multi-Timeline Graph (Calendars)
@@ -16,6 +17,7 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
         switch self {
         case .details: return "rectangle.and.text.magnifyingglass"
         case .relationships: return "link"
+        case .citations: return "quote.bubble"
         case .aggregateText: return "text.justify"
         case .board: return "square.grid.3x1.folder.fill.badge.plus"
         case .timeline: return "chart.bar.yaxis"
@@ -27,6 +29,7 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
         switch self {
         case .details: return "Show Details"
         case .relationships: return "Manage Relationships"
+        case .citations: return "Manage Citations"
         case .aggregateText: return "Aggregate Text"
         case .board: return "Board"
         case .timeline: return "Timeline Visualization"
@@ -38,7 +41,7 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
 
     // Tabs available for a given Kind
     static func allowedTabs(for kind: Kinds) -> [CardDetailTab] {
-        var tabs: [CardDetailTab] = [.details, .relationships]
+        var tabs: [CardDetailTab] = [.details, .relationships, .citations]
         // Chapters: Aggregate Text as the third option
         if kind == .chapters {
             tabs.append(.aggregateText)

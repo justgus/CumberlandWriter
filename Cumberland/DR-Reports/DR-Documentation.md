@@ -17,7 +17,29 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **0 active DRs** ✅
+Currently: **2 open DRs** | **3 resolved, awaiting verification**
+
+| DR | Title | Component | Severity | Status |
+|----|-------|-----------|----------|--------|
+| DR-0076 | No Edge Creation UI in MurderBoardView | MurderBoardView | High | 🔴 Open |
+| DR-0077 | No Search or Filter UI in All Cards List | MainAppView | High | 🟡 Resolved |
+| DR-0078 | No Image Export UI | CardEditorView / Images | Medium | 🟡 Resolved |
+| DR-0082 | No Citation UI for Non-Image Citations | CardSheetView / CardEditorView | High | 🔴 Open |
+| DR-0083 | MurderBoard Backlog Scroll Propagates to Canvas | MurderBoardView | Low | 🟡 Resolved |
+
+**Recently Verified (2026-02-08):**
+| DR | Title | Status |
+|----|-------|--------|
+| DR-0079 | Multi-Select Only Performs Batch Image Generation | ✅ Verified |
+| DR-0080 | No Multi-Card Deletion UI | ✅ Verified |
+| DR-0081 | No Card Duplication UI | ✅ Verified |
+
+**Resolved, Awaiting Verification:**
+| DR | Title | Status |
+|----|-------|--------|
+| DR-0077 | Search/Filter in All Cards | 🟡 Resolved |
+| DR-0078 | Image Export UI | 🟡 Resolved |
+| DR-0083 | Backlog Scroll Gesture Isolation | 🟡 Resolved |
 
 **Archived Open DRs:**
 See: [DR-archive-0038-0056.md](./DR-archive-0038-0056.md) for older open/closed DRs:
@@ -31,7 +53,7 @@ See: [DR-unverified.md](./DR-unverified.md)
 
 ### Verified DRs (Resolved Issues)
 
-Currently: **61 verified DRs** | Next available DR: **DR-0076**
+Currently: **64 verified DRs** | Next available DR: **DR-0084**
 
 **Latest DRs:**
 - DR-0075: Cannot Reuse Original Prompt After Failed Visual Element Extraction (2026-02-05) - ✅ Verified
@@ -47,7 +69,8 @@ Currently: **61 verified DRs** | Next available DR: **DR-0076**
 | Batch 5 | DR-0041 to DR-0050 | [DR-verified-0041-0050.md](./DR-verified-0041-0050.md) | 🚧 In Progress (1/10 verified) |
 | Batch 6 | DR-0051 to DR-0060 | [DR-verified-0051-0060.md](./DR-verified-0051-0060.md) | 🚧 In Progress (8/10 verified) |
 | Batch 7 | DR-0061 to DR-0070 | [DR-verified-0061-0070.md](./DR-verified-0061-0070.md) | 🚧 In Progress (6/10 verified) |
-| Batch 8 | DR-0071 to DR-0080 | [DR-verified-0071-0080.md](./DR-verified-0071-0080.md) | 🚧 In Progress (4/10 verified) |
+| Batch 8 | DR-0071 to DR-0080 | [DR-verified-0071-0080.md](./DR-verified-0071-0080.md) | 🚧 In Progress (6/10 verified) |
+| Batch 9 | DR-0081 to DR-0090 | [DR-verified-0081-0090.md](./DR-verified-0081-0090.md) | 🚧 In Progress (1/10 verified) |
 
 ### Closed DRs (Not Verified)
 
@@ -179,23 +202,49 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 73 (documented)
-- **Verified:** 59 (80.8%) ✅
-- **Resolved - Not Verified:** 0 (0.0%) 🟡
-- **Open:** 4 (5.5%) 🔴
+- **Total DRs:** 83 (documented)
+- **Verified:** 64 (77.1%) ✅
+- **Resolved - Not Verified:** 3 (3.6%) 🟡
+  - DR-0077 (Search/filter in All Cards view)
+  - DR-0078 (Image export UI in FullSizeImageViewer)
+  - DR-0083 (Backlog scroll gesture isolation)
+- **Open:** 5 (6.0%) 🔴
+  - DR-0076, DR-0082 (2 remaining from ER-0022 Phase 5 testing)
   - DR-0043 (Duplicate RelationType entries) - deferred per user
   - DR-0041 (Vegetation brushes should render as area fills) - deferred per user
   - DR-0038 (Draft interior drawing settings not remembered) - deferred per user
   - Last 3 in archive
-- **Closed/Deferred:** 5 (6.8%) ⚪
+- **Closed/Deferred:** 5 (6.0%) ⚪
   - DR-0071 (closed 2026-02-03 - Will be addressed by ER-0021: AI Visual Element Extraction)
   - DR-0069 (closed 2026-02-03 - Known Issue: OpenAI safety filter limitation, external)
   - DR-0060 (superseded by DR-0059 redesign, now verified)
   - DR-0067 (closed, deferred to ER-0020 - Dynamic AI Relationship Extraction)
   - DR-0039 (closed - OBE, fixed by draft persistence improvements)
-- **Latest DR:** DR-0073 (2026-02-03 - Regenerate Image Uses Old Prompt) ✅ Verified
+- **Latest DR:** DR-0083 (2026-02-08 - MurderBoard Backlog Scroll Propagates to Canvas) 🟡 Resolved
+- **Latest Verified:** DR-0079/0080/0081 (2026-02-08 - Batch operations & duplication UI) ✅ Verified
 
 **Recent Activity:**
+- 2026-02-08: **RESOLVED 3 DRs** (DR-0077, DR-0078, DR-0083) - Search/Filter, Image Export, Gesture Isolation 🟡
+  - **DR-0077:** Added kind filter menu to All Cards toolbar (search was already working via .searchable())
+  - **DR-0078:** Added image export button to FullSizeImageViewer with PNG/JPEG export (macOS) and share sheet (iOS)
+  - **DR-0083:** Added gesture isolation to SidebarPanel to prevent scroll from propagating to canvas
+  - Awaiting user verification
+- 2026-02-08: **VERIFIED 3 DRs** (DR-0079, DR-0080, DR-0081) - Batch Operations & Duplication UI ✅
+  - **DR-0079:** Expanded multi-select toolbar with Delete, Duplicate, and Generate Images buttons
+  - **DR-0080:** Added batch deletion with confirmation dialog
+  - **DR-0081:** Added single-card and batch duplication via context menu and toolbar
+  - All changes in `MainAppView.swift` using CardOperationManager
+  - User verified all functionality working correctly
+- 2026-02-08: **CREATED 8 NEW DRs** (DR-0076 through DR-0083) - ER-0022 Phase 5 Manual Testing Results 🔴
+  - **DR-0076:** No edge creation UI in MurderBoardView (High)
+  - **DR-0077:** No search/filter UI in All Cards list (High)
+  - **DR-0078:** No image export UI (Medium)
+  - **DR-0079:** Multi-select only performs batch image generation (Medium) → 🟡 RESOLVED
+  - **DR-0080:** No multi-card deletion UI (Medium) → 🟡 RESOLVED
+  - **DR-0081:** No card duplication UI (Medium) → 🟡 RESOLVED
+  - **DR-0082:** No citation UI for non-image citations (High)
+  - **DR-0083:** MurderBoard backlog scroll propagates to canvas (Low)
+  - These issues represent missing UI for existing backend services (ER-0022 Phases 1-2)
 - 2026-02-04: **VERIFIED DR-0072 & DR-0073** - ER-0021 Extraction Quality & UI Issues Complete! ✅
   - **DR-0072:** Visual element extraction returning full sentences instead of targeted phrases
     - Phase 1: Rewrote with specific patterns (too aggressive - missed details)
@@ -280,5 +329,5 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ---
 
-*Last Updated: 2026-02-04*
-*Document Version: 13.0 (DR-0072, DR-0073 verified - ER-0021 visual element extraction complete!)*
+*Last Updated: 2026-02-08*
+*Document Version: 14.3 (DR-0077/0078/0083 resolved - search/filter, image export, gesture isolation)*

@@ -423,11 +423,39 @@ class MultiGestureHandler: ObservableObject {
     }
     
     /// Check if a point is inside the popup bounds
-    private func hitTestPopup(at location: CGPoint) -> Bool {
+    func hitTestPopup(at location: CGPoint) -> Bool {
         guard let popup = activePopup else { return false }
         // Simple hit test - could be made more sophisticated with actual popup bounds
         let popupBounds = CGRect(x: popup.position.x, y: popup.position.y, width: 200, height: CGFloat(popup.items.count * 44))
         return popupBounds.contains(location)
+    }
+
+    /// Handle a click on the popup at the given location. Returns true if an item was triggered.
+    func handlePopupClick(at location: CGPoint) -> Bool {
+        guard let popup = activePopup else { return false }
+
+        // Calculate which item was clicked based on Y offset from popup position
+        let itemHeight: CGFloat = 44
+        let yOffset = location.y - popup.position.y
+
+        guard yOffset >= 0 else { return false }
+
+        let itemIndex = Int(yOffset / itemHeight)
+        guard itemIndex >= 0 && itemIndex < popup.items.count else { return false }
+
+        let item = popup.items[itemIndex]
+
+        #if DEBUG
+        print("[Popup] Clicked item \(itemIndex): '\(item.title)' isDisabled=\(item.isDisabled)")
+        #endif
+
+        if !item.isDisabled {
+            hidePopup()
+            item.action()
+            return true
+        }
+
+        return false
     }
     
     // MARK: - SwiftUI Integration
@@ -549,25 +577,37 @@ extension MultiGestureHandler {
     
     func processDragEnded(location: CGPoint, velocity: CGSize, coordinateInfo: CoordinateSpaceInfo) {
         updatePointerLocation(location)
-        
+
         guard isDragging else {
             debug("Drag end ignored; not dragging")
             return
         }
-        
+
         let translation = CGSize(
             width: location.x - dragStartLocation.x,
             height: location.y - dragStartLocation.y
         )
-        
+
         let event: GestureEvent = .dragEnded(location: location, translation: translation, velocity: velocity, coordinateSpace: coordinateInfo)
         if let dragTarget {
             debug("Dispatch \(event.description) to target id=\(dragTarget.gestureID)")
             dragTarget.handleGesture(event)
         } else {
-            debug("No drag target to dispatch \(event.description)")
+            // No drag target - if minimal movement, treat as a tap on the canvas
+            let dragDistance = hypot(translation.width, translation.height)
+            if dragDistance < 5 {
+                debug("No drag target with minimal movement - treating as tap")
+                // Reset drag state first, then process tap
+                isDragging = false
+                dragTarget = nil
+                dragStartLocation = .zero
+                processTap(location: location, coordinateInfo: coordinateInfo)
+                return
+            } else {
+                debug("No drag target to dispatch \(event.description)")
+            }
         }
-        
+
         // Reset drag state
         isDragging = false
         dragTarget = nil
@@ -870,6 +910,7 @@ private struct MacOSGestureOverlay: NSViewRepresentable {
         private var rightClickMonitor: Any?
         private var scrollMonitor: Any?
         private var mouseMoveMonitor: Any?
+        private var leftMouseMonitor: Any?  // Added: NSEvent-based left mouse handling for macOS
         
         override init(frame frameRect: NSRect) {
             super.init(frame: frameRect)
@@ -907,6 +948,68 @@ private struct MacOSGestureOverlay: NSViewRepresentable {
         private func addMonitors() {
             guard let window = self.window else { return }
             
+            // Left mouse monitor for drag and tap gestures
+            // Note: SwiftUI's DragGesture via .simultaneousGesture() does not receive events on macOS
+            // when .dropDestination() is present on an inner view. Using NSEvent monitor instead.
+            leftMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp, .leftMouseDragged]) { [weak self] event in
+                guard let self,
+                      let handler = self.handler,
+                      let coordinateInfo = self.coordinateInfo,
+                      event.window === window else { return event }
+
+                let pInView = self.convert(event.locationInWindow, from: nil)
+                let cgLocation = CGPoint(x: pInView.x, y: self.bounds.height - pInView.y)
+
+                guard self.bounds.contains(pInView) else { return event }
+
+                handler.updatePointerLocation(cgLocation)
+
+                // Check if there's an active popup - if so, handle specially
+                if let popup = handler.activePopup {
+                    let isInsidePopup = handler.hitTestPopup(at: cgLocation)
+                    #if DEBUG
+                    print("[Popup] Event: \(event.type.rawValue), location: \(cgLocation), popupPos: \(popup.position), isInside: \(isInsidePopup)")
+                    #endif
+                    if event.type == .leftMouseUp {
+                        if isInsidePopup {
+                            // Click inside popup - directly handle the item click
+                            _ = handler.handlePopupClick(at: cgLocation)
+                        } else {
+                            // Click outside popup - hide popup
+                            handler.hidePopup()
+                        }
+                    }
+                    // During popup, consume all left mouse events to prevent drag/tap processing
+                    return event
+                }
+
+                switch event.type {
+                case .leftMouseDown:
+                    // Start drag gesture
+                    handler.processDragBegan(location: cgLocation, coordinateInfo: coordinateInfo)
+
+                case .leftMouseDragged:
+                    // Continue drag if active
+                    if handler.isDragging {
+                        handler.processDragChanged(location: cgLocation, coordinateInfo: coordinateInfo)
+                    }
+
+                case .leftMouseUp:
+                    // End drag or process as tap
+                    if handler.isDragging {
+                        handler.processDragEnded(location: cgLocation, velocity: .zero, coordinateInfo: coordinateInfo)
+                    } else {
+                        // No significant drag movement - treat as tap
+                        handler.processTap(location: cgLocation, coordinateInfo: coordinateInfo)
+                    }
+
+                default:
+                    break
+                }
+
+                return event
+            }
+
             // Right-click (secondary button) monitor
             rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown]) { [weak self] event in
                 guard let self,
@@ -1003,6 +1106,10 @@ private struct MacOSGestureOverlay: NSViewRepresentable {
         }
         
         private func removeMonitors() {
+            if let m = leftMouseMonitor {
+                NSEvent.removeMonitor(m)
+                leftMouseMonitor = nil
+            }
             if let m = rightClickMonitor {
                 NSEvent.removeMonitor(m)
                 rightClickMonitor = nil

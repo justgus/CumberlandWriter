@@ -26,6 +26,11 @@ final class Source {
     @Relationship(deleteRule: .cascade, inverse: \Citation.source)
     var citations: [Citation]? = []
 
+    /// Source card that owns this bibliographic source (for UI/navigation)
+    /// Inverse of Card.sourceRef (declared on Card side with cascade delete)
+    /// CloudKit: Optional, defaults to nil
+    var sourceCard: Card?
+
     init(id: UUID = UUID(),
          title: String,
          authors: String,

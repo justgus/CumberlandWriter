@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0071 through DR-0080.
 
-**Batch Status:** 🚧 In Progress (2/10 verified)
+**Batch Status:** 🚧 In Progress (6/10 verified)
 
 ---
 
@@ -632,6 +632,115 @@ The `AIImageGenerationView` had no mechanism to preserve the original prompt whe
 - ✅ User can click Generate directly from review sheet to use original prompt
 - ✅ No need to fill in fields just to enable the button
 - ✅ Workflow: Click "Extract & Review" → See blank fields → Click "Generate Image" → Uses original prompt
+
+---
+
+## DR-0079: Multi-Select in Card List Only Performs Batch Image Generation
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** MainAppView
+**Severity:** Medium
+**Date Identified:** 2026-02-08
+**Date Resolved:** 2026-02-08
+**Date Verified:** 2026-02-08
+
+**Description:**
+The "Select" button in the card list enables multi-selection, but the only action available was "Generate Images" for batch AI image generation. Users expected multi-select to enable batch operations like delete, duplicate, or export.
+
+**Resolution:**
+Expanded multi-select toolbar with additional action buttons:
+- **Delete button** (trash icon, destructive role) - Shows confirmation before batch deletion
+- **Duplicate button** (doc.on.doc icon) - Duplicates all selected cards with "(Copy)" suffix
+- **Generate Images button** (existing) - Batch AI image generation
+
+**Files Modified:**
+- `Cumberland/MainAppView.swift:75-76` - Added state variables for confirmation dialogs
+- `Cumberland/MainAppView.swift:597-627` - Expanded multi-select toolbar with Delete, Duplicate, and Generate Images buttons
+- `Cumberland/MainAppView.swift:1168-1262` - Added helper functions `deleteSelectedCards()`, `duplicateSelectedCards()`, `duplicateCard()`
+
+**Test Verification:**
+- ✅ Multi-select mode shows all three action buttons
+- ✅ Delete action shows confirmation dialog
+- ✅ Duplicate action creates new cards with "(Copy)" suffix
+- ✅ All actions exit multi-select mode after completion
+
+---
+
+## DR-0080: No Multi-Card Deletion UI
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** MainAppView
+**Severity:** Medium
+**Date Identified:** 2026-02-08
+**Date Resolved:** 2026-02-08
+**Date Verified:** 2026-02-08
+
+**Description:**
+There was no UI to delete multiple cards at once. CardOperationManager.deleteCards() method existed per ER-0022 Phase 1, but no UI exposed it.
+
+**Resolution:**
+Added Delete button to multi-select toolbar with confirmation dialog:
+- Delete button with trash icon (role: .destructive for red styling)
+- Confirmation dialog shows count of cards to delete
+- Warning message: "This action cannot be undone. All selected cards and their relationships will be permanently deleted."
+- Uses CardOperationManager.deleteCards() when available
+
+**Files Modified:**
+- `Cumberland/MainAppView.swift:75` - Added `showingDeleteConfirmation` state variable
+- `Cumberland/MainAppView.swift:601-608` - Added Delete button to multi-select toolbar
+- `Cumberland/MainAppView.swift:358-371` - Added confirmation dialog with warning message
+- `Cumberland/MainAppView.swift:1175-1210` - Added `deleteSelectedCards()` helper function
+
+**Test Verification:**
+- ✅ Delete button appears in multi-select toolbar
+- ✅ Confirmation dialog displays with card count
+- ✅ Cards are permanently deleted after confirmation
+- ✅ Deletion persists after app restart
+
+**Note:** Resolved together with DR-0079 (expanded multi-select actions).
+
+---
+
+## DR-0081: No Card Duplication UI
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** MainAppView / CardEditorView
+**Severity:** Medium
+**Date Identified:** 2026-02-08
+**Date Resolved:** 2026-02-08
+**Date Verified:** 2026-02-08
+
+**Description:**
+There was no UI to duplicate a card. CardOperationManager.duplicateCard() method existed per ER-0022 Phase 1, but no UI exposed it.
+
+**Resolution:**
+Added duplication UI in two places:
+1. **Multi-select batch duplicate**: Duplicate button in multi-select toolbar
+2. **Single-card duplicate**: "Duplicate" option in context menu (all platforms)
+
+Features:
+- Duplicates all properties: kind, name (+ " (Copy)"), subtitle, detailedText, originalImageData, epochDate, epochDescription
+- Single-card duplicate auto-selects the new card
+- Batch duplicate exits multi-select mode after completion
+- Uses CardOperationManager.duplicateCard() when available
+
+**Files Modified:**
+- `Cumberland/MainAppView.swift:609-616` - Added Duplicate button to multi-select toolbar
+- `Cumberland/MainAppView.swift:819-824` - Added Duplicate to macOS/iOS context menu
+- `Cumberland/MainAppView.swift:800-805` - Added Duplicate to visionOS context menu
+- `Cumberland/MainAppView.swift:1212-1262` - Added `duplicateSelectedCards()` and `duplicateCard()` helper functions
+
+**Test Verification:**
+- ✅ Right-click/long-press context menu shows "Duplicate" option
+- ✅ Single duplicate creates new card with "(Copy)" suffix
+- ✅ New card is auto-selected after single duplication
+- ✅ Batch duplicate in multi-select mode works for multiple cards
+- ✅ All card properties copied correctly (name, subtitle, description, image)
+
+**Note:** Resolved together with DR-0079 (expanded multi-select actions).
 
 ---
 

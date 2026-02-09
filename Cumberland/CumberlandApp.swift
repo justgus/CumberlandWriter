@@ -298,6 +298,18 @@ struct CumberlandApp: App {
         }
         .windowResizability(.contentSize)
 
+        #if DEBUG
+        // Developer Tools window for macOS (consolidated utilities)
+        Window("Developer Tools", id: "dev.tools") {
+            DeveloperToolsView()
+                .modelContainer(modelContainer)
+                .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
+                .preferredColorScheme(appPreferredColorScheme)
+                .frame(minWidth: 600, minHeight: 500)
+        }
+        .defaultSize(width: 800, height: 600)
+        #endif
+
         #if os(macOS) || os(visionOS)
         // Temporal editor window for macOS and visionOS
         // DR-0061: Using window instead of sheet to fix rendering issues
@@ -1124,6 +1136,14 @@ private struct DeveloperCommands: Commands {
 
     var body: some Commands {
         CommandMenu("Developer") {
+            // Developer Tools - consolidated utility panel
+            Button("Developer Tools…") {
+                openWindow(id: "dev.tools")
+            }
+            .keyboardShortcut("D", modifiers: [.command, .shift])
+
+            Divider()
+
             // Existing diagnostics
             Button("Swimlane Viewer") {
                 openWindow(id: "dev.swimlane")

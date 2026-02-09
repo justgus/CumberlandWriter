@@ -1,6 +1,13 @@
 // FullSizeImageViewer.swift
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
+
+#if os(macOS)
+import AppKit
+#elseif os(iOS)
+import UIKit
+#endif
 
 /// A full-screen viewer for high-resolution card images with zoom and pan support.
 struct FullSizeImageViewer: View {
@@ -13,6 +20,11 @@ struct FullSizeImageViewer: View {
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     @State private var loadedImage: CGImage?
+
+    // DR-0078: Image export state
+    @State private var showingExportOptions = false
+    @State private var showingExportSuccess = false
+    @State private var exportSuccessMessage = ""
 
     var body: some View {
         ZStack {
@@ -27,13 +39,23 @@ struct FullSizeImageViewer: View {
                 }
             }
             
-            // Close button overlay
+            // DR-0078: Toolbar overlay with export and close buttons
             VStack {
                 HStack {
+                    // Export button (left side)
+                    if loadedImage != nil {
+                        exportButton
+                    }
                     Spacer()
                     closeButton
                 }
                 Spacer()
+            }
+            // Export success alert
+            .alert("Image Exported", isPresented: $showingExportSuccess) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(exportSuccessMessage)
             }
         }
         .task {
@@ -126,6 +148,42 @@ struct FullSizeImageViewer: View {
         }
     }
     
+    // DR-0078: Export button
+    private var exportButton: some View {
+        Menu {
+            Button {
+                exportImage(as: .png)
+            } label: {
+                Label("Export as PNG", systemImage: "photo")
+            }
+            Button {
+                exportImage(as: .jpeg)
+            } label: {
+                Label("Export as JPEG", systemImage: "photo")
+            }
+            #if os(iOS)
+            Divider()
+            Button {
+                shareImage()
+            } label: {
+                Label("Share...", systemImage: "square.and.arrow.up")
+            }
+            #endif
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 44, height: 44)
+                Image(systemName: "square.and.arrow.down")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding()
+        .help("Export image")
+    }
+
     private var closeButton: some View {
         Button {
             dismiss()
@@ -143,6 +201,73 @@ struct FullSizeImageViewer: View {
         .padding()
         .keyboardShortcut(.cancelAction)
         .help("Close (Esc)")
+    }
+
+    // MARK: - Export Functions (DR-0078)
+
+    private func exportImage(as format: UTType) {
+        guard let imageData = currentImageData else { return }
+
+        let fileName = "\(card.name.replacingOccurrences(of: " ", with: "_")).\(format == .png ? "png" : "jpg")"
+
+        #if os(macOS)
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [format]
+        panel.nameFieldStringValue = fileName
+        panel.canCreateDirectories = true
+
+        if panel.runModal() == .OK, let url = panel.url {
+            do {
+                let exportData: Data?
+                if format == .png {
+                    exportData = ImageProcessingService.shared.convertToPNG(imageData)
+                } else {
+                    exportData = ImageProcessingService.shared.convertToJPEG(imageData, compressionQuality: 0.9)
+                }
+
+                if let exportData = exportData {
+                    try exportData.write(to: url)
+                    exportSuccessMessage = "Image saved to \(url.lastPathComponent)"
+                    showingExportSuccess = true
+                }
+            } catch {
+                print("Export failed: \(error)")
+            }
+        }
+        #else
+        // iOS: Save to Photos library
+        guard let uiImage = UIImage(data: imageData) else { return }
+        UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
+        exportSuccessMessage = "Image saved to Photos"
+        showingExportSuccess = true
+        #endif
+    }
+
+    #if os(iOS)
+    private func shareImage() {
+        guard let imageData = currentImageData,
+              let uiImage = UIImage(data: imageData) else { return }
+
+        let activityVC = UIActivityViewController(
+            activityItems: [uiImage],
+            applicationActivities: nil
+        )
+
+        // Present the share sheet
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            // Handle iPad popover
+            if let popover = activityVC.popoverPresentationController {
+                popover.sourceView = rootVC.view
+                popover.sourceRect = CGRect(x: rootVC.view.bounds.midX, y: 100, width: 0, height: 0)
+            }
+            rootVC.present(activityVC, animated: true)
+        }
+    }
+    #endif
+
+    private var currentImageData: Data? {
+        pendingImageData ?? card.originalImageData
     }
     
     // MARK: - Helpers

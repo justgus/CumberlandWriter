@@ -113,6 +113,13 @@ final class Card: Identifiable {
     @Relationship(deleteRule: .cascade, inverse: \CalendarSystem.calendarCard)
     var calendarSystemRef: CalendarSystem?
 
+    /// Reference to bibliographic source (for kind=.sources only)
+    /// Links the Card to a Source model for citation system integration
+    /// CloudKit: Optional, defaults to nil
+    /// Note: Using .nullify to avoid cascade issues with nil relationships
+    @Relationship(deleteRule: .nullify, inverse: \Source.sourceCard)
+    var sourceRef: Source?
+
     // Precomputed aggregate for simple/backup searches
     // Provide a default so migration can backfill existing rows.
     var normalizedSearchText: String = ""
@@ -366,7 +373,15 @@ extension Card {
             // continue
         }
 
-        // 5) Save if anything changed (best-effort)
+        // 5) Delete linked Source if this is a source card (DR-0082)
+        if kind == .sources, let source = sourceRef {
+            // Nullify the back-reference first to avoid cascade issues
+            source.sourceCard = nil
+            sourceRef = nil
+            ctx.delete(source)
+        }
+
+        // 6) Save if anything changed (best-effort)
         try? ctx.save()
     }
 

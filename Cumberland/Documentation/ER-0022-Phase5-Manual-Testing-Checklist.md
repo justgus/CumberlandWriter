@@ -309,8 +309,8 @@
 - [x] Create 10 cards rapidly
 - [x] All cards appear immediately in sidebar
 - [x] No lag or stuttering
-- [ ] Delete 10 cards at once
-- [ ] Deletion completes in <2 seconds
+- [x] Delete 10 cards at once
+- [x] Deletion completes in <2 seconds
 
 ### Relationship Performance
 - [ ] Create 20 relationships on MurderBoard

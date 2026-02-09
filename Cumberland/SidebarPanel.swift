@@ -56,6 +56,26 @@ struct SidebarPanel: View {
             }
         }
         .allowsHitTesting(true) // Allow interactions with sidebar and button
+        // DR-0083: Block gesture propagation to canvas
+        // Use a dummy simultaneous gesture to ensure hit testing routes to sidebar
+        .background(
+            Color.clear
+                .contentShape(Rectangle())
+        )
+    }
+}
+
+// MARK: - Gesture Blocking Modifier (DR-0083)
+
+extension View {
+    /// Blocks gesture propagation to underlying views by consuming drag gestures
+    /// Used by sidebar to prevent canvas pan gestures from triggering during scroll
+    func blockCanvasGestures() -> some View {
+        self.simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in }
+                .onEnded { _ in }
+        )
     }
 }
 
@@ -71,7 +91,9 @@ extension SidebarPanel {
             Divider()
             
             // Cards list (0600, 0610, 0650)
+            // DR-0083: Wrap in a container that blocks gesture propagation
             sidebarCardsList()
+                .contentShape(Rectangle())
         }
         .padding(.leading, 20)
         .padding(.vertical, 40)
@@ -193,11 +215,11 @@ extension SidebarPanel {
                     Image(systemName: "tray")
                         .font(.largeTitle)
                         .foregroundStyle(.secondary)
-                    
+
                     Text("No cards available")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    
+
                     if selectedKindFilter != nil {
                         Text("Try changing the filter")
                             .font(.caption)

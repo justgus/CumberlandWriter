@@ -72,6 +72,16 @@ struct MainAppView: View {
     @State private var showingBatchGeneration = false
     @State private var batchGenerationQueue: BatchGenerationQueue?
 
+    // DR-0079/0080/0081: Extended multi-select actions
+    @State private var showingDeleteConfirmation = false
+    @State private var showingBatchDuplicateConfirmation = false
+
+    // DR-0077: Kind filter for All Cards view
+    @State private var allCardsKindFilter: Kinds? = nil
+
+    // DR-0082: Source editor sheet (creates Source + linked Card)
+    @State private var showingSourceEditor = false
+
     // Three-pane split visibility (keep all visible on macOS by default)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
@@ -109,7 +119,10 @@ struct MainAppView: View {
         case .kind(let k):
             filtered = filtered.filter { $0.kind == k }
         case .all, .none:
-            break
+            // DR-0077: Apply kind filter in All Cards view
+            if let kindFilter = allCardsKindFilter {
+                filtered = filtered.filter { $0.kind == kindFilter }
+            }
         case .structure:
             // No card list when in Structure; content is handled separately.
             filtered = []
@@ -203,7 +216,7 @@ struct MainAppView: View {
         mainNavigationView
             .environment(navigationCoordinator)
             .navigationSplitViewStyle(.balanced)
-            .searchable(text: $searchText, prompt: "Search cards…")
+        // DR-0077: Removed .searchable() - using custom TextField in list header instead
     }
 
     private var navigationWithSheets: some View {
@@ -247,6 +260,18 @@ struct MainAppView: View {
                 .frame(minWidth: 760, idealWidth: 900, maxWidth: 1200, minHeight: 720)
                 #endif
             }
+        }
+        // DR-0082: Source editor sheet (creates Source + linked Card)
+        .sheet(isPresented: $showingSourceEditor) {
+            SourceEditorSheet(existingSource: nil) { _ in
+                // Source and Card created successfully
+            }
+            #if os(iOS)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #else
+            .frame(minWidth: 560, idealWidth: 640, maxWidth: 800, minHeight: 600)
+            #endif
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("showSettings"))) { _ in
             showingSettings = true
@@ -353,6 +378,19 @@ struct MainAppView: View {
                 .presentationSizing(.fitted)
                 #endif
             }
+        }
+        // DR-0080: Delete confirmation dialog
+        .confirmationDialog(
+            "Delete \(selectedCardIDs.count) Card\(selectedCardIDs.count == 1 ? "" : "s")?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                deleteSelectedCards()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This action cannot be undone. All selected cards and their relationships will be permanently deleted.")
         }
     }
 
@@ -471,7 +509,12 @@ struct MainAppView: View {
                 .toolbar {
                     ToolbarItemGroup(placement: .primaryAction) {
                         Button {
-                            mainView.showingCardEditor = true
+                            // DR-0082: Use specialized editor for Sources
+                            if mainView.currentCreationKind == .sources {
+                                mainView.showingSourceEditor = true
+                            } else {
+                                mainView.showingCardEditor = true
+                            }
                         } label: {
                             Label("New Card", systemImage: "plus")
                         }
@@ -582,7 +625,12 @@ struct MainAppView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 if !isMultiSelectMode {
                     Button {
-                        showingCardEditor = true
+                        // DR-0082: Use specialized editor for Sources
+                        if currentCreationKind == .sources {
+                            showingSourceEditor = true
+                        } else {
+                            showingCardEditor = true
+                        }
                     } label: {
                         Label("New Card", systemImage: "plus")
                     }
@@ -591,16 +639,35 @@ struct MainAppView: View {
             }
             #endif
 
-            // ER-0017: Batch generation toolbar buttons (all platforms)
+            // ER-0017 + DR-0079/0080/0081: Multi-select toolbar buttons (all platforms)
             if !isStructureSelected && !filteredCards.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
                     if isMultiSelectMode {
-                        Button {
-                            startBatchGeneration()
-                        } label: {
-                            Label("Generate Images", systemImage: "wand.and.stars")
+                        HStack(spacing: 12) {
+                            // DR-0080: Delete selected cards
+                            Button(role: .destructive) {
+                                showingDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            .disabled(selectedCardIDs.isEmpty)
+
+                            // DR-0081: Duplicate selected cards
+                            Button {
+                                duplicateSelectedCards()
+                            } label: {
+                                Label("Duplicate", systemImage: "doc.on.doc")
+                            }
+                            .disabled(selectedCardIDs.isEmpty)
+
+                            // ER-0017: Generate images for selected cards
+                            Button {
+                                startBatchGeneration()
+                            } label: {
+                                Label("Generate Images", systemImage: "wand.and.stars")
+                            }
+                            .disabled(selectedCardIDs.isEmpty)
                         }
-                        .disabled(selectedCardIDs.isEmpty)
                     }
                 }
 
@@ -632,6 +699,10 @@ struct MainAppView: View {
                         // Route calendar cards to their specialized detail editor
                         if card.kind == .calendars {
                             CalendarDetailEditor(card: card)
+                                .navigationTitle(card.name)
+                        } else if card.kind == .sources {
+                            // DR-0082: Route source cards to bibliographic editor
+                            SourceDetailEditor(card: card)
                                 .navigationTitle(card.name)
                         } else {
                             CardSheetView(card: card)
@@ -685,6 +756,10 @@ struct MainAppView: View {
                             CardSheetView(card: card)
                                 .navigationTitle(card.name)
                         }
+                    case .citations:
+                        // DR-0082: Citation management for all card types
+                        CitationViewer(card: card)
+                            .navigationTitle("Citations: \(card.name)")
                     }
                 }
             } else {
@@ -738,6 +813,13 @@ struct MainAppView: View {
             get: { selectedCardID.map { Set([$0]) } ?? [] },
             set: { selectedCardID = $0.first }
         )) {
+            // DR-0077: Inline search header for all card lists (filter dropdown only for All Cards)
+            Section {
+                EmptyView()
+            } header: {
+                cardsListHeader
+            }
+
             ForEach(filteredCards) { card in
                 // Selectable row; selection drives detailColumn.
                 HStack {
@@ -801,12 +883,14 @@ struct MainAppView: View {
                     }
                     
                     Section {
-                        // Future: Add more contextual actions here
-                        // - Duplicate
-                        // - Share
-                        // - Export
+                        // DR-0081: Duplicate card action
+                        Button {
+                            duplicateCard(card)
+                        } label: {
+                            Label("Duplicate", systemImage: "doc.on.doc")
+                        }
                     }
-                    
+
                     Section {
                         Button(role: .destructive) {
                             deleteCard(card)
@@ -815,7 +899,7 @@ struct MainAppView: View {
                         }
                     }
                     #else
-                    // macOS/iOS: Simpler context menu
+                    // macOS/iOS: Context menu with Edit, Duplicate, Delete
                     Button {
                         // Start edit for this specific row regardless of selection
                         selectedCardID = card.id
@@ -823,6 +907,13 @@ struct MainAppView: View {
                     } label: {
                         Label("Edit", systemImage: "pencil")
                     }
+                    // DR-0081: Single-card duplicate
+                    Button {
+                        duplicateCard(card)
+                    } label: {
+                        Label("Duplicate", systemImage: "doc.on.doc")
+                    }
+                    Divider()
                     Button(role: .destructive) {
                         deleteCard(card)
                     } label: {
@@ -980,6 +1071,81 @@ struct MainAppView: View {
 
     // MARK: - Subviews
 
+    // DR-0077: Inline search and filter header for card lists
+    private var cardsListHeader: some View {
+        HStack(spacing: 8) {
+            // Search field
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+
+                TextField("Search", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.subheadline)
+
+                // Clear button when there's text
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.secondary.opacity(0.12))
+            )
+
+            // Filter dropdown menu (only for All Cards view)
+            if case .all = sidebarSelection {
+                Menu {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            allCardsKindFilter = nil
+                        }
+                    } label: {
+                        if allCardsKindFilter == nil {
+                            Label("All Types", systemImage: "checkmark")
+                        } else {
+                            Text("All Types")
+                        }
+                    }
+
+                    Divider()
+
+                    ForEach(Kinds.orderedCases.filter { $0 != .structure }, id: \.self) { kind in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                allCardsKindFilter = kind
+                            }
+                        } label: {
+                            if allCardsKindFilter == kind {
+                                Label(kind.title, systemImage: "checkmark")
+                            } else {
+                                Label(kind.title, systemImage: kind.systemImage)
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: allCardsKindFilter != nil ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                        .imageScale(.large)
+                        .foregroundStyle(allCardsKindFilter != nil ? Color.accentColor : .secondary)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+            }
+        }
+        .padding(.vertical, 4)
+        .textCase(nil) // Prevent uppercase transformation
+    }
+
     private var emptyState: some View {
         // Determine if we are scoped to a specific kind
         let selectedKind: Kinds? = {
@@ -1035,7 +1201,12 @@ struct MainAppView: View {
                     #if os(visionOS)
                     openNewCardWindow()
                     #else
-                    showingCardEditor = true
+                    // DR-0082: Use specialized editor for Sources
+                    if currentCreationKind == .sources {
+                        showingSourceEditor = true
+                    } else {
+                        showingCardEditor = true
+                    }
                     #endif
                 } label: {
                     Label(createButtonTitle, systemImage: "plus")
@@ -1115,7 +1286,7 @@ struct MainAppView: View {
         return false
     }
 
-    private var currentCreationKind: Kinds {
+    var currentCreationKind: Kinds {
         switch sidebarSelection {
         case .kind(let k): return k
         default: return .projects
@@ -1129,8 +1300,9 @@ struct MainAppView: View {
         case .kind(let k):
             return k.title
         case .all:
+            // DR-0077: Simplified title - filter is now inline in list header
             return searchText.isEmpty
-                ? "All Cards (\(cards.count))"
+                ? "All Cards (\(filteredCards.count))"
                 : "Search Results (\(filteredCards.count))"
         case .none:
             return "Cumberland"
@@ -1150,7 +1322,7 @@ struct MainAppView: View {
         return result
     }
 
-    // MARK: - Batch Image Generation (ER-0017)
+    // MARK: - Batch Operations (ER-0017 + DR-0079/0080/0081)
 
     private func toggleMultiSelectMode() {
         withAnimation {
@@ -1159,6 +1331,120 @@ struct MainAppView: View {
                 // Exiting multi-select mode - clear selection
                 selectedCardIDs.removeAll()
             }
+        }
+    }
+
+    // DR-0080: Delete selected cards
+    private func deleteSelectedCards() {
+        let cardsToDelete = filteredCards.filter { selectedCardIDs.contains($0.id) }
+
+        guard !cardsToDelete.isEmpty else {
+            print("⚠️ No cards selected for deletion")
+            return
+        }
+
+        // If the currently shown detail is among the deletions, clear the detail
+        if let currentID = selectedCardID, selectedCardIDs.contains(currentID) {
+            selectedCardID = nil
+        }
+
+        // Use CardOperationManager if available
+        if let services = services {
+            do {
+                try services.cardOperations.deleteCards(cardsToDelete)
+                print("✅ Deleted \(cardsToDelete.count) cards")
+            } catch {
+                print("❌ Failed to delete cards: \(error)")
+            }
+        } else {
+            // Fallback: Direct modelContext operation (legacy path)
+            for card in cardsToDelete {
+                card.cleanupBeforeDeletion(in: modelContext)
+                modelContext.delete(card)
+            }
+            try? modelContext.save()
+        }
+
+        // Exit multi-select mode and clear selection
+        withAnimation {
+            isMultiSelectMode = false
+            selectedCardIDs.removeAll()
+        }
+    }
+
+    // DR-0081: Duplicate selected cards
+    private func duplicateSelectedCards() {
+        let cardsToDuplicate = filteredCards.filter { selectedCardIDs.contains($0.id) }
+
+        guard !cardsToDuplicate.isEmpty else {
+            print("⚠️ No cards selected for duplication")
+            return
+        }
+
+        // Use CardOperationManager if available
+        if let services = services {
+            for card in cardsToDuplicate {
+                do {
+                    let duplicate = try services.cardOperations.duplicateCard(card)
+                    print("✅ Duplicated '\(card.name)' → '\(duplicate.name)'")
+                } catch {
+                    print("❌ Failed to duplicate '\(card.name)': \(error)")
+                }
+            }
+        } else {
+            // Fallback: Manual duplication (legacy path)
+            for card in cardsToDuplicate {
+                let duplicate = Card(
+                    kind: card.kind,
+                    name: "\(card.name) (Copy)",
+                    subtitle: card.subtitle,
+                    detailedText: card.detailedText
+                )
+                if let originalImageData = card.originalImageData {
+                    try? duplicate.setOriginalImageData(originalImageData)
+                }
+                duplicate.epochDate = card.epochDate
+                duplicate.epochDescription = card.epochDescription
+                modelContext.insert(duplicate)
+            }
+            try? modelContext.save()
+        }
+
+        // Exit multi-select mode and clear selection
+        withAnimation {
+            isMultiSelectMode = false
+            selectedCardIDs.removeAll()
+        }
+    }
+
+    // DR-0081: Duplicate a single card (for context menu)
+    private func duplicateCard(_ card: Card) {
+        if let services = services {
+            do {
+                let duplicate = try services.cardOperations.duplicateCard(card)
+                print("✅ Duplicated '\(card.name)' → '\(duplicate.name)'")
+                // Optionally select the new card
+                selectedCardID = duplicate.id
+            } catch {
+                print("❌ Failed to duplicate '\(card.name)': \(error)")
+            }
+        } else {
+            // Fallback: Manual duplication
+            let duplicate = Card(
+                kind: card.kind,
+                name: "\(card.name) (Copy)",
+                subtitle: card.subtitle,
+                detailedText: card.detailedText
+            )
+            if let originalImageData = card.originalImageData {
+                try? duplicate.setOriginalImageData(originalImageData)
+            }
+            duplicate.epochDate = card.epochDate
+            duplicate.epochDescription = card.epochDescription
+            modelContext.insert(duplicate)
+            try? modelContext.save()
+            // Select the new card
+            selectedCardID = duplicate.id
         }
     }
 

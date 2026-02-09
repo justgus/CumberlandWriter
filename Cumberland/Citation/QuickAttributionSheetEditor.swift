@@ -114,8 +114,8 @@ struct QuickAttributionSheetEditor: View {
             ? (URL(string: urlStr)?.host ?? (kind == .image ? "Image Source" : "Source"))
             : title
 
-        let src = Source(title: finalTitle, authors: authors, url: urlStr.isEmpty ? nil : urlStr, accessedDate: urlStr.isEmpty ? nil : Date())
-        modelContext.insert(src)
+        // Fetch existing Source with same title, or create new one
+        let src = fetchOrCreateSource(title: finalTitle, authors: authors, urlStr: urlStr)
 
         let citation = Citation(card: card,
                                 source: src,
@@ -129,6 +129,40 @@ struct QuickAttributionSheetEditor: View {
 
         onSave(citation)
         dismiss()
+    }
+
+    /// Fetches an existing Source with matching title, or creates a new one if none exists.
+    /// This prevents duplicate Sources for repeated attributions (e.g., multiple AI-generated images).
+    @MainActor
+    private func fetchOrCreateSource(title: String, authors: String, urlStr: String) -> Source {
+        // Try to find existing Source with same title (case-insensitive match)
+        let titleToMatch = title
+        var fetchDescriptor = FetchDescriptor<Source>(
+            predicate: #Predicate { $0.title == titleToMatch }
+        )
+        fetchDescriptor.fetchLimit = 1
+
+        if let existingSource = try? modelContext.fetch(fetchDescriptor).first {
+            // Update authors/URL if they were empty and now have values
+            if existingSource.authors.isEmpty && !authors.isEmpty {
+                existingSource.authors = authors
+            }
+            if existingSource.url == nil && !urlStr.isEmpty {
+                existingSource.url = urlStr
+                existingSource.accessedDate = Date()
+            }
+            return existingSource
+        }
+
+        // No existing source found, create new one
+        let newSource = Source(
+            title: title,
+            authors: authors,
+            url: urlStr.isEmpty ? nil : urlStr,
+            accessedDate: urlStr.isEmpty ? nil : Date()
+        )
+        modelContext.insert(newSource)
+        return newSource
     }
 }
 

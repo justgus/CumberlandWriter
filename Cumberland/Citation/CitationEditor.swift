@@ -108,10 +108,18 @@ struct CitationEditor: View {
     private func createSource() {
         let title = newSourceTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        let s = Source(title: title, authors: newSourceAuthors)
-        modelContext.insert(s)
-        try? modelContext.save()
-        selectedSource = s
+
+        // Check if source with same title already exists
+        if let existing = sources.first(where: { $0.title == title }) {
+            // Use existing source instead of creating duplicate
+            selectedSource = existing
+        } else {
+            let s = Source(title: title, authors: newSourceAuthors)
+            modelContext.insert(s)
+            try? modelContext.save()
+            selectedSource = s
+        }
+
         newSourceTitle = ""
         newSourceAuthors = ""
         isCreatingSource = false

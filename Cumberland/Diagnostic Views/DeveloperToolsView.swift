@@ -16,6 +16,7 @@ struct DeveloperToolsView: View {
     @Query private var cards: [Card]
     @Query private var boards: [Board]
     @Query private var boardNodes: [BoardNode]
+    @Query private var sources: [Source]
     
     @State private var selectedTool: ToolCategory = .overview
     @State private var isRunningAction = false
@@ -47,25 +48,28 @@ struct DeveloperToolsView: View {
         case validateAllRelationships
         case clearAllThumbnails
         case resetAllBoardTransforms
-        
+        case consolidateDuplicateSources
+
         var id: String {
             switch self {
             case .repairForeignNodes: return "repairForeignNodes"
             case .validateAllRelationships: return "validateAllRelationships"
             case .clearAllThumbnails: return "clearAllThumbnails"
             case .resetAllBoardTransforms: return "resetAllBoardTransforms"
+            case .consolidateDuplicateSources: return "consolidateDuplicateSources"
             }
         }
-        
+
         var title: String {
             switch self {
             case .repairForeignNodes: return "Repair Foreign Nodes?"
             case .validateAllRelationships: return "Validate Relationships?"
             case .clearAllThumbnails: return "Clear All Thumbnails?"
             case .resetAllBoardTransforms: return "Reset Board Transforms?"
+            case .consolidateDuplicateSources: return "Consolidate Duplicate Sources?"
             }
         }
-        
+
         var message: String {
             switch self {
             case .repairForeignNodes:
@@ -76,15 +80,18 @@ struct DeveloperToolsView: View {
                 return "This will delete all cached thumbnail data for all cards. Thumbnails will regenerate on demand."
             case .resetAllBoardTransforms:
                 return "This will reset zoom and pan transforms for all boards to their default values."
+            case .consolidateDuplicateSources:
+                return "This will find Sources with identical titles and merge them. All citations will be moved to the first Source, and duplicates will be deleted."
             }
         }
-        
+
         var confirmLabel: String {
             switch self {
             case .repairForeignNodes: return "Repair"
             case .validateAllRelationships: return "Validate"
             case .clearAllThumbnails: return "Clear"
             case .resetAllBoardTransforms: return "Reset"
+            case .consolidateDuplicateSources: return "Consolidate"
             }
         }
     }
@@ -365,9 +372,10 @@ struct DeveloperToolsView: View {
                     statRow("Total Cards", value: "\(cards.count)")
                     statRow("Total Boards", value: "\(boards.count)")
                     statRow("Total Board Nodes", value: "\(boardNodes.count)")
-                    
+                    statRow("Total Sources", value: "\(sources.count)")
+
                     Divider()
-                    
+
                     ForEach(Kinds.orderedCases.filter { $0 != .structure }, id: \.self) { kind in
                         let count = cards.filter { $0.kind == kind }.count
                         statRow(kind.title, value: "\(count)")
@@ -562,10 +570,10 @@ struct DeveloperToolsView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Data Integrity")
                 .font(.title2.bold())
-            
+
             Text("Tools to validate and repair data consistency issues.")
                 .foregroundStyle(.secondary)
-            
+
             GroupBox("Board Integrity") {
                 VStack(spacing: 12) {
                     actionButton(
@@ -575,7 +583,7 @@ struct DeveloperToolsView: View {
                     ) {
                         confirmAction = .repairForeignNodes
                     }
-                    
+
                     actionButton(
                         title: "Validate All Relationships",
                         description: "Check and repair broken card relationships",
@@ -586,7 +594,54 @@ struct DeveloperToolsView: View {
                 }
                 .padding(.vertical, 4)
             }
+
+            GroupBox("Source Integrity") {
+                VStack(spacing: 12) {
+                    // Show duplicate count
+                    let duplicateInfo = duplicateSourceInfo
+                    if duplicateInfo.duplicateCount > 0 {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            Text("\(duplicateInfo.duplicateCount) duplicate source(s) found (\(duplicateInfo.affectedTitles) unique titles)")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("No duplicate sources found")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
+                    }
+
+                    actionButton(
+                        title: "Consolidate Duplicate Sources",
+                        description: "Merge sources with identical titles, moving all citations to one",
+                        systemImage: "arrow.triangle.merge"
+                    ) {
+                        confirmAction = .consolidateDuplicateSources
+                    }
+                }
+                .padding(.vertical, 4)
+            }
         }
+    }
+
+    /// Returns (duplicateCount, affectedTitles) - how many extra sources and how many unique titles have duplicates
+    private var duplicateSourceInfo: (duplicateCount: Int, affectedTitles: Int) {
+        var titleCounts: [String: Int] = [:]
+        for source in sources {
+            let normalizedTitle = source.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            titleCounts[normalizedTitle, default: 0] += 1
+        }
+        let duplicateTitles = titleCounts.filter { $0.value > 1 }
+        let duplicateCount = duplicateTitles.values.reduce(0) { $0 + ($1 - 1) } // Count extras beyond the first
+        return (duplicateCount, duplicateTitles.count)
     }
     
     // MARK: - Performance
@@ -813,10 +868,118 @@ struct DeveloperToolsView: View {
                 }
                 try? modelContext.save()
                 actionResult = "✓ Reset transforms for \(boards.count) boards"
+
+            case .consolidateDuplicateSources:
+                let result = consolidateDuplicateSources()
+                actionResult = result
             }
         }
     }
-    
+
+    /// Consolidates duplicate Sources by merging those with identical titles.
+    /// All citations from duplicates are moved to the primary Source, then duplicates are deleted.
+    @MainActor
+    private func consolidateDuplicateSources() -> String {
+        // Group sources by normalized title (case-insensitive, trimmed)
+        var titleGroups: [String: [Source]] = [:]
+        for source in sources {
+            let normalizedTitle = source.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            titleGroups[normalizedTitle, default: []].append(source)
+        }
+
+        var mergedCount = 0
+        var deletedCount = 0
+
+        for (_, group) in titleGroups where group.count > 1 {
+            // Sort by: has sourceCard first, then by citation count (descending), then by id for stability
+            let sorted = group.sorted { a, b in
+                // Prefer one with a sourceCard link
+                if (a.sourceCard != nil) != (b.sourceCard != nil) {
+                    return a.sourceCard != nil
+                }
+                // Then prefer one with more citations
+                let aCount = a.citations?.count ?? 0
+                let bCount = b.citations?.count ?? 0
+                if aCount != bCount {
+                    return aCount > bCount
+                }
+                // Then prefer one with more metadata
+                let aMetadata = [a.authors, a.publisher ?? "", a.doi ?? "", a.url ?? ""].filter { !$0.isEmpty }.count
+                let bMetadata = [b.authors, b.publisher ?? "", b.doi ?? "", b.url ?? ""].filter { !$0.isEmpty }.count
+                if aMetadata != bMetadata {
+                    return aMetadata > bMetadata
+                }
+                return a.id.uuidString < b.id.uuidString
+            }
+
+            let primary = sorted[0]
+            let duplicates = Array(sorted.dropFirst())
+
+            for duplicate in duplicates {
+                // Move all citations from duplicate to primary
+                if let citations = duplicate.citations {
+                    for citation in citations {
+                        citation.source = primary
+                        mergedCount += 1
+                    }
+                }
+
+                // Merge metadata from duplicate to primary if primary is missing it
+                if primary.authors.isEmpty && !duplicate.authors.isEmpty {
+                    primary.authors = duplicate.authors
+                }
+                if primary.publisher == nil && duplicate.publisher != nil {
+                    primary.publisher = duplicate.publisher
+                }
+                if primary.year == nil && duplicate.year != nil {
+                    primary.year = duplicate.year
+                }
+                if primary.doi == nil && duplicate.doi != nil {
+                    primary.doi = duplicate.doi
+                }
+                if primary.url == nil && duplicate.url != nil {
+                    primary.url = duplicate.url
+                }
+                if primary.containerTitle == nil && duplicate.containerTitle != nil {
+                    primary.containerTitle = duplicate.containerTitle
+                }
+                if primary.volume == nil && duplicate.volume != nil {
+                    primary.volume = duplicate.volume
+                }
+                if primary.issue == nil && duplicate.issue != nil {
+                    primary.issue = duplicate.issue
+                }
+                if primary.pages == nil && duplicate.pages != nil {
+                    primary.pages = duplicate.pages
+                }
+                if primary.license == nil && duplicate.license != nil {
+                    primary.license = duplicate.license
+                }
+                if primary.accessedDate == nil && duplicate.accessedDate != nil {
+                    primary.accessedDate = duplicate.accessedDate
+                }
+                if primary.notes == nil && duplicate.notes != nil {
+                    primary.notes = duplicate.notes
+                } else if let primaryNotes = primary.notes, let dupNotes = duplicate.notes, !dupNotes.isEmpty {
+                    // Append notes if both have them
+                    primary.notes = primaryNotes + "\n\n[Merged from duplicate]: " + dupNotes
+                }
+
+                // Delete the duplicate source
+                modelContext.delete(duplicate)
+                deletedCount += 1
+            }
+        }
+
+        try? modelContext.save()
+
+        if deletedCount == 0 {
+            return "✓ No duplicate sources found"
+        } else {
+            return "✓ Consolidated \(deletedCount) duplicate source(s), moved \(mergedCount) citation(s)"
+        }
+    }
+
     private func purgeEmptyBoards() {
         isRunningAction = true
         actionResult = ""
@@ -833,7 +996,7 @@ struct DeveloperToolsView: View {
 // MARK: - Preview
 
 #Preview("Developer Tools") {
-    let schema = Schema([Card.self, Board.self, BoardNode.self])
+    let schema = Schema([Card.self, Board.self, BoardNode.self, Source.self, Citation.self])
     let cfg = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: schema, configurations: [cfg])
     let ctx = container.mainContext
