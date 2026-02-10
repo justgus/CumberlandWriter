@@ -265,6 +265,12 @@ class MultiGestureHandler: ObservableObject {
     #if os(macOS)
     private var rightClickMenus: [NSMenu] = []
     #endif
+
+    /// Rects (view coordinate space, origin top-left) where two-finger pan/scroll
+    /// events should NOT be interpreted as canvas pans and should pass through
+    /// to the SwiftUI view hierarchy instead (e.g. the sidebar ScrollView).
+    /// Used on macOS via the NSEvent scroll monitor and on iPadOS for trackpad pans.
+    private(set) var scrollExclusionRects: [CGRect] = []
     
     // Logging
     #if DEBUG
@@ -297,7 +303,27 @@ class MultiGestureHandler: ObservableObject {
         targets.removeAll { $0.target?.gestureID == target.gestureID }
         debug("Unregistered target id=\(target.gestureID)")
     }
-    
+
+    // MARK: - Scroll Exclusion Zones (DR-0083)
+
+    /// Sets rects (view coordinate space, origin top-left) where two-finger pan/scroll
+    /// events pass through to the native scroll view instead of panning the canvas.
+    func setScrollExclusionRects(_ rects: [CGRect]) {
+        scrollExclusionRects = rects
+    }
+
+    // MARK: - Mouse Exclusion Zones (bottomZoomStrip / HUD overlays)
+
+    /// Rects (view coordinate space, origin top-left) where left-mouse events should
+    /// NOT be processed by the NSEvent monitor and should instead pass through to
+    /// SwiftUI controls (e.g. the bottom zoom strip HUD on macOS).
+    private(set) var mouseExclusionRects: [CGRect] = []
+
+    /// Sets rects where left-mouse events pass through to SwiftUI controls.
+    func setMouseExclusionRects(_ rects: [CGRect]) {
+        mouseExclusionRects = rects
+    }
+
     private func cleanupWeakReferences() {
         let before = targets.count
         targets.removeAll { $0.target == nil }
@@ -312,12 +338,6 @@ class MultiGestureHandler: ObservableObject {
     private func findTarget(at location: CGPoint, coordinateInfo: CoordinateSpaceInfo, for gestureType: GestureType) -> GestureTarget? {
         cleanupWeakReferences()
 
-        #if DEBUG
-        // Debug: show the world point being tested
-        let worldPoint = coordinateInfo.toWorldSpace(location)
-        print("[HitTest] View: \(pointString(location)) -> World: \(pointString(worldPoint))")
-        #endif
-
         // Test targets in reverse order (topmost first)
         for weakTarget in targets.reversed() {
             guard let target = weakTarget.target,
@@ -325,13 +345,6 @@ class MultiGestureHandler: ObservableObject {
 
             let bounds = target.worldBounds
             let hit = coordinateInfo.hitTest(point: location, worldRect: bounds)
-
-            #if DEBUG
-            // Only show edge handle targets for debugging (they have small bounds)
-            if bounds.width <= 50 && bounds.height <= 50 {
-                print("[HitTest] EdgeHandle bounds: \(Int(bounds.minX))-\(Int(bounds.maxX)), \(Int(bounds.minY))-\(Int(bounds.maxY)) hit=\(hit)")
-            }
-            #endif
 
             if hit {
                 debug("Hit target id=\(target.gestureID) for \(gestureTypeString(gestureType)) at \(pointString(location))")
@@ -463,10 +476,6 @@ class MultiGestureHandler: ObservableObject {
 
         let item = popup.items[itemIndex]
 
-        #if DEBUG
-        print("[Popup] Clicked item \(itemIndex): '\(item.title)' isDisabled=\(item.isDisabled)")
-        #endif
-
         if !item.isDisabled {
             hidePopup()
             item.action()
@@ -475,7 +484,7 @@ class MultiGestureHandler: ObservableObject {
 
         return false
     }
-    
+
     // MARK: - SwiftUI Integration
     
     func createGestureModifier(coordinateInfo: CoordinateSpaceInfo) -> some ViewModifier {
@@ -509,7 +518,7 @@ extension MultiGestureHandler {
     
     func processTap(location: CGPoint, coordinateInfo: CoordinateSpaceInfo) {
         updatePointerLocation(location)
-        
+
         // Check if tap is on popup first
         if activePopup != nil {
             if hitTestPopup(at: location) {
@@ -557,7 +566,7 @@ extension MultiGestureHandler {
             debug("Drag begin ignored; pinching=\(isPinching) twoFingerPanning=\(isTwoFingerPanning)")
             return
         }
-        
+
         dragTarget = findTarget(at: location, coordinateInfo: coordinateInfo, for: .drag)
         dragStartLocation = location
         isDragging = true
@@ -980,14 +989,16 @@ private struct MacOSGestureOverlay: NSViewRepresentable {
 
                 guard self.bounds.contains(pInView) else { return event }
 
+                // Pass through events over HUD overlays (e.g. bottom zoom strip)
+                if handler.mouseExclusionRects.contains(where: { $0.contains(cgLocation) }) {
+                    return event
+                }
+
                 handler.updatePointerLocation(cgLocation)
 
                 // Check if there's an active popup - if so, handle specially
                 if let popup = handler.activePopup {
                     let isInsidePopup = handler.hitTestPopup(at: cgLocation)
-                    #if DEBUG
-                    print("[Popup] Event: \(event.type.rawValue), location: \(cgLocation), popupPos: \(popup.position), isInside: \(isInsidePopup)")
-                    #endif
                     if event.type == .leftMouseUp {
                         if isInsidePopup {
                             // Click inside popup - directly handle the item click
@@ -1057,38 +1068,25 @@ private struct MacOSGestureOverlay: NSViewRepresentable {
                       let coordinateInfo = self.coordinateInfo,
                       event.window === window else { return event }
                 
-                #if DEBUG
-                print("ScrollWheel event: hasPreciseScrollingDeltas=\(event.hasPreciseScrollingDeltas), phase=\(event.phase), deltaX=\(event.scrollingDeltaX), deltaY=\(event.scrollingDeltaY)")
-                #endif
-                
                 // Only handle precise (trackpad) deltas
-                guard event.hasPreciseScrollingDeltas else { 
-                    #if DEBUG
-                    print("ScrollWheel event rejected: not precise scrolling deltas")
-                    #endif
-                    return event 
-                }
-                
+                guard event.hasPreciseScrollingDeltas else { return event }
+
                 let pInView = self.convert(event.locationInWindow, from: nil)
                 let cgLocation = CGPoint(x: pInView.x, y: self.bounds.height - pInView.y)
-                guard self.bounds.contains(pInView) else { 
-                    #if DEBUG
-                    print("ScrollWheel event rejected: outside bounds")
-                    #endif
-                    return event 
+                guard self.bounds.contains(pInView) else { return event }
+
+                // DR-0083: if the pointer is over a registered exclusion zone (e.g. the
+                // sidebar ScrollView) let the event pass through to SwiftUI without
+                // treating it as a canvas pan.
+                if handler.scrollExclusionRects.contains(where: { $0.contains(cgLocation) }) {
+                    return event
                 }
-                
+
                 // Phase-based routing
                 if event.phase.contains(.began) || event.phase == .mayBegin {
-                    #if DEBUG
-                    print("ScrollWheel: Two-finger pan began")
-                    #endif
                     handler.updatePointerLocation(cgLocation)
                     handler.processTwoFingerPanBegan(location: cgLocation, coordinateInfo: coordinateInfo)
                 } else if event.phase.contains(.changed) {
-                    #if DEBUG
-                    print("ScrollWheel: Two-finger pan changed, deltaX=\(event.scrollingDeltaX), deltaY=\(event.scrollingDeltaY)")
-                    #endif
                     // For direct manipulation, use scroll deltas directly for both axes
                     let translation = CGSize(width: event.scrollingDeltaX, height: event.scrollingDeltaY)
                     handler.updatePointerLocation(cgLocation)
@@ -1163,47 +1161,114 @@ private struct IOSGestureOverlay: UIViewRepresentable {
         uiView.refreshRecognizerAttachment()
     }
     
-    class GestureOverlayView: UIView, UIGestureRecognizerDelegate {
+    // GestureOverlayView is a UIScrollView so that:
+    // 1. Its built-in panGestureRecognizer receives indirect scroll events (Magic Keyboard
+    //    trackpad on iPadOS) via UIScrollType routing — plain UIView subclasses miss these.
+    // 2. isScrollEnabled = true is required for UIScrollView to process scroll events through
+    //    its gesture pipeline. We prevent actual scrolling by resetting contentOffset to zero
+    //    in scrollViewDidScroll and using a zero contentSize so there is nothing to scroll to.
+    // 3. point(inside:with:) returns false for normal touch hit-testing so SwiftUI
+    //    gestures on the canvas layers below still receive all direct touches.
+    class GestureOverlayView: UIScrollView, UIGestureRecognizerDelegate, UIScrollViewDelegate {
         var handler: MultiGestureHandler?
         var coordinateInfo: CoordinateSpaceInfo?
-        
+
         private var longPress: UILongPressGestureRecognizer?
-        private var twoFingerPan: UIPanGestureRecognizer?
+        // twoFingerPan is now the scroll view's own panGestureRecognizer (configured below).
         private var pinch: UIPinchGestureRecognizer?
-        private weak var attachedToView: UIView?
-        
+        // Keep a reference to the view we add long-press and pinch to (an ancestor),
+        // for clean detachment.
+        private weak var attachedAncestorView: UIView?
+
+        private var isScrollGestureActive: Bool = false
+
+        // Large virtual content so UIScrollView always has room to accumulate deltas.
+        // We keep contentOffset at the center and forward deltas to the canvas.
+        private static let virtualSize: CGFloat = 100_000
+        private var centerOffset: CGPoint {
+            CGPoint(x: GestureOverlayView.virtualSize / 2,
+                    y: GestureOverlayView.virtualSize / 2)
+        }
+
         override init(frame: CGRect) {
             super.init(frame: frame)
             backgroundColor = .clear
+            // isScrollEnabled must be TRUE — when false, UIScrollView drops scroll events
+            // after hit-test and panGestureRecognizer never fires, even for trackpad input.
+            // We use a large virtual contentSize and keep contentOffset centred; deltas are
+            // forwarded to the canvas handler and contentOffset is reset after each callback.
+            isScrollEnabled = true
+            contentSize = CGSize(width: GestureOverlayView.virtualSize,
+                                 height: GestureOverlayView.virtualSize)
+            showsVerticalScrollIndicator = false
+            showsHorizontalScrollIndicator = false
             isMultipleTouchEnabled = true
-            // Important: do NOT intercept touches ourselves; let SwiftUI gestures underneath see them.
-            isUserInteractionEnabled = false
+            bounces = false
+            alwaysBounceVertical = false
+            alwaysBounceHorizontal = false
+            // Allow trackpad continuous scroll AND discrete mouse wheel events.
+            panGestureRecognizer.allowedScrollTypesMask = .all
+            // Indirect scroll events (trackpad) carry 0 touch points — minimumNumberOfTouches
+            // must be 1 (the default) or the recognizer will never begin for trackpad input.
+            // Direct two-finger touch pans are handled by the ancestor's UIPanGestureRecognizer.
+            panGestureRecognizer.minimumNumberOfTouches = 1
+            panGestureRecognizer.maximumNumberOfTouches = 10
+            panGestureRecognizer.cancelsTouchesInView = false
+            panGestureRecognizer.delaysTouchesBegan = false
+            panGestureRecognizer.delegate = self
+            // Enable user interaction on this view so it participates in hit-testing for
+            // indirect (trackpad) scroll event routing on iPadOS. Normal touch hit-testing
+            // is excluded via point(inside:with:) below so SwiftUI gestures still work.
+            isUserInteractionEnabled = true
+            delegate = self
+            // Start at center so there's equal room to scroll in all directions
+            contentOffset = centerOffset
         }
-        
+
         required init?(coder: NSCoder) {
             fatalError("init(coder:) has not been implemented")
         }
-        
+
+        // Pass through normal touch hit-testing so SwiftUI gestures on the canvas
+        // layers below this overlay still receive all direct finger touches.
+        // Indirect pointer events (trackpad) use a different routing path and are
+        // unaffected by this override — the scroll view still receives them.
+        override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+            let t = event?.type.rawValue ?? -1
+            if t == UIEvent.EventType.scroll.rawValue {
+                return true
+            }
+            return false
+        }
+
         override func didMoveToSuperview() {
             super.didMoveToSuperview()
-            refreshRecognizerAttachment()
+            refreshAncestorRecognizers()
         }
-        
+
         override func didMoveToWindow() {
             super.didMoveToWindow()
-            refreshRecognizerAttachment()
+            refreshAncestorRecognizers()
         }
-        
+
+        // Long-press and pinch still need to be on an ancestor because they rely on
+        // direct touch hit-testing (our point(inside:with:) passes those through).
         func refreshRecognizerAttachment() {
+            refreshAncestorRecognizers()
+        }
+
+        private func refreshAncestorRecognizers() {
             guard let host = findInteractiveHostView() else {
-                detachRecognizers()
+                detachAncestorRecognizers()
                 return
             }
-            if host === attachedToView { return }
-            detachRecognizers()
-            attachRecognizers(to: host)
+            if host === attachedAncestorView {
+                return
+            }
+            detachAncestorRecognizers()
+            attachAncestorRecognizers(to: host)
         }
-        
+
         private func findInteractiveHostView() -> UIView? {
             var v = superview
             while let current = v {
@@ -1212,8 +1277,8 @@ private struct IOSGestureOverlay: UIViewRepresentable {
             }
             return superview
         }
-        
-        private func attachRecognizers(to host: UIView) {
+
+        private func attachAncestorRecognizers(to host: UIView) {
             let lp = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:)))
             lp.minimumPressDuration = 0.5
             lp.cancelsTouchesInView = false
@@ -1222,89 +1287,121 @@ private struct IOSGestureOverlay: UIViewRepresentable {
             host.addGestureRecognizer(lp)
             self.longPress = lp
             
-            let pan = UIPanGestureRecognizer(target: self, action: #selector(handleTwoFingerPan(_:)))
-            pan.minimumNumberOfTouches = 2
-            pan.maximumNumberOfTouches = 2
-            pan.cancelsTouchesInView = false
-            pan.delaysTouchesBegan = false
-            pan.delegate = self
-            host.addGestureRecognizer(pan)
-            self.twoFingerPan = pan
-            
             let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
             pinch.cancelsTouchesInView = false
             pinch.delaysTouchesBegan = false
             pinch.delegate = self
             host.addGestureRecognizer(pinch)
             self.pinch = pinch
-            
-            self.attachedToView = host
+
+            self.attachedAncestorView = host
         }
-        
-        private func detachRecognizers() {
-            if let host = attachedToView {
+
+        private func detachAncestorRecognizers() {
+            if let host = attachedAncestorView {
                 if let lp = longPress { host.removeGestureRecognizer(lp) }
-                if let pan = twoFingerPan { host.removeGestureRecognizer(pan) }
                 if let pinch = pinch { host.removeGestureRecognizer(pinch) }
             }
             longPress = nil
-            twoFingerPan = nil
             pinch = nil
-            attachedToView = nil
+            attachedAncestorView = nil
         }
-        
+
         deinit {
-            detachRecognizers()
+            detachAncestorRecognizers()
         }
-        
+
         // MARK: - UIGestureRecognizerDelegate
-        
+
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
             return true
         }
-        
+
         // MARK: - Actions
-        
+
         @objc private func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
             guard recognizer.state == .began else { return }
-            let location = recognizer.location(in: attachedToView ?? recognizer.view)
+            let location = recognizer.location(in: attachedAncestorView ?? recognizer.view)
             if let handler = handler, let coordinateInfo = coordinateInfo {
                 handler.updatePointerLocation(location)
                 _ = handler.processRightClick(location: location, coordinateInfo: coordinateInfo)
             }
         }
-        
-        @objc private func handleTwoFingerPan(_ recognizer: UIPanGestureRecognizer) {
-            let baseView = attachedToView ?? recognizer.view
+
+        // MARK: - UIScrollViewDelegate (trackpad pan via indirect scroll events)
+
+        // Called every time UIScrollView updates contentOffset in response to a scroll event
+        // (including indirect trackpad input). We capture the delta, immediately reset
+        // contentOffset to zero (no actual content scrolling), and forward the delta to the
+        // canvas pan handler.
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            let offset = scrollView.contentOffset
+            let center = centerOffset
+            // Compute delta from center position
+            let dx = offset.x - center.x
+            let dy = offset.y - center.y
+            // If this is just our own reset call, ignore
+            guard dx != 0 || dy != 0 else { return }
+
+            // Reset back to center so we always have room to accumulate more deltas
+            scrollView.contentOffset = center
+
+            let panLocation = panGestureRecognizer.location(in: attachedAncestorView)
+
+            guard let handler = handler, let coordinateInfo = coordinateInfo else { return }
+
+            // DR-0083: pass through if pointer is in the sidebar exclusion zone
+            if handler.scrollExclusionRects.contains(where: { $0.contains(panLocation) }) {
+                return
+            }
+
+            // Negate: scrolling right increases contentOffset.x, which means the content
+            // moved left under the finger — we want the canvas to pan right (positive dx).
+            let translation = CGSize(width: -dx, height: -dy)
+
+            if !isScrollGestureActive {
+                isScrollGestureActive = true
+                handler.updatePointerLocation(panLocation)
+                handler.processTwoFingerPanBegan(location: panLocation, coordinateInfo: coordinateInfo)
+            }
+
+            handler.updatePointerLocation(panLocation)
+            handler.processTwoFingerPanChanged(translation: translation, location: panLocation, coordinateInfo: coordinateInfo)
+        }
+
+        func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+            isScrollGestureActive = false
+        }
+
+        func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+            endScrollGesture(scrollView)
+        }
+
+        func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+            endScrollGesture(scrollView)
+        }
+
+        private func endScrollGesture(_ scrollView: UIScrollView) {
+            guard isScrollGestureActive else { return }
+            isScrollGestureActive = false
+            scrollView.contentOffset = centerOffset
+
+            guard let handler = handler, let coordinateInfo = coordinateInfo else { return }
+            let panLocation = panGestureRecognizer.location(in: attachedAncestorView)
+            handler.processTwoFingerPanEnded(
+                translation: .zero,
+                velocity: .zero,
+                location: panLocation,
+                coordinateInfo: coordinateInfo
+            )
+        }
+
+        @objc private func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
+            let baseView = attachedAncestorView ?? recognizer.view
             let location = recognizer.location(in: baseView)
             guard let handler = handler, let coordinateInfo = coordinateInfo else { return }
-            
+
             handler.updatePointerLocation(location)
-            switch recognizer.state {
-                case .began:
-                    handler.processTwoFingerPanBegan(location: location, coordinateInfo: coordinateInfo)
-                case .changed:
-                    let translationPoint = recognizer.translation(in: baseView)
-                    let translation = CGSize(width: translationPoint.x, height: translationPoint.y)
-                    handler.processTwoFingerPanChanged(translation: translation, location: location, coordinateInfo: coordinateInfo)
-                    recognizer.setTranslation(.zero, in: baseView)
-                case .ended, .cancelled:
-                    let translationPoint = recognizer.translation(in: baseView)
-                    let translation = CGSize(width: translationPoint.x, height: translationPoint.y)
-                    let velocityPoint = recognizer.velocity(in: baseView)
-                    let velocity = CGSize(width: velocityPoint.x, height: velocityPoint.y)
-                    handler.processTwoFingerPanEnded(translation: translation, velocity: velocity, location: location, coordinateInfo: coordinateInfo)
-                default:
-                    break
-            }
-        }
-        
-        @objc private func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
-            let baseView = attachedToView ?? recognizer.view
-            let location = recognizer.location(in: baseView) // midpoint between touches
-            guard let handler = handler, let coordinateInfo = coordinateInfo else { return }
-            
-            handler.updatePointerLocation(location) // keep pointer at pinch centroid
             switch recognizer.state {
                 case .began:
                     handler.processPinchBegan(scale: recognizer.scale, location: location, coordinateInfo: coordinateInfo)

@@ -2,13 +2,11 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **0 open DRs** | **0 resolved, awaiting verification** | **5 verified today**
+**Status:** Currently **0 open DRs** | **0 resolved, awaiting verification**
 
 ---
 
-*All DRs from ER-0022 Phase 5 testing have been verified and moved to batch files:*
-- DR-0076, DR-0077, DR-0078 → DR-verified-0071-0080.md
-- DR-0079, DR-0080, DR-0081, DR-0082, DR-0083 → DR-verified-0081-0090.md
+*(No active DRs — all issues resolved and verified)*
 
 ---
 
@@ -21,5 +19,4 @@ Per DR-GUIDELINES.md:
 
 ---
 
-*Last Updated: 2026-02-09*
-*All DRs verified - no pending issues*
+*Last Updated: 2026-02-10*

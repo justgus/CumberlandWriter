@@ -538,7 +538,7 @@ struct MainAppView: View {
                     }
 
                     #if !os(iOS)
-                    ToolbarItemGroup(placement: .automatic) {
+                    ToolbarItemGroup(placement: .primaryAction) {
                         if let card = mainView.selectedCard, !mainView.navigationCoordinator.forceCardSheetView {
                             let tabs = mainView.availableTabs(for: card)
                             if !tabs.isEmpty {
@@ -780,22 +780,25 @@ struct MainAppView: View {
 
         #if !os(visionOS)
 
-        // Attach the segmented picker to the DETAIL column’s toolbar on iPadOS so it appears in the right nav bar.
+        // Attach the segmented picker to the DETAIL column's toolbar on iPadOS so it appears in the right nav bar.
         .toolbar {
             #if os(iOS)
             if let card = selectedCard, !navigationCoordinator.forceCardSheetView {
                 let tabs = availableTabs(for: card)
                 if !tabs.isEmpty {
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    // Use .principal placement so the picker occupies the full center of the
+                    // navigation bar rather than being squeezed into the trailing area.
+                    // Wrapped in a horizontal ScrollView so all segments remain accessible
+                    // even on narrow screens where the full segmented control won't fit.
+                    ToolbarItem(placement: .principal) {
                         Picker("Card View", selection: $selectedDetailTab) {
                             ForEach(tabs) { tab in
-                                Label(tab.title, systemImage: tab.systemImage)
+                                Image(systemName: tab.systemImage)
                                     .tag(tab)
                                     .help(tab.helpText)
                             }
                         }
                         .pickerStyle(.segmented)
-                        .frame(maxWidth: 420)
                     }
                 }
             }

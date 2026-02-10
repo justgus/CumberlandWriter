@@ -353,7 +353,8 @@ extension MurderBoardView {
         )
     }
 
-    /// Create the actual edge after RelationType is selected
+    /// Create the actual edge after RelationType is selected.
+    /// Delegates to RelationshipManager when available via services.
     func createEdge(from sourceID: UUID, to targetID: UUID, type: RelationType) {
         // Find the cards
         guard let sourceCard = allCards.first(where: { $0.id == sourceID }),
@@ -361,15 +362,35 @@ extension MurderBoardView {
             #if DEBUG
             print("[MB] Edge creation failed: could not find cards")
             #endif
+            pendingEdgeCreation = nil
             return
         }
 
-        // Check if forward edge already exists
+        // Delegate to RelationshipManager when available
+        if let mgr = services?.relationshipManager {
+            do {
+                try mgr.createRelationship(from: sourceCard, to: targetCard, type: type, createReverse: true)
+                #if DEBUG
+                print("[MB] Edges created via RelationshipManager: \(sourceCard.name) ↔ \(targetCard.name) [\(type.forwardLabel)/\(type.inverseLabel)]")
+                #endif
+            } catch RelationshipError.alreadyExists {
+                #if DEBUG
+                print("[MB] Both edges already exist, skipping creation")
+                #endif
+            } catch {
+                #if DEBUG
+                print("[MB] Edge creation via RelationshipManager failed: \(error)")
+                #endif
+            }
+            pendingEdgeCreation = nil
+            return
+        }
+
+        // Fallback: direct modelContext operations
         let forwardExists = sourceCard.outgoingEdges?.contains { edge in
             edge.to?.id == targetID && edge.type?.code == type.code
         } ?? false
 
-        // Check if reverse edge already exists
         let reverseExists = targetCard.outgoingEdges?.contains { edge in
             edge.to?.id == sourceID && edge.type?.code == type.code
         } ?? false
@@ -378,17 +399,15 @@ extension MurderBoardView {
             #if DEBUG
             print("[MB] Both edges already exist, skipping creation")
             #endif
+            pendingEdgeCreation = nil
             return
         }
 
-        // Create the forward edge (source → target) if needed
         if !forwardExists {
             let forwardEdge = CardEdge(from: sourceCard, to: targetCard, type: type)
             modelContext.insert(forwardEdge)
         }
 
-        // Create the reverse edge (target → source) if needed
-        // The relationship is bidirectional - the type's inverseLabel describes the reverse direction
         if !reverseExists {
             let reverseEdge = CardEdge(from: targetCard, to: sourceCard, type: type)
             modelContext.insert(reverseEdge)
@@ -405,7 +424,6 @@ extension MurderBoardView {
             #endif
         }
 
-        // Clear pending state - this also dismisses the sheet
         pendingEdgeCreation = nil
     }
 

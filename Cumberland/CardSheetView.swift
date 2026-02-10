@@ -88,7 +88,9 @@ struct CardSheetView: View {
         mainContent
             .navigationTitle(card.name)
             .applyToolbarBackground()
+            #if os(iOS) || os(visionOS)
             .toolbar { toolbarContent }
+            #endif
             .task { await loadFullImage() }
             .task(id: card.id) { await loadFullImage() }
             .task(id: card.imageFileURL) { await loadFullImage() }
@@ -191,6 +193,25 @@ struct CardSheetView: View {
             }
             .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            #if os(macOS)
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    toggleFocusModeForCard(
+                        cardID: card.id,
+                        isFocusModeEnabled: isFocusModeEnabled,
+                        focusModeCardIDRaw: focusModeCardIDRaw
+                    )
+                } label: {
+                    Image(systemName: isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString
+                          ? "arrow.down.right.and.arrow.up.left"
+                          : "arrow.up.left.and.arrow.down.right")
+                }
+                .buttonStyle(.plain)
+                .help(isFocusModeEnabled && focusModeCardIDRaw == card.id.uuidString ? "Exit Focus" : "Enter Focus")
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+                .padding(10)
+            }
+            #endif
         }
     }
 

@@ -5,12 +5,201 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - Zoom Text Field (macOS bottom strip)
+
+#if os(macOS)
+/// Editable zoom percentage field that only commits on Return or focus loss,
+/// preventing mid-edit clamp side-effects (e.g. erasing "100" clamps to min).
+private struct ZoomTextField: View {
+    let zoomScale: Double
+    let windowSize: CGSize
+    let setZoom: (Double, CGSize) -> Void
+
+    @State private var draft: String = ""
+    @State private var isEditing: Bool = false
+
+    var body: some View {
+        HStack(spacing: 2) {
+            TextField("100", text: $draft, onEditingChanged: { editing in
+                isEditing = editing
+                if editing {
+                    draft = "\(Int(round(zoomScale * 100)))"
+                } else {
+                    commitDraft()
+                }
+            }, onCommit: {
+                commitDraft()
+            })
+            .font(.caption.monospacedDigit())
+            .multilineTextAlignment(.trailing)
+            .frame(width: 30)
+            .textFieldStyle(.plain)
+            .onChange(of: zoomScale) { _, newScale in
+                // Keep display in sync when zoom changes externally (slider, buttons)
+                if !isEditing {
+                    draft = "\(Int(round(newScale * 100)))"
+                }
+            }
+            .onAppear {
+                draft = "\(Int(round(zoomScale * 100)))"
+            }
+            Text("%")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func commitDraft() {
+        let trimmed = draft.trimmingCharacters(in: .whitespaces)
+        if let v = Double(trimmed), v >= 1 {
+            let s = (v / 100.0).clamped(to: Board.minZoom...Board.maxZoom)
+            setZoom(s, windowSize)
+        }
+        // Reset to current actual zoom (handles invalid input)
+        draft = "\(Int(round(zoomScale * 100)))"
+    }
+}
+#endif
+
+// MARK: - Bottom Zoom Strip (macOS)
+
+#if os(macOS)
+extension MurderBoardView {
+    /// Compact floating zoom / recenter / shuffle strip rendered at the bottom-centre
+    /// of the MurderBoard canvas, similar to the zoom HUD in office applications.
+    /// On macOS the window-toolbar approach produces left-side placement for nested views,
+    /// so we render the controls as an in-canvas overlay instead.
+    @ViewBuilder
+    func bottomZoomStrip(windowSize: CGSize) -> some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 6) {
+                Button { stepZoom(-0.05, windowSize: windowSize) } label: {
+                    Image(systemName: "minus")
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Zoom Out (⌘-)")
+
+                Slider(value: Binding(
+                    get: { zoomScale },
+                    set: { newValue in setZoomKeepingCenter(newValue, windowSize: windowSize) }
+                ), in: Board.minZoom...Board.maxZoom)
+                .frame(width: 100)
+                .controlSize(.small)
+                .help("Zoom")
+
+                Button { stepZoom(+0.05, windowSize: windowSize) } label: {
+                    Image(systemName: "plus")
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Zoom In (⌘=)")
+                .keyboardShortcut("=", modifiers: [.command])
+
+                ZoomTextField(
+                    zoomScale: zoomScale,
+                    windowSize: windowSize,
+                    setZoom: { s, ws in setZoomKeepingCenter(s, windowSize: ws) }
+                )
+
+                Divider()
+                    .frame(height: 14)
+
+                Button { recenterOnPrimaryOrFirst(windowSize: windowSize) } label: {
+                    Image(systemName: "dot.scope")
+                }
+                .buttonStyle(.plain)
+                .help("Recenter (⌘R)")
+
+                Button { shuffleAroundPrimary() } label: {
+                    Image(systemName: "shuffle")
+                }
+                .buttonStyle(.plain)
+                .help("Shuffle nodes")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .background(.ultraThinMaterial, in: Capsule())
+            .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+            .padding(.bottom, 14)
+        }
+        .allowsHitTesting(true)
+        .frame(maxWidth: .infinity)
+    }
+}
+#endif
+
+// MARK: - Bottom Zoom Strip (iOS)
+
+#if os(iOS)
+extension MurderBoardView {
+    @ViewBuilder
+    func bottomZoomStrip(windowSize: CGSize) -> some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 10) {
+                Button { stepZoom(-0.05, windowSize: windowSize) } label: {
+                    Image(systemName: "minus")
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Slider(value: Binding(
+                    get: { zoomScale },
+                    set: { newValue in setZoomKeepingCenter(newValue, windowSize: windowSize) }
+                ), in: Board.minZoom...Board.maxZoom)
+                .frame(width: 120)
+
+                Button { stepZoom(+0.05, windowSize: windowSize) } label: {
+                    Image(systemName: "plus")
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Text("\(Int(round(zoomScale * 100)))%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 38, alignment: .trailing)
+
+                Divider()
+                    .frame(height: 16)
+
+                Button { recenterOnPrimaryOrFirst(windowSize: windowSize) } label: {
+                    Image(systemName: "dot.scope")
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Button { shuffleAroundPrimary() } label: {
+                    Image(systemName: "shuffle")
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(.ultraThinMaterial, in: Capsule())
+            .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+            .padding(.bottom, 20)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+#endif
+
 // MARK: - Toolbar Extension
 
 extension MurderBoardView {
     @ToolbarContentBuilder
     func toolbarContent(windowSize: CGSize) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .automatic) {
+        ToolbarItemGroup(placement: .primaryAction) {
             Button { stepZoom(-0.05, windowSize: windowSize) } label: {
                 Image(systemName: "minus.magnifyingglass")
             }

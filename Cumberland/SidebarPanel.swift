@@ -55,27 +55,34 @@ struct SidebarPanel: View {
                 }
             }
         }
-        .allowsHitTesting(true) // Allow interactions with sidebar and button
-        // DR-0083: Block gesture propagation to canvas
-        // Use a dummy simultaneous gesture to ensure hit testing routes to sidebar
-        .background(
-            Color.clear
-                .contentShape(Rectangle())
-        )
+        // DR-0083 / DR-0085: Allow hit testing only on the sidebar content itself.
+        // Do NOT use .contentShape(Rectangle()) on the full HStack — the Spacer() fills
+        // the entire canvas width and would swallow all touches on iOS (where SwiftUI
+        // hit testing governs gesture delivery, unlike macOS which uses NSEvent monitors).
+        .allowsHitTesting(true)
     }
 }
 
 // MARK: - Gesture Blocking Modifier (DR-0083)
 
 extension View {
-    /// Blocks gesture propagation to underlying views by consuming drag gestures
-    /// Used by sidebar to prevent canvas pan gestures from triggering during scroll
+    /// On macOS: consumes drag gestures on the sidebar so trackpad scroll doesn't
+    /// propagate to canvas gesture recognizers via SwiftUI's gesture system.
+    /// On iOS/iPadOS: this is a no-op. The canvas uses UIKit gesture recognizers
+    /// (UIPanGestureRecognizer with minimumNumberOfTouches=2) which are independent
+    /// of SwiftUI gesture propagation. Adding a competing DragGesture here breaks
+    /// two-finger pan on both the sidebar and the canvas (DR-0085).
+    @ViewBuilder
     func blockCanvasGestures() -> some View {
+        #if os(macOS)
         self.simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in }
                 .onEnded { _ in }
         )
+        #else
+        self
+        #endif
     }
 }
 
@@ -87,13 +94,17 @@ extension SidebarPanel {
         VStack(spacing: 0) {
             // Header with kind filter (0620, 0630)
             sidebarHeader()
-            
+
             Divider()
-            
+
             // Cards list (0600, 0610, 0650)
-            // DR-0083: Wrap in a container that blocks gesture propagation
+            // DR-0083: blockCanvasGestures() consumes drag gestures on the scroll view so
+            // macOS trackpad scroll doesn't propagate to the canvas behind the panel.
+            // DR-0085: Applied here on the panel content only (not the outer HStack) so the
+            // Spacer() beside the panel does NOT become hittable and swallow iOS touches.
             sidebarCardsList()
                 .contentShape(Rectangle())
+                .blockCanvasGestures()
         }
         .padding(.leading, 20)
         .padding(.vertical, 40)

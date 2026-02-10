@@ -284,6 +284,9 @@ struct GestureHandlerIntegration: ViewModifier {
     var edgeCreationState: EdgeCreationState?
     var onEdgeCreated: ((UUID, UUID) -> Void)?
 
+    // Sidebar visibility — used on macOS to set scroll exclusion zone (DR-0083)
+    let isSidebarVisible: Bool
+
     // Internal storage for edge handle targets (not exposed to parent)
     @State private var edgeHandleGestureTargets: [UUID: EdgeHandleGestureTarget] = [:]
 
@@ -320,6 +323,17 @@ struct GestureHandlerIntegration: ViewModifier {
                         setupGestureHandler()
                     }
                 }
+                // DR-0083: Update scroll exclusion zone when sidebar or window size changes.
+                // Used on macOS (NSEvent scroll monitor) and iPadOS (trackpad pan recognizer).
+                .onChange(of: isSidebarVisible) { _, _ in
+                    updateScrollExclusionZone()
+                }
+                .onChange(of: windowSize) { _, _ in
+                    updateScrollExclusionZone()
+                }
+                .onAppear {
+                    updateScrollExclusionZone()
+                }
                 .multiGestureHandler(
                     gestureHandler ?? setupAndReturnGestureHandler(),
                     coordinateInfo: CoordinateSpaceInfo(
@@ -342,20 +356,48 @@ struct GestureHandlerIntegration: ViewModifier {
         return handler
     }
 
+    // MARK: - Scroll Exclusion Zone (DR-0083)
+
+    /// Updates the scroll exclusion rect in the gesture handler so trackpad scroll/pan
+    /// events over the sidebar pass through to the ScrollView rather than panning the canvas.
+    /// Active on macOS (NSEvent scroll monitor) and iPadOS (UIPanGestureRecognizer with
+    /// allowedScrollTypesMask = .continuous).
+    private func updateScrollExclusionZone() {
+        guard let handler = gestureHandler else { return }
+        if isSidebarVisible {
+            let sidebarWidth = min(320, windowSize.width * 0.35)
+            let rect = CGRect(x: 0, y: 0, width: sidebarWidth, height: windowSize.height)
+            handler.setScrollExclusionRects([rect])
+        } else {
+            handler.setScrollExclusionRects([])
+        }
+        #if os(macOS)
+        updateMouseExclusionZone()
+        #endif
+    }
+
+    #if os(macOS)
+    /// Updates the mouse exclusion rect so that left-mouse events over the bottom
+    /// zoom strip HUD pass through to SwiftUI controls instead of being consumed
+    /// by the NSEvent local monitor.
+    ///
+    /// NOTE: cgLocation in the leftMouseMonitor has Y flipped (AppKit→SwiftUI):
+    ///   cgLocation.y = bounds.height - pInView.y
+    /// So y=0 is the BOTTOM of the canvas and y=windowSize.height is the TOP.
+    /// The strip is at the visual bottom, so its exclusion rect is y: 0..stripHeight.
+    private func updateMouseExclusionZone() {
+        guard let handler = gestureHandler else { return }
+        // mouseExclusionRects are not needed — the strip buttons work via SwiftUI hit-testing
+        // since GestureOverlayView.hitTest returns nil (passes all clicks through).
+        handler.setMouseExclusionRects([])
+    }
+    #endif
+
     private func setupGestureHandler() {
         guard useNewGestureHandler else { return }
 
         // Check if we have all visual sizes before proceeding
-        guard hasAllVisualSizes else {
-            #if DEBUG
-            print("setupGestureHandler: Waiting for visual sizes. Have \(nodeVisualSizes.count) of \(nodesKey.count) needed.")
-            #endif
-            return
-        }
-
-        #if DEBUG
-        print("setupGestureHandler: All visual sizes ready, proceeding with setup.")
-        #endif
+        guard hasAllVisualSizes else { return }
 
         // Create handler if it doesn't exist, otherwise reuse existing
         if gestureHandler == nil {
@@ -602,5 +644,8 @@ struct GestureHandlerIntegration: ViewModifier {
                 edgeHandleGestureTargets[card.id] = edgeHandleTarget
             }
         }
+
+        // Ensure exclusion zones are current after each setup
+        updateScrollExclusionZone()
     }
 }

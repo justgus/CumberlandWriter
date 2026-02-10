@@ -28,6 +28,7 @@ struct CardRelationshipView: View {
     @Query(sort: \Card.name, order: .forward) private var allCards: [Card]
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.services) private var services
     @Environment(\.colorScheme) private var scheme
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
@@ -245,7 +246,7 @@ struct CardRelationshipView: View {
                 cardName: primary.name,
                 selectedKind: $selectedNewCardType
             ) { newKind in
-                changeCardType(card: primary, to: newKind, modelContext: modelContext)
+                changeCardType(card: primary, to: newKind, modelContext: modelContext, services: services)
                 isPresentingChangeCardType = false
             } onCancel: {
                 isPresentingChangeCardType = false
@@ -307,7 +308,7 @@ struct CardRelationshipView: View {
 
     private func handleRemoveRelationship() {
         guard let card = selectedRelatedCard else { return }
-        removeRelationship(between: card, and: primary, modelContext: modelContext)
+        removeRelationship(between: card, and: primary, modelContext: modelContext, services: services)
         selectedRelatedCard = nil
     }
 
@@ -349,7 +350,7 @@ struct CardRelationshipView: View {
             return false
         }
 
-        createEdgeIfNeeded(from: dropped, to: primary, type: enforcedType, appendToEnd: true, modelContext: modelContext)
+        createEdgeIfNeeded(from: dropped, to: primary, type: enforcedType, appendToEnd: true, modelContext: modelContext, services: services)
         return true
     }
 
@@ -357,7 +358,7 @@ struct CardRelationshipView: View {
     private func handleNewCardCreated(_ newCard: Card) {
         if let fixedType = relationTypeFilter {
             if let enforced = canonicalizedTypeFor(source: newCard, target: primary, proposed: fixedType, modelContext: modelContext) {
-                createEdgeIfNeeded(from: newCard, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext)
+                createEdgeIfNeeded(from: newCard, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext, services: services)
             }
             shouldCleanupPendingOnCancel = false
             return
@@ -366,7 +367,7 @@ struct CardRelationshipView: View {
         if selectedKind == .sources {
             let cites = ensureRelationType(code: Self.citesCode, forward: "cites", inverse: "cited by", sourceKind: .sources, targetKind: nil, modelContext: modelContext)
             if let enforced = canonicalizedTypeFor(source: newCard, target: primary, proposed: cites, modelContext: modelContext) {
-                createEdgeIfNeeded(from: newCard, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext)
+                createEdgeIfNeeded(from: newCard, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext, services: services)
             }
             shouldCleanupPendingOnCancel = false
             return
@@ -383,7 +384,7 @@ struct CardRelationshipView: View {
         if let fixedType = relationTypeFilter {
             for c in cards {
                 if let enforced = canonicalizedTypeFor(source: c, target: primary, proposed: fixedType, modelContext: modelContext) {
-                    createEdgeIfNeeded(from: c, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext)
+                    createEdgeIfNeeded(from: c, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext, services: services)
                 }
             }
             return
@@ -393,7 +394,7 @@ struct CardRelationshipView: View {
             let cites = ensureRelationType(code: Self.citesCode, forward: "cites", inverse: "cited by", sourceKind: .sources, targetKind: nil, modelContext: modelContext)
             for c in cards {
                 if let enforced = canonicalizedTypeFor(source: c, target: primary, proposed: cites, modelContext: modelContext) {
-                    createEdgeIfNeeded(from: c, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext)
+                    createEdgeIfNeeded(from: c, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext, services: services)
                 }
             }
             return
@@ -423,13 +424,13 @@ struct CardRelationshipView: View {
             } else {
                 if let card = newCard {
                     if let enforced = canonicalizedTypeFor(source: card, target: primary, proposed: only, modelContext: modelContext) {
-                        createEdgeIfNeeded(from: card, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext)
+                        createEdgeIfNeeded(from: card, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext, services: services)
                         shouldCleanupPendingOnCancel = false
                     }
                 }
                 for c in existingCards {
                     if let enforced = canonicalizedTypeFor(source: c, target: primary, proposed: only, modelContext: modelContext) {
-                        createEdgeIfNeeded(from: c, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext)
+                        createEdgeIfNeeded(from: c, to: primary, type: enforced, appendToEnd: true, modelContext: modelContext, services: services)
                     }
                 }
             }
@@ -448,11 +449,11 @@ struct CardRelationshipView: View {
         isPresentingCreateRelationType = false
 
         if let card = pendingNewCard {
-            createEdgeIfNeeded(from: card, to: primary, type: newType, appendToEnd: true, modelContext: modelContext)
+            createEdgeIfNeeded(from: card, to: primary, type: newType, appendToEnd: true, modelContext: modelContext, services: services)
             pendingNewCard = nil
         }
         for card in pendingExistingCards {
-            createEdgeIfNeeded(from: card, to: primary, type: newType, appendToEnd: true, modelContext: modelContext)
+            createEdgeIfNeeded(from: card, to: primary, type: newType, appendToEnd: true, modelContext: modelContext, services: services)
         }
         pendingExistingCards = []
     }
@@ -460,7 +461,7 @@ struct CardRelationshipView: View {
     private func handleRelationTypeCreationCancelled() {
         isPresentingCreateRelationType = false
         if shouldCleanupPendingOnCancel, let card = pendingNewCard {
-            cleanupAndDelete(card, modelContext: modelContext)
+            cleanupAndDelete(card, modelContext: modelContext, services: services)
         }
         pendingNewCard = nil
         pendingExistingCards = []
@@ -471,15 +472,15 @@ struct CardRelationshipView: View {
         isPresentingPickRelationType = false
         if let type = chosen {
             if let card = pendingNewCard {
-                createEdgeIfNeeded(from: card, to: primary, type: type, appendToEnd: true, modelContext: modelContext)
+                createEdgeIfNeeded(from: card, to: primary, type: type, appendToEnd: true, modelContext: modelContext, services: services)
                 shouldCleanupPendingOnCancel = false
             }
             for card in pendingExistingCards {
-                createEdgeIfNeeded(from: card, to: primary, type: type, appendToEnd: true, modelContext: modelContext)
+                createEdgeIfNeeded(from: card, to: primary, type: type, appendToEnd: true, modelContext: modelContext, services: services)
             }
         } else {
             if shouldCleanupPendingOnCancel, let card = pendingNewCard {
-                cleanupAndDelete(card, modelContext: modelContext)
+                cleanupAndDelete(card, modelContext: modelContext, services: services)
             }
         }
         pendingNewCard = nil
@@ -498,7 +499,7 @@ struct CardRelationshipView: View {
 
     private func handleCreateRelationTypeSheetDismiss(isPresented: Bool) {
         if !isPresented, shouldCleanupPendingOnCancel, let card = pendingNewCard {
-            cleanupAndDelete(card, modelContext: modelContext)
+            cleanupAndDelete(card, modelContext: modelContext, services: services)
             pendingNewCard = nil
             shouldCleanupPendingOnCancel = false
         }
@@ -509,7 +510,7 @@ struct CardRelationshipView: View {
 
     private func handlePickRelationTypeSheetDismiss(isPresented: Bool) {
         if !isPresented, shouldCleanupPendingOnCancel, let card = pendingNewCard {
-            cleanupAndDelete(card, modelContext: modelContext)
+            cleanupAndDelete(card, modelContext: modelContext, services: services)
             pendingNewCard = nil
             shouldCleanupPendingOnCancel = false
         }

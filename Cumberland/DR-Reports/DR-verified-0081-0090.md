@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0081 through DR-0090.
 
-**Batch Status:** 🚧 In Progress (3/10 verified)
+**Batch Status:** 🚧 In Progress (8/10 verified)
 
 ---
 
@@ -141,6 +141,227 @@ Implemented gesture exclusion zones in MultiGestureHandler to block scroll wheel
 - ✅ Scrolling backlog sidebar does not pan canvas
 - ✅ Scrolling over canvas area still pans normally
 - ✅ Sidebar visibility toggle updates exclusion zones
+
+---
+
+## DR-0084: ER-0022 Service Layer Compliance — Extracted Components Bypassing Services
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** CardRelationshipOperations, MurderBoardOperations, CardEditorSaveHandler
+**Severity:** Medium (architectural — no user-visible bugs, violated ER-0022 layered architecture)
+**Date Identified:** 2026-02-10
+**Date Resolved:** 2026-02-10
+**Date Verified:** 2026-02-10
+**Related ER:** ER-0022 (Code Maintainability Refactoring)
+
+**Description:**
+Post-ER-0022 audit revealed that components extracted in Phases 3–4.5 were bypassing the service layer infrastructure (RelationshipManager, CardOperationManager, StructureRepository) established in Phase 1. The refactoring correctly extracted code from large view files into smaller components, but those components continued to call `modelContext` directly instead of routing through the new services.
+
+**Root Cause:**
+ER-0022 was executed in phases. The service layer was built first (Phase 1), but the view extraction (Phases 3–4.5) moved existing code as-is without retrofitting it to use those services. The result was a split architecture: services existed but weren't wired to the newly-extracted callers.
+
+**Resolution:**
+Updated `CardRelationshipOperations`, `MurderBoardOperations.createEdge`, and `CardEditorSaveHandler` to delegate write operations through `RelationshipManager`, `CardOperationManager`, and `StructureRepository` respectively. Added `@Environment(\.services)` to `CardRelationshipView`, `MurderBoardView`, and `CardEditorView`. All changes use a delegate-with-fallback pattern for resilience.
+
+**Files Modified:**
+- `Cumberland/CardRelationshipView.swift` — Added `@Environment(\.services)`, propagated to all 12 write callsites
+- `Cumberland/CardRelationship/CardRelationshipOperations.swift` — Service delegation for `removeRelationship`, `cleanupAndDelete`, `changeCardType`
+- `Cumberland/Murderboard/MurderBoardView.swift` — Added `@Environment(\.services)`
+- `Cumberland/Murderboard/MurderBoardOperations.swift` — `createEdge` delegates to `RelationshipManager`
+- `Cumberland/CardEditorView.swift` — Added `@Environment(\.services)`, passes `structureRepository`
+- `Cumberland/CardEditor/CardEditorSaveHandler.swift` — Added `StructureRepository` injection, delegated structure CRUD
+
+**Test Verification:**
+- ✅ Relationship creation via drag in CardRelationshipView still works
+- ✅ Remove relationship via toolbar button still works
+- ✅ Card deletion via relationship view still works
+- ✅ Card type change via relationship view still works
+- ✅ Edge creation in MurderBoard drag-to-connect still works
+- ✅ Creating a new Project card with a structure still works
+- ✅ Editing an existing Project card's structure still works
+- ✅ Build succeeded with no errors
+
+---
+
+## DR-0085: MurderBoard — All iOS Gestures Non-Functional (Tap, Drag, Drop, Long-Press)
+
+**Status:** ✅ Resolved - Verified
+**Platform:** iOS / iPadOS only
+**Component:** SidebarPanel.swift / MultiGestureHandler.swift
+**Severity:** Critical — MurderBoard completely non-interactive on iOS
+**Date Identified:** 2026-02-10
+**Date Resolved:** 2026-02-10
+**Date Verified:** 2026-02-10
+
+**User Report:**
+> No drag events are being recognised for the MurderBoard on iOS. No console output. Cannot drop an entity onto the board. Cannot click select an entity on the board. Right click does not respond. Drag node does not respond. Drag edge to another node does not respond.
+
+**Root Cause:**
+`SidebarPanel.swift` applied `.contentShape(Rectangle())` to a `Color.clear` background on the full-width `HStack` wrapper — a wrapper that contains a `Spacer()` filling the entire canvas area. This made a completely transparent overlay covering the whole screen hittable on iOS.
+
+On iOS, SwiftUI delivers touches to the topmost hittable view. The `SidebarPanel` ZStack layer sits above the `MurderBoardView` canvas layer in `MurderBoardView`'s main ZStack. Because the transparent full-screen overlay was hittable, it intercepted 100% of touches before they could reach the gesture system below — silently swallowing every tap, drag, long-press, and drop gesture.
+
+The macOS implementation was unaffected because macOS uses `NSEvent` local monitors, which bypass SwiftUI hit testing entirely and receive input from the OS event stream directly.
+
+**Investigation path:**
+1. Initial hypothesis (incorrect): Duplicate `.coordinateSpace(name:)` registration in `CanvasLayer.swift` — tested and confirmed no change in behavior.
+2. Added `print()` diagnostics (`[MGH-iOS-DIAG]`, `[GHI-iOS-DIAG]`) to gesture system — only the `setupGestureHandler complete` message fired, proving the system was initialized correctly but zero gesture callbacks ever triggered.
+3. Conclusion: something **above** the gesture layer in the ZStack was consuming all touches. Root cause identified in `SidebarPanel.swift`.
+
+**Resolution:**
+Removed the `.background(Color.clear.contentShape(Rectangle()))` modifier from `SidebarPanel`'s full-width `HStack`. The gesture-blocking purpose of that modifier (per DR-0083, preventing canvas scroll during sidebar scroll) is handled by the sidebar panel content itself via `.blockCanvasGestures()` — a `simultaneousGesture` modifier on the sidebar scroll view. The transparent full-screen overlay was never needed for that purpose.
+
+```swift
+// BEFORE (bug):
+.allowsHitTesting(true)
+.background(
+    Color.clear
+        .contentShape(Rectangle())
+)
+
+// AFTER (fix):
+// DR-0083 / DR-0085: Allow hit testing only on the sidebar content itself.
+// Do NOT use .contentShape(Rectangle()) on the full HStack — the Spacer() fills
+// the entire canvas width and would swallow all touches on iOS
+.allowsHitTesting(true)
+```
+
+Diagnostic `print()` statements added during investigation were removed from `MultiGestureHandler.swift` and `MurderBoardGestureTargets.swift` after the fix was confirmed. Both macOS and iOS builds pass cleanly.
+
+**Files Modified:**
+- `Cumberland/SidebarPanel.swift:58-64` — Removed `.background(Color.clear.contentShape(Rectangle()))` block
+- `Cumberland/MultiGestureHandler.swift` — Removed all `[MGH-iOS-DIAG]` diagnostic prints
+- `Cumberland/Murderboard/MurderBoardGestureTargets.swift` — Removed all `[GHI-iOS-DIAG]` diagnostic prints
+
+**Test Verification:**
+- ✅ Tap to select a node works on iOS
+- ✅ Drag to move a node works on iOS
+- ✅ Drag edge handle to another node triggers RelationType sheet on iOS
+- ✅ Long-press on a node shows context menu on iOS
+- ✅ Drag card from backlog sidebar onto canvas adds it to the board on iOS
+- ✅ Two-finger pan scrolls the canvas on iOS
+- ✅ macOS MurderBoard gestures unaffected
+- ✅ Both macOS and iOS builds pass cleanly
+
+---
+
+## DR-0086: MurderBoard Canvas Unresponsive to Magic Keyboard Trackpad Pan (iPadOS)
+
+**Status:** ✅ Resolved - Verified
+**Platform:** iPadOS
+**Component:** MultiGestureHandler / GestureOverlayView
+**Severity:** High — MurderBoard canvas could not be panned via Magic Keyboard trackpad
+**Date Identified:** 2026-02-10
+**Date Resolved:** 2026-02-10
+**Date Verified:** 2026-02-10
+
+**Description:**
+Two-finger pan on the MurderBoard canvas had no effect when using a Magic Keyboard trackpad on iPadOS. The sidebar ScrollView responded correctly to trackpad scroll, but the canvas did not pan at all. All other gestures (tap, drag, pinch) worked normally.
+
+**Root Cause:**
+Magic Keyboard trackpad delivers scroll input as `UIScrollEvent` (indirect pointer events), not as touch events. `UIPanGestureRecognizer` with `minimumNumberOfTouches = 2` never fires for these events. The `GestureOverlayView` (a `UIScrollView` subclass) used `isScrollEnabled = false`, which causes UIScrollView to drop scroll events after hit-testing — the `panGestureRecognizer` pipeline was never reached even though `point(inside:with:)` correctly returned `true` for scroll events.
+
+**Resolution:**
+Changed `GestureOverlayView` to use `isScrollEnabled = true` with a large virtual `contentSize` (100,000 × 100,000) and `contentOffset` initialized at center (50,000, 50,000). In `UIScrollViewDelegate.scrollViewDidScroll`, the delta from center is computed, `contentOffset` is reset back to center immediately (preventing any visible scrolling), and the delta is forwarded to `processTwoFingerPanChanged`. Scroll lifecycle is managed via `scrollViewWillBeginDragging` and `scrollViewDidEndDragging`. The sidebar exclusion rect check prevents the scroll delegate from panning the canvas when the pointer is over the sidebar.
+
+**Files Modified:**
+- `Cumberland/MultiGestureHandler.swift` — `GestureOverlayView` class (iOS section): `isScrollEnabled = true`, virtual contentSize, `scrollViewDidScroll` delegate implementation
+
+**Test Verification:**
+- ✅ Two-finger pan on Magic Keyboard trackpad pans the MurderBoard canvas
+- ✅ Sidebar ScrollView still scrolls independently without panning canvas
+- ✅ Touch gestures (tap, drag, pinch) unaffected
+- ✅ Both macOS and iOS builds pass cleanly
+
+---
+
+## DR-0087: MurderBoard and CardSheetView Toolbar Items Left-Justified on macOS; iOS Segmented Picker Shows Text
+
+**Status:** ✅ Resolved - Verified
+**Platform:** macOS, iOS
+**Component:** MurderBoardToolbar, CardSheetView, MainAppView
+**Severity:** Medium — cosmetic/usability; toolbar items in wrong position
+**Date Identified:** 2026-02-10
+**Date Resolved:** 2026-02-10
+**Date Verified:** 2026-02-10
+
+**Description:**
+Two related toolbar layout issues:
+
+1. **macOS — left-justified toolbar items:** On macOS, `MurderBoardView` and `CardSheetView` both added `ToolbarItemGroup(placement: .primaryAction)` items as nested child views. macOS places nested child `.primaryAction` items to the LEFT of the parent view's `.primaryAction` items, resulting in the MurderBoard zoom controls and CardSheetView Focus Mode button appearing on the left side of the window toolbar instead of the right. MurderBoard also produced a second separate toolbar cluster to the right.
+
+2. **iOS — segmented control shows text labels:** The tab picker segmented control on iOS used `Label(tab.title, systemImage:)` which renders both icon and text, making segments too wide and cluttered.
+
+**Root Cause:**
+On macOS, child/nested views that call `.toolbar { ToolbarItemGroup(placement: .primaryAction) }` have their items inserted to the left of the parent's `.primaryAction` items — this is AppKit/SwiftUI toolbar ordering behaviour for nested NavigationStack/NavigationSplitView hierarchies. The iOS picker used `Label` instead of `Image(systemName:)`.
+
+**Resolution:**
+
+1. **MurderBoard macOS:** Suppressed `.toolbar {}` on macOS entirely (`#if os(iOS) || os(visionOS)`). Replaced with an in-canvas bottom HUD overlay (`bottomZoomStrip`) styled as a capsule with `.ultraThinMaterial` background. The strip contains: minus button, slider, plus button, zoom% text field, divider, recenter, shuffle.
+
+2. **CardSheetView macOS:** Suppressed `.toolbar { toolbarContent }` on macOS (`#if os(iOS) || os(visionOS)`). Moved the Focus Mode button to a `.overlay(alignment: .topTrailing)` in-view button with `.plain` button style, same keyboard shortcut and help text preserved.
+
+3. **iOS picker:** Changed `Label(tab.title, systemImage:)` to `Image(systemName: tab.systemImage)` — icons only. Removed `ScrollView` wrapper (no longer needed with compact icon-only segments).
+
+**Files Modified:**
+- `Cumberland/Murderboard/MurderBoardView.swift` — Wrapped `.toolbar` in `#if os(iOS) || os(visionOS)`, added `bottomZoomStrip` to ZStack
+- `Cumberland/Murderboard/MurderBoardToolbar.swift` — Added `#if os(macOS)` extension with `bottomZoomStrip(windowSize:)`
+- `Cumberland/CardSheetView.swift` — Wrapped `.toolbar` in `#if os(iOS) || os(visionOS)`, added `#if os(macOS)` focus mode overlay button
+- `Cumberland/MainAppView.swift` — iOS picker uses `Image(systemName:)` only, removed ScrollView wrapper
+
+**Test Verification:**
+- ✅ MurderBoard: zoom strip appears as bottom-center capsule HUD on macOS
+- ✅ MurderBoard: window toolbar no longer shows left-justified zoom items on macOS
+- ✅ CardSheetView: Focus Mode button appears as top-trailing in-view overlay on macOS
+- ✅ CardSheetView: window toolbar no longer shows left-justified Focus Mode button
+- ✅ iOS: segmented picker shows icons only, no text
+- ✅ Both macOS and iOS builds pass cleanly
+
+---
+
+## DR-0088: MurderBoard Zoom Strip — Minus Button Requires Pixel-Precise Hit, Zoom TextField Clamps on Partial Input, iOS Zoom in Toolbar
+
+**Status:** ✅ Resolved - Verified
+**Platform:** macOS, iOS
+**Component:** MurderBoardToolbar, MainAppView
+**Severity:** Medium — controls unusable or behaved incorrectly
+**Date Identified:** 2026-02-10
+**Date Resolved:** 2026-02-10
+**Date Verified:** 2026-02-10
+
+**Description:**
+Three follow-on issues after DR-0087's zoom strip implementation:
+
+1. **Minus button hit area:** The minus (`−`) button in the macOS bottom zoom strip required pixel-precise clicking — only the 1–2px glyph line of the minus symbol registered as a hit. The `+` button had the same issue but was less noticeable because its two lines are slightly larger.
+
+2. **Zoom TextField clamps on partial input:** The zoom percentage TextField bound directly to `zoomScale` via a computed `Binding`. Clearing the field transiently produced `"0"` or `""`, which clamped to the minimum zoom (20%). Typing "50" after clearing would clamp incorrectly at intermediate keystrokes.
+
+3. **iOS zoom controls in system toolbar:** After DR-0087, iOS still had zoom controls in the system toolbar (`.primaryAction`), cluttering the navigation bar.
+
+**Root Cause:**
+1. SwiftUI's hit testing for `.plain` buttons only counts pixels where the label actually renders. A thin `Image(systemName: "minus")` with no explicit content shape has a nearly zero-area hit region.
+2. The binding's `set` closure fired on every keystroke including intermediate states, immediately clamping to the valid range.
+3. iOS zoom controls were not moved to the HUD overlay as part of DR-0087.
+
+**Resolution:**
+
+1. **Hit area:** Added `.contentShape(Rectangle())` to the `Image` inside both minus and plus button labels, making the entire 16×16 pt frame hittable.
+
+2. **Zoom TextField:** Extracted a `ZoomTextField` private struct with a local `@State var draft: String`. Draft commits only on Return or focus loss. External zoom changes sync the display via `.onChange(of: zoomScale)` only when not editing. Invalid input resets to current zoom on commit.
+
+3. **iOS zoom overlay:** Added `#if os(iOS)` `bottomZoomStrip` extension. Updated `MurderBoardView.swift` to include the strip on `os(macOS) || os(iOS)`. Changed toolbar condition from `#if os(iOS) || os(visionOS)` to `#if os(visionOS)` only.
+
+**Files Modified:**
+- `Cumberland/Murderboard/MurderBoardToolbar.swift` — `.contentShape(Rectangle())` on minus/plus labels; `ZoomTextField` struct; iOS `bottomZoomStrip` extension
+- `Cumberland/Murderboard/MurderBoardView.swift` — Bottom strip condition `os(macOS) || os(iOS)`; toolbar suppressed on iOS
+
+**Test Verification:**
+- ✅ Minus button responds to clicks anywhere in its visible area on macOS
+- ✅ Clearing zoom TextField and typing "50" sets zoom to 50% correctly
+- ✅ Invalid input resets to current zoom on commit
+- ✅ iOS MurderBoard shows bottom zoom HUD overlay instead of toolbar zoom items
+- ✅ Both macOS and iOS builds pass cleanly
 
 ---
 

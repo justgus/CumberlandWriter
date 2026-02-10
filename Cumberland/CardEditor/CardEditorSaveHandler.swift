@@ -17,10 +17,12 @@ final class CardEditorSaveHandler {
 
     private let modelContext: ModelContext
     private let viewModel: CardEditorViewModel
+    private let structureRepository: StructureRepository?
 
-    init(modelContext: ModelContext, viewModel: CardEditorViewModel) {
+    init(modelContext: ModelContext, viewModel: CardEditorViewModel, structureRepository: StructureRepository? = nil) {
         self.modelContext = modelContext
         self.viewModel = viewModel
+        self.structureRepository = structureRepository
     }
 
     // MARK: - Save Operations
@@ -63,36 +65,51 @@ final class CardEditorSaveHandler {
 
         // Create structure
         let structure = StoryStructure(name: viewModel.structureName)
-        modelContext.insert(structure)
 
-        // Create elements
-        for (index, editableEl) in viewModel.editableElements.enumerated() {
-            let element = StructureElement(
-                name: editableEl.name,
-                elementDescription: editableEl.description,
-                orderIndex: index
-            )
-            element.colorHue = editableEl.colorHue
-            element.storyStructure = structure
-            modelContext.insert(element)
+        if let repo = structureRepository {
+            // Route through StructureRepository (ER-0022 service layer)
+            try? repo.insertStructure(structure)
 
-            // No card assignments for new project
+            for (index, editableEl) in viewModel.editableElements.enumerated() {
+                let element = StructureElement(
+                    name: editableEl.name,
+                    elementDescription: editableEl.description,
+                    orderIndex: index
+                )
+                element.colorHue = editableEl.colorHue
+                element.storyStructure = structure
+                try? repo.insertElement(element)
+            }
+        } else {
+            // Fallback: direct modelContext operations
+            modelContext.insert(structure)
+
+            for (index, editableEl) in viewModel.editableElements.enumerated() {
+                let element = StructureElement(
+                    name: editableEl.name,
+                    elementDescription: editableEl.description,
+                    orderIndex: index
+                )
+                element.colorHue = editableEl.colorHue
+                element.storyStructure = structure
+                modelContext.insert(element)
+            }
+
+            try? modelContext.save()
         }
-
-        try? modelContext.save()
     }
 
     private func updateStructureForExistingProject(projectCard: Card) {
-        // Find existing structure for this project
-        let projectName = projectCard.name
-        let fetchDesc = FetchDescriptor<StoryStructure>(
-            predicate: #Predicate { structure in
-                structure.name == projectName
-            }
-        )
+        let existing: StoryStructure?
+        if let repo = structureRepository {
+            existing = repo.fetchStructure(byName: projectCard.name)
+        } else {
+            let projectName = projectCard.name
+            let fetchDesc = FetchDescriptor<StoryStructure>(predicate: #Predicate { $0.name == projectName })
+            existing = try? modelContext.fetch(fetchDesc).first
+        }
 
-        guard let existing = try? modelContext.fetch(fetchDesc).first else {
-            // No existing structure - create if user configured one
+        guard let existing else {
             if viewModel.attachStructure {
                 persistStructureForNewProject(projectCard: projectCard)
             }
@@ -100,34 +117,37 @@ final class CardEditorSaveHandler {
         }
 
         if !viewModel.attachStructure {
-            // User toggled off - remove structure
-            modelContext.delete(existing)
-            try? modelContext.save()
+            if let repo = structureRepository {
+                try? repo.deleteStructure(existing)
+            } else {
+                modelContext.delete(existing)
+                try? modelContext.save()
+            }
             return
         }
 
         // Update existing structure
         existing.name = viewModel.structureName
-
-        // Sync elements
         let oldElements = existing.elements ?? []
 
         // Remove elements not in editableElements
         for oldEl in oldElements {
             if !viewModel.editableElements.contains(where: { $0.name == oldEl.name }) {
-                modelContext.delete(oldEl)
+                if let repo = structureRepository {
+                    try? repo.deleteElement(oldEl)
+                } else {
+                    modelContext.delete(oldEl)
+                }
             }
         }
 
         // Add/update elements from editableElements
         for (index, editableEl) in viewModel.editableElements.enumerated() {
             if let existingEl = oldElements.first(where: { $0.name == editableEl.name }) {
-                // Update existing
                 existingEl.orderIndex = index
                 existingEl.elementDescription = editableEl.description
                 existingEl.colorHue = editableEl.colorHue
             } else {
-                // Create new
                 let newElement = StructureElement(
                     name: editableEl.name,
                     elementDescription: editableEl.description,
@@ -135,11 +155,17 @@ final class CardEditorSaveHandler {
                 )
                 newElement.colorHue = editableEl.colorHue
                 newElement.storyStructure = existing
-                modelContext.insert(newElement)
+                if let repo = structureRepository {
+                    try? repo.insertElement(newElement)
+                } else {
+                    modelContext.insert(newElement)
+                }
             }
         }
 
-        try? modelContext.save()
+        if structureRepository == nil {
+            try? modelContext.save()
+        }
     }
 
     // MARK: - Auto-Generation

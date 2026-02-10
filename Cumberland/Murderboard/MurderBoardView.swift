@@ -22,6 +22,7 @@ struct MurderBoardView: View {
     let primary: Card
 
     @Environment(\.modelContext) var modelContext
+    @Environment(\.services) var services
     @Environment(\.colorScheme) var scheme
 
     // Query for all cards (used by backlog)
@@ -199,7 +200,8 @@ struct MurderBoardView: View {
                     edgeCreationState: edgeCreationState,
                     onEdgeCreated: { sourceID, targetID in
                         handleEdgeCreationRequest(sourceCardID: sourceID, targetCardID: targetID)
-                    }
+                    },
+                    isSidebarVisible: isSidebarVisible
                 ))
 
                 if isContentReady == false {
@@ -216,11 +218,21 @@ struct MurderBoardView: View {
                     backlogCards: backlogCards,
                     onAddSelectedCards: { addSelectedCardsToBoard() }
                 )
+
+                #if os(macOS) || os(iOS)
+                // Bottom zoom strip — in-canvas HUD on both macOS and iOS.
+                // On macOS: nested-view toolbar items appear left-justified; strip avoids that.
+                // On iOS: keeps toolbar uncluttered; zoom controls accessible in the canvas.
+                bottomZoomStrip(windowSize: contentSize)
+                    .allowsHitTesting(true)
+                #endif
             }
             .overlay(borderCanvasOverlay())
             .clipShape(RoundedRectangle(cornerRadius: windowCornerRadius, style: .continuous))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            #if os(visionOS)
             .toolbar { toolbarContent(windowSize: contentSize) }
+            #endif
             .onChange(of: board?.id) {
                 if let b = board, didInitialRecenter == false, contentSize.width > 0, contentSize.height > 0 {
                     initialRecenterIfNeeded(on: b, windowSize: contentSize)
@@ -308,6 +320,7 @@ struct MurderBoardView: View {
                 .shadow(radius: 8)
         )
     }
+
 }
 
 // MARK: - Preview

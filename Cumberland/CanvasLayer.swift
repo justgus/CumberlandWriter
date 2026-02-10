@@ -155,8 +155,11 @@ struct CanvasLayer: View {
                 }
 
             } //end ZStack
-            // Untransformed, stable view-space named for future gesture sources (CA-13.2)
-            .coordinateSpace(name: canvasCoordSpace)
+            // Note: .coordinateSpace(name: canvasCoordSpace) is NOT registered here.
+            // It is registered by MultiGestureModifier on the parent ZStack in MurderBoardView,
+            // ensuring the DragGesture's named coordinate space resolves to the gesture target view.
+            // Registering it here (on a child) caused a duplicate registration that made
+            // DragGesture report coordinates in the child's local space on iOS (DR-0085).
             .contentShape(Rectangle())
             // Add drop receiver for cards from backlog (0690-0710)
             .dropDestination(for: CardTransferData.self) { items, location in

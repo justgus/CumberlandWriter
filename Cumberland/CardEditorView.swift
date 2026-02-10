@@ -51,6 +51,7 @@ struct CardEditorView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.services) private var services
     @Environment(\.colorScheme) private var scheme
 
     // App settings (for default author)
@@ -88,7 +89,7 @@ struct CardEditorView: View {
 
     // Save handler
     private var saveHandler: CardEditorSaveHandler {
-        CardEditorSaveHandler(modelContext: modelContext, viewModel: viewModel)
+        CardEditorSaveHandler(modelContext: modelContext, viewModel: viewModel, structureRepository: services?.structureRepository)
     }
 
     // MARK: - Tunable constants (match CardView where sensible)

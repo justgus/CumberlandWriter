@@ -174,8 +174,9 @@ extension CardRelationshipView {
     // MARK: - Edge Operations
 
     /// Create a CardEdge if it doesn't already exist.
+    /// Delegates to RelationshipManager when available via services.
     @MainActor
-    func createEdgeIfNeeded(from source: Card, to target: Card, type: RelationType, appendToEnd: Bool, modelContext: ModelContext) {
+    func createEdgeIfNeeded(from source: Card, to target: Card, type: RelationType, appendToEnd: Bool, modelContext: ModelContext, services: ServiceContainer? = nil) {
         guard let enforcedType = canonicalizedTypeFor(source: source, target: target, proposed: type, modelContext: modelContext) else {
             return
         }
@@ -190,7 +191,7 @@ extension CardRelationshipView {
         )
         if let found = try? modelContext.fetch(existsFetch), found.isEmpty == false {
             if let existingEdge = found.first {
-                ensureReverseEdge(forwardEdge: existingEdge, appendToEnd: appendToEnd, modelContext: modelContext)
+                ensureReverseEdge(forwardEdge: existingEdge, appendToEnd: appendToEnd, modelContext: modelContext, services: services)
             }
             return
         }
@@ -214,12 +215,13 @@ extension CardRelationshipView {
         modelContext.insert(edge)
         try? modelContext.save()
 
-        ensureReverseEdge(forwardEdge: edge, appendToEnd: appendToEnd, modelContext: modelContext)
+        ensureReverseEdge(forwardEdge: edge, appendToEnd: appendToEnd, modelContext: modelContext, services: services)
     }
 
     /// Ensure the reverse edge exists for a forward edge.
+    /// Delegates to RelationshipManager when available via services.
     @MainActor
-    func ensureReverseEdge(forwardEdge: CardEdge, appendToEnd: Bool, modelContext: ModelContext) {
+    func ensureReverseEdge(forwardEdge: CardEdge, appendToEnd: Bool, modelContext: ModelContext, services: ServiceContainer? = nil) {
         guard let src = forwardEdge.from, let dst = forwardEdge.to, let t = forwardEdge.type else { return }
         let srcID: UUID? = src.id
         let dstID: UUID? = dst.id
@@ -285,8 +287,14 @@ extension CardRelationshipView {
     }
 
     /// Remove all relationships between two cards.
+    /// Delegates to RelationshipManager when available via services.
     @MainActor
-    func removeRelationship(between a: Card, and b: Card, modelContext: ModelContext) {
+    func removeRelationship(between a: Card, and b: Card, modelContext: ModelContext, services: ServiceContainer? = nil) {
+        if let mgr = services?.relationshipManager {
+            try? mgr.removeRelationship(between: a, and: b, typeFilter: relationTypeFilter)
+            return
+        }
+        // Fallback: direct modelContext operations
         let aID: UUID? = a.id
         let bID: UUID? = b.id
 
@@ -317,19 +325,31 @@ extension CardRelationshipView {
     // MARK: - Card Operations
 
     /// Cleanup and delete a card.
+    /// Delegates to CardOperationManager when available via services.
     @MainActor
-    func cleanupAndDelete(_ card: Card, modelContext: ModelContext) {
+    func cleanupAndDelete(_ card: Card, modelContext: ModelContext, services: ServiceContainer? = nil) {
+        if let mgr = services?.cardOperations {
+            try? mgr.deleteCard(card)
+            return
+        }
+        // Fallback: direct modelContext operations
         card.cleanupBeforeDeletion(in: modelContext)
         modelContext.delete(card)
         try? modelContext.save()
     }
 
     /// Change a card's type and remove all its relationships.
+    /// Delegates to CardOperationManager when available via services.
     @MainActor
-    func changeCardType(card: Card, to newKind: Kinds, modelContext: ModelContext) {
+    func changeCardType(card: Card, to newKind: Kinds, modelContext: ModelContext, services: ServiceContainer? = nil) {
         guard newKind != card.kind else { return }
 
-        // Fetch all edges where this card is either source or target
+        if let mgr = services?.cardOperations {
+            try? mgr.changeCardType(card, to: newKind)
+            return
+        }
+
+        // Fallback: direct modelContext operations
         let cardID: UUID? = card.id
         let fetchFrom = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
         let fetchTo = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
@@ -337,15 +357,11 @@ extension CardRelationshipView {
         let edgesFrom = (try? modelContext.fetch(fetchFrom)) ?? []
         let edgesTo = (try? modelContext.fetch(fetchTo)) ?? []
 
-        // Delete all relationships
         for edge in edgesFrom + edgesTo {
             modelContext.delete(edge)
         }
 
-        // Change the card type
         card.kindRaw = newKind.rawValue
-
-        // Save changes
         try? modelContext.save()
 
         #if DEBUG
