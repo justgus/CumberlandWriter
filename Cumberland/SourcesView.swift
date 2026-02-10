@@ -1,4 +1,12 @@
-// SourcesView.swift
+//
+//  SourcesView.swift
+//  Cumberland
+//
+//  Two-column view for browsing and managing Source records. Left column is a
+//  searchable list of sources sorted by title; right column shows the detail
+//  editor for the selected source. Supports add and delete operations.
+//
+
 import SwiftUI
 import SwiftData
 

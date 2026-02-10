@@ -5,6 +5,11 @@
 //  Created by Claude Code on 2026-02-06.
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 1
 //
+//  Centralised service for CardEdge relationship CRUD. Consolidates edge
+//  creation (with duplicate-check), edge deletion, bulk type reassignment,
+//  and relationship query helpers extracted from CardRelationshipView,
+//  SuggestionEngine, and MurderBoardView.
+//
 
 import Foundation
 import SwiftData

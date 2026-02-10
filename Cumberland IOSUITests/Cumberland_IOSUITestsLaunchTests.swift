@@ -4,6 +4,10 @@
 //
 //  Created by Mike Stoddard on 10/13/25.
 //
+//  XCTest launch test for the iOS/iPadOS Cumberland target. Captures a
+//  screenshot at application launch across all UI configurations as a
+//  visual baseline.
+//
 
 import XCTest
 

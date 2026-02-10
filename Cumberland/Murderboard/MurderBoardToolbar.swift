@@ -1,6 +1,12 @@
-// MurderBoardToolbar.swift
-// Extracted from MurderBoardView.swift as part of ER-0022 Phase 3.3
-// Contains toolbar and zoom controls
+//
+//  MurderBoardToolbar.swift
+//  Cumberland
+//
+//  Extracted from MurderBoardView.swift as part of ER-0022 Phase 3.3.
+//  Provides the Murderboard toolbar (fit-to-screen, add-node, backlog
+//  toggle, edge-creation mode) and the macOS zoom strip with an editable
+//  ZoomTextField that commits only on Return or focus loss.
+//
 
 import SwiftUI
 import SwiftData

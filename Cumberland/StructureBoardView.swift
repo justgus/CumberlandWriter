@@ -1,3 +1,13 @@
+//
+//  StructureBoardView.swift
+//  Cumberland
+//
+//  Kanban-style structure board for a project card. Renders a "Backlog" lane
+//  for unassigned scenes plus one lane per StoryStructure element. Supports
+//  drag-and-drop assignment between lanes, zoom controls, and "Fit to Width"
+//  layout. Uses StructureAssignmentManager for many-to-many element↔card bindings.
+//
+
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers

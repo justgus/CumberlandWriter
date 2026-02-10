@@ -5,6 +5,11 @@
 //  Created by Claude Code on 2026-02-06.
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 3
 //
+//  @Observable view model for CardEditorView. Manages mutable form state
+//  (name, subtitle, details, selected kind, image data, Photos picker item,
+//  selected calendar system) and provides async image-loading helpers that
+//  bridge PhotosUI and the ImageProcessingService.
+//
 
 import Foundation
 import SwiftUI

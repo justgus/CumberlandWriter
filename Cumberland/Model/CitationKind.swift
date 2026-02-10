@@ -1,4 +1,13 @@
-// CitationKind.swift
+//
+//  CitationKind.swift
+//  Cumberland
+//
+//  Enum enumerating the four citation kinds: quote, paraphrase, image, data.
+//  Provides displayName, SF Symbol name, and color tint for each kind. Used
+//  by Citation model and citation UI views to categorise and visually
+//  differentiate source references.
+//
+
 import Foundation
 import SwiftUI
 

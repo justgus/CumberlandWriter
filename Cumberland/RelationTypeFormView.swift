@@ -1,3 +1,13 @@
+//
+//  RelationTypeFormView.swift
+//  Cumberland
+//
+//  Form for creating or editing a RelationType. Collects the unique code,
+//  forward label (source→target), and inverse label (target→source), then
+//  either inserts a new RelationType or updates the existing one in the
+//  SwiftData context.
+//
+
 import SwiftUI
 import SwiftData
 

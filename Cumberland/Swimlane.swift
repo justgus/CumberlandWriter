@@ -1,4 +1,12 @@
-// Swimlane.swift
+//
+//  Swimlane.swift
+//  Cumberland
+//
+//  A single vertical or horizontal lane in the StructureBoardView / SwimlaneViewer.
+//  Displays a header label and a scrollable stack of CardView tiles for cards
+//  assigned to that lane. Accepts drag-and-drop to reassign cards between lanes.
+//
+
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers

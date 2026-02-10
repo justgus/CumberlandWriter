@@ -2,8 +2,10 @@
 //  GlassCard.swift
 //  Cumberland
 //
-//  Extracted from CardRelationshipView.swift as part of ER-0022 Phase 4.5
-//  A reusable glass-like container component with customizable styling.
+//  Extracted from CardRelationshipView.swift as part of ER-0022 Phase 4.5.
+//  Reusable glass-morphism container view with configurable corner radius,
+//  optional accent tint, shadow depth, and padding. Used throughout the
+//  app for panels, inspector cards, and relationship tiles.
 //
 
 import SwiftUI

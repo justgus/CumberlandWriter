@@ -1,4 +1,13 @@
-// SwimlaneViewer.swift
+//
+//  SwimlaneViewer.swift
+//  Cumberland
+//
+//  Horizontal scroll container that renders multiple Swimlane columns side by
+//  side. Accepts LaneDescriptor array (explicit) or master card list (auto-
+//  grouped by related card). Supports an optional relation-type filter and
+//  drop using a default "references" relation type.
+//
+
 import SwiftUI
 import SwiftData
 import Combine

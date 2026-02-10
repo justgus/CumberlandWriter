@@ -1,3 +1,14 @@
+//
+//  AISettings.swift
+//  Cumberland
+//
+//  Singleton for persisting AI provider preferences and behaviour settings
+//  via UserDefaults. Provides typed accessors for preferred provider name,
+//  confidence threshold, max suggestions, auto-suggestion toggle, and API
+//  key management (delegated to KeychainHelper). Views use @AppStorage with
+//  the published key constants for reactive updates.
+//
+
 import Foundation
 import SwiftUI
 

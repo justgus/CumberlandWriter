@@ -1,4 +1,13 @@
-// RecentEdgesDiagnosticsView.swift
+//
+//  RecentEdgesDiagnosticsView.swift
+//  Cumberland
+//
+//  Developer diagnostic view listing the most recently created CardEdge
+//  records with their from/to card names, relation-type code, and creation
+//  timestamps. Useful for verifying that relationship operations produce
+//  the expected edges. Accessed from DeveloperToolsView.
+//
+
 import SwiftUI
 import SwiftData
 

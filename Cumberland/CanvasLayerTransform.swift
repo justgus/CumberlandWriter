@@ -1,8 +1,13 @@
 //
-//  MBTransform.swift
+//  CanvasLayerTransform.swift  (formerly MBTransform.swift)
 //  Cumberland
 //
 //  Created by Assistant on 11/1/25.
+//
+//  Utility struct providing coordinate-space conversion helpers for the
+//  Murderboard canvas: worldToView(_:offset:scale:) and viewToWorld(_:…).
+//  Used by MurderBoardOperations and EdgesLayer to map between board world
+//  coordinates and on-screen SwiftUI view positions.
 //
 
 import SwiftUI

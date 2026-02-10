@@ -1,3 +1,13 @@
+//
+//  Card+ERExtensions.swift
+//  Cumberland
+//
+//  Card model extensions added by enhancement requests ER-0008 (timeline
+//  temporal positioning), ER-0009 (AI image generation metadata), and
+//  ER-0010 (content-analysis feedback). Documents properties that require
+//  a SwiftData schema migration to activate (AppSchemaV6+).
+//
+
 import Foundation
 import SwiftData
 

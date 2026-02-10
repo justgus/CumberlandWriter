@@ -1,4 +1,13 @@
-// RelationType.swift
+//
+//  RelationType.swift
+//  Cumberland
+//
+//  SwiftData model defining a bidirectional relationship type. Stores a unique
+//  code (e.g. "owns/owned-by"), forwardLabel (source→target text), inverseLabel
+//  (target→source text), and optional kind constraints. Used by CardEdge to
+//  categorise directed relationships between cards.
+//
+
 import Foundation
 import SwiftData
 

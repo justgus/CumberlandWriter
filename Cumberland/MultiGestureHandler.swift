@@ -4,6 +4,11 @@
 //
 //  Created by Assistant on 10/31/25.
 //
+//  Cross-platform simultaneous gesture coordinator for canvas views. Wraps
+//  platform-specific magnification, rotation, and pan gesture recognizers
+//  (AppKit on macOS, UIKit on iOS) into a unified GestureTarget protocol so
+//  MurderBoardView and DrawingCanvasView can handle pan/pinch/tap uniformly.
+//
 
 import SwiftUI
 import Foundation

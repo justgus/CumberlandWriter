@@ -1,4 +1,12 @@
-// QuickAttributionSheet.swift
+//
+//  QuickAttributionSheet.swift
+//  Cumberland
+//
+//  Lightweight attribution capture sheet presented immediately after a user
+//  drops or pastes an image. Pre-fills URL and excerpt from the drop payload
+//  and lets the user save a Citation or skip attribution entirely.
+//
+
 import SwiftUI
 import SwiftData
 import Combine

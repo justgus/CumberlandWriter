@@ -1,3 +1,13 @@
+//
+//  ImageGenerationWorkflowTests.swift
+//  CumberlandTests
+//
+//  Swift Testing suite for ER-0009: AI Image Generation.
+//  End-to-end workflow tests covering image generation request, result
+//  persistence to Card, and ImageVersion creation. Currently disabled
+//  (#if false) pending type fixes.
+//
+
 import Testing
 import Foundation
 import SwiftData

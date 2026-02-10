@@ -1,3 +1,12 @@
+//
+//  ImageAttributionViewer.swift
+//  Cumberland
+//
+//  List view for image attribution (CitationKind.image) records attached to
+//  a card. Shows artist, license, and source URL; provides add/edit/delete
+//  actions via ImageAttributionEditor sheet.
+//
+
 import SwiftUI
 import SwiftData
 

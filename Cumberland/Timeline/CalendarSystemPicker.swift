@@ -6,6 +6,10 @@
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 3
 //  Extracted from CardEditorView.swift
 //
+//  Picker component for selecting a CalendarSystem to associate with a
+//  Timeline card. Lists all available CalendarSystem records and provides
+//  an inline "Create New Calendar" option. Extracted from CardEditorView.
+//
 
 import SwiftUI
 import SwiftData

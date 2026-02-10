@@ -4,6 +4,10 @@
 //
 //  Created by Mike Stoddard on 10/10/25.
 //
+//  Observable app-wide state model. Tracks visionOS immersive space state
+//  (open/closed/transitioning) and card editor window requests for spatial
+//  window management on visionOS.
+//
 
 import SwiftUI
 

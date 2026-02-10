@@ -6,6 +6,11 @@
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 3
 //  Extracted from CardEditorView.swift
 //
+//  Generic animated flip container that rotates between a front and back
+//  view using a 3D card-flip transition. Used in CardEditorView to show
+//  the edit form (front) and an image-generation preview (back).
+//
+//
 
 import SwiftUI
 

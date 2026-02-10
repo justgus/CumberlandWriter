@@ -1,3 +1,13 @@
+//
+//  SuggestionFeedback.swift
+//  Cumberland
+//
+//  SwiftData model tracking anonymised user feedback on AI entity suggestions
+//  (ER-0010). Stores entity kind and confidence level (no actual names for
+//  privacy) plus accepted/rejected flag. Used by SuggestionEngine to tune
+//  confidence thresholds over time.
+//
+
 import Foundation
 import SwiftData
 

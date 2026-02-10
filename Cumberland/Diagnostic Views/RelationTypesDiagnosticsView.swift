@@ -1,4 +1,13 @@
-// RelationTypesDiagnosticsView.swift
+//
+//  RelationTypesDiagnosticsView.swift
+//  Cumberland
+//
+//  Developer diagnostic view listing all RelationType records with their
+//  codes, forward/inverse labels, and edge counts. Provides a "Clean
+//  Duplicates" action that merges duplicate types and reassigns orphaned
+//  edges. Accessed from DeveloperToolsView.
+//
+
 import SwiftUI
 import SwiftData
 

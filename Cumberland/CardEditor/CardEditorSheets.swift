@@ -6,6 +6,11 @@
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 3
 //  Extracted from CardEditorView.swift
 //
+//  ViewModifier/extension that attaches all sheet, fullScreenCover, and
+//  alert presentations to CardEditorView: AI image generation, photo picker,
+//  quick attribution, visual element review, image history, and batch
+//  generation progress.
+//
 
 import SwiftUI
 import SwiftData

@@ -4,6 +4,11 @@
 //
 //  Created by Mike Stoddard on 10/2/25.
 //
+//  Defines the Kinds enum that categorises every Card (characters, scenes,
+//  locations, maps, chapters, projects, timelines, calendars, sources, worlds).
+//  Conforms to Codable for SwiftData storage via kindRaw String. Provides
+//  displayName, plural form, SF Symbol, accent color, and sidebar sort order.
+//
 
 import Foundation
 import SwiftUI

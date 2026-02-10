@@ -1,4 +1,12 @@
-// RepairUtilities.swift
+//
+//  RepairUtilities.swift
+//  Cumberland
+//
+//  Data-repair utilities run from DeveloperToolsView. Includes
+//  DataRepair.repairForeignBoardNodes which removes orphaned BoardNode
+//  records that reference missing boards or cards from the SwiftData store.
+//
+
 import SwiftUI
 import SwiftData
 

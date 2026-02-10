@@ -1,3 +1,13 @@
+//
+//  KeychainHelper.swift
+//  Cumberland
+//
+//  Singleton helper for securely storing, retrieving, and deleting API keys
+//  in the system Keychain using kSecClassGenericPassword. Used by AISettings
+//  and provider classes (OpenAI, Anthropic) to manage third-party credentials
+//  without embedding secrets in UserDefaults or the binary.
+//
+
 import Foundation
 import Security
 

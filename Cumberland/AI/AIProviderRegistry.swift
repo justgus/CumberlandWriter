@@ -1,3 +1,13 @@
+//
+//  AIProviderRegistry.swift
+//  Cumberland
+//
+//  Singleton registry that instantiates and manages all available AI providers
+//  (Apple Intelligence, OpenAI, Anthropic). Provides provider lookup by name
+//  and selects the preferred provider based on AISettings. Lazily registers
+//  providers on first access.
+//
+
 import Foundation
 
 /// Central registry for managing AI providers

@@ -4,6 +4,11 @@
 //
 //  Created on 11/13/25.
 //
+//  macOS drawing canvas for the Map Wizard. Uses AppKit NSView with Core
+//  Graphics rendering (no PencilKit) to support the active drawing layer,
+//  composites non-active layers, and coordinates LayerManager state. Handles
+//  mouse drag for drawing strokes and scroll-wheel zoom/pan.
+//
 
 import SwiftUI
 

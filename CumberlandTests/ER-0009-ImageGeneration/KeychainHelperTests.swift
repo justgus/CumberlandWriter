@@ -1,3 +1,12 @@
+//
+//  KeychainHelperTests.swift
+//  CumberlandTests
+//
+//  Swift Testing suite for ER-0009: AI Image Generation (Phase 1).
+//  Tests KeychainHelper secure API key storage: save, retrieve, update,
+//  and delete operations; empty-string handling; and multi-key isolation.
+//
+
 import Testing
 @testable import Cumberland
 

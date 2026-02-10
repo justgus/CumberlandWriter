@@ -5,6 +5,11 @@
 //  Created by Claude Code on 2026-02-06.
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 1
 //
+//  Centralised service for Card CRUD operations. Consolidates card creation
+//  (with default RelationType seeding), deletion (with cascade cleanup of
+//  edges, board nodes, and citations), and duplication logic extracted from
+//  MainAppView and CardEditorView.
+//
 
 import Foundation
 import SwiftData

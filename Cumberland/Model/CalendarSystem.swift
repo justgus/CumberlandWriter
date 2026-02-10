@@ -1,3 +1,15 @@
+//
+//  CalendarSystem.swift
+//  Cumberland
+//
+//  Part of ER-0008: Time-Based Timeline System with Custom Calendars.
+//
+//  SwiftData model representing a complete fictional or real-world time system.
+//  Stores an ordered array of TimeDivision values (e.g. moment → cycle → day →
+//  moon → year → age) with validation and calendar-arithmetic helpers. Includes
+//  a Gregorian factory method and Comparable conformance for sorted lists.
+//
+
 import Foundation
 import SwiftData
 

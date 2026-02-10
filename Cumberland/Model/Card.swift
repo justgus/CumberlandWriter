@@ -4,6 +4,14 @@
 //
 //  Created by Mike Stoddard on 10/1/25.
 //
+//  Central SwiftData model for all worldbuilding content. A Card represents
+//  any entity (character, scene, location, map, chapter, project, timeline,
+//  calendar, source, world) identified by its `kind` property. Stores name,
+//  subtitle, details text, image data (external storage for CloudKit),
+//  thumbnail, AI-generation metadata, temporal positioning, draft map work,
+//  and many-to-many StructureElement assignments. Outgoing and incoming
+//  CardEdges form the directed relationship graph.
+//
 
 import Foundation
 import SwiftData

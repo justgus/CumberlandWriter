@@ -1,5 +1,12 @@
-// SceneTemporalPositionEditor.swift
-// Part of ER-0008: Timeline System with Temporal Positioning
+//
+//  SceneTemporalPositionEditor.swift
+//  Cumberland
+//
+//  Part of ER-0008: Timeline System with Temporal Positioning.
+//  Sheet editor for setting a scene's start position, duration, and temporal
+//  unit on a specific Timeline card. Writes values to the CardEdge linking
+//  the scene to the timeline. Presented from TimelineChartView.
+//
 
 import SwiftUI
 import SwiftData

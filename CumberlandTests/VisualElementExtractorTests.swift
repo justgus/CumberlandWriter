@@ -5,6 +5,13 @@
 //  Created for ER-0021: AI-Powered Visual Element Extraction
 //  Phase 1: Core Infrastructure Tests
 //
+//  Swift Testing suite that exercises VisualElementExtractor end-to-end using
+//  the AppleIntelligenceProvider. Covers character, building, scene, and artifact
+//  extraction; camera angle inference for grand vs. humble buildings; partial
+//  object detection; validation of empty/short input; and prompt generation
+//  for Apple Intelligence, OpenAI, and Anthropic providers. Also tests Codable
+//  round-trip and hasSufficientData helper.
+//
 
 import Foundation
 import Testing

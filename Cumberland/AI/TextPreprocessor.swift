@@ -1,3 +1,13 @@
+//
+//  TextPreprocessor.swift
+//  Cumberland
+//
+//  Pre-processes long narrative text (up to chapter length) before sending to
+//  AI providers. Uses NaturalLanguage to extract proper nouns and key entities,
+//  then selects sentences containing those entities to produce a condensed
+//  ~1,000 word summary from potentially 10,000+ word inputs.
+//
+
 import Foundation
 import NaturalLanguage
 

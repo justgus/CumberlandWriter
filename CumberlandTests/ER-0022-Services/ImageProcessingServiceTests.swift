@@ -5,6 +5,11 @@
 //  Created for ER-0022 Phase 5: Testing and Validation
 //  Tests for ImageProcessingService (Phase 1 deliverable)
 //
+//  Swift Testing suite that verifies ImageProcessingService: thumbnail
+//  generation from image data, resize-to-fit dimensions, JPEG/PNG compression
+//  quality options, and format conversion round-trips. Uses in-memory image
+//  data to avoid external dependencies.
+//
 
 import Foundation
 import Testing

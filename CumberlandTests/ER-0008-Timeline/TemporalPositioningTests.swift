@@ -1,3 +1,13 @@
+//
+//  TemporalPositioningTests.swift
+//  CumberlandTests
+//
+//  Swift Testing suite for ER-0008: Time-Based Timeline System.
+//  Verifies temporal positioning of scene cards on timelines, including
+//  epoch-relative offset calculations, CalendarSystem assignment, and
+//  sorted scene ordering.
+//
+
 import Testing
 import Foundation
 import SwiftData

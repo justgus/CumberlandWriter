@@ -4,6 +4,12 @@
 //
 //  Created by Mike Stoddard on 10/1/25.
 //
+//  Singleton file-system store for original image data. Writes and reads
+//  UUID-named image files under Application Support/<bundleID>/OriginalImages/,
+//  excluded from iCloud backup. Provides helpers to list, prune orphaned files,
+//  and derive a card UUID from a stored image URL. Used by Card.setOriginalImageData
+//  to persist original images locally (synced separately via CloudKit CKAsset).
+//
 
 import Foundation
 import UniformTypeIdentifiers

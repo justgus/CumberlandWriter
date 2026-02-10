@@ -4,6 +4,9 @@
 //
 //  Created by Mike Stoddard on 10/10/25.
 //
+//  Root view dispatcher. Routes to VisionOSContentView on visionOS (with
+//  immersive-space toggle support) or directly to MainAppView on macOS/iOS.
+//
 
 import SwiftUI
 import SwiftData

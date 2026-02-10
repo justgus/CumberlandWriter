@@ -6,6 +6,11 @@
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 3
 //  Extracted from CardEditorView.swift
 //
+//  Inline attribution editor displayed when a user drops an image or URL onto a
+//  card. Collects source title, authors, URL, locator, excerpt, and note, then
+//  creates or reuses a Source record and inserts a Citation. Supports both image
+//  and web-citation citation kinds. Extracted to reduce CardEditorView complexity.
+//
 
 import SwiftUI
 import SwiftData

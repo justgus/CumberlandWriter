@@ -1,3 +1,13 @@
+//
+//  BackupDTOs.swift
+//  Cumberland
+//
+//  Data Transfer Objects for the project backup and export system. Defines
+//  Codable structs for the backup manifest, cards, sources, citations,
+//  relation types, edges, app settings, and embedded image records used
+//  when exporting or importing a Cumberland project archive.
+//
+
 import Foundation
 
 // MARK: - Manifest

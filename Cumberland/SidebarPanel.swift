@@ -1,8 +1,13 @@
 //
-//  MBSidebarPanel.swift
+//  SidebarPanel.swift  (formerly MBSidebarPanel.swift)
 //  Cumberland
 //
 //  Created by Assistant on 11/1/25.
+//
+//  Collapsible sidebar panel used in Murderboard and Structure Board contexts
+//  to present a secondary content list (e.g., backlog cards or structure
+//  element details) alongside the main canvas. Manages animated show/hide
+//  transitions and adapts layout to the current canvas size.
 //
 
 import SwiftUI

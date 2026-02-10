@@ -1,3 +1,14 @@
+//
+//  SuggestionEngine.swift
+//  Cumberland
+//
+//  Generates CardSuggestion and RelationshipSuggestion objects from entities
+//  extracted by EntityExtractor and relationships inferred by
+//  RelationshipInference (ER-0010 Phase 5). Deduplicates against existing cards
+//  and edges in the SwiftData context, applies confidence thresholds from
+//  AISettings, and learns from SuggestionFeedback over time.
+//
+
 import Foundation
 import SwiftData
 

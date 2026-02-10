@@ -5,6 +5,11 @@
 //  Created by Claude Code on 2026-02-09.
 //  DR-0076: Edge creation UI for MurderBoard
 //
+//  Manages interactive edge-creation on the Murderboard canvas. Tracks a
+//  pending edge (source node + live cursor position), renders a dashed
+//  preview arrow, and presents a RelationType picker sheet when the user
+//  drops on a target node to create the final CardEdge.
+//
 
 import SwiftUI
 import SwiftData

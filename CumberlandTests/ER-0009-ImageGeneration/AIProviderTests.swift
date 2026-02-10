@@ -1,3 +1,13 @@
+//
+//  AIProviderTests.swift
+//  CumberlandTests
+//
+//  Swift Testing suite for ER-0009: AI Image Generation.
+//  Verifies AIProviderProtocol conformance for all registered providers
+//  (Apple Intelligence, OpenAI, Anthropic): provider metadata, capability
+//  flags, prompt validation, and error mapping.
+//
+
 import Testing
 import Foundation
 @testable import Cumberland

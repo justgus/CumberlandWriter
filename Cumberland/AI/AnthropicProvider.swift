@@ -1,3 +1,13 @@
+//
+//  AnthropicProvider.swift
+//  Cumberland
+//
+//  AIProviderProtocol implementation for Anthropic's Claude API. Performs
+//  entity extraction and relationship inference via the Messages API using
+//  Claude Opus 4.5. Note: Anthropic does not support image generation, so
+//  generateImage always throws .featureNotSupported.
+//
+
 import Foundation
 
 /// Anthropic (Claude) provider for AI content analysis

@@ -1,3 +1,13 @@
+//
+//  CardViewer.swift
+//  Cumberland
+//
+//  Scrollable grid host for a collection of CardView tiles. Supports optional
+//  per-card decoration text (e.g. relation-type labels), tap-selection with
+//  external selection highlighting, and AI badge visibility toggling. Used
+//  in relationship views, structure boards, and search results.
+//
+
 import SwiftUI
 import SwiftData
 

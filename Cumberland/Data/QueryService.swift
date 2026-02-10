@@ -5,6 +5,10 @@
 //  Created by Claude Code on 2026-02-06.
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 2
 //
+//  Consolidates frequently-used SwiftData query patterns (fetch by predicate,
+//  count queries, singleton lookups) into reusable static/instance methods.
+//  Reduces boilerplate in views that need imperative fetches outside @Query.
+//
 
 import Foundation
 import SwiftData

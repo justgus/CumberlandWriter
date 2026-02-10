@@ -1,3 +1,13 @@
+//
+//  ReassignRelationTypeSheet.swift
+//  Cumberland
+//
+//  Sheet that lets the user reassign all CardEdges belonging to a source
+//  RelationType to a different type before deleting it. Lists candidate
+//  types, shows edge count, and performs bulk reassignment in the model
+//  context when confirmed.
+//
+
 import SwiftUI
 import SwiftData
 import Combine

@@ -1,4 +1,13 @@
-// CitationEditor.swift
+//
+//  CitationEditor.swift
+//  Cumberland
+//
+//  Form for creating or editing a Citation linked to a card and a Source.
+//  Collects citation kind (quote, paraphrase, image, data), page/location,
+//  excerpt, and notes, then inserts or updates the Citation in the SwiftData
+//  context on save.
+//
+
 import SwiftUI
 import SwiftData
 

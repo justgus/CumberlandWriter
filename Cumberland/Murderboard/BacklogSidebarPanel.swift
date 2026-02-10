@@ -1,3 +1,12 @@
+//
+//  BacklogSidebarPanel.swift
+//  Cumberland
+//
+//  Sidebar backlog panel for MurderBoardView. Displays cards not yet placed
+//  on the board, grouped by kind with a kind-picker filter. Cards can be
+//  dragged from this panel onto the canvas to create BoardNode entries.
+//
+
 import SwiftUI
 
 /// Sidebar/backlog panel for the Murder Board view, showing available cards for drag-and-drop.

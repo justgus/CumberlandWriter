@@ -1,3 +1,13 @@
+//
+//  GlassSurfaceStyle.swift
+//  Cumberland
+//
+//  ViewModifier that applies a glass-morphism surface treatment with optional
+//  tint color, adjustable corner radius, and hover-scaling on macOS. Exposes
+//  a .glassSurface(…) View convenience extension. Intended for card panels
+//  and inspector backgrounds.
+//
+
 import SwiftUI
 
 public struct GlassSurfaceStyle: ViewModifier {

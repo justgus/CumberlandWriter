@@ -1,3 +1,13 @@
+//
+//  CardView.swift
+//  Cumberland
+//
+//  Compact card thumbnail tile used in grid and list contexts. Displays the
+//  card thumbnail image, name, kind badge, AI-generated badge (ER-0009),
+//  size category, and an optional decoration text tab. Supports three size
+//  categories (small, medium, large) persisted per card via SwiftData.
+//
+
 import SwiftUI
 import SwiftData
 

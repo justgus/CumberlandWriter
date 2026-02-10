@@ -4,6 +4,11 @@
 //
 //  Created by Mike Stoddard on 10/1/25.
 //
+//  SwiftData schema versioning and migration plan. Defines all AppSchemaVN
+//  versioned schemas (currently V1–V5) plus the AppMigrations SchemaMigrationPlan
+//  that sequences lightweight and custom migration stages. All model types are
+//  registered here so Xcode can build the correct CloudKit schema.
+//
 
 import SwiftData
 import Foundation

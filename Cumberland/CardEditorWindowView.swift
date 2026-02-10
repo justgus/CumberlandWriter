@@ -4,6 +4,10 @@
 //
 //  Created for visionOS Phase 2: Spatial Window Management
 //
+//  visionOS-only wrapper that opens CardEditorView in a separate floating
+//  window via AppModel.CardEditorRequest, enabling side-by-side card editing
+//  in the spatial computing environment.
+//
 
 #if os(visionOS)
 import SwiftUI

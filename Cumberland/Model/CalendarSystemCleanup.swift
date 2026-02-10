@@ -1,3 +1,16 @@
+//
+//  CalendarSystemCleanup.swift
+//  Cumberland
+//
+//  One-time repair utility for DR-0065: CalendarSystem relationship breakage.
+//
+//  Provides static methods to fix existing CalendarSystem objects that were
+//  created before the DR-0065 relationship fix by breaking all relationships,
+//  deleting the old objects, and recreating them with correct SwiftData
+//  relationship structure. Also contains helpers to remove orphaned calendars
+//  and to print a diagnostic dump of all calendar relationships.
+//
+
 import Foundation
 import SwiftData
 

@@ -13,6 +13,11 @@
 //  - CardRelationshipOperations.swift → Cumberland/CardRelationship/
 //  - CardRelationshipSheets.swift → Cumberland/CardRelationship/
 //
+//  Relationship graph tab showing bidirectional CardEdge connections for a
+//  given card. Hosts header, toolbar (kind filter + actions), related-card
+//  display area, and sheet presentations for creating/editing relation types
+//  and selecting related cards.
+//
 
 import SwiftUI
 import SwiftData

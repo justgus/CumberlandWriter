@@ -4,6 +4,11 @@
 //
 //  Created by Mike Stoddard on 10/10/25.
 //
+//  App entry point. Configures SwiftData container with CloudKit sync, applies
+//  color scheme preferences, injects the ServiceContainer, and seeds default
+//  RelationTypes on first launch. Registers the developer erase-and-reseed
+//  notification and hosts the RootView / ContentView hierarchy.
+//
 
 import SwiftUI
 import SwiftData

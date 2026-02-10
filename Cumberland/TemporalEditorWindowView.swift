@@ -5,6 +5,10 @@
 //  Created on 2026-01-29.
 //  DR-0061: Window wrapper for SceneTemporalPositionEditor on macOS
 //
+//  macOS-only window wrapper that hosts SceneTemporalPositionEditor in a
+//  separate NSWindow/scene opened via openWindow environment action. Resolves
+//  the scene, timeline, and connecting CardEdge from model context by ID.
+//
 
 #if os(macOS)
 import SwiftUI

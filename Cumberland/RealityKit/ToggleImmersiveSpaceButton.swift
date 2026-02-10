@@ -4,6 +4,10 @@
 //
 //  Created by Mike Stoddard on 10/10/25.
 //
+//  visionOS button that opens or dismisses the RealityKit immersive space
+//  using the openImmersiveSpace / dismissImmersiveSpace environment actions.
+//  Reads AppModel.immersiveSpaceState to disable itself during transitions.
+//
 
 import SwiftUI
 

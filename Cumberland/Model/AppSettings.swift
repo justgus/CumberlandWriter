@@ -1,3 +1,12 @@
+//
+//  AppSettings.swift
+//  Cumberland
+//
+//  SwiftData model for persisted app-wide user preferences (singleton record).
+//  Stores color scheme preference, default card size, show-AI-badge toggle,
+//  and other display settings. Accessed via a unique singletonKey predicate.
+//
+
 import Foundation
 import SwiftData
 import SwiftUI

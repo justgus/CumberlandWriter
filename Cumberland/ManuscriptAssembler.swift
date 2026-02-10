@@ -1,4 +1,13 @@
-// ManuscriptAssembler.swift
+//
+//  ManuscriptAssembler.swift
+//  Cumberland
+//
+//  Builds Chicago-style footnotes and bibliography for a project card by
+//  traversing its incoming card edges to collect linked content cards and
+//  their citations. Returns ordered footnote strings and a deduplicated
+//  bibliography suitable for export or display.
+//
+
 import Foundation
 import SwiftData
 import Combine

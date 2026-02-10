@@ -1,3 +1,13 @@
+//
+//  StoryStructureDiagnosticsView.swift
+//  Cumberland
+//
+//  Developer diagnostic view listing all StructureElement records across all
+//  StoryStructures, showing parent structure name, element name, sort order,
+//  and count of assigned cards. Useful for verifying story-structure data
+//  integrity. Accessed from DeveloperToolsView.
+//
+
 import SwiftUI
 import SwiftData
 #if os(macOS)

@@ -6,6 +6,11 @@
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 3
 //  Extracted from CardEditorView.swift
 //
+//  View model extension containing save/cancel logic for CardEditorView.
+//  Handles create vs edit mode, persists image data, generates thumbnails,
+//  seeds default RelationTypes on first save, and calls the modelContext
+//  save operation.
+//
 
 import Foundation
 import SwiftData

@@ -1,8 +1,14 @@
 //
-//  CardEditorView.swift
+//  CardEditorView.swift  [BACKUP — DO NOT COMPILE]
 //  Cumberland
 //
 //  Created by Mike Stoddard on 10/4/25.
+//
+//  Temporary backup of the original monolithic CardEditorView before the
+//  ER-0022 Code Maintainability Refactoring split it into focused sub-files
+//  (CardEditor/, CardSheet/, Citation/ sub-components). Retained for
+//  reference only. This file is NOT part of any build target and should be
+//  deleted once the refactored version is verified stable.
 //
 
 import Foundation

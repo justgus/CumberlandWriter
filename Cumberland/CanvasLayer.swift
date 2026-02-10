@@ -1,8 +1,13 @@
 //
-//  MBCanvasLayer.swift
+//  CanvasLayer.swift  (formerly MBCanvasLayer.swift)
 //  Cumberland
 //
 //  Created by Assistant on 11/1/25.
+//
+//  Composite Murderboard canvas layer that stacks EdgesLayer (relationship
+//  arrows) and MurderBoardNodesLayer (card tiles) in the correct Z-order
+//  on the pan/zoom canvas. Receives board, window size, and selected-card
+//  ID from MurderBoardView and propagates them to sub-layers.
 //
 
 import SwiftUI

@@ -6,6 +6,11 @@
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 3
 //  Extracted to shared type to avoid duplication
 //
+//  Transient value type representing a pending image attribution that needs
+//  user confirmation. Carries the image data, optional source URL, and
+//  optional excerpt, shared between CardEditorDropHandler and
+//  CardSheetDropHandler to trigger the QuickAttributionSheet.
+//
 
 import Foundation
 

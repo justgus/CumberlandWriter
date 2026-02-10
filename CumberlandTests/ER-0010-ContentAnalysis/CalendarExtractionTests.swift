@@ -1,3 +1,13 @@
+//
+//  CalendarExtractionTests.swift
+//  CumberlandTests
+//
+//  Swift Testing suite for ER-0010: AI Content Analysis (Calendar Extraction).
+//  Verifies CalendarSystemExtractor parsing of fictional calendar descriptions
+//  into CalendarSystem models with correct TimeDivision arrays. Currently
+//  disabled (#if false) pending CalendarSystem vs CalendarStructure type fixes.
+//
+
 import Testing
 import Foundation
 import SwiftData

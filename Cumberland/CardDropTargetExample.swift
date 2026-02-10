@@ -1,3 +1,12 @@
+//
+//  CardDropTargetExample.swift
+//  Cumberland
+//
+//  Example implementation demonstrating the protocol-based drop-zone integration
+//  pattern. Shows how to conform a view model to DropCapableTarget and wire
+//  it to a drop-enabled SwiftUI view. Used as a reference, not in production UI.
+//
+
 import SwiftUI
 import Combine
 import UniformTypeIdentifiers

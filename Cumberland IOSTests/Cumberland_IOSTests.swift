@@ -4,6 +4,10 @@
 //
 //  Created by Mike Stoddard on 10/13/25.
 //
+//  Root Swift Testing suite for the iOS/iPadOS Cumberland target. Currently
+//  contains the auto-generated placeholder test. Concrete iOS-specific tests
+//  should be added here as needed.
+//
 
 import Testing
 @testable import Cumberland_IOS

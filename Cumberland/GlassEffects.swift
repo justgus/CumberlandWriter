@@ -4,6 +4,10 @@
 //
 //  Created by Assistant on 10/10/25.
 //
+//  View extension providing a .glassEffect(_:in:) modifier that applies a
+//  translucent material background with tinted blur. Used by StoryStructureView,
+//  overlays, and other glass-styled containers throughout the app.
+//
 
 import SwiftUI
 

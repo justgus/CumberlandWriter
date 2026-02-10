@@ -1,3 +1,13 @@
+//
+//  Board.swift
+//  Cumberland
+//
+//  SwiftData models for the visual relationship canvas (Murderboard). Board
+//  represents a named canvas optionally anchored to a primary card. BoardNode
+//  records the position and size of a Card placed on a Board. Used by
+//  MurderBoardView to persist node layout across sessions.
+//
+
 import Foundation
 import SwiftData
 

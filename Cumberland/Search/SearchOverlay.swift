@@ -1,4 +1,13 @@
-// SearchOverlay.swift
+//
+//  SearchOverlay.swift
+//  Cumberland
+//
+//  Floating keyboard-activated search overlay. Reads from SearchRouter to
+//  show/hide, delegates queries to SearchEngine, and presents results in a
+//  scrollable list. Tapping a result navigates via NavigationCoordinator and
+//  dismisses the overlay.
+//
+
 import SwiftUI
 
 struct SearchOverlay: View {

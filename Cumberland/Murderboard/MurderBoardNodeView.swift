@@ -4,6 +4,11 @@
 //
 //  Created by Mike Stoddard on 11/1/25.
 //
+//  Individual card node tile displayed on the Murderboard canvas. Renders
+//  a mini CardView (AI badge hidden) with a glass-bordered frame, selection
+//  highlight ring, and relationship-count badge. Sized by the BoardNode's
+//  stored width/height; supports drag gesture for repositioning.
+//
 
 import SwiftUI
 import Combine

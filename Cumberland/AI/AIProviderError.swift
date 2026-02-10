@@ -1,3 +1,13 @@
+//
+//  AIProviderError.swift
+//  Cumberland
+//
+//  Defines AIProviderError, a LocalizedError enum covering all failure cases
+//  that can occur when using AI providers: availability, unsupported features,
+//  authentication, rate limits, network errors, invalid responses, content
+//  policy violations, and generation failures.
+//
+
 import Foundation
 
 /// Errors that can occur when using AI providers

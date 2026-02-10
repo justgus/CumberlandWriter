@@ -1,3 +1,13 @@
+//
+//  NavigationCoordinator.swift
+//  Cumberland
+//
+//  Observable coordinator that allows search results and other contextual
+//  flows to force-present a specific card in CardSheetView regardless of
+//  the current sidebar selection. Shared via SwiftUI environment throughout
+//  MainAppView.
+//
+
 import SwiftUI
 
 @Observable

@@ -1,4 +1,13 @@
-// CardDetailTab.swift
+//
+//  CardDetailTab.swift
+//  Cumberland
+//
+//  Defines the CardDetailTab enum whose cases correspond to the tab bar
+//  entries shown in card detail views (Details, Relationships, Citations,
+//  Aggregate, Board, Timeline, Map Wizard). Each case carries a displayable
+//  title and SF Symbol name and determines which subview is rendered.
+//
+
 import SwiftUI
 
 enum CardDetailTab: String, CaseIterable, Identifiable {

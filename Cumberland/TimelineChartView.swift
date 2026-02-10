@@ -1,4 +1,13 @@
-// TimelineChartView.swift
+//
+//  TimelineChartView.swift
+//  Cumberland
+//
+//  Swift Charts-based timeline visualisation for a Timeline card. Plots scenes
+//  as horizontal bars at their temporal positions using the card's CalendarSystem
+//  or a default numeric axis. Supports tap selection, zoom, and optional
+//  SceneTemporalPositionEditor sheet for repositioning scenes.
+//
+
 import SwiftUI
 import SwiftData
 import Charts

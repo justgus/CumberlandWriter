@@ -1,3 +1,13 @@
+//
+//  CalendarSystemCleanupView.swift
+//  Cumberland
+//
+//  Developer tool (DR-0065) for manually repairing broken CalendarSystem
+//  relationship data. Invokes CalendarSystemCleanup.fixAll() and displays
+//  a report of how many records were repaired. Manual execution only —
+//  not run automatically for end users.
+//
+
 import SwiftUI
 import SwiftData
 

@@ -1,4 +1,12 @@
-// AggregateTextView.swift
+//
+//  AggregateTextView.swift
+//  Cumberland
+//
+//  Assembles and displays all scene text belonging to a chapter card in reading
+//  order by following timeline/chapter relationships. Provides a continuous
+//  prose view for chapters and projects used in the "Aggregate" detail tab.
+//
+
 import SwiftUI
 import SwiftData
 

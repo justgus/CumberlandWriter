@@ -1,8 +1,13 @@
 //
-//  MBEdgesLayer.swift
+//  EdgesLayer.swift  (formerly MBEdgesLayer.swift)
 //  Cumberland
 //
 //  Created by Assistant on 11/1/25.
+//
+//  SwiftUI canvas layer that draws CardEdge relationship lines between
+//  BoardNode positions on the Murderboard. Renders Bezier curve arrows
+//  with relation-type labels, highlights selected edges, and draws the
+//  in-progress edge during interactive edge creation.
 //
 
 import SwiftUI

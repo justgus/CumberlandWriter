@@ -2,8 +2,14 @@
 //  ER0021_StandaloneTests.swift
 //  CumberlandTests
 //
-//  Standalone tests for ER-0021 that test core functionality
-//  Can be run independently of full app build
+//  Standalone tests for ER-0021 that test core functionality.
+//  Can be run independently of full app build.
+//
+//  Swift Testing suite for the VisualElements data model (ER-0021). Tests
+//  property assignment for all card kinds (character, location, building,
+//  artifact, scene, vehicle), cinematic framing enum display names, the
+//  hasSufficientData threshold helper, Codable round-trip encoding, and
+//  prompt generation methods for Apple Intelligence, OpenAI, and Anthropic.
 //
 
 import Foundation

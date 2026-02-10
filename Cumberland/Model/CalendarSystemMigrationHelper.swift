@@ -5,6 +5,11 @@
 //  Created by Claude Code on 1/27/26.
 //  Phase 7.5: Calendar Cards Architecture
 //
+//  One-time data-migration helper that converts standalone CalendarSystem
+//  objects (created before Phase 7.5) into Calendar cards with proper
+//  CalendarSystem relationship links. Run once from DeveloperToolsView;
+//  safe to call on already-migrated data.
+//
 
 import Foundation
 import SwiftData

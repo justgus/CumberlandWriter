@@ -1,3 +1,13 @@
+//
+//  SettingsView.swift
+//  Cumberland
+//
+//  App-wide settings panel organised into sections (Display, Cards, Views,
+//  Relations, Images, AI & Providers, Author). Each section maps to a dedicated
+//  SwiftUI form. On macOS, rendered in a Settings window; on iOS, in a
+//  NavigationStack sheet accessible from the sidebar.
+//
+
 import SwiftUI
 import SwiftData
 

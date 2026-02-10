@@ -1,6 +1,12 @@
-// CardSheetEditorArea.swift
-// Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2
-// Contains the editor/preview area with rich text editing
+//
+//  CardSheetEditorArea.swift
+//  Cumberland
+//
+//  Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2.
+//  Provides the three-mode content area (Edit / Preview / Split) for card
+//  detail text. Edit mode uses a TextEditor with markdown formatting shortcuts;
+//  Preview mode renders CommonMark via AttributedString; Split shows both.
+//
 
 import SwiftUI
 import UniformTypeIdentifiers

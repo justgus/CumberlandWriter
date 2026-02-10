@@ -1,6 +1,12 @@
-// DeveloperBoardsView.swift
-// Diagnostics console for Boards and BoardNodes (live container)
-// Appears under a DEBUG-only button from MainAppView.
+//
+//  DeveloperBoardsView.swift
+//  Cumberland
+//
+//  Diagnostics console for Board and BoardNode records in the live SwiftData
+//  container. Lists all boards with node counts, allows search by card name,
+//  and provides delete actions for orphaned nodes. Shown via a DEBUG-only
+//  button in MainAppView.
+//
 
 import SwiftUI
 import SwiftData

@@ -1,3 +1,13 @@
+//
+//  AppleIntelligenceProvider.swift
+//  Cumberland
+//
+//  AIProviderProtocol implementation backed by Apple Intelligence APIs
+//  (ImagePlayground for image generation, NaturalLanguage for entity extraction,
+//  AppIntents for on-device inference). Falls back gracefully when APIs are
+//  unavailable. No API key required — uses device-level authentication.
+//
+
 import Foundation
 import SwiftUI
 import NaturalLanguage

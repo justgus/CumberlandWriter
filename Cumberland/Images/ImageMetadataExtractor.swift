@@ -4,6 +4,11 @@
 //
 //  Created by Mike Stoddard on 11/11/25.
 //
+//  Reads EXIF/IPTC/GPS metadata from image data using ImageIO. Extracts
+//  fields such as artist, copyright, description, GPS coordinates, camera
+//  make/model, and capture date. Used by the quick-attribution flow to
+//  pre-fill citation fields when a user imports an image.
+//
 
 import Foundation
 import ImageIO

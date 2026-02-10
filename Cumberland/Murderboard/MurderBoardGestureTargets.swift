@@ -1,6 +1,12 @@
-// MurderBoardGestureTargets.swift
-// Extracted from MurderBoardView.swift as part of ER-0022 Phase 3.3
-// Contains gesture target implementations for canvas and node gestures
+//
+//  MurderBoardGestureTargets.swift
+//  Cumberland
+//
+//  Extracted from MurderBoardView.swift as part of ER-0022 Phase 3.3.
+//  Implements GestureTarget conformances: CanvasGestureTarget (pan, pinch,
+//  background tap) and NodeGestureTarget (node drag, tap, long-press).
+//  Connects MultiGestureHandler publishers to MurderBoardView state.
+//
 
 import SwiftUI
 import SwiftData

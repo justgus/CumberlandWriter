@@ -4,6 +4,11 @@
 //
 //  Created on 11/13/25.
 //
+//  iOS/iPadOS drawing canvas for the Map Wizard. Hosts a PencilKit PKCanvasView
+//  for the active drawing layer, composites non-active layers below it via
+//  LayerCompositeView, and coordinates LayerManager state. Handles zoom/pan
+//  gestures, tool-palette interactions, and draft persistence.
+//
 
 import SwiftUI
 

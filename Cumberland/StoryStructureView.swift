@@ -4,6 +4,11 @@
 //
 //  Created by Assistant on 10/10/25.
 //
+//  View for browsing, creating, and editing StoryStructure templates
+//  (e.g. "Three-Act Structure", "Hero's Journey"). Displays structure elements
+//  in a list and provides a form for adding new structures or editing existing
+//  element order and names.
+//
 
 import SwiftUI
 import SwiftData

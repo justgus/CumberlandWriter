@@ -1,4 +1,13 @@
-// FocusOverlayPresenter.swift
+//
+//  FocusOverlayPresenter.swift
+//  Cumberland
+//
+//  macOS stub for the "Focus Mode" overlay presenter. Holds weak references
+//  to focus state bindings while focus is active; satisfies the CardSheetView
+//  API without presenting a real overlay window. Replace with a full
+//  NSWindow-based implementation when focus mode is fully built out.
+//
+
 import SwiftUI
 
 #if os(macOS)

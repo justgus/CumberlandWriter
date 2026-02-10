@@ -1,3 +1,13 @@
+//
+//  OpenAIProvider.swift
+//  Cumberland
+//
+//  AIProviderProtocol implementation for OpenAI. Generates images via the
+//  DALL-E 3 API and performs entity extraction / relationship inference via
+//  the Chat Completions API (GPT-4o). Requires an API key stored in
+//  KeychainHelper for authentication.
+//
+
 import Foundation
 
 /// OpenAI provider for DALL-E 3 image generation

@@ -1,8 +1,12 @@
 //
-//  MBNodesLayer.swift
+//  MurderBoardNodesLayer.swift  (formerly MBNodesLayer.swift)
 //  Cumberland
 //
 //  Created by Assistant on 11/1/25.
+//
+//  Renders all BoardNode cards as positioned MurderBoardNodeView tiles on the
+//  Murderboard canvas. Forwards drag, tap, and long-press gestures from each
+//  node to the gesture-target system via Combine publishers.
 //
 
 import SwiftUI

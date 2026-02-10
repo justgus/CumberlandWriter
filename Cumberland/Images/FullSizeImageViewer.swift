@@ -1,4 +1,12 @@
-// FullSizeImageViewer.swift
+//
+//  FullSizeImageViewer.swift
+//  Cumberland
+//
+//  Full-screen image viewer with pinch-to-zoom, pan gestures, and Share/Copy
+//  toolbar actions. Loads the card's full-resolution originalImageData on
+//  appear. Presented as a sheet or separate window from card detail views.
+//
+
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers

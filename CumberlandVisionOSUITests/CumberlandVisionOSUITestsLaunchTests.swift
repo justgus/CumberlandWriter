@@ -4,6 +4,10 @@
 //
 //  Created by Mike Stoddard on 1/20/26.
 //
+//  XCTest launch test for the visionOS Cumberland target. Captures a
+//  screenshot at application launch across all UI configurations as a
+//  visual baseline.
+//
 
 import XCTest
 

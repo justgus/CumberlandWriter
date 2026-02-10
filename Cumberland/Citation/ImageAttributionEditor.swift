@@ -1,4 +1,12 @@
-// ImageAttributionEditor.swift
+//
+//  ImageAttributionEditor.swift
+//  Cumberland
+//
+//  Form specifically for creating or editing image-kind Citations (attribution
+//  records for imported images). Collects artist, license, source URL, and
+//  notes, then persists the citation to the SwiftData context.
+//
+
 import SwiftUI
 import SwiftData
 

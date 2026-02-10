@@ -1,3 +1,13 @@
+//
+//  ImageClipboardManager.swift
+//  Cumberland
+//
+//  Singleton managing image clipboard operations (ER-0011 Phase 1). Provides
+//  copyImage(_:) to write image data to the system clipboard and pasteImage()
+//  to read image data back. Handles NSPasteboard (macOS) and UIPasteboard (iOS)
+//  behind a unified API.
+//
+
 import Foundation
 
 #if canImport(AppKit)

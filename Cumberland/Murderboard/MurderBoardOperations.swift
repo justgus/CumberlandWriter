@@ -1,6 +1,12 @@
-// MurderBoardOperations.swift
-// Extracted from MurderBoardView.swift as part of ER-0022 Phase 3.3
-// Contains board operations, loading, persistence, and node management
+//
+//  MurderBoardOperations.swift
+//  Cumberland
+//
+//  Extracted from MurderBoardView.swift as part of ER-0022 Phase 3.3.
+//  Contains MurderBoardView extensions for board loading, BoardNode CRUD,
+//  position persistence, card-to-node drop handling, canvas coordinate
+//  transforms (world↔view), and window layout constants.
+//
 
 import SwiftUI
 import SwiftData

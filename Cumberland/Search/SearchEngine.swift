@@ -1,3 +1,13 @@
+//
+//  SearchEngine.swift
+//  Cumberland
+//
+//  Full-text search engine for Card records. Defines SearchResult with match
+//  type (name, subtitle, details, author) and performs case-insensitive
+//  substring matching across all card fields using a SwiftData ModelContext.
+//  Results are ranked by match type priority.
+//
+
 import Foundation
 import SwiftData
 

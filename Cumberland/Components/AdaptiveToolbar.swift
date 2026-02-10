@@ -1,6 +1,12 @@
-// AdaptiveToolbar.swift
-// Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2
-// Reusable adaptive toolbar that shows overflow items in a menu
+//
+//  AdaptiveToolbar.swift
+//  Cumberland
+//
+//  Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2.
+//  Reusable adaptive toolbar that measures available width and automatically
+//  moves excess items into an overflow "More" menu. Supports keyboard
+//  shortcuts and optional dividers between item groups.
+//
 
 import SwiftUI
 

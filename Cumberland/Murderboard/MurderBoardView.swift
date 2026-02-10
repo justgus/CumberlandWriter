@@ -8,6 +8,12 @@
 //  - MurderBoardGestureTargets.swift (gesture targets and handler integration)
 //  - MurderBoardToolbar.swift (toolbar and zoom controls)
 //  - MurderBoardOperations.swift (board operations, persistence, transforms)
+//
+//  Root view of the visual relationship mapping canvas (Murderboard). Hosts
+//  CanvasLayer (edges + nodes), MultiGestureHandler (pan/pinch/tap), toolbar,
+//  backlog sidebar, and edge-creation overlay. Persists BoardNode positions
+//  on drag-end and loads/creates a Board scoped to the current card.
+//
 
 import SwiftUI
 import SwiftData

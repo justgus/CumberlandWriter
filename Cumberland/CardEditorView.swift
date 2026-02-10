@@ -6,6 +6,12 @@
 //  Refactored by Claude Code on 2026-02-06 as part of ER-0022 Phase 3
 //  Reduced from 2,666 lines to ~850 lines by extracting components
 //
+//  Modal card creation/editing form. Orchestrates sub-components extracted
+//  to the CardEditor/ folder: form fields, image controls, thumbnail view,
+//  structure panel, timeline section, save handler, drop handler, sheets,
+//  and the content-analysis AI button. Supports create and edit modes for
+//  all card kinds across macOS, iOS, and visionOS.
+//
 
 import Foundation
 import SwiftUI

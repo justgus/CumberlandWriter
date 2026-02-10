@@ -1,6 +1,12 @@
-// MarkdownFormatting.swift
-// Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2
-// Contains markdown text formatting operations
+//
+//  MarkdownFormatting.swift
+//  Cumberland
+//
+//  Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2.
+//  Pure-logic struct MarkdownFormatter with static helpers for toggling
+//  bold/italic/inline-code delimiters, wrapping selections in block quotes,
+//  inserting headers, and prepending list markers in card detail text.
+//
 
 import Foundation
 

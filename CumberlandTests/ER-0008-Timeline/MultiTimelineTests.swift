@@ -1,3 +1,13 @@
+//
+//  MultiTimelineTests.swift
+//  CumberlandTests
+//
+//  Swift Testing suite for ER-0008: Time-Based Timeline System.
+//  Tests multi-timeline functionality including shared CalendarSystem
+//  references across multiple timeline cards and scene ordering within
+//  each timeline.
+//
+
 import Testing
 import Foundation
 import SwiftData

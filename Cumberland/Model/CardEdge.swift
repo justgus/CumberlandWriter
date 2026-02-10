@@ -1,4 +1,13 @@
-// CardEdge.swift
+//
+//  CardEdge.swift
+//  Cumberland
+//
+//  SwiftData model representing a directed relationship between two cards.
+//  Stores optional from/to Card references and a RelationType. Temporal
+//  positioning properties (temporalStart, temporalEnd, temporalDuration,
+//  temporalUnit) support timeline placement for scene cards on a Timeline.
+//
+
 import Foundation
 import SwiftData
 

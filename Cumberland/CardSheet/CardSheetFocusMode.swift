@@ -1,6 +1,12 @@
-// CardSheetFocusMode.swift
-// Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2
-// Contains focus mode UI components and logic
+//
+//  CardSheetFocusMode.swift
+//  Cumberland
+//
+//  Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2.
+//  Contains the CardSheetFocusButton that toggles distraction-free focus
+//  mode, persisting the active card ID via @AppStorage and notifying the
+//  FocusOverlayPresenter on macOS.
+//
 
 import SwiftUI
 

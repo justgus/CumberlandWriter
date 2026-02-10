@@ -1,4 +1,13 @@
-// SceneProjectRelationDiagnosticsView.swift
+//
+//  SceneProjectRelationDiagnosticsView.swift
+//  Cumberland
+//
+//  Developer diagnostic view that scans for scene→project CardEdges that use
+//  non-canonical relation type codes and offers a one-tap repair to re-link
+//  them to the canonical "stories/is-storied-by" type. Accessed from
+//  DeveloperToolsView.
+//
+
 import SwiftUI
 import SwiftData
 import OSLog

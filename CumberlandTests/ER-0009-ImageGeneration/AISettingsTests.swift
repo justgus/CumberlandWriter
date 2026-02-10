@@ -1,3 +1,12 @@
+//
+//  AISettingsTests.swift
+//  CumberlandTests
+//
+//  Swift Testing suite for ER-0009: AI Image Generation (Phase 1).
+//  Verifies AISettings persistence, provider selection, API key management,
+//  model preference serialisation, and default value correctness.
+//
+
 import Testing
 import Foundation
 @testable import Cumberland

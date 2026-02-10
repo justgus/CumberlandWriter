@@ -1,3 +1,13 @@
+//
+//  EntityExtractor.swift
+//  Cumberland
+//
+//  High-level entity extraction orchestrator (ER-0010 Phase 5). Delegates to
+//  the configured AIProviderProtocol to extract entities from card description
+//  text, then applies filtering, deduplication, and confidence-threshold
+//  logic before returning typed ExtractedEntity results.
+//
+
 import Foundation
 import SwiftData
 

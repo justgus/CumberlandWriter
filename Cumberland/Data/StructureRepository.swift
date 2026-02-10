@@ -5,6 +5,11 @@
 //  Created by Claude Code on 2026-02-06.
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 2
 //
+//  Repository for StoryStructure and StructureElement SwiftData operations.
+//  Provides fetch-by-project, fetch all structures, element CRUD, and
+//  card-to-element assignment helpers. Centralises structure query logic
+//  used by StructureBoardView and StructureAssignmentManager.
+//
 
 import Foundation
 import SwiftData

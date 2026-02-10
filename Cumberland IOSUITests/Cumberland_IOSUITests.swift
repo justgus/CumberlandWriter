@@ -4,6 +4,9 @@
 //
 //  Created by Mike Stoddard on 10/13/25.
 //
+//  XCTest-based UI test suite for the iOS/iPadOS Cumberland target. Contains
+//  the auto-generated example and launch-performance measurement for the iOS app.
+//
 
 import XCTest
 

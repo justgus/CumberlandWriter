@@ -4,6 +4,12 @@
 //
 //  Created by Mike Stoddard on 10/10/25.
 //
+//  Primary navigation host for macOS, iOS, and visionOS. Implements the
+//  three-column NavigationSplitView with a sidebar (kind/structure selection),
+//  content column (card list), and detail column (card detail tabs). Manages
+//  sidebar selection state, column visibility persistence, search overlay,
+//  and developer diagnostics tools access.
+//
 
 import SwiftUI
 import SwiftData

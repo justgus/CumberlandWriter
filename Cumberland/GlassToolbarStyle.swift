@@ -1,3 +1,12 @@
+//
+//  GlassToolbarStyle.swift
+//  Cumberland
+//
+//  ViewModifier that applies a glass-morphism toolbar treatment with configurable
+//  corner radius, padding, and interactivity. Exposes a .glassToolbar(…) View
+//  convenience extension. Used for floating canvas toolbars and overlay bars.
+//
+
 import SwiftUI
 
 public struct GlassToolbarStyle: ViewModifier {

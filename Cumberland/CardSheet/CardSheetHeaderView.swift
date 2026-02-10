@@ -1,6 +1,13 @@
-// CardSheetHeaderView.swift
-// Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2
-// Contains the header section with image display and name/subtitle editing
+//
+//  CardSheetHeaderView.swift
+//  Cumberland
+//
+//  Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2.
+//  Renders the top section of a card detail sheet: hero image (full-width
+//  thumbnail with tap-to-view), editable name TextField, and optional
+//  subtitle/author field. Handles image drop targets and kind-specific
+//  subtitle placeholder text.
+//
 
 import SwiftUI
 import SwiftData

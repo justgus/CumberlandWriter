@@ -3,9 +3,14 @@
 //  CumberlandTests
 //
 //  Created for ER-0022 Phase 5: Testing and Validation
-//  Integration tests for CardOperationManager, RelationshipManager, and Repositories
+//  Integration tests for CardOperationManager, RelationshipManager, and Repositories.
 //
-//  Note: These tests use an in-memory ModelContext to avoid import issues
+//  Note: These tests use an in-memory ModelContext to avoid import issues.
+//
+//  Swift Testing suite that wires together CardOperationManager,
+//  RelationshipManager, CardRepository, EdgeRepository, and StructureRepository
+//  with an in-memory SwiftData container. Verifies CRUD operations, relationship
+//  creation/deletion, and repository query correctness end-to-end.
 //
 
 import Foundation

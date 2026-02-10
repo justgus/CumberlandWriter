@@ -1,3 +1,13 @@
+//
+//  AIProviderProtocol.swift
+//  Cumberland
+//
+//  Defines the AIProviderProtocol that all AI providers must conform to,
+//  DetectedRelationship for AI-inferred card relationships (ER-0020), and
+//  ExtractedEntity/EntityKind for content analysis entity results. All AI
+//  operations are async and return typed results or throw AIProviderError.
+//
+
 import Foundation
 
 // MARK: - Detected Relationship (ER-0020)

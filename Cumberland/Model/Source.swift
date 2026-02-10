@@ -1,4 +1,13 @@
-// Source.swift
+//
+//  Source.swift
+//  Cumberland
+//
+//  SwiftData model for research sources referenced by Citations. Stores title,
+//  authors, publisher, year, URL, and format (book, website, article, etc.).
+//  Has a one-to-many relationship with Citation records; optionally linked to
+//  a Card of kind .sources for in-app representation.
+//
+
 import Foundation
 import SwiftData
 

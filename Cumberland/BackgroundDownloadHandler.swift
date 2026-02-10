@@ -4,6 +4,10 @@
 //
 //  Created by Mike Stoddard on 10/10/25.
 //
+//  Background Assets extension entry point. Implements StoreDownloaderExtension
+//  to allow the system to download asset packs in the background. Currently
+//  accepts all asset packs via the default download behavior.
+//
 
 import BackgroundAssets
 import ExtensionFoundation

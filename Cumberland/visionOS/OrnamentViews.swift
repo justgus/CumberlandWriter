@@ -5,6 +5,10 @@
 //  Created by Cumberland Development Team on 11/8/25.
 //  visionOS ornament components for spatial UI
 //
+//  Provides visionOS ornament views attached to the main window and card
+//  editor windows: sidebar navigation controls, mode switcher, and action
+//  buttons rendered as floating ornaments in the spatial computing environment.
+//
 
 import SwiftUI
 

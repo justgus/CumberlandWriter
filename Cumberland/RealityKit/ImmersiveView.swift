@@ -4,6 +4,11 @@
 //
 //  Created by Mike Stoddard on 10/10/25.
 //
+//  visionOS RealityKit immersive space view. Loads the RealityKitContent
+//  bundle scene into a RealityView and wires AppModel's immersiveSpaceState
+//  via ImmersiveSpaceObserver. Early-stage implementation — spatial content
+//  will be expanded in future visionOS phases.
+//
 
 import SwiftUI
 import RealityKit

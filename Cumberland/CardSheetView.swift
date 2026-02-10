@@ -1,13 +1,22 @@
-// CardSheetView.swift
-// Refactored as part of ER-0022 Phase 3.2
-// Extracted components to CardSheet/ folder:
-// - CardSheetHeaderView.swift
-// - CardSheetEditorArea.swift
-// - CardSheetFocusMode.swift
-// - CardSheetDropHandler.swift
-// - MarkdownFormatting.swift
-// Extracted to Components/:
-// - AdaptiveToolbar.swift
+//
+//  CardSheetView.swift
+//  Cumberland
+//
+//  Refactored as part of ER-0022 Phase 3.2
+//  Extracted components to CardSheet/ folder:
+//  - CardSheetHeaderView.swift
+//  - CardSheetEditorArea.swift
+//  - CardSheetFocusMode.swift
+//  - CardSheetDropHandler.swift
+//  - MarkdownFormatting.swift
+//  Extracted to Components/:
+//  - AdaptiveToolbar.swift
+//
+//  Full-featured card detail sheet for iOS/iPadOS and macOS. Combines a
+//  header (image + name/subtitle), adaptive markdown toolbar, edit/preview/split
+//  editor modes, drop handling for images and text, focus mode, and per-kind
+//  extra tabs (Relationships, Citations, Aggregate, Board, Timeline, Map Wizard).
+//
 
 import SwiftUI
 import SwiftData

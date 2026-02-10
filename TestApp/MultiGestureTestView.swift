@@ -4,6 +4,13 @@
 //
 //  Created by Assistant on 10/31/25.
 //
+//  Interactive test harness for the MultiGestureHandler and drag-and-drop
+//  system. Renders a zoomable/pannable canvas with draggable coloured nodes,
+//  a palette of chip items (drag to create), and a trash drop zone (drag to
+//  remove). Demonstrates tap, double-tap, pinch-zoom, two-finger pan, lasso
+//  selection, and internal/external drag-and-drop. Used during development
+//  to verify gesture routing before integration into MurderBoardView.
+//
 
 import SwiftUI
 import Combine

@@ -1,3 +1,13 @@
+//
+//  GlassDropZone.swift
+//  Cumberland
+//
+//  Reusable drop-zone component with a glass-morphism aesthetic. Renders a
+//  translucent inset rectangle with a dashed border that highlights in accent
+//  color when a drag enters the target area. Used in card editors and map
+//  wizard import steps.
+//
+
 import SwiftUI
 
 struct GlassDropZone: View {

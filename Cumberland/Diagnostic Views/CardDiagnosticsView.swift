@@ -1,4 +1,13 @@
-// CardDiagnosticsView.swift
+//
+//  CardDiagnosticsView.swift
+//  Cumberland
+//
+//  Developer diagnostic view showing detailed SwiftData state for a single
+//  card: forward and incoming edges with source/target IDs, relation-type
+//  codes, and temporal position data. Used from DeveloperToolsView when
+//  investigating relationship data integrity issues.
+//
+
 import SwiftUI
 import SwiftData
 

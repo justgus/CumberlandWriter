@@ -1,3 +1,12 @@
+//
+//  CitationViewer.swift
+//  Cumberland
+//
+//  List view for all Citations attached to a card. Groups citations by kind,
+//  displays source title and excerpt, and provides add/edit/delete actions.
+//  Uses CitationEditor sheet for create/edit flows.
+//
+
 import SwiftUI
 import SwiftData
 

@@ -1,3 +1,13 @@
+//
+//  EntityExtractionTests.swift
+//  CumberlandTests
+//
+//  Swift Testing suite for ER-0010: AI Content Analysis.
+//  Tests entity extraction from narrative text: character, location, artifact,
+//  and relationship detection with confidence thresholds. Currently disabled
+//  (#if false) pending type fixes.
+//
+
 import Testing
 import Foundation
 import SwiftData

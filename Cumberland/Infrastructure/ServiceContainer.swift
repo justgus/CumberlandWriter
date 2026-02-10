@@ -5,6 +5,11 @@
 //  Created by Claude Code on 2026-02-07.
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 4
 //
+//  Dependency-injection container that holds shared service instances:
+//  CardOperationManager, RelationshipManager, and ImageProcessingService.
+//  Initialised in CumberlandApp and injected into the SwiftUI environment
+//  via a custom EnvironmentKey so views can access services without singletons.
+//
 
 import Foundation
 import SwiftUI

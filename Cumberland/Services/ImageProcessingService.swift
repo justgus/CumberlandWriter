@@ -5,6 +5,11 @@
 //  Created by Claude Code on 2026-02-06.
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 1
 //
+//  Service for image processing operations: thumbnail generation, image
+//  resizing/compression to target byte sizes, format conversion (JPEG/PNG/HEIC),
+//  and EXIF metadata extraction. Abstracts platform differences between
+//  AppKit (NSImage) and UIKit (UIImage).
+//
 
 import Foundation
 import SwiftUI

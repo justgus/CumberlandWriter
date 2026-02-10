@@ -5,6 +5,11 @@
 //  Created by Claude Code on 2/2/26.
 //  ER-0017 Phase 2: Image History Management
 //
+//  SwiftData model representing a historical version of a card's AI-generated
+//  image. Stores image data (external storage), generation prompt, provider
+//  name, timestamp, and whether it is the current active version. Managed
+//  by ImageVersionManager.
+//
 
 import Foundation
 import SwiftData

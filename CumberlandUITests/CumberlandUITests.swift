@@ -4,6 +4,10 @@
 //
 //  Created by Mike Stoddard on 10/1/25.
 //
+//  XCTest-based UI test suite for the macOS Cumberland target. Contains the
+//  auto-generated example test and a launch-performance measurement. Expand
+//  with full UI automation tests as feature coverage grows.
+//
 
 import XCTest
 

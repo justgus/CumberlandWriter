@@ -1,6 +1,13 @@
-// CardSheetDropHandler.swift
-// Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2
-// Contains image and text drop/paste handling logic
+//
+//  CardSheetDropHandler.swift
+//  Cumberland
+//
+//  Extracted from CardSheetView.swift as part of ER-0022 Phase 3.2.
+//  Handles drag-and-drop and clipboard paste of images and text into a card.
+//  Resolves image data from UTType.image and UTType.fileURL payloads,
+//  triggers quick-attribution sheets, and appends dropped text to the
+//  card's detail field.
+//
 
 import SwiftUI
 import SwiftData

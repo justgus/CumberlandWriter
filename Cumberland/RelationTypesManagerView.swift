@@ -1,3 +1,13 @@
+//
+//  RelationTypesManagerView.swift
+//  Cumberland
+//
+//  Full CRUD manager for RelationType records. Displays a searchable list of
+//  all relation types with forward/inverse labels, and provides add, edit,
+//  and delete (with reassignment flow) actions. Accessible from Settings and
+//  the relationship editor toolbar.
+//
+
 import SwiftUI
 import SwiftData
 

@@ -1,4 +1,11 @@
-// AboutView.swift
+//
+//  AboutView.swift
+//  Cumberland
+//
+//  Displays the app name, version string, and copyright notice in a styled
+//  sheet, used in the Help menu on macOS and in Settings on iOS.
+//
+
 import SwiftUI
 
 struct AboutView: View {

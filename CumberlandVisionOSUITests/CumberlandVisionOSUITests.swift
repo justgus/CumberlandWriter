@@ -4,6 +4,10 @@
 //
 //  Created by Mike Stoddard on 1/20/26.
 //
+//  XCTest-based UI test suite for the visionOS Cumberland target. Contains
+//  the auto-generated example and launch-performance measurement for the
+//  visionOS app.
+//
 
 import XCTest
 

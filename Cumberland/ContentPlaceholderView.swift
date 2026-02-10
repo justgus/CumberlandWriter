@@ -4,6 +4,10 @@
 //
 //  Created by Mike Stoddard on 10/4/25.
 //
+//  Empty-state placeholder view displaying a title, subtitle, and optional
+//  SF Symbol. Used throughout the app when a list, detail column, or canvas
+//  has no content to display.
+//
 
 import Foundation
 import SwiftUI

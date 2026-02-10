@@ -6,6 +6,13 @@
 //
 //  Run with: swift test_er0021.swift
 //
+//  Self-contained command-line test runner for the ER-0021 VisualElements
+//  model. Copies the essential types locally so it can run without importing
+//  the full Cumberland module. Tests initialization, per-kind property
+//  assignment (character, building, artifact, scene, vehicle), the
+//  hasSufficientData threshold, and Codable JSON round-trip. Exits 0 on
+//  all-pass, 1 on any failure.
+//
 
 import Foundation
 

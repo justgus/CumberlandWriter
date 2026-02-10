@@ -1,3 +1,13 @@
+//
+//  AIImageGeneratorTests.swift
+//  CumberlandTests
+//
+//  Swift Testing suite for ER-0009: AI Image Generation (Phase 2A).
+//  Covers AIImageGenerator state-machine transitions (idle → generating →
+//  done / error), generation cancellation, provider selection, and prompt
+//  pre-processing behaviour.
+//
+
 import Testing
 import Foundation
 @testable import Cumberland

@@ -4,6 +4,12 @@
 //
 //  Created by Assistant on 10/10/25.
 //
+//  SwiftData models for story structure templates. StoryStructure holds a
+//  named template (e.g. "Three-Act Structure") containing an ordered list
+//  of StructureElement beats. StructureAssignmentManager provides helpers
+//  for adding and removing cards from elements via the many-to-many
+//  StructureElement.assignedCards relationship.
+//
 
 import Foundation
 import SwiftData

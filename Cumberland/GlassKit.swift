@@ -1,3 +1,13 @@
+//
+//  GlassKit.swift
+//  Cumberland
+//
+//  Collection of glass-morphism ViewModifiers, ButtonStyles, and View extensions
+//  for the app's visual language. Includes GlassButtonModifier (hover-sensitive
+//  translucent buttons), glass chip/tag variants, and the .glassButton() /
+//  .glassTag() View extension shortcuts.
+//
+
 import SwiftUI
 
 // MARK: - Glass button style / modifier

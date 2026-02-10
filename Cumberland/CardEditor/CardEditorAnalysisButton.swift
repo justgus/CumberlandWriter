@@ -6,6 +6,10 @@
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 3
 //  Extracted from CardEditorView.swift
 //
+//  Toolbar button that triggers AI content analysis (ER-0010) on the card
+//  currently being edited. Shows progress indicator during analysis and
+//  presents SuggestionReviewView with entity/relationship suggestions.
+//
 
 import SwiftUI
 import SwiftData

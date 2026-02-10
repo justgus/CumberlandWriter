@@ -1,4 +1,13 @@
-// Citation.swift
+//
+//  Citation.swift
+//  Cumberland
+//
+//  SwiftData model linking a Card to a Source with attribution metadata.
+//  Stores citation kind (quote/paraphrase/image/data), page/location,
+//  excerpt text, and optional notes. Supports reverse lookup via inverse
+//  relationships on both Card.citations and Source.citations.
+//
+
 import Foundation
 import SwiftData
 

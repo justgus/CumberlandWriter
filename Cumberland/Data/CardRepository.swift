@@ -5,6 +5,11 @@
 //  Created by Claude Code on 2026-02-06.
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 2
 //
+//  Repository encapsulating SwiftData fetch operations for the Card model.
+//  Provides methods to fetch all cards, cards by kind, cards by ID, and
+//  filtered/sorted card lists. Used by services and views that need
+//  non-@Query imperative fetching.
+//
 
 import Foundation
 import SwiftData

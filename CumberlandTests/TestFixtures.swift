@@ -1,3 +1,14 @@
+//
+//  TestFixtures.swift
+//  CumberlandTests
+//
+//  Shared test data for ER-0008 (Timeline), ER-0009 (Image Generation), and
+//  ER-0010 (Content Analysis) test suites. Provides sample CalendarSystem
+//  objects (Gregorian, Eldarian, Galactic Standard), rich narrative descriptions
+//  for entity/relationship/calendar extraction tests, sample Card factory
+//  methods, and mock AI response JSON strings.
+//
+
 import Foundation
 import SwiftData
 @testable import Cumberland

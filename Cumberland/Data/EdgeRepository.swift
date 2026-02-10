@@ -5,6 +5,10 @@
 //  Created by Claude Code on 2026-02-06.
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 2
 //
+//  Repository encapsulating SwiftData fetch and mutation operations for
+//  CardEdge records. Provides methods to fetch edges by card, create edges,
+//  delete edges, and bulk-reassign relation types during RelationType deletion.
+//
 
 import Foundation
 import SwiftData

@@ -1,4 +1,13 @@
-// SpecHeaderGuardTests.swift
+//
+//  SpecHeaderGuardTests.swift
+//  CumberlandTests
+//
+//  Structural test that verifies MurderboardView.swift retains the required
+//  spec comment-block sections (Acceptance Criteria and Implementation Plan)
+//  with at least 10 bullets each. Guards against accidental removal of
+//  specification documentation during refactoring. Works with both Swift
+//  Testing and XCTest depending on the platform/target configuration.
+//
 import Foundation
 
 #if canImport(Testing)

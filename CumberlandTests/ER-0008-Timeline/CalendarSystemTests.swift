@@ -1,3 +1,13 @@
+//
+//  CalendarSystemTests.swift
+//  CumberlandTests
+//
+//  Swift Testing suite for ER-0008: Time-Based Timeline System.
+//  Tests CalendarSystem model validation, TimeDivision arithmetic, and
+//  factory methods. Currently partially disabled (#if false) pending fixes
+//  for eras/festivals/gregorianTemplate API changes.
+//
+
 import Testing
 import Foundation
 import SwiftData

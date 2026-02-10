@@ -5,6 +5,11 @@
 //  Created by Claude Code on 1/24/26.
 //  ER-0008: Calendar System Editor - Phase 4B
 //
+//  Full editor for CalendarSystem objects. Allows defining the time
+//  hierarchy (smallest unit → largest unit), unit names, days-per-unit
+//  ratios, and epoch name. Presented from CalendarDetailEditor or
+//  directly from a Calendar card's detail view.
+//
 
 import SwiftUI
 import SwiftData

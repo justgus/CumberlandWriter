@@ -4,6 +4,11 @@
 //
 //  Created by Mike Stoddard on 11/11/25.
 //
+//  Multi-step map creation wizard for Map cards. Offers four creation paths:
+//  (1) Import Image from file/Photos/drag-drop, (2) Draw with PencilKit layers,
+//  (3) Capture from MapKit with location search, (4) AI Generate (placeholder).
+//  Persists draft drawing work to allow cross-device resumption.
+//
 
 import SwiftUI
 import SwiftData

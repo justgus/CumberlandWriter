@@ -1,3 +1,12 @@
+//
+//  RelatedEdgesList.swift
+//  Cumberland
+//
+//  Compact list of all CardEdge relationships (incoming and outgoing) for a
+//  given card. Used in the Murderboard's node detail popover to show the full
+//  relationship context without opening the full CardRelationshipView.
+//
+
 import SwiftUI
 import SwiftData
 
