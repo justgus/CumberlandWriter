@@ -2,7 +2,7 @@
 
 This document tracks enhancement requests that are proposed, in progress, or implemented but awaiting user verification.
 
-**Status:** Currently **7 active ERs** (7 Proposed, 0 In Progress, 0 Implemented - Not Verified)
+**Status:** Currently **6 active ERs** (5 Proposed, 0 In Progress, 1 Implemented - Not Verified)
 
 **Note:** ER-0008, ER-0009, ER-0010 verified and moved to `ER-verified-0008.md`
 **Note:** ER-0012, ER-0013, ER-0014, ER-0016 verified and moved to `ER-verified-0012.md`
@@ -13,6 +13,7 @@ This document tracks enhancement requests that are proposed, in progress, or imp
 **Note:** ER-0015, ER-0011 Phase 1 verified and moved to `ER-verified-0015.md` (2026-02-01)
 **Note:** ER-0021 verified and moved to `ER-verified-0021.md` (2026-02-05)
 **Note:** ER-0022 verified and moved to `ER-verified-0022.md` (2026-02-09)
+**Note:** ER-0027 verified and moved to `ER-verified-0027.md` (2026-02-11)
 
 ---
 
@@ -912,194 +913,77 @@ Then:
 
 ---
 
-## ER-0027: Reorganize AI Module into Subfolders
+## ER-0027: Reorganize AI Module into Subfolders - VERIFIED
 
-**Status:** 🔵 Proposed
-**Component:** AI Module Organization
-**Priority:** Low
-**Date Requested:** 2026-02-03
-**Dependencies:** None
-
-**Rationale:**
-
-The AI module currently contains 24 files in a flat structure (`Cumberland/AI/`), making navigation difficult. Reorganizing into logical subfolders will improve code discoverability and maintainability.
-
-**Current State:**
-```
-Cumberland/AI/ (24 files, mixed)
-- AIImageGenerator.swift
-- AppleIntelligenceProvider.swift
-- EntityExtractor.swift
-- BatchGenerationQueue.swift
-- SuggestionReviewView.swift
-- ... (19 more files)
-```
-
-**Desired State:**
-```
-Cumberland/AI/
-├── Providers/                # AI service providers
-│   ├── AIProviderProtocol.swift
-│   ├── AIProviderRegistry.swift
-│   ├── AppleIntelligenceProvider.swift
-│   ├── AnthropicProvider.swift
-│   ├── OpenAIProvider.swift
-│   └── AIProviderMetadata.swift
-├── ImageGeneration/          # Image generation
-│   ├── AIImageGenerator.swift
-│   ├── BatchGenerationQueue.swift
-│   ├── ImageVersionManager.swift
-│   └── ImageMetadataWriter.swift
-├── ContentAnalysis/          # Text analysis
-│   ├── DescriptionAnalyzer.swift
-│   ├── EntityExtractor.swift
-│   ├── RelationshipInference.swift
-│   ├── SuggestionEngine.swift
-│   ├── TextPreprocessor.swift
-│   └── PromptExtractor.swift
-├── Views/                    # AI UI components
-│   ├── AIImageGenerationView.swift
-│   ├── BatchGenerationView.swift
-│   ├── ImageHistoryView.swift
-│   └── SuggestionReviewView.swift
-├── Models/                   # AI-specific models
-│   ├── SuggestionFeedback.swift
-│   └── AnalysisTask.swift
-└── Utilities/                # AI utilities
-    ├── CalendarSystemExtractor.swift
-    └── KeychainHelper.swift
-```
-
-**Requirements:**
-
-**R1: Create Subfolder Structure**
-- Create 6 subfolders: Providers, ImageGeneration, ContentAnalysis, Views, Models, Utilities
-
-**R2: Move Files to Appropriate Folders**
-- Move provider files to `Providers/`
-- Move image generation files to `ImageGeneration/`
-- Move analysis files to `ContentAnalysis/`
-- Move UI files to `Views/`
-- Move models to `Models/`
-- Move utilities to `Utilities/`
-
-**R3: Update Import Statements**
-- Update all files that import from AI module
-- Xcode should auto-update most imports
-- Manual verification of any broken imports
-
-**Implementation Plan:**
-
-**Week 1:**
-1. Create subfolder structure in Xcode
-2. Move files to appropriate folders (drag & drop in Xcode)
-3. Update project.pbxproj automatically
-4. Build and verify no import errors
-5. Test all AI features (image generation, content analysis)
-6. Commit changes
-
-**Test Steps:**
-1. Build Cumberland successfully
-2. Generate AI image → verify works
-3. Run AI content analysis → verify works
-4. Open batch generation → verify works
-5. View image history → verify works
-6. All AI features functional
-
-**Benefits:**
-- ✅ Easier navigation (6 folders instead of 24 files)
-- ✅ Clear separation of concerns
-- ✅ Foundation for future extraction (if needed)
-- ✅ New developers onboard faster
-
-**Complexity:** Low (file moves + import updates)
-
-**Risk:** Very Low (mechanical refactor, Xcode handles most updates)
-
-**Timeline:** 1 day
+**Status:** ✅ Implemented - Verified (2026-02-11)
+**See:** `ER-verified-0027.md` for full details
 
 ---
 
 ## ER-0028: Consolidate Timeline System into Dedicated Folder
 
-**Status:** 🔵 Proposed
+**Status:** 🟡 Implemented - Not Verified
 **Component:** Timeline System Organization
 **Priority:** Low
 **Date Requested:** 2026-02-03
+**Date Started:** 2026-02-11
+**Date Implemented:** 2026-02-11
 **Dependencies:** None
 
 **Rationale:**
 
-Timeline-related files are currently scattered across multiple folders. Consolidating into a dedicated `Cumberland/Timeline/` folder will improve organization and make the timeline system easier to maintain.
+Timeline-related view files were scattered across the main Cumberland/ folder. Consolidating into the existing `Cumberland/Timeline/` folder improves organization and makes the timeline system easier to navigate.
 
-**Current State:**
-- `TimelineChartView.swift` - Main folder
-- `MultiTimelineGraphView.swift` - Main folder
-- `CalendarDetailEditor.swift` - Main folder
-- `SceneTemporalPositionEditor.swift` - Main folder
-- `CalendarSystem.swift` - Model folder
-- `CalendarSystemCleanup.swift` - Model folder
-- `CalendarSystemMigrationHelper.swift` - Model folder
+**Previous State:**
+- 5 timeline views in `Cumberland/` root (scattered among 50+ other files)
+- 2 timeline views already in `Cumberland/Timeline/`
 
-**Desired State:**
+**New State:**
 ```
-Cumberland/Timeline/
-├── Models/
-│   └── CalendarSystem.swift (move from Model/)
-├── Views/
-│   ├── TimelineChartView.swift
-│   ├── MultiTimelineGraphView.swift
-│   ├── CalendarDetailEditor.swift
-│   └── SceneTemporalPositionEditor.swift
-├── Services/
-│   ├── TimelinePositioningService.swift (extract from views)
-│   └── CalendarSystemManager.swift
-└── Utilities/
-    ├── CalendarSystemCleanup.swift
-    └── CalendarSystemMigrationHelper.swift
+Cumberland/Timeline/ (7 files, consolidated)
+├── CalendarDetailEditor.swift      (moved from root)
+├── CalendarSystemEditor.swift      (already here)
+├── CalendarSystemPicker.swift      (already here)
+├── MultiTimelineGraphView.swift    (moved from root)
+├── SceneTemporalPositionEditor.swift (moved from root)
+├── TemporalEditorWindowView.swift  (moved from root)
+└── TimelineChartView.swift         (moved from root)
 ```
 
-**Requirements:**
+**Files Left in Place (by design):**
+- `Model/CalendarSystem.swift` — SwiftData model, stays with schema/migration files
+- `Model/CalendarSystemCleanup.swift` — data cleanup utility tied to model layer
+- `Model/CalendarSystemMigrationHelper.swift` — migration helper tied to model layer
+- `CardEditor/CardEditorTimelineSection.swift` — extracted subview of CardEditorView (ER-0022)
+- `AI/ContentAnalysis/CalendarSystemExtractor.swift` — AI extraction (ER-0027)
+- `Developer/CalendarSystemCleanupView.swift` — developer diagnostic tool
 
-**R1: Create Timeline Folder Structure**
-- Create `Cumberland/Timeline/` folder
-- Create subfolders: Models, Views, Services, Utilities
+**Implementation Details:**
+1. Moved 5 timeline view files from Cumberland/ root to existing Timeline/ folder
+2. Updated `project.pbxproj` `membershipExceptions` for both iOS and visionOS targets
+3. No code changes required — Swift doesn't use path-based imports
 
-**R2: Move Existing Files**
-- Move timeline views to `Views/`
-- Move CalendarSystem model to `Models/`
-- Move utilities to `Utilities/`
+**Deviation from Original Proposal:**
+- Did NOT create subfolders (Models/, Views/, Services/, Utilities/) within Timeline/ — with only 7 view files, further subdivision adds unnecessary nesting
+- Did NOT move Model/ files — they belong with the SwiftData schema for migration coherence
+- Did NOT extract services (R3) — service extraction is a separate concern better addressed in a future ER if needed
 
-**R3: Extract Timeline Services (Optional)**
-- Extract timeline positioning logic from TimelineChartView → TimelinePositioningService
-- Extract calendar operations → CalendarSystemManager
-
-**Implementation Plan:**
-
-**Week 1:**
-1. Create folder structure
-2. Move files
-3. Update imports
-4. Build and test
-5. (Optional) Extract services if time permits
+**Build Status:**
+- ✅ macOS: BUILD SUCCEEDED
+- ✅ iOS: BUILD SUCCEEDED
 
 **Test Steps:**
-1. Open TimelineChartView → verify renders correctly
-2. Create chronicle card → assign to timeline
-3. Adjust temporal position → verify updates
-4. View multi-timeline graph → verify displays
-5. Edit calendar system → verify changes save
+1. Build Cumberland for macOS → verify BUILD SUCCEEDED
+2. Build Cumberland for iOS → verify BUILD SUCCEEDED
+3. Open project in Xcode → verify Timeline/ folder shows all 7 files
+4. Open TimelineChartView → verify renders correctly
+5. Open multi-timeline graph → verify displays
+6. Edit temporal position → verify updates
+7. Edit calendar system → verify changes save
 
-**Benefits:**
-- ✅ Timeline system self-contained
-- ✅ Easier to find timeline-related code
-- ✅ Foundation for future timeline improvements
+**Complexity:** Low
 
-**Complexity:** Low-Medium (file moves + optional service extraction)
-
-**Risk:** Low
-
-**Timeline:** 1-2 days
+**Risk:** Very Low
 
 ---
 
@@ -1215,5 +1099,5 @@ Cumberland/Citation/
 
 ---
 
-*Last Updated: 2026-02-09*
-*ER-0022 verified and moved to ER-verified-0022.md*
+*Last Updated: 2026-02-11*
+*ER-0028 implemented - awaiting verification*
