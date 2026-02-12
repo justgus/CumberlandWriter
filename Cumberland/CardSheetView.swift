@@ -185,6 +185,9 @@ struct CardSheetView: View {
                     canAcceptImageDrop: canAcceptImageDrop
                 )
 
+                // Citation summary (read-only)
+                CitationSummaryView(card: card)
+
                 Divider()
 
                 CardSheetEditorArea(

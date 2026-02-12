@@ -115,10 +115,10 @@ struct ImageAttributionEditor: View {
     private func createSource() {
         let title = newSourceTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        let s = Source(title: title, authors: newSourceAuthors)
-        modelContext.insert(s)
-        try? modelContext.save()
-        selectedSource = s
+
+        let manager = CitationManager(modelContext: modelContext)
+        selectedSource = manager.createSource(title: title, authors: newSourceAuthors)
+
         newSourceTitle = ""
         newSourceAuthors = ""
         isCreatingSource = false
@@ -126,18 +126,13 @@ struct ImageAttributionEditor: View {
 
     private func saveCitation() {
         guard let src = selectedSource else { return }
+        let manager = CitationManager(modelContext: modelContext)
+        let noteValue = contextNote.isEmpty ? nil : contextNote
         if let c = citation {
-            c.source = src
-            c.kind = .image
-            c.locator = locator
-            c.excerpt = excerpt
-            c.contextNote = contextNote.isEmpty ? nil : contextNote
-            try? modelContext.save()
+            manager.updateCitation(c, source: src, kind: .image, locator: locator, excerpt: excerpt, contextNote: noteValue)
             onSave(c)
         } else {
-            let c = Citation(card: card, source: src, kind: .image, locator: locator, excerpt: excerpt, contextNote: contextNote.isEmpty ? nil : contextNote, createdAt: Date())
-            modelContext.insert(c)
-            try? modelContext.save()
+            let c = manager.createCitation(card: card, source: src, kind: .image, locator: locator, excerpt: excerpt, contextNote: noteValue)
             onSave(c)
         }
         dismiss()

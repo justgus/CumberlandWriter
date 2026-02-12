@@ -92,22 +92,14 @@ struct ImageAttributionViewer: View {
     
     // MARK: - Data Management
     private func reloadImageCitations() {
-        // Match optional relationship key path with an optional RHS value for the predicate DSL.
-        let cardIDOpt: UUID? = card.id
-        let imageKindRaw = CitationKind.image.rawValue
-        let fetch = FetchDescriptor<Citation>(
-            predicate: #Predicate {
-                $0.card?.id == cardIDOpt && $0.kindRaw == imageKindRaw
-            },
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
-        imageCitations = (try? modelContext.fetch(fetch)) ?? []
+        let manager = CitationManager(modelContext: modelContext)
+        imageCitations = manager.fetchImageCitations(for: card)
     }
 
     @MainActor
     private func deleteAttribution(_ c: Citation) {
-        modelContext.delete(c)
-        try? modelContext.save()
+        let manager = CitationManager(modelContext: modelContext)
+        manager.deleteCitation(c)
         reloadImageCitations()
     }
 

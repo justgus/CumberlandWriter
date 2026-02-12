@@ -193,6 +193,37 @@ extension CalendarSystem {
     }
 }
 
+// MARK: - Standard Calendar Detection
+
+extension CalendarSystem {
+
+    /// Well-known calendar names that have implicit epochs
+    private static let standardCalendarNames: Set<String> = [
+        "gregorian", "julian"
+    ]
+
+    /// Whether this is a well-known real-world calendar with a standard epoch
+    var isStandardCalendar: Bool {
+        Self.standardCalendarNames.contains(name.lowercased())
+    }
+
+    /// The implicit epoch date for standard calendars, or nil for custom calendars
+    /// Gregorian/Julian: January 1, 0001 at midnight UTC
+    var standardEpochDate: Date? {
+        guard isStandardCalendar else { return nil }
+        // January 1, 0001 00:00:00 UTC
+        var components = DateComponents()
+        components.year = 1
+        components.month = 1
+        components.day = 1
+        components.hour = 0
+        components.minute = 0
+        components.second = 0
+        components.timeZone = TimeZone(identifier: "UTC")
+        return Foundation.Calendar(identifier: .gregorian).date(from: components)
+    }
+}
+
 // MARK: - Comparable Conformance
 
 extension CalendarSystem: Comparable {

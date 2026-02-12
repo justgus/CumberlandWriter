@@ -31,6 +31,13 @@ struct SceneTemporalPositionEditor: View {
     @State private var calendarDivisionValues: [Int] = [] // Values for each division
     @State private var displayedCalculatedDate: Date = Date() // Explicitly tracked for view updates
 
+    // DR-0090: Direct year/month/day entry for standard date mode
+    @State private var inputYear: Int = 2025
+    @State private var inputMonth: Int = 1
+    @State private var inputDay: Int = 1
+    @State private var inputHour: Int = 12
+    @State private var inputMinute: Int = 0
+
     // Duration presets
     private enum DurationPreset: String, CaseIterable, Identifiable {
         case minutes15 = "15 minutes"
@@ -67,6 +74,12 @@ struct SceneTemporalPositionEditor: View {
     // Duration input - use calendar units if available
     @State private var durationInSmallestUnit: Int = 1 // e.g., 1 segment = 3600 seconds
 
+    /// Resolved epoch: uses the timeline's explicit epoch, falling back to the
+    /// calendar's standard epoch for well-known calendars (DR-0089)
+    private var resolvedEpoch: Date? {
+        timeline.epochDate ?? timeline.calendarSystem?.standardEpochDate
+    }
+
     init(scene: Card, timeline: Card, edge: CardEdge) {
         print("🔷 [SceneTemporalPositionEditor] === INITIALIZING EDITOR ===")
         print("🔷 [SceneTemporalPositionEditor] Scene: \(scene.name) (ID: \(scene.id))")
@@ -102,19 +115,24 @@ struct SceneTemporalPositionEditor: View {
 
         print("🔷 [SceneTemporalPositionEditor] Duration in smallest units: \(max(1, units))")
 
-        // Initialize calendar-aware input
-        let hasCustomCalendar = timeline.calendarSystem != nil
-        _useCalendarInput = State(initialValue: hasCustomCalendar)
+        // Initialize calendar-aware input — for standard calendars, default to
+        // standard date mode since users expect a normal date picker (DR-0089)
+        let hasCalendar = timeline.calendarSystem != nil
+        let isStandard = timeline.calendarSystem?.isStandardCalendar ?? false
+        _useCalendarInput = State(initialValue: hasCalendar && !isStandard)
 
-        print("🔷 [SceneTemporalPositionEditor] Has custom calendar: \(hasCustomCalendar)")
+        print("🔷 [SceneTemporalPositionEditor] Has calendar: \(hasCalendar), isStandard: \(isStandard)")
         if let calendar = timeline.calendarSystem {
             print("🔷 [SceneTemporalPositionEditor] Calendar: \(calendar.name)")
             print("🔷 [SceneTemporalPositionEditor] Divisions: \(calendar.divisions.count)")
         }
-        if let epoch = timeline.epochDate {
-            print("🔷 [SceneTemporalPositionEditor] Timeline epoch: \(epoch)")
+
+        // DR-0089: Resolve epoch from explicit setting OR standard calendar default
+        let resolvedEpoch = timeline.epochDate ?? timeline.calendarSystem?.standardEpochDate
+        if let epoch = resolvedEpoch {
+            print("🔷 [SceneTemporalPositionEditor] Resolved epoch: \(epoch)")
         } else {
-            print("⚠️ [SceneTemporalPositionEditor] WARNING: Timeline has NO epoch date! Calendar conversion will not work!")
+            print("⚠️ [SceneTemporalPositionEditor] WARNING: No epoch available! Calendar conversion will not work!")
         }
 
         // Initialize division values (start with zeros, user will set them)
@@ -123,6 +141,15 @@ struct SceneTemporalPositionEditor: View {
 
         // Initialize displayed calculated date
         _displayedCalculatedDate = State(initialValue: initialPosition)
+
+        // DR-0090: Initialize year/month/day/hour/minute from the initial position
+        let cal = Foundation.Calendar(identifier: .gregorian)
+        let comps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: initialPosition)
+        _inputYear = State(initialValue: comps.year ?? 2025)
+        _inputMonth = State(initialValue: comps.month ?? 1)
+        _inputDay = State(initialValue: comps.day ?? 1)
+        _inputHour = State(initialValue: comps.hour ?? 12)
+        _inputMinute = State(initialValue: comps.minute ?? 0)
 
         print("🔷 [SceneTemporalPositionEditor] === INITIALIZATION COMPLETE ===")
     }
@@ -145,7 +172,10 @@ struct SceneTemporalPositionEditor: View {
                 // Temporal Position Section
                 Section {
                     // Toggle between calendar-aware and standard date input
-                    if timeline.calendarSystem != nil {
+                    // Only show the toggle for custom (non-standard) calendars.
+                    // Standard calendars (Gregorian, Julian) use the Standard Date
+                    // fields which handle variable-length months correctly.
+                    if let cal = timeline.calendarSystem, !cal.isStandardCalendar {
                         Picker("Input Mode", selection: $useCalendarInput) {
                             Text("Custom Calendar").tag(true)
                             Text("Standard Date").tag(false)
@@ -153,7 +183,7 @@ struct SceneTemporalPositionEditor: View {
                         .pickerStyle(.segmented)
                         .onChange(of: useCalendarInput) { _, newValue in
                             print("📅 [SceneTemporalPositionEditor] Input mode changed to: \(newValue ? "Custom Calendar" : "Standard Date")")
-                            if newValue, let calendar = timeline.calendarSystem, let epoch = timeline.epochDate {
+                            if newValue, let calendar = timeline.calendarSystem, let epoch = resolvedEpoch {
                                 // Switching to calendar mode - recalculate
                                 let calculated = convertCalendarUnitsToDate(divisions: calendar.divisions, values: calendarDivisionValues, epoch: epoch)
                                 displayedCalculatedDate = calculated
@@ -166,22 +196,8 @@ struct SceneTemporalPositionEditor: View {
                         // Calendar-aware date inputs
                         calendarDateInputs(for: calendar)
                     } else {
-                        // Standard date picker (graphical calendar)
-                        DatePicker(
-                            "Date",
-                            selection: $temporalPosition,
-                            displayedComponents: [.date]
-                        )
-                        .datePickerStyle(.graphical)
-                        .frame(minHeight: 280) // Ensure graphical calendar has proper size
-
-                        // Time picker (separate for better UX)
-                        DatePicker(
-                            "Time",
-                            selection: $temporalPosition,
-                            displayedComponents: [.hourAndMinute]
-                        )
-                        .datePickerStyle(.compact)
+                        // DR-0090: Direct year/month/day entry for historical dates
+                        standardDateInputFields
                     }
 
                     Divider()
@@ -252,7 +268,7 @@ struct SceneTemporalPositionEditor: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    if let epoch = timeline.epochDate {
+                    if let epoch = resolvedEpoch {
                         Text("Timeline epoch: \(epoch, style: .date)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -271,7 +287,7 @@ struct SceneTemporalPositionEditor: View {
 
                             Spacer()
 
-                            TextField("1", value: $durationInSmallestUnit, format: .number)
+                            TextField("1", value: $durationInSmallestUnit, format: .number.grouping(.never))
                                 .textFieldStyle(.roundedBorder)
                                 .frame(width: 100)
                                 .multilineTextAlignment(.trailing)
@@ -305,7 +321,7 @@ struct SceneTemporalPositionEditor: View {
                             TextField("3600", value: Binding(
                                 get: { Int(duration) },
                                 set: { duration = TimeInterval($0) }
-                            ), format: .number)
+                            ), format: .number.grouping(.never))
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 100)
                             .multilineTextAlignment(.trailing)
@@ -363,9 +379,9 @@ struct SceneTemporalPositionEditor: View {
             print("📅 [SceneTemporalPositionEditor] Calendar values changed: \(newValues)")
             print("📅 [SceneTemporalPositionEditor] useCalendarInput: \(useCalendarInput)")
             print("📅 [SceneTemporalPositionEditor] Has calendar system: \(timeline.calendarSystem != nil)")
-            print("📅 [SceneTemporalPositionEditor] Has epoch date: \(timeline.epochDate != nil)")
+            print("📅 [SceneTemporalPositionEditor] Has resolved epoch: \(resolvedEpoch != nil)")
 
-            if useCalendarInput, let calendar = timeline.calendarSystem, let epoch = timeline.epochDate {
+            if useCalendarInput, let calendar = timeline.calendarSystem, let epoch = resolvedEpoch {
                 let calculated = convertCalendarUnitsToDate(divisions: calendar.divisions, values: newValues, epoch: epoch)
                 displayedCalculatedDate = calculated
                 temporalPosition = calculated
@@ -374,7 +390,7 @@ struct SceneTemporalPositionEditor: View {
                 print("⚠️ [SceneTemporalPositionEditor] Cannot convert calendar date - missing epoch!")
                 print("   - useCalendarInput: \(useCalendarInput)")
                 print("   - calendar exists: \(timeline.calendarSystem != nil)")
-                print("   - epoch exists: \(timeline.epochDate != nil)")
+                print("   - resolvedEpoch exists: \(resolvedEpoch != nil)")
             }
         }
     }
@@ -382,7 +398,7 @@ struct SceneTemporalPositionEditor: View {
     // MARK: - Computed Properties
 
     private var calculatedTemporalPosition: Date {
-        if useCalendarInput, let calendar = timeline.calendarSystem, let epoch = timeline.epochDate {
+        if useCalendarInput, let calendar = timeline.calendarSystem, let epoch = resolvedEpoch {
             return convertCalendarUnitsToDate(divisions: calendar.divisions, values: calendarDivisionValues, epoch: epoch)
         }
         return temporalPosition
@@ -429,29 +445,186 @@ struct SceneTemporalPositionEditor: View {
         }
     }
 
-    /// Format date in calendar representation
+    /// Format date in calendar representation (DR-0091: generic implementation)
     private func formatDateInCalendar(_ date: Date) -> String {
-        guard let _ = timeline.calendarSystem, let epoch = timeline.epochDate else {
+        guard let calendar = timeline.calendarSystem, let epoch = resolvedEpoch else {
             return date.formatted(date: .abbreviated, time: .shortened)
         }
 
-        // Calculate time since epoch in seconds
+        let divisions = calendar.divisions
+        guard !divisions.isEmpty else {
+            return date.formatted(date: .abbreviated, time: .shortened)
+        }
+
+        // Determine real-time duration of one smallest unit
+        let smallestDivName = divisions[0].name.lowercased()
+        let secondsPerSmallestUnit: TimeInterval
+        switch smallestDivName {
+        case "second", "seconds": secondsPerSmallestUnit = 1.0
+        case "minute", "minutes": secondsPerSmallestUnit = 60.0
+        case "hour", "hours": secondsPerSmallestUnit = 3600.0
+        case "segment", "segments": secondsPerSmallestUnit = 3600.0
+        default: secondsPerSmallestUnit = 1.0
+        }
+
         let secondsSinceEpoch = date.timeIntervalSince(epoch)
+        var remaining = Int(secondsSinceEpoch / secondsPerSmallestUnit)
 
-        // Convert to segments (base unit, 3600 seconds each)
-        let totalSegments = Int(secondsSinceEpoch / 3600)
+        // Decompose from smallest to largest
+        // divisions[i].length = how many of [i] in one [i+1]
+        var divisionValues: [Int] = Array(repeating: 0, count: divisions.count)
 
-        // Convert to rotations
-        let totalRotations = totalSegments / 24
-        let segments = totalSegments % 24
+        for i in 0..<(divisions.count - 1) {
+            let length = divisions[i].length
+            divisionValues[i] = remaining % length
+            remaining = remaining / length
+        }
+        // Largest division gets whatever remains
+        divisionValues[divisions.count - 1] = remaining
 
-        // Convert to cycles and seasons
-        let cycles = totalRotations / 360
-        let rotationsInCycle = totalRotations % 360
-        let seasons = rotationsInCycle / 90
-        let rotations = rotationsInCycle % 90
+        // Format as "Division Value, Division Value, ..."
+        // Show from largest to smallest
+        var parts: [String] = []
+        for i in stride(from: divisions.count - 1, through: 0, by: -1) {
+            let name = divisions[i].name.capitalized
+            parts.append("\(name) \(divisionValues[i])")
+        }
+        return parts.joined(separator: ", ")
+    }
 
-        return "Cycle \(cycles), Season \(seasons), Rotation \(rotations), Segment \(segments)"
+    // MARK: - Standard Date Input (DR-0090)
+
+    /// Direct year/month/day/time entry — replaces the graphical DatePicker
+    /// that was unusable for historical dates spanning centuries
+    @ViewBuilder
+    private var standardDateInputFields: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Year
+            HStack {
+                Text("Year:")
+                    .frame(width: 60, alignment: .leading)
+                TextField("Year", value: $inputYear, format: .number.grouping(.never))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 100)
+                    .multilineTextAlignment(.trailing)
+                Stepper("", value: $inputYear, in: 1...9999)
+                    .labelsHidden()
+            }
+
+            // Month
+            HStack {
+                Text("Month:")
+                    .frame(width: 60, alignment: .leading)
+                Picker("Month", selection: $inputMonth) {
+                    ForEach(1...12, id: \.self) { m in
+                        Text(Foundation.Calendar(identifier: .gregorian)
+                            .monthSymbols[m - 1])
+                            .tag(m)
+                    }
+                }
+                .labelsHidden()
+                #if os(macOS)
+                .pickerStyle(.menu)
+                #else
+                .pickerStyle(.menu)
+                #endif
+            }
+
+            // Day
+            HStack {
+                Text("Day:")
+                    .frame(width: 60, alignment: .leading)
+                Picker("Day", selection: $inputDay) {
+                    ForEach(1...daysInSelectedMonth, id: \.self) { d in
+                        Text("\(d)").tag(d)
+                    }
+                }
+                .labelsHidden()
+                #if os(macOS)
+                .pickerStyle(.menu)
+                #else
+                .pickerStyle(.menu)
+                #endif
+            }
+
+            Divider()
+
+            // Time
+            HStack {
+                Text("Time:")
+                    .frame(width: 60, alignment: .leading)
+                Picker("Hour", selection: $inputHour) {
+                    ForEach(0...23, id: \.self) { h in
+                        Text(String(format: "%02d", h)).tag(h)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 60)
+                Text(":")
+                Picker("Minute", selection: $inputMinute) {
+                    ForEach(0...59, id: \.self) { m in
+                        Text(String(format: "%02d", m)).tag(m)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 60)
+            }
+
+            // Preview of assembled date
+            if let assembled = assembledDate {
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(assembled.formatted(date: .long, time: .shortened))
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                }
+                .padding(.top, 4)
+            }
+        }
+        .onChange(of: inputYear) { _, _ in syncDateFromComponents() }
+        .onChange(of: inputMonth) { _, newMonth in
+            // Clamp day if needed when month changes
+            let maxDay = daysInMonth(newMonth, year: inputYear)
+            if inputDay > maxDay { inputDay = maxDay }
+            syncDateFromComponents()
+        }
+        .onChange(of: inputDay) { _, _ in syncDateFromComponents() }
+        .onChange(of: inputHour) { _, _ in syncDateFromComponents() }
+        .onChange(of: inputMinute) { _, _ in syncDateFromComponents() }
+    }
+
+    /// Number of days in the currently selected month/year
+    private var daysInSelectedMonth: Int {
+        daysInMonth(inputMonth, year: inputYear)
+    }
+
+    private func daysInMonth(_ month: Int, year: Int) -> Int {
+        var comps = DateComponents()
+        comps.year = year
+        comps.month = month
+        let cal = Foundation.Calendar(identifier: .gregorian)
+        return cal.range(of: .day, in: .month, for: cal.date(from: comps) ?? Date())?.count ?? 30
+    }
+
+    /// Assemble a Date from the individual year/month/day/hour/minute fields
+    private var assembledDate: Date? {
+        var comps = DateComponents()
+        comps.year = inputYear
+        comps.month = inputMonth
+        comps.day = inputDay
+        comps.hour = inputHour
+        comps.minute = inputMinute
+        comps.second = 0
+        return Foundation.Calendar(identifier: .gregorian).date(from: comps)
+    }
+
+    /// Sync the component fields back to `temporalPosition`
+    private func syncDateFromComponents() {
+        if let date = assembledDate {
+            temporalPosition = date
+        }
     }
 
     // MARK: - Calendar Date Input Views
@@ -467,7 +640,7 @@ struct SceneTemporalPositionEditor: View {
                     Spacer()
 
                     // Use direct binding to array element for proper @State updates
-                    TextField("0", value: $calendarDivisionValues[index], format: .number)
+                    TextField("0", value: $calendarDivisionValues[index], format: .number.grouping(.never))
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 80)
                         .multilineTextAlignment(.trailing)
@@ -479,76 +652,118 @@ struct SceneTemporalPositionEditor: View {
         }
 
         // Help text
-        Text("Enter values for each time division. For example: Cycle 1847, Season 2 (Spring), Rotation 1, Segment 8")
+        let exampleParts = calendar.divisions.suffix(3).reversed().map { "\($0.name.capitalized) 1" }
+        let exampleText = exampleParts.joined(separator: ", ")
+        Text("Enter values for each time division. For example: \(exampleText)")
             .font(.caption)
             .foregroundStyle(.secondary)
             .padding(.top, 4)
     }
 
-    // MARK: - Calendar Conversion
+    // MARK: - Calendar Conversion (DR-0091: Generic implementation)
 
-    /// Converts calendar division values to a Date based on the timeline's epoch
-    /// Imperial Meridian Calendar structure (user enters in this order):
-    ///   - Epoch (variable, eras) - usually 0
-    ///   - Cycle (years, 360 rotations each)
-    ///   - Season (quarters, 90 rotations each, 4 per cycle)
-    ///   - Rotation (days, 24 segments each)
-    ///   - Segment (hours, 3600 seconds each)
+    /// Converts calendar division values to a Date based on the timeline's epoch.
+    ///
+    /// DR-0091: Rewritten to work generically with any calendar's divisions
+    /// instead of being hardcoded for the Imperial Meridian Calendar.
+    ///
+    /// Divisions are ordered smallest-to-largest. Each division's `length` tells
+    /// how many of that unit compose one of the next-larger unit. We accumulate
+    /// from largest to smallest, then convert the total smallest-units to seconds.
     private func convertCalendarUnitsToDate(divisions: [TimeDivision], values: [Int], epoch: Date) -> Date {
         guard values.count == divisions.count else {
             print("⚠️ [SceneTemporalPositionEditor] Division count mismatch: \(divisions.count) divisions, \(values.count) values")
             return epoch
         }
 
-        // For Imperial Meridian Calendar specifically:
-        // Convert everything to segments (the base unit = 1 hour = 3600 seconds)
+        guard !divisions.isEmpty else { return epoch }
 
-        // Find division indices by name
-        var cycleValue = 0
-        var seasonValue = 0
-        var rotationValue = 0
-        var segmentValue = 0
+        // Accumulate from largest division down to smallest.
+        // Each division's `length` = how many of THIS unit fit into one of the NEXT LARGER unit.
+        // Walking from largest (last) to smallest (first):
+        //   running total = value[i] + running_total * divisions[i].length
+        // After processing all divisions, we have total count of the smallest unit.
 
-        for (index, division) in divisions.enumerated() {
-            let value = values[index]
-            let divName = division.name.lowercased()
+        // Process divisions from largest (last index) to smallest (index 0)
+        var totalSmallestUnits: Double = 0
 
-            if divName == "epoch" {
-                // Epochs are variable-length eras, typically not used in date calculation
-                // We start from the epoch date itself
-                continue
-            } else if divName == "cycle" {
-                cycleValue = value
-            } else if divName == "season" {
-                seasonValue = value
-            } else if divName == "rotation" {
-                rotationValue = value
-            } else if divName == "segment" {
-                segmentValue = value
+        for i in stride(from: divisions.count - 1, through: 0, by: -1) {
+            let value = Double(values[i])
+            if i < divisions.count - 1 {
+                // Multiply accumulated total by this division's length to convert
+                // from "next larger" units down to this level
+                totalSmallestUnits = totalSmallestUnits * Double(divisions[i + 1].length) + value
+            } else {
+                // Largest division — just start with its value
+                // But we need to convert it to the next-smaller unit using its own length
+                // Actually, for the largest unit, we just take the value and will multiply down
+                totalSmallestUnits = value
             }
         }
 
-        // Calculate total segments
-        // 1 Cycle = 360 Rotations
-        // 1 Season = 90 Rotations (but we add this to the cycle's rotations)
-        // 1 Rotation = 24 Segments
-        // 1 Segment = 3600 seconds
+        // Wait — the above is walking from largest to smallest but the multiplication
+        // needs to go: accumulate = accumulate * length_of_current + value_of_current
+        // Let me reconsider. Divisions[0] is smallest. Divisions[last] is largest.
+        // Each divisions[i].length = how many of divisions[i] compose one of divisions[i+1].
+        //
+        // Example: [second(60), minute(60), hour(24), day(365), year(1)]
+        //   Values: [30, 15, 8, 100, 2]
+        //   Total seconds = 2*(365*24*60*60) + 100*(24*60*60) + 8*(60*60) + 15*60 + 30
+        //
+        // Walking from largest to smallest:
+        //   acc = 2  (years)
+        //   acc = 2 * 365 + 100 = 830  (days)
+        //   acc = 830 * 24 + 8 = 19928  (hours)
+        //   acc = 19928 * 60 + 15 = 1195695  (minutes)
+        //   acc = 1195695 * 60 + 30 = 71741730  (seconds)
+        //
+        // At each step, multiply by divisions[i].length (the length of the CURRENT level,
+        // which tells us how many of current-level units fit in one of the next-larger)
+        // Actually no. divisions[i].length is how many of [i] compose one [i+1].
+        // So to go from next-larger count to current count: multiply by divisions[i].length.
 
-        var totalRotations = 0
-        totalRotations += cycleValue * 360  // Cycles to rotations
-        totalRotations += seasonValue * 90  // Seasons to rotations
-        totalRotations += rotationValue     // Direct rotations
+        // Redo: walk from largest (index N-1) down to smallest (index 0)
+        totalSmallestUnits = 0
+        for i in stride(from: divisions.count - 1, through: 0, by: -1) {
+            let value = Double(values[i])
 
-        var totalSegments = 0
-        totalSegments += totalRotations * 24  // Rotations to segments
-        totalSegments += segmentValue         // Direct segments
+            if i == divisions.count - 1 {
+                // Start with the largest division's value
+                totalSmallestUnits = value
+            } else {
+                // Convert accumulated total from [i+1]-level units to [i]-level units
+                // divisions[i].length = how many of [i] in one [i+1]
+                totalSmallestUnits = totalSmallestUnits * Double(divisions[i].length) + value
+            }
+        }
 
-        let totalSeconds = TimeInterval(totalSegments) * 3600  // Segments to seconds
+        // Now totalSmallestUnits is in the smallest division's units.
+        // Determine real-time duration of one smallest unit.
+        let smallestDivName = divisions[0].name.lowercased()
+        let secondsPerSmallestUnit: TimeInterval
+        switch smallestDivName {
+        case "second", "seconds":
+            secondsPerSmallestUnit = 1.0
+        case "minute", "minutes":
+            secondsPerSmallestUnit = 60.0
+        case "hour", "hours":
+            secondsPerSmallestUnit = 3600.0
+        case "segment", "segments":
+            // Legacy: Imperial Meridian Calendar convention (1 segment = 1 hour)
+            secondsPerSmallestUnit = 3600.0
+        default:
+            // For unknown smallest units, assume 1 second per unit
+            secondsPerSmallestUnit = 1.0
+        }
 
-        print("📅 [SceneTemporalPositionEditor] Converting calendar date:")
-        print("   Input: Cycle \(cycleValue), Season \(seasonValue), Rotation \(rotationValue), Segment \(segmentValue)")
-        print("   → Total rotations: \(totalRotations)")
-        print("   → Total segments: \(totalSegments)")
+        let totalSeconds = totalSmallestUnits * secondsPerSmallestUnit
+
+        print("📅 [SceneTemporalPositionEditor] Converting calendar date (generic):")
+        print("   Input values: \(values)")
+        print("   Division names: \(divisions.map { $0.name })")
+        print("   Division lengths: \(divisions.map { $0.length })")
+        print("   → Total smallest units (\(divisions[0].name)): \(totalSmallestUnits)")
+        print("   → Seconds per \(divisions[0].name): \(secondsPerSmallestUnit)")
         print("   → Total seconds from epoch: \(totalSeconds)")
         print("   → Epoch date: \(epoch)")
         print("   → Result date: \(epoch.addingTimeInterval(totalSeconds))")
@@ -572,12 +787,12 @@ struct SceneTemporalPositionEditor: View {
             print("💾 [SceneTemporalPositionEditor] Calendar values: \(calendarDivisionValues)")
             print("💾 [SceneTemporalPositionEditor] Calculated date: \(displayedCalculatedDate)")
 
-            if timeline.epochDate == nil {
-                print("⚠️⚠️⚠️ [SceneTemporalPositionEditor] CRITICAL: Timeline has NO epoch date!")
+            if resolvedEpoch == nil {
+                print("⚠️⚠️⚠️ [SceneTemporalPositionEditor] CRITICAL: No resolved epoch available!")
                 print("⚠️⚠️⚠️ [SceneTemporalPositionEditor] Calendar conversion cannot work without an epoch!")
                 print("⚠️⚠️⚠️ [SceneTemporalPositionEditor] Please set the timeline's epoch date on its back face.")
             } else {
-                print("💾 [SceneTemporalPositionEditor] Timeline epoch: \(timeline.epochDate!)")
+                print("💾 [SceneTemporalPositionEditor] Resolved epoch: \(resolvedEpoch!)")
             }
 
             if let formatted = timeline.calendarSystem != nil ? formatDateInCalendar(displayedCalculatedDate) : nil {

@@ -17,7 +17,7 @@ ERs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified ERs (Active & Proposed)
 
-Currently: **6 unverified ERs** (5 Proposed, 0 In Progress, 1 Implemented - Not Verified)
+Currently: **4 unverified ERs** (4 Proposed, 0 In Progress, 0 Implemented - Not Verified)
 
 *Note: ER-0021 verified 2026-02-05 and moved to ER-verified-0021.md*
 *Note: ER-0022 verified 2026-02-09 and moved to ER-verified-0022.md*
@@ -29,14 +29,14 @@ Currently: **6 unverified ERs** (5 Proposed, 0 In Progress, 1 Implemented - Not 
 | ER-0025 | Integrate Map Generation into Storyscapes with Workspace | Map Generation, Storyscapes Integration, Xcode Workspace | 🔵 Proposed |
 | ER-0026 | Extract Murderboard to Standalone Target | Murderboard, Relationship Visualization, Workspace Target | 🔵 Proposed |
 | ~~ER-0027~~ | ~~Reorganize AI Module into Subfolders~~ | ~~AI Module Organization~~ | ✅ Verified (moved to ER-verified-0027.md) |
-| ER-0028 | Consolidate Timeline System into Dedicated Folder | Timeline System Organization | 🟡 Implemented - Not Verified |
-| ER-0029 | Consolidate Citation System with Service Layer | Citation System Organization | 🔵 Proposed |
+| ~~ER-0028~~ | ~~Consolidate Timeline System into Dedicated Folder~~ | ~~Timeline System Organization~~ | ✅ Verified (moved to ER-verified-0028.md) |
+| ~~ER-0029~~ | ~~Consolidate Citation System with Service Layer~~ | ~~Citation System Organization~~ | ✅ Verified (moved to ER-verified-0029.md) |
 
 See: [ER-unverified.md](./ER-unverified.md)
 
 ### Verified ERs (Completed Enhancements)
 
-Currently: **27 verified ERs** | Next available ER: **ER-0030**
+Currently: **29 verified ERs** | Next available ER: **ER-0030**
 
 | Batch | ERs | File | Status |
 |-------|-----|------|--------|
@@ -53,6 +53,8 @@ Currently: **27 verified ERs** | Next available ER: **ER-0030**
 | Batch 21 | ER-0021 | [ER-verified-0021.md](./ER-verified-0021.md) | ✅ Verified (1/1) |
 | Batch 22 | ER-0022 | [ER-verified-0022.md](./ER-verified-0022.md) | ✅ Verified (1/1) |
 | Batch 27 | ER-0027 | [ER-verified-0027.md](./ER-verified-0027.md) | ✅ Verified (1/1) |
+| Batch 28 | ER-0028 | [ER-verified-0028.md](./ER-verified-0028.md) | ✅ Verified (1/1) |
+| Batch 29 | ER-0029 | [ER-verified-0029.md](./ER-verified-0029.md) | ✅ Verified (1/1) |
 
 ## ER Summary
 
@@ -150,20 +152,30 @@ When a verified batch file contains multiple ERs (flexible batching), create a n
 ## Statistics
 
 - **Total ERs:** 30
-- **Verified:** 27 (90.0%) ✅
+- **Verified:** 28 (93.3%) ✅
   - All in batch files
-- **Implemented - Not Verified:** 1 (3.3%) 🟢
-- **In Progress:** 0 (0%) 🟡
-- **Proposed:** 6 (20.0%) 🔵
+- **Implemented - Not Verified:** 0 (0%)
+- **In Progress:** 0 (0%)
+- **Proposed:** 4 (13.3%) 🔵
   - ER-0023 (Extract ImageProcessing Package - proposed 2026-02-03)
   - ER-0024 (Extract BrushEngine Package - proposed 2026-02-03)
   - ER-0025 (Storyscapes Workspace Integration - proposed 2026-02-03)
   - ER-0026 (Murderboard Standalone Target - proposed 2026-02-03)
-  - ER-0028 (Timeline System Consolidation - proposed 2026-02-03)
-  - ER-0029 (Citation System Service Layer - proposed 2026-02-03)
-- **Latest Verifications:** ER-0027 (2026-02-11) - AI Module Reorganization
+- **Latest Verifications:** ER-0029 (2026-02-12) - Citation System Consolidation with CitationSummaryView
 
 **Recent Activity:**
+- 2026-02-12: **ER-0029 VERIFIED** - Citation System Consolidation Complete! ✅
+  - Created CitationManager service extracting CRUD from 5 view files
+  - Moved 7 view files from Citation/ to Citation/Views/
+  - Model files remain in Model/ (per convention from ER-0028)
+  - Updated project.pbxproj for iOS and visionOS targets
+  - Added CitationSummaryView (read-only citation display in CardSheetView and CardRelationshipView)
+  - Updated CitationViewer header to "Citations (double-click to edit)" and added Edit swipe action
+  - CitationSummaryView uses SwiftData relationship property directly (avoids .onAppear/.task lifecycle issues)
+  - BUILD SUCCEEDED on macOS and iOS
+- 2026-02-11: **ER-0028 VERIFIED** - Timeline System Consolidation Complete! ✅
+  - 5 timeline views consolidated into Timeline/ folder (7 files total)
+  - BUILD SUCCEEDED on macOS and iOS
 - 2026-02-11: **ER-0027 VERIFIED** - AI Module Reorganization Complete! ✅
   - 27 files reorganized from flat structure into 6 logical subfolders
   - Providers (6), ImageGeneration (7), ContentAnalysis (5), Views (6), Models (2), Utilities (1)
@@ -319,5 +331,5 @@ When a verified batch file contains multiple ERs (flexible batching), create a n
 
 ---
 
-*Last Updated: 2026-02-11*
-*Document Version: 15.2 (ER-0027 VERIFIED - AI Module Reorganization)*
+*Last Updated: 2026-02-12*
+*Document Version: 15.6 (ER-0029 VERIFIED - Citation System Consolidation with CitationSummaryView)*

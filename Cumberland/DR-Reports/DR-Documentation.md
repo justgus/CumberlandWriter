@@ -19,7 +19,12 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 Currently: **0 open DRs** | **0 resolved, awaiting verification**
 
-*(No active DRs)*
+**Recently Verified (2026-02-11):**
+| DR | Title | Status |
+|----|-------|--------|
+| DR-0089 | Gregorian Calendar Requires Manual Epoch Setting | ✅ Verified |
+| DR-0090 | Standard Date Picker Has No Year Input — Unusable for Historical Dates | ✅ Verified |
+| DR-0091 | Custom Calendar Date Entry Does Not Update Temporal Position | ✅ Verified |
 
 **Recently Verified (2026-02-10):**
 | DR | Title | Status |
@@ -58,12 +63,12 @@ See: [DR-unverified.md](./DR-unverified.md)
 
 ### Verified DRs (Resolved Issues)
 
-Currently: **74 verified DRs** | Next available DR: **DR-0089**
+Currently: **77 verified DRs** | Next available DR: **DR-0092**
 
 **Latest DRs:**
-- DR-0088: MurderBoard Zoom Strip — Minus Button Hit Area, TextField Clamp, iOS Zoom in Toolbar (2026-02-10) - ✅ Verified
-- DR-0087: MurderBoard/CardSheetView Toolbar Left-Justified on macOS; iOS Picker Shows Text (2026-02-10) - ✅ Verified
-- DR-0086: MurderBoard Canvas Unresponsive to Magic Keyboard Trackpad Pan (iPadOS) (2026-02-10) - ✅ Verified
+- DR-0091: Custom Calendar Date Entry Does Not Update Temporal Position (2026-02-11) - ✅ Verified
+- DR-0090: Standard Date Picker Has No Year Input — Unusable for Historical Dates (2026-02-11) - ✅ Verified
+- DR-0089: Gregorian Calendar Requires Manual Epoch Setting (2026-02-11) - ✅ Verified
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
@@ -75,7 +80,8 @@ Currently: **74 verified DRs** | Next available DR: **DR-0089**
 | Batch 6 | DR-0051 to DR-0060 | [DR-verified-0051-0060.md](./DR-verified-0051-0060.md) | 🚧 In Progress (8/10 verified) |
 | Batch 7 | DR-0061 to DR-0070 | [DR-verified-0061-0070.md](./DR-verified-0061-0070.md) | 🚧 In Progress (6/10 verified) |
 | Batch 8 | DR-0071 to DR-0080 | [DR-verified-0071-0080.md](./DR-verified-0071-0080.md) | 🚧 In Progress (9/10 verified) |
-| Batch 9 | DR-0081 to DR-0090 | [DR-verified-0081-0090.md](./DR-verified-0081-0090.md) | 🚧 In Progress (8/10 verified) |
+| Batch 9 | DR-0081 to DR-0090 | [DR-verified-0081-0090.md](./DR-verified-0081-0090.md) | ✅ All Verified (10/10) |
+| Batch 10 | DR-0091 to DR-0100 | [DR-verified-0091-0100.md](./DR-verified-0091-0100.md) | 🚧 In Progress (1/10 verified) |
 
 ### Closed DRs (Not Verified)
 
@@ -207,24 +213,39 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 88 (documented)
-- **Verified:** 74 (84.1%) ✅
+- **Total DRs:** 91 (documented)
+- **Verified:** 77 (84.6%) ✅
 - **Resolved - Not Verified:** 0 (0.0%) 🟡
-- **Open:** 3 (3.4%) 🔴
+- **Open:** 3 (3.3%) 🔴
   - DR-0043 (Duplicate RelationType entries) - deferred per user
   - DR-0041 (Vegetation brushes should render as area fills) - deferred per user
   - DR-0038 (Draft interior drawing settings not remembered) - deferred per user
-  - All 3 in archive
+  - DR-0038, 0041, 0043 in archive
 - **Closed/Deferred:** 5 (5.7%) ⚪
   - DR-0071 (closed 2026-02-03 - Will be addressed by ER-0021: AI Visual Element Extraction)
   - DR-0069 (closed 2026-02-03 - Known Issue: OpenAI safety filter limitation, external)
   - DR-0060 (superseded by DR-0059 redesign, now verified)
   - DR-0067 (closed, deferred to ER-0020 - Dynamic AI Relationship Extraction)
   - DR-0039 (closed - OBE, fixed by draft persistence improvements)
-- **Latest DR:** DR-0088 (2026-02-10 - MurderBoard Zoom Strip Issues) ✅ Verified
-- **Latest Verified:** DR-0088 (2026-02-10 - MurderBoard Zoom Strip Issues) ✅ Verified
+- **Latest DR:** DR-0091 (2026-02-11 - Custom Calendar Date Entry Does Not Update Temporal Position) ✅ Verified
+- **Latest Verified:** DR-0091 (2026-02-11 - Custom Calendar Date Entry) ✅ Verified
 
 **Recent Activity:**
+- 2026-02-11: **VERIFIED DR-0089, DR-0090, DR-0091** - Temporal Position Editor Fixes Complete! ✅
+  - All 3 verified by user. Batch 9 now 10/10 complete. Batch 10 started (1/10).
+  - **ALL ACTIVE DRS NOW VERIFIED!** 0 open unresolved issues.
+- 2026-02-11: **UPDATED DR-0089, DR-0090, DR-0091** - Follow-up fixes after initial testing 🟡
+  - **DR-0089:** Fixed Create button staying disabled — `validate()` now auto-sets epoch for standard calendars; `createCard()`/`updateCard()`/`saveToCard()` all have safety-net auto-epoch
+  - **DR-0090:** Added `.grouping(.never)` to all numeric TextFields to prevent comma separators in numbers over 999
+  - **DR-0091:** Hidden Custom Calendar toggle for standard calendars — division-based conversion can't handle variable-length Gregorian months (gives 336 days/year vs 365.25). Standard Date fields handle Gregorian correctly.
+  - Build: macOS ✅ iOS ✅. Awaiting user verification.
+- 2026-02-11: **RESOLVED DR-0089, DR-0090, DR-0091** - Temporal Position Editor Fixes 🟡
+  - **DR-0089:** Added `isStandardCalendar`/`standardEpochDate` to CalendarSystem; auto-epoch for Gregorian/Julian; `resolvedEpoch` fallback throughout SceneTemporalPositionEditor
+  - **DR-0090:** Replaced `.graphical` DatePicker with custom Year/Month/Day/Time fields — direct year entry via TextField (1-9999), month/day Pickers with auto-clamping
+  - **DR-0091:** Rewrote `convertCalendarUnitsToDate()` and `formatDateInCalendar()` to be fully generic using division `length` properties instead of hardcoded Imperial Meridian Calendar names
+  - All 3 resolved together. Build: macOS ✅ iOS ✅.
+- 2026-02-11: **CREATED DR-0089, DR-0090, DR-0091** - Temporal Position Editor Issues 🔴
+  - All 3 discovered during ER-0028 timeline verification testing
 - 2026-02-10: **VERIFIED DR-0086, DR-0087, DR-0088** - MurderBoard toolbar and zoom strip fixes ✅
   - **DR-0086:** iPadOS Magic Keyboard trackpad pan — `UIScrollView` virtual contentSize delegate pattern
   - **DR-0087:** macOS toolbar left-justification (MurderBoard, CardSheetView) + iOS picker icons-only
@@ -349,5 +370,5 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ---
 
-*Last Updated: 2026-02-10*
-*Document Version: 14.8 (DR-0086, DR-0087, DR-0088 verified - MurderBoard toolbar and zoom strip fixes)*
+*Last Updated: 2026-02-11*
+*Document Version: 15.2 (DR-0089, DR-0090, DR-0091 verified - Temporal Position Editor fixes complete)*

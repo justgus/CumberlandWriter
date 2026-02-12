@@ -2,7 +2,7 @@
 
 This document tracks enhancement requests that are proposed, in progress, or implemented but awaiting user verification.
 
-**Status:** Currently **6 active ERs** (5 Proposed, 0 In Progress, 1 Implemented - Not Verified)
+**Status:** Currently **4 active ERs** (4 Proposed, 0 In Progress, 0 Implemented - Not Verified)
 
 **Note:** ER-0008, ER-0009, ER-0010 verified and moved to `ER-verified-0008.md`
 **Note:** ER-0012, ER-0013, ER-0014, ER-0016 verified and moved to `ER-verified-0012.md`
@@ -14,6 +14,7 @@ This document tracks enhancement requests that are proposed, in progress, or imp
 **Note:** ER-0021 verified and moved to `ER-verified-0021.md` (2026-02-05)
 **Note:** ER-0022 verified and moved to `ER-verified-0022.md` (2026-02-09)
 **Note:** ER-0027 verified and moved to `ER-verified-0027.md` (2026-02-11)
+**Note:** ER-0028 verified and moved to `ER-verified-0028.md` (2026-02-11)
 
 ---
 
@@ -920,155 +921,100 @@ Then:
 
 ---
 
-## ER-0028: Consolidate Timeline System into Dedicated Folder
+## ER-0028: Consolidate Timeline System into Dedicated Folder - VERIFIED
 
-**Status:** 🟡 Implemented - Not Verified
-**Component:** Timeline System Organization
-**Priority:** Low
-**Date Requested:** 2026-02-03
-**Date Started:** 2026-02-11
-**Date Implemented:** 2026-02-11
-**Dependencies:** None
-
-**Rationale:**
-
-Timeline-related view files were scattered across the main Cumberland/ folder. Consolidating into the existing `Cumberland/Timeline/` folder improves organization and makes the timeline system easier to navigate.
-
-**Previous State:**
-- 5 timeline views in `Cumberland/` root (scattered among 50+ other files)
-- 2 timeline views already in `Cumberland/Timeline/`
-
-**New State:**
-```
-Cumberland/Timeline/ (7 files, consolidated)
-├── CalendarDetailEditor.swift      (moved from root)
-├── CalendarSystemEditor.swift      (already here)
-├── CalendarSystemPicker.swift      (already here)
-├── MultiTimelineGraphView.swift    (moved from root)
-├── SceneTemporalPositionEditor.swift (moved from root)
-├── TemporalEditorWindowView.swift  (moved from root)
-└── TimelineChartView.swift         (moved from root)
-```
-
-**Files Left in Place (by design):**
-- `Model/CalendarSystem.swift` — SwiftData model, stays with schema/migration files
-- `Model/CalendarSystemCleanup.swift` — data cleanup utility tied to model layer
-- `Model/CalendarSystemMigrationHelper.swift` — migration helper tied to model layer
-- `CardEditor/CardEditorTimelineSection.swift` — extracted subview of CardEditorView (ER-0022)
-- `AI/ContentAnalysis/CalendarSystemExtractor.swift` — AI extraction (ER-0027)
-- `Developer/CalendarSystemCleanupView.swift` — developer diagnostic tool
-
-**Implementation Details:**
-1. Moved 5 timeline view files from Cumberland/ root to existing Timeline/ folder
-2. Updated `project.pbxproj` `membershipExceptions` for both iOS and visionOS targets
-3. No code changes required — Swift doesn't use path-based imports
-
-**Deviation from Original Proposal:**
-- Did NOT create subfolders (Models/, Views/, Services/, Utilities/) within Timeline/ — with only 7 view files, further subdivision adds unnecessary nesting
-- Did NOT move Model/ files — they belong with the SwiftData schema for migration coherence
-- Did NOT extract services (R3) — service extraction is a separate concern better addressed in a future ER if needed
-
-**Build Status:**
-- ✅ macOS: BUILD SUCCEEDED
-- ✅ iOS: BUILD SUCCEEDED
-
-**Test Steps:**
-1. Build Cumberland for macOS → verify BUILD SUCCEEDED
-2. Build Cumberland for iOS → verify BUILD SUCCEEDED
-3. Open project in Xcode → verify Timeline/ folder shows all 7 files
-4. Open TimelineChartView → verify renders correctly
-5. Open multi-timeline graph → verify displays
-6. Edit temporal position → verify updates
-7. Edit calendar system → verify changes save
-
-**Complexity:** Low
-
-**Risk:** Very Low
+**Status:** ✅ Implemented - Verified (2026-02-11)
+**See:** `ER-verified-0028.md` for full details
 
 ---
 
-## ER-0029: Consolidate Citation System with Service Layer
+## ER-0029: Consolidate Citation System with Service Layer - VERIFIED
 
-**Status:** 🔵 Proposed
+**Status:** ✅ Implemented - Verified (2026-02-12)
+**See:** `ER-verified-0029.md` for full details
 **Component:** Citation System Organization
 **Priority:** Low
 **Date Requested:** 2026-02-03
+**Date Implemented:** 2026-02-12
 **Dependencies:** ER-0022 Phase 1 (service layer pattern established)
 
 **Rationale:**
 
-The Citation system is partially organized in `Cumberland/Citation/` folder, but citation models are in `Cumberland/Model/` and citation operations are scattered across views. Consolidating with a proper service layer will improve maintainability.
+The Citation system had 7 view files in `Cumberland/Citation/` with duplicated CRUD operations scattered across views. Citation models remain in `Cumberland/Model/` (per convention from ER-0028). Consolidation adds a service layer and organizes views into subdirectories.
 
-**Current State:**
-```
-Cumberland/Citation/ (partially organized)
-- CitationEditor.swift
-- CitationViewer.swift
-- CitationGenerator.swift
-- ImageAttributionEditor.swift
-- ImageAttributionViewer.swift
+**Implementation:**
 
-Cumberland/Model/ (citation models scattered)
-- Citation.swift
-- Source.swift
-- CitationKind.swift
-```
+**R1: Reorganize Citation Directory** ✅
+- Created `Citation/Views/` subdirectory
+- Created `Citation/Services/` subdirectory
+- Moved 7 view files from `Citation/` to `Citation/Views/`:
+  - CitationEditor.swift, CitationViewer.swift, ImageAttributionEditor.swift,
+    ImageAttributionViewer.swift, QuickAttributionSheetEditor.swift,
+    SourceDetailEditor.swift, SourceEditorSheet.swift
+- Model files (Citation.swift, Source.swift, CitationKind.swift, PendingAttribution.swift) remain in `Model/` for schema/migration coherence
 
-**Desired State:**
-```
-Cumberland/Citation/
-├── Models/
-│   ├── Citation.swift (move from Model/)
-│   ├── Source.swift (move from Model/)
-│   └── CitationKind.swift (move from Model/)
-├── Services/
-│   ├── CitationManager.swift (NEW - extract citation operations)
-│   └── CitationGenerator.swift (existing)
-├── Views/
-│   ├── CitationEditor.swift
-│   ├── CitationViewer.swift
-│   ├── ImageAttributionEditor.swift
-│   └── ImageAttributionViewer.swift
-└── README.md (NEW - explains citation system)
-```
-
-**Requirements:**
-
-**R1: Move Citation Models**
-- Move Citation.swift from Model/ to Citation/Models/
-- Move Source.swift from Model/ to Citation/Models/
-- Move CitationKind.swift from Model/ to Citation/Models/
-
-**R2: Create CitationManager Service**
-- Extract citation CRUD operations from views
-- Centralize citation validation logic
+**R2: Create CitationManager Service** ✅
+- Created `Citation/Services/CitationManager.swift` (~135 lines)
+- Extracts all citation CRUD from 5 view files into centralized service
 - Public API:
   ```swift
-  @Observable
   @MainActor
-  class CitationManager {
-      func createCitation(for card: Card, source: Source, ...) throws -> Citation
-      func updateCitation(_ citation: Citation, ...) throws
-      func deleteCitation(_ citation: Citation) throws
-      func findCitations(for card: Card) -> [Citation]
-      func generateAttribution(for citation: Citation) -> String
+  final class CitationManager {
+      func createCitation(card:source:kind:locator:excerpt:contextNote:) -> Citation
+      func updateCitation(_:source:kind:locator:excerpt:contextNote:)
+      func deleteCitation(_:)
+      func fetchCitations(for card:) -> [Citation]
+      func fetchImageCitations(for card:) -> [Citation]
+      func createSource(title:authors:) -> Source  // with duplicate check
+      func fetchOrCreateSource(title:authors:urlString:) -> Source  // with field merging
+      func findSource(byTitle:) -> Source?
   }
   ```
 
-**R3: Refactor Views to Use CitationManager**
-- Update CitationEditor to use CitationManager
-- Update ImageAttributionEditor to use CitationManager
-- Remove direct modelContext operations
+**R3: Refactor Views to Use CitationManager** ✅
+- Updated CitationEditor.swift — `createSource()` and `saveCitation()` use CitationManager
+- Updated CitationViewer.swift — `reloadCitations()` and `deleteCitation()` use CitationManager
+- Updated ImageAttributionEditor.swift — `createSource()` and `saveCitation()` use CitationManager
+- Updated ImageAttributionViewer.swift — `reloadImageCitations()` and `deleteAttribution()` use CitationManager
+- Updated QuickAttributionSheetEditor.swift — `saveAttribution()` and `fetchOrCreateSource()` use CitationManager
 
-**Implementation Plan:**
+**R4: Update Build Configuration** ✅
+- Added 8 new file paths to iOS target membershipExceptions in project.pbxproj
+- Added 8 new file paths to visionOS target membershipExceptions in project.pbxproj
 
-**Week 1:**
-1. Create folder structure
-2. Move model files
-3. Create CitationManager service
-4. Extract operations from views
-5. Update views to use CitationManager
-6. Test citation functionality
+**R5: CitationViewer UI Improvements** ✅
+- Changed header from "Citations" to "Citations (double-click to edit)" for discoverability
+- Added Edit button (blue) to swipe actions alongside existing Delete button
+
+**R6: CitationSummaryView — Read-Only Citation Summary** ✅
+- Created `Citation/Views/CitationSummaryView.swift` (~76 lines)
+- Compact, read-only summary for CardSheetView and CardRelationshipView
+- Uses SwiftData relationship property (`card.citations`) directly — no lifecycle timing issues
+- Color-coded dots by citation kind, Chicago short source titles, locator display
+- Hidden when card has no citations
+
+**Final Directory Structure:**
+```
+Cumberland/Citation/
+├── Services/
+│   └── CitationManager.swift (NEW - centralized CRUD)
+└── Views/
+    ├── CitationEditor.swift (moved, refactored)
+    ├── CitationViewer.swift (moved, refactored)
+    ├── ImageAttributionEditor.swift (moved, refactored)
+    ├── ImageAttributionViewer.swift (moved, refactored)
+    ├── QuickAttributionSheetEditor.swift (moved, refactored)
+    ├── SourceDetailEditor.swift (moved)
+    └── SourceEditorSheet.swift (moved)
+
+Cumberland/Model/ (unchanged)
+├── Citation.swift
+├── Source.swift
+├── CitationKind.swift
+└── PendingAttribution.swift
+```
+
+**Build Status:** ✅ macOS and iOS build successfully
 
 **Test Steps:**
 1. Create new card
@@ -1076,28 +1022,29 @@ Cumberland/Citation/
 3. Edit citation → verify updates
 4. Delete citation → verify removes
 5. View image attribution → verify displays
-6. Generate attribution text → verify formats correctly
+6. Add image attribution → verify creates with source
+7. Quick attribution (drop image) → verify source fetch-or-create works
 
-**Benefits:**
-- ✅ Citation system self-contained
-- ✅ Business logic extracted from views
-- ✅ Follows service layer pattern (from ER-0022)
-- ✅ Easier to test citation operations
+**Files Created:**
+- `Cumberland/Citation/Services/CitationManager.swift`
+- `Cumberland/Citation/Views/CitationSummaryView.swift`
 
-**Complexity:** Medium (service extraction + file moves)
+**Files Moved (Citation/ → Citation/Views/):**
+- CitationEditor.swift, CitationViewer.swift, ImageAttributionEditor.swift,
+  ImageAttributionViewer.swift, QuickAttributionSheetEditor.swift,
+  SourceDetailEditor.swift, SourceEditorSheet.swift
 
-**Risk:** Low-Medium (requires ER-0022 service layer pattern)
-
-**Timeline:** 1 week
-
-**Dependencies:**
-- ER-0022 Phase 1 (service layer pattern should be established)
+**Files Modified:**
+- `Cumberland/Citation/Views/CitationEditor.swift` — uses CitationManager
+- `Cumberland/Citation/Views/CitationViewer.swift` — uses CitationManager, updated header text, added Edit swipe action
+- `Cumberland/Citation/Views/ImageAttributionEditor.swift` — uses CitationManager
+- `Cumberland/Citation/Views/ImageAttributionViewer.swift` — uses CitationManager
+- `Cumberland/Citation/Views/QuickAttributionSheetEditor.swift` — uses CitationManager
+- `Cumberland/CardSheetView.swift` — added CitationSummaryView
+- `Cumberland/CardRelationshipView.swift` — added CitationSummaryView
+- `Cumberland.xcodeproj/project.pbxproj` — iOS and visionOS membershipExceptions updated
 
 ---
 
-
-
----
-
-*Last Updated: 2026-02-11*
-*ER-0028 implemented - awaiting verification*
+*Last Updated: 2026-02-12*
+*ER-0029 verified with CitationSummaryView additions*

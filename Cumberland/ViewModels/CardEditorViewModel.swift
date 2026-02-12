@@ -186,6 +186,10 @@ final class CardEditorViewModel {
         // Save calendar data if timeline card
         if card.kind == .timelines {
             card.calendarSystem = selectedCalendar
+            // DR-0089: Auto-set epoch for standard calendars if not already set
+            if epochDate == nil, let cal = selectedCalendar, cal.isStandardCalendar {
+                epochDate = cal.standardEpochDate
+            }
             card.epochDate = epochDate
             card.epochDescription = epochDescription.isEmpty ? nil : epochDescription
         }
@@ -325,9 +329,22 @@ final class CardEditorViewModel {
             return false
         }
 
-        // Timeline cards require calendar system
+        // Timeline validation: no calendar (ordinal) is fine;
+        // standard calendars auto-set their epoch; custom calendars require explicit epoch
         if kind == .timelines {
-            return selectedCalendar != nil
+            if let calendar = selectedCalendar {
+                if calendar.isStandardCalendar {
+                    // Standard calendars have an implicit epoch — auto-set if missing
+                    if epochDate == nil {
+                        epochDate = calendar.standardEpochDate
+                    }
+                    return true
+                }
+                // Custom calendars require explicit epoch
+                return epochDate != nil
+            }
+            // No calendar selected = ordinal timeline, always valid
+            return true
         }
 
         return true
@@ -373,6 +390,10 @@ final class CardEditorViewModel {
         // Handle calendar/timeline cards
         if kind == .timelines || kind == .chronicles {
             card.calendarSystem = selectedCalendar
+            // DR-0089: Auto-set epoch for standard calendars if not already set
+            if epochDate == nil, let cal = selectedCalendar, cal.isStandardCalendar {
+                epochDate = cal.standardEpochDate
+            }
             card.epochDate = epochDate
             let trimmedEpochDesc = epochDescription.trimmingCharacters(in: .whitespacesAndNewlines)
             card.epochDescription = trimmedEpochDesc.isEmpty ? nil : trimmedEpochDesc
@@ -429,6 +450,10 @@ final class CardEditorViewModel {
         // Handle calendar/timeline cards
         if card.kind == .timelines || card.kind == .chronicles {
             card.calendarSystem = selectedCalendar
+            // DR-0089: Auto-set epoch for standard calendars if not already set
+            if epochDate == nil, let cal = selectedCalendar, cal.isStandardCalendar {
+                epochDate = cal.standardEpochDate
+            }
             card.epochDate = epochDate
             let trimmedEpochDesc = epochDescription.trimmingCharacters(in: .whitespacesAndNewlines)
             card.epochDescription = trimmedEpochDesc.isEmpty ? nil : trimmedEpochDesc

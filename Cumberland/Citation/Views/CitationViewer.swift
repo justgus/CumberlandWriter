@@ -22,7 +22,7 @@ struct CitationViewer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Citations")
+                Text("Citations (double-click to edit)")
                     .font(.headline)
                 Spacer()
                 Button {
@@ -73,10 +73,19 @@ struct CitationViewer: View {
                         .onTapGesture(count: 2) {
                             editingCitation = c
                         }
-                    }
-                    .onDelete { idx in
-                        let toDelete = idx.compactMap { citations.indices.contains($0) ? citations[$0] : nil }
-                        for c in toDelete { deleteCitation(c) }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                deleteCitation(c)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            Button {
+                                editingCitation = c
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(.blue)
+                        }
                     }
                 }
                 .frame(minHeight: 140)
@@ -110,17 +119,13 @@ struct CitationViewer: View {
     }
 
     private func reloadCitations() {
-        let cardID = card.id
-        let fetch = FetchDescriptor<Citation>(
-            predicate: #Predicate { $0.card?.id == cardID },
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
-        citations = (try? modelContext.fetch(fetch)) ?? []
+        let manager = CitationManager(modelContext: modelContext)
+        citations = manager.fetchCitations(for: card)
     }
 
     private func deleteCitation(_ c: Citation) {
-        modelContext.delete(c)
-        try? modelContext.save()
+        let manager = CitationManager(modelContext: modelContext)
+        manager.deleteCitation(c)
         reloadCitations()
     }
 }

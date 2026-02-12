@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0081 through DR-0090.
 
-**Batch Status:** 🚧 In Progress (8/10 verified)
+**Batch Status:** ✅ Complete (10/10 verified)
 
 ---
 
@@ -364,4 +364,62 @@ Three follow-on issues after DR-0087's zoom strip implementation:
 - ✅ Both macOS and iOS builds pass cleanly
 
 ---
+
+## DR-0089: Gregorian Calendar Requires Manual Epoch Setting
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** CardEditorTimelineSection, SceneTemporalPositionEditor, CardEditorViewModel
+**Severity:** Medium
+**Date Identified:** 2026-02-11
+**Date Resolved:** 2026-02-11
+**Date Verified:** 2026-02-11
+
+**Description:**
+When a user creates a timeline and assigns a Gregorian calendar system, the system requires manually setting an epoch date (to 01/01/0001) before temporal positioning works. For standard Gregorian calendars, this is unnecessary — the epoch is well-known and should be auto-configured.
+
+**Resolution:**
+- Added `isStandardCalendar` computed property to `CalendarSystem` that detects "Gregorian" and "Julian" calendars by name
+- Added `standardEpochDate` computed property that returns January 1, 0001 for standard calendars
+- `CardEditorTimelineSection` shows read-only epoch info for standard calendars instead of manual configuration
+- `SceneTemporalPositionEditor` uses `resolvedEpoch` that falls back to `standardEpochDate`
+- `CardEditorViewModel.validate()` auto-sets epoch for standard calendars; ordinal timelines (no calendar) are always valid; custom calendars require explicit epoch
+- `createCard()`/`updateCard()`/`saveToCard()` all auto-set epoch for standard calendars as safety net
+
+**Files Modified:**
+- `Cumberland/Model/CalendarSystem.swift` — `isStandardCalendar`, `standardEpochDate`
+- `Cumberland/CardEditor/CardEditorTimelineSection.swift` — Auto-epoch, read-only UI for standard calendars
+- `Cumberland/Timeline/SceneTemporalPositionEditor.swift` — `resolvedEpoch`, all epoch references updated
+- `Cumberland/ViewModels/CardEditorViewModel.swift` — `validate()`, `createCard()`, `updateCard()`, `saveToCard()`
+
+---
+
+## DR-0090: Standard Date Picker Has No Year Input — Unusable for Historical Dates
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** SceneTemporalPositionEditor
+**Severity:** High
+**Date Identified:** 2026-02-11
+**Date Resolved:** 2026-02-11
+**Date Verified:** 2026-02-11
+
+**Description:**
+The "Standard Date" input mode used a `.graphical` DatePicker requiring month-by-month navigation. Unusable for timelines spanning centuries or millennia.
+
+**Resolution:**
+- Replaced `.graphical` DatePicker with custom date entry fields:
+  - Year: TextField with `.number.grouping(.never)` + Stepper (1-9999)
+  - Month: Picker with full month names
+  - Day: Picker auto-adjusting for month/year
+  - Time: Hour (00-23) and Minute (00-59) pickers
+- Date preview in long format, day auto-clamps on month change
+- All numeric TextFields use `.grouping(.never)` to prevent comma separators
+
+**Files Modified:**
+- `Cumberland/Timeline/SceneTemporalPositionEditor.swift` — `standardDateInputFields`, `assembledDate`, `syncDateFromComponents`, `daysInMonth`, input state properties
+
+---
+
+*Last Updated: 2026-02-11*
 

@@ -22,34 +22,58 @@ struct CardEditorTimelineSection: View {
             CalendarSystemPicker(selection: $viewModel.selectedCalendar)
 
             // Epoch date configuration (only show if calendar is selected)
-            if viewModel.selectedCalendar != nil {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Epoch Date (Required for calendar conversion)")
-                        .font(.subheadline.bold())
-
-                    DatePicker("Epoch Date", selection: Binding(
-                        get: {
-                            viewModel.epochDate ?? Date()
-                        },
-                        set: { newValue in
-                            viewModel.epochDate = newValue
+            if let calendar = viewModel.selectedCalendar {
+                if calendar.isStandardCalendar {
+                    // Standard calendar — epoch is implicit, show read-only info
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.caption)
+                            Text("Epoch: January 1, 0001 (standard \(calendar.name) epoch)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                    ), displayedComponents: [.date, .hourAndMinute])
-                        .datePickerStyle(.compact)
-
-                    if viewModel.epochDate == nil {
-                        Text("⚠️ Warning: No epoch date set. Calendar temporal positioning will not work.")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
                     }
+                } else {
+                    // Custom calendar — user must configure epoch
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Epoch Date (Required for calendar conversion)")
+                            .font(.subheadline.bold())
 
-                    TextField("Epoch Description (optional)", text: $viewModel.epochDescription, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(2...4)
+                        DatePicker("Epoch Date", selection: Binding(
+                            get: {
+                                viewModel.epochDate ?? Date()
+                            },
+                            set: { newValue in
+                                viewModel.epochDate = newValue
+                            }
+                        ), displayedComponents: [.date, .hourAndMinute])
+                            .datePickerStyle(.compact)
 
-                    Text("The epoch is the starting point/zero-date for this timeline. Example: Jan 1, 1847")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        if viewModel.epochDate == nil {
+                            Text("⚠️ Warning: No epoch date set. Calendar temporal positioning will not work.")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+
+                        TextField("Epoch Description (optional)", text: $viewModel.epochDescription, axis: .vertical)
+                            .textFieldStyle(.roundedBorder)
+                            .lineLimit(2...4)
+
+                        Text("The epoch is the starting point/zero-date for this timeline. Example: Jan 1, 1847")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .onChange(of: viewModel.selectedCalendar) { _, newCalendar in
+            // DR-0089: Auto-set epoch for standard calendars
+            if let cal = newCalendar, cal.isStandardCalendar {
+                viewModel.epochDate = cal.standardEpochDate
+                if viewModel.epochDescription.isEmpty {
+                    viewModel.epochDescription = "Standard \(cal.name) epoch (January 1, 0001)"
                 }
             }
         }

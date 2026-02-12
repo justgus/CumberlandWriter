@@ -119,6 +119,9 @@ struct CardRelationshipView: View {
                 )
             }
 
+            // Citation summary (read-only)
+            CitationSummaryView(card: primary)
+
             // Toolbar controls
             CardRelationshipToolbar(
                 primaryName: primary.name,
