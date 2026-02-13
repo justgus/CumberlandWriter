@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0091 through DR-0100.
 
-**Batch Status:** 🚧 In Progress (1/10 verified)
+**Batch Status:** 🚧 In Progress (3/10 verified)
 
 ---
 
@@ -39,4 +39,54 @@ Walks divisions from largest (last) to smallest (first), accumulating: `total = 
 
 ---
 
-*Last Updated: 2026-02-11*
+## DR-0092: visionOS Settings Presented as Modal Sheet Instead of Window
+
+**Status:** ✅ Resolved - Verified
+**Platform:** visionOS
+**Component:** visionOS, Settings, OrnamentViews
+**Severity:** Medium
+**Date Identified:** 2026-02-12
+**Date Resolved:** 2026-02-12
+**Date Verified:** 2026-02-12
+
+**Description:**
+On visionOS, tapping the Settings gear icon in the leading ornament opened a modal sheet with no dismiss controls. The ornament also displayed a close button (X) that was supposed to dismiss the Settings sheet but did not function correctly since it appeared before the sheet was opened.
+
+**Resolution:**
+- Added `Window("Settings", id: "settings")` scene definition in `CumberlandApp.swift` for visionOS
+- Changed `SettingsOrnament` action from `showingSettings = true` (sheet toggle) to `openWindow(id: "settings")` (window open)
+- Removed `onDismiss` parameter and close button from `SettingsOrnament` (windows have system dismiss controls)
+- Removed visionOS branch from `.sheet(isPresented: $showingSettings)` in MainAppView
+
+**Files Modified:**
+- `CumberlandApp.swift` — Added visionOS Settings Window scene
+- `MainAppView.swift` — Changed ornament action to `openWindow(id: "settings")`; removed visionOS branch from Settings sheet
+- `visionOS/OrnamentViews.swift` — Simplified SettingsOrnament (removed dismiss button and `onDismiss` parameter)
+
+---
+
+## DR-0093: visionOS Developer Tools Presented as Modal Sheet Instead of Window
+
+**Status:** ✅ Resolved - Verified
+**Platform:** visionOS
+**Component:** visionOS, Developer Tools, OrnamentViews
+**Severity:** Medium
+**Date Identified:** 2026-02-12
+**Date Resolved:** 2026-02-12
+**Date Verified:** 2026-02-12
+
+**Description:**
+On visionOS, the Developer Tools hammer icon in the leading ornament opened a modal sheet. The sheet included a toolbar Done button for dismissal, but the correct visionOS pattern is a standalone window. A `Window("Developer Tools", id: "dev.tools")` scene already existed in CumberlandApp.swift but was not being used — the ornament toggled a sheet boolean instead.
+
+**Resolution:**
+- Changed `DeveloperToolsOrnament` action from `showingDeveloperTools = true` to `openWindow(id: "dev.tools")`
+- Removed optional `onDismiss` parameter and close button from `DeveloperToolsOrnament`
+- Removed visionOS branch from `.sheet(isPresented: $showingDeveloperTools)` in MainAppView
+
+**Files Modified:**
+- `MainAppView.swift` — Changed ornament action to `openWindow(id: "dev.tools")`; removed visionOS branch from Developer Tools sheet
+- `visionOS/OrnamentViews.swift` — Simplified DeveloperToolsOrnament (removed dismiss button and `onDismiss` parameter)
+
+---
+
+*Last Updated: 2026-02-12*

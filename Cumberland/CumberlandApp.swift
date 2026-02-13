@@ -270,6 +270,19 @@ struct CumberlandApp: App {
         .defaultSize(width: 840, height: 780)
         #endif
 
+        #if os(visionOS)
+        // Settings window for visionOS (full window, not modal sheet)
+        Window("Settings", id: "settings") {
+            SettingsView()
+                .modelContainer(modelContainer)
+                .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
+                .preferredColorScheme(appPreferredColorScheme)
+                .frame(minWidth: 720, minHeight: 640)
+        }
+        .windowStyle(.plain)
+        .defaultSize(width: 800, height: 700)
+        #endif
+
         #if os(visionOS) && DEBUG
         // Developer Tools window for visionOS
         Window("Developer Tools", id: "dev.tools") {

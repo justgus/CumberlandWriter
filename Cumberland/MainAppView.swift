@@ -296,13 +296,7 @@ struct MainAppView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-            #elseif os(visionOS)
-            NavigationStack {
-                SettingsView()
-            }
-            .frame(minWidth: 720, minHeight: 640)
-            .glassBackgroundEffect()
-            #else
+            #elseif os(macOS)
             NavigationView {
                 SettingsView()
             }
@@ -318,13 +312,7 @@ struct MainAppView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-            #elseif os(visionOS)
-            NavigationStack {
-                DeveloperBoardsView()
-            }
-            .frame(minWidth: 920, minHeight: 560)
-            .glassBackgroundEffect()
-            #else
+            #elseif os(macOS)
             NavigationView {
                 DeveloperBoardsView()
             }
@@ -333,19 +321,13 @@ struct MainAppView: View {
             #endif
         }
         .sheet(isPresented: $showingDeveloperTools) {
-            #if os(visionOS)
-            NavigationStack {
-                DeveloperToolsView()
-            }
-            .frame(minWidth: 520, minHeight: 480)
-            .glassBackgroundEffect()
-            #elseif os(iOS)
+            #if os(iOS)
             NavigationStack {
                 DeveloperToolsView()
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-            #else
+            #elseif os(macOS)
             NavigationView {
                 DeveloperToolsView()
             }
@@ -1264,12 +1246,12 @@ struct MainAppView: View {
     private var settingsOrnament: some View {
         VStack(spacing: 12) {
             SettingsOrnament(
-                onSettings: { showingSettings = true }, onDismiss: { showingSettings = false }
+                onSettings: { openWindow(id: "settings") }
             )
-            
+
             #if DEBUG
             DeveloperToolsOrnament(
-                onDeveloperTools: { showingDeveloperTools = true }
+                onDeveloperTools: { openWindow(id: "dev.tools") }
             )
             #endif
         }

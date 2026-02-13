@@ -19,6 +19,12 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 Currently: **0 open DRs** | **0 resolved, awaiting verification**
 
+**Recently Verified (2026-02-12):**
+| DR | Title | Status |
+|----|-------|--------|
+| DR-0092 | visionOS Settings Presented as Modal Sheet Instead of Window | ✅ Verified |
+| DR-0093 | visionOS Developer Tools Presented as Modal Sheet Instead of Window | ✅ Verified |
+
 **Recently Verified (2026-02-11):**
 | DR | Title | Status |
 |----|-------|--------|
@@ -63,7 +69,7 @@ See: [DR-unverified.md](./DR-unverified.md)
 
 ### Verified DRs (Resolved Issues)
 
-Currently: **77 verified DRs** | Next available DR: **DR-0092**
+Currently: **77 verified DRs** | Next available DR: **DR-0094**
 
 **Latest DRs:**
 - DR-0091: Custom Calendar Date Entry Does Not Update Temporal Position (2026-02-11) - ✅ Verified
@@ -213,8 +219,8 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 91 (documented)
-- **Verified:** 77 (84.6%) ✅
+- **Total DRs:** 93 (documented)
+- **Verified:** 79 (84.9%) ✅
 - **Resolved - Not Verified:** 0 (0.0%) 🟡
 - **Open:** 3 (3.3%) 🔴
   - DR-0043 (Duplicate RelationType entries) - deferred per user
@@ -227,10 +233,17 @@ When a verified batch file contains 10 DRs, create a new batch file:
   - DR-0060 (superseded by DR-0059 redesign, now verified)
   - DR-0067 (closed, deferred to ER-0020 - Dynamic AI Relationship Extraction)
   - DR-0039 (closed - OBE, fixed by draft persistence improvements)
-- **Latest DR:** DR-0091 (2026-02-11 - Custom Calendar Date Entry Does Not Update Temporal Position) ✅ Verified
-- **Latest Verified:** DR-0091 (2026-02-11 - Custom Calendar Date Entry) ✅ Verified
+- **Latest DR:** DR-0093 (2026-02-12 - visionOS Developer Tools Modal Sheet) ✅ Verified
+- **Latest Verified:** DR-0093 (2026-02-12 - visionOS Developer Tools Window) ✅ Verified
 
 **Recent Activity:**
+- 2026-02-12: **VERIFIED DR-0092, DR-0093** - visionOS Settings/Developer Tools Window Presentation ✅
+  - Settings and Developer Tools now open as standalone windows instead of modal sheets on visionOS
+  - Added `Window("Settings", id: "settings")` scene for visionOS in CumberlandApp.swift
+  - Changed ornament actions to use `openWindow(id:)` instead of toggling sheet booleans
+  - Removed dismiss buttons from ornaments (windows have system-provided move/resize/dismiss controls)
+  - Removed visionOS branches from `.sheet()` presentations in MainAppView
+  - Build: macOS ✅ iOS ✅ visionOS ✅
 - 2026-02-11: **VERIFIED DR-0089, DR-0090, DR-0091** - Temporal Position Editor Fixes Complete! ✅
   - All 3 verified by user. Batch 9 now 10/10 complete. Batch 10 started (1/10).
   - **ALL ACTIVE DRS NOW VERIFIED!** 0 open unresolved issues.
