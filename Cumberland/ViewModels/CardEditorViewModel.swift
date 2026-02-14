@@ -15,6 +15,7 @@ import Foundation
 import SwiftUI
 import SwiftData
 import PhotosUI
+import ImageProcessing
 
 /// ViewModel for CardEditorView, extracting business logic and state management.
 /// Reduces CardEditorView from 2,666 lines to ~800 lines.
@@ -226,6 +227,26 @@ final class CardEditorViewModel {
             }
         } catch {
             print("Error loading photo: \(error)")
+        }
+    }
+
+    /// Reload image data from card (e.g., after external changes like version restore)
+    /// DR-0091: Fixes stale ViewModel image after ImageHistoryView restore
+    func reloadImageFromCard(_ card: Card) {
+        if let originalImageData = card.originalImageData {
+            self.imageData = originalImageData
+            #if os(macOS)
+            if let nsImage = NSImage(data: originalImageData) {
+                self.thumbnail = Image(nsImage: nsImage)
+            }
+            #else
+            if let uiImage = UIImage(data: originalImageData) {
+                self.thumbnail = Image(uiImage: uiImage)
+            }
+            #endif
+        } else {
+            self.imageData = nil
+            self.thumbnail = nil
         }
     }
 

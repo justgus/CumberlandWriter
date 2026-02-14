@@ -14,6 +14,7 @@
 import Foundation
 import SwiftUI
 import SwiftData
+import ImageProcessing
 
 /// Centralized container for all Cumberland services and repositories.
 ///

@@ -7,11 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		155DCD5FA5F07C36618F7AA3 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 22F8B49AAA7772786C9108CA /* ImageProcessing */; };
+		549A6FE34620BC15EFADDFC7 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 1228CEFA614B885090182CC5 /* ImageProcessing */; };
 		863014692F22AFDE00F3953B /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 863014682F22AFDE00F3953B /* ImagePlayground.framework */; };
 		8630146A2F22AFEE00F3953B /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 863014682F22AFDE00F3953B /* ImagePlayground.framework */; };
 		8630146C2F22AFFD00F3953B /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8630146B2F22AFFD00F3953B /* ImagePlayground.framework */; };
 		8630146D2F22B00F00F3953B /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 863014682F22AFDE00F3953B /* ImagePlayground.framework */; };
 		86544A8E2EBE946F0083F9CC /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86544A8D2EBE946F0083F9CC /* RealityKitContent */; };
+		EA05E2F2E5E0370776CB7A3D /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 01218C1931DE878413D24D98 /* ImageProcessing */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -89,6 +92,7 @@
 		866A3A472E8DC16F006D3723 /* CumberlandTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		866A3A512E8DC16F006D3723 /* CumberlandUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		86F035052F0EFBF300D79640 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
+		A83AD74A1C798FD74B27A499 /* ImageProcessing */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = ImageProcessing; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -281,7 +285,6 @@
 				Selection/CardSelectionRouter.swift,
 				Selection/ProjectSelectionRouter.swift,
 				Services/CardOperationManager.swift,
-				Services/ImageProcessingService.swift,
 				Services/RelationshipManager.swift,
 				SettingsView.swift,
 				SidebarPanel.swift,
@@ -502,7 +505,6 @@
 				Selection/CardSelectionRouter.swift,
 				Selection/ProjectSelectionRouter.swift,
 				Services/CardOperationManager.swift,
-				Services/ImageProcessingService.swift,
 				Services/RelationshipManager.swift,
 				SettingsView.swift,
 				SidebarPanel.swift,
@@ -581,7 +583,6 @@
 				"DR-Reports/DR-closed-061-070.md",
 				"DR-Reports/DR-closed-071-080.md",
 				"DR-Reports/DR-Documentation.md",
-				"DR-Reports/DR-GUIDELINES.md",
 				"DR-Reports/DR-unverified.md",
 				"DR-Reports/DR-verified-0001-0010.md",
 				"DR-Reports/DR-verified-0011-0020.md",
@@ -765,6 +766,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				86544A8E2EBE946F0083F9CC /* RealityKitContent in Frameworks */,
+				549A6FE34620BC15EFADDFC7 /* ImageProcessing in Frameworks */,
 				8630146C2F22AFFD00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -780,6 +782,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				155DCD5FA5F07C36618F7AA3 /* ImageProcessing in Frameworks */,
 				8630146A2F22AFEE00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -802,6 +805,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EA05E2F2E5E0370776CB7A3D /* ImageProcessing in Frameworks */,
 				863014692F22AFDE00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -837,6 +841,7 @@
 			isa = PBXGroup;
 			children = (
 				8646BE022E99A1CE0056F575 /* RealityKitContent */,
+				A83AD74A1C798FD74B27A499 /* ImageProcessing */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -948,6 +953,7 @@
 			name = Cumberland_visionOS;
 			packageProductDependencies = (
 				86544A8D2EBE946F0083F9CC /* RealityKitContent */,
+				1228CEFA614B885090182CC5 /* ImageProcessing */,
 			);
 			productName = Cumberland_visionOS;
 			productReference = 86544A8B2EBE946F0083F9CC /* Cumberland_visionOS.app */;
@@ -992,6 +998,7 @@
 			);
 			name = "Cumberland IOS";
 			packageProductDependencies = (
+				22F8B49AAA7772786C9108CA /* ImageProcessing */,
 			);
 			productName = "Cumberland IOS";
 			productReference = 8663004C2E9DA49C005F471B /* Cumberland IOS.app */;
@@ -1060,6 +1067,7 @@
 			);
 			name = Cumberland;
 			packageProductDependencies = (
+				01218C1931DE878413D24D98 /* ImageProcessing */,
 			);
 			productName = Cumberland;
 			productReference = 866A3A362E8DC16D006D3723 /* Cumberland.app */;
@@ -2258,6 +2266,18 @@
 /* End XCConfigurationList section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		01218C1931DE878413D24D98 /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
+		1228CEFA614B885090182CC5 /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
+		22F8B49AAA7772786C9108CA /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
 		86544A8D2EBE946F0083F9CC /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RealityKitContent;

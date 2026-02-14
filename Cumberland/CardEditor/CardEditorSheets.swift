@@ -44,7 +44,12 @@ struct CardEditorSheets: ViewModifier {
                 aiImageInfoSheet
             }
             // Image History panel (ER-0017)
-            .sheet(isPresented: $viewModel.showImageHistory) {
+            // DR-0091: onDismiss reloads card image into ViewModel after restore
+            .sheet(isPresented: $viewModel.showImageHistory, onDismiss: {
+                if case .edit(let card, _) = mode {
+                    viewModel.reloadImageFromCard(card)
+                }
+            }) {
                 imageHistorySheet
             }
             // Suggestion Review panel (ER-0010)

@@ -10,6 +10,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import ImageProcessing
 
 #if os(macOS)
 import AppKit

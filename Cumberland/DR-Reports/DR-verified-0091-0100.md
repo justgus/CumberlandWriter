@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0091 through DR-0100.
 
-**Batch Status:** 🚧 In Progress (3/10 verified)
+**Batch Status:** 🚧 In Progress (4/10 verified)
 
 ---
 
@@ -89,4 +89,30 @@ On visionOS, the Developer Tools hammer icon in the leading ornament opened a mo
 
 ---
 
-*Last Updated: 2026-02-12*
+## DR-0094: Image History Restore Does Not Update CardEditorView — Stale Image Overwrites Restored Version on Save
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** CardEditorViewModel, CardEditorSheets, ImageVersionManager
+**Severity:** High
+**Date Identified:** 2026-02-14
+**Date Resolved:** 2026-02-14
+**Date Verified:** 2026-02-14
+
+**Description:**
+When restoring a previous image version from the Image History sheet (ER-0017), the restored image was correctly written to the Card model and persisted in SwiftData. However, the CardEditorViewModel held a stale snapshot of the original image data loaded when the editor opened. Tapping Save caused the stale ViewModel data to overwrite the restored image.
+
+**Root Cause:**
+`CardEditorViewModel.loadCard()` creates a one-time snapshot of image data into local properties (`imageData`, `thumbnail`). When `ImageVersionManager.restoreVersion()` updates `Card.originalImageData` directly on the model, the ViewModel's snapshot remained stale. On save, `updateCard()` called `card.setOriginalImageData(imageData)` with the stale copy.
+
+**Resolution:**
+1. Added `reloadImageFromCard(_:)` method to CardEditorViewModel — refreshes `imageData` and `thumbnail` from the Card model
+2. Added `onDismiss` handler to the ImageHistory sheet in CardEditorSheets — calls `reloadImageFromCard(card)` when the sheet closes
+
+**Files Modified:**
+- `Cumberland/ViewModels/CardEditorViewModel.swift` — Added `reloadImageFromCard(_:)` method
+- `Cumberland/CardEditor/CardEditorSheets.swift` — Added `onDismiss` handler to image history sheet
+
+---
+
+*Last Updated: 2026-02-14*

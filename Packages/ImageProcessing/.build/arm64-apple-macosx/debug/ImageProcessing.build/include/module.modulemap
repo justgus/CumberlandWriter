@@ -1,0 +1,3 @@
+module ImageProcessing {
+    header "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/include/ImageProcessing-Swift.h"
+}

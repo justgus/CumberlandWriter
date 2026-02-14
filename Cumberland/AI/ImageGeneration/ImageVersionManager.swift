@@ -9,6 +9,7 @@
 import Foundation
 import SwiftData
 import OSLog
+import ImageProcessing
 
 #if os(macOS)
 import AppKit
@@ -194,12 +195,6 @@ final class ImageVersionManager {
         }
     }
 
-    // MARK: - Thumbnail Generation
-
-    /// Generate thumbnail using ImageProcessingService (ER-0022 Phase 1)
-    private func generateThumbnail(from imageData: Data) -> Data? {
-        return ImageProcessingService.shared.generateThumbnail(from: imageData)
-    }
 }
 
 // MARK: - Convenience Extensions

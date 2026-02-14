@@ -10,6 +10,7 @@ import Foundation
 import SwiftUI
 import SwiftData
 import OSLog
+import ImageProcessing
 
 /// Manages batch image generation for multiple cards
 /// Handles queuing, progress tracking, rate limiting, and error handling
@@ -512,13 +513,6 @@ final class BatchGenerationQueue {
             task.completedAt = Date()
             tasks[index] = task
         }
-    }
-
-    // MARK: - Thumbnail Generation
-
-    /// Generate thumbnail using ImageProcessingService (ER-0022 Phase 1)
-    private func generateThumbnail(from imageData: Data) -> Data? {
-        return ImageProcessingService.shared.generateThumbnail(from: imageData)
     }
 
     // MARK: - Retry Failed Tasks

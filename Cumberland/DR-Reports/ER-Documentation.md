@@ -17,14 +17,14 @@ ERs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified ERs (Active & Proposed)
 
-Currently: **4 unverified ERs** (4 Proposed, 0 In Progress, 0 Implemented - Not Verified)
+Currently: **3 unverified ERs** (3 Proposed, 0 In Progress, 0 Implemented - Not Verified)
 
 *Note: ER-0021 verified 2026-02-05 and moved to ER-verified-0021.md*
 *Note: ER-0022 verified 2026-02-09 and moved to ER-verified-0022.md*
+*Note: ER-0023 verified 2026-02-14 and moved to ER-verified-0023.md*
 
 | ER | Title | Component | Status |
 |----|-------|-----------|--------|
-| ER-0023 | Extract Image Processing to Swift Package | Image Processing, Swift Package | 🔵 Proposed |
 | ER-0024 | Extract Brush Engine to Swift Package | Drawing System, Procedural Generation, Swift Package | 🔵 Proposed |
 | ER-0025 | Integrate Map Generation into Storyscapes with Workspace | Map Generation, Storyscapes Integration, Xcode Workspace | 🔵 Proposed |
 | ER-0026 | Extract Murderboard to Standalone Target | Murderboard, Relationship Visualization, Workspace Target | 🔵 Proposed |
@@ -54,6 +54,7 @@ Currently: **29 verified ERs** | Next available ER: **ER-0030**
 | Batch 22 | ER-0022 | [ER-verified-0022.md](./ER-verified-0022.md) | ✅ Verified (1/1) |
 | Batch 27 | ER-0027 | [ER-verified-0027.md](./ER-verified-0027.md) | ✅ Verified (1/1) |
 | Batch 28 | ER-0028 | [ER-verified-0028.md](./ER-verified-0028.md) | ✅ Verified (1/1) |
+| Batch 23 | ER-0023 | [ER-verified-0023.md](./ER-verified-0023.md) | ✅ Verified (1/1) |
 | Batch 29 | ER-0029 | [ER-verified-0029.md](./ER-verified-0029.md) | ✅ Verified (1/1) |
 
 ## ER Summary
@@ -152,18 +153,28 @@ When a verified batch file contains multiple ERs (flexible batching), create a n
 ## Statistics
 
 - **Total ERs:** 30
-- **Verified:** 28 (93.3%) ✅
+- **Verified:** 29 (96.7%) ✅
   - All in batch files
-- **Implemented - Not Verified:** 0 (0%)
+- **Implemented - Not Verified:** 0 (0%) 🟡
 - **In Progress:** 0 (0%)
-- **Proposed:** 4 (13.3%) 🔵
-  - ER-0023 (Extract ImageProcessing Package - proposed 2026-02-03)
+- **Proposed:** 3 (10.0%) 🔵
   - ER-0024 (Extract BrushEngine Package - proposed 2026-02-03)
   - ER-0025 (Storyscapes Workspace Integration - proposed 2026-02-03)
   - ER-0026 (Murderboard Standalone Target - proposed 2026-02-03)
-- **Latest Verifications:** ER-0029 (2026-02-12) - Citation System Consolidation with CitationSummaryView
+- **Latest Verifications:** ER-0023 (2026-02-14) - Extract Image Processing to Swift Package
 
 **Recent Activity:**
+- 2026-02-14: **ER-0023 VERIFIED** - Extract Image Processing to Swift Package! ✅
+  - Created `Packages/ImageProcessing/` local Swift Package (7 source files, 3 test files)
+  - swift-tools-version 6.2, platforms macOS 26/iOS 26/visionOS 26
+  - Replaced deprecated `lockFocus()`/`unlockFocus()` with modern `NSImage(size:flipped:drawingHandler:)`
+  - All types `Sendable` for Swift 6 strict concurrency
+  - 17/17 package tests passing (Swift Testing framework)
+  - Deleted old `Cumberland/Services/ImageProcessingService.swift`
+  - Added `import ImageProcessing` to 8 Cumberland source files
+  - Consolidated duplicate code in CardEditorDropHandler and ImageClipboardManager
+  - Removed private `generateThumbnail` wrappers from BatchGenerationQueue and ImageVersionManager
+  - BUILD SUCCEEDED on macOS, iOS, and visionOS
 - 2026-02-12: **ER-0029 VERIFIED** - Citation System Consolidation Complete! ✅
   - Created CitationManager service extracting CRUD from 5 view files
   - Moved 7 view files from Citation/ to Citation/Views/
@@ -331,5 +342,5 @@ When a verified batch file contains multiple ERs (flexible batching), create a n
 
 ---
 
-*Last Updated: 2026-02-12*
-*Document Version: 15.6 (ER-0029 VERIFIED - Citation System Consolidation with CitationSummaryView)*
+*Last Updated: 2026-02-14*
+*Document Version: 15.8 (ER-0023 VERIFIED - Extract Image Processing to Swift Package)*

@@ -17,7 +17,12 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified DRs (Active Issues)
 
-Currently: **0 open DRs** | **0 resolved, awaiting verification**
+Currently: **0 unverified DRs** | **0 open** | **0 resolved, awaiting verification**
+
+**Recently Verified (2026-02-14):**
+| DR | Title | Status |
+|----|-------|--------|
+| DR-0094 | Image History Restore Does Not Update CardEditorView | ✅ Verified |
 
 **Recently Verified (2026-02-12):**
 | DR | Title | Status |
@@ -69,7 +74,7 @@ See: [DR-unverified.md](./DR-unverified.md)
 
 ### Verified DRs (Resolved Issues)
 
-Currently: **77 verified DRs** | Next available DR: **DR-0094**
+Currently: **77 verified DRs** | Next available DR: **DR-0095**
 
 **Latest DRs:**
 - DR-0091: Custom Calendar Date Entry Does Not Update Temporal Position (2026-02-11) - ✅ Verified
@@ -87,7 +92,7 @@ Currently: **77 verified DRs** | Next available DR: **DR-0094**
 | Batch 7 | DR-0061 to DR-0070 | [DR-verified-0061-0070.md](./DR-verified-0061-0070.md) | 🚧 In Progress (6/10 verified) |
 | Batch 8 | DR-0071 to DR-0080 | [DR-verified-0071-0080.md](./DR-verified-0071-0080.md) | 🚧 In Progress (9/10 verified) |
 | Batch 9 | DR-0081 to DR-0090 | [DR-verified-0081-0090.md](./DR-verified-0081-0090.md) | ✅ All Verified (10/10) |
-| Batch 10 | DR-0091 to DR-0100 | [DR-verified-0091-0100.md](./DR-verified-0091-0100.md) | 🚧 In Progress (1/10 verified) |
+| Batch 10 | DR-0091 to DR-0100 | [DR-verified-0091-0100.md](./DR-verified-0091-0100.md) | 🚧 In Progress (4/10 verified) |
 
 ### Closed DRs (Not Verified)
 
@@ -219,24 +224,29 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 93 (documented)
-- **Verified:** 79 (84.9%) ✅
+- **Total DRs:** 94 (documented)
+- **Verified:** 80 (85.1%) ✅
 - **Resolved - Not Verified:** 0 (0.0%) 🟡
-- **Open:** 3 (3.3%) 🔴
+- **Open:** 3 (3.2%) 🔴
   - DR-0043 (Duplicate RelationType entries) - deferred per user
   - DR-0041 (Vegetation brushes should render as area fills) - deferred per user
   - DR-0038 (Draft interior drawing settings not remembered) - deferred per user
   - DR-0038, 0041, 0043 in archive
-- **Closed/Deferred:** 5 (5.7%) ⚪
+- **Closed/Deferred:** 5 (5.3%) ⚪
   - DR-0071 (closed 2026-02-03 - Will be addressed by ER-0021: AI Visual Element Extraction)
   - DR-0069 (closed 2026-02-03 - Known Issue: OpenAI safety filter limitation, external)
   - DR-0060 (superseded by DR-0059 redesign, now verified)
   - DR-0067 (closed, deferred to ER-0020 - Dynamic AI Relationship Extraction)
   - DR-0039 (closed - OBE, fixed by draft persistence improvements)
-- **Latest DR:** DR-0093 (2026-02-12 - visionOS Developer Tools Modal Sheet) ✅ Verified
-- **Latest Verified:** DR-0093 (2026-02-12 - visionOS Developer Tools Window) ✅ Verified
+- **Latest DR:** DR-0094 (2026-02-14 - Image History Restore stale ViewModel) ✅ Verified
+- **Latest Verified:** DR-0094 (2026-02-14 - Image History Restore Does Not Update CardEditorView) ✅ Verified
 
 **Recent Activity:**
+- 2026-02-14: **VERIFIED DR-0094** - Image History Restore Does Not Update CardEditorView ✅
+  - Root cause: CardEditorViewModel snapshots image data on load, never updates when Card model changes externally
+  - Fix: Added `reloadImageFromCard(_:)` method and `onDismiss` handler on ImageHistory sheet
+  - Files: CardEditorViewModel.swift, CardEditorSheets.swift
+  - BUILD SUCCEEDED on macOS and iOS
 - 2026-02-12: **VERIFIED DR-0092, DR-0093** - visionOS Settings/Developer Tools Window Presentation ✅
   - Settings and Developer Tools now open as standalone windows instead of modal sheets on visionOS
   - Added `Window("Settings", id: "settings")` scene for visionOS in CumberlandApp.swift
@@ -383,5 +393,5 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ---
 
-*Last Updated: 2026-02-11*
-*Document Version: 15.2 (DR-0089, DR-0090, DR-0091 verified - Temporal Position Editor fixes complete)*
+*Last Updated: 2026-02-14*
+*Document Version: 15.3 (DR-0094 verified - Image History Restore fix)*

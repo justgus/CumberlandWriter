@@ -9,6 +9,7 @@
 //
 
 import Foundation
+import ImageProcessing
 
 #if canImport(AppKit)
 import AppKit
@@ -135,8 +136,7 @@ class ImageClipboardManager {
         }
 
         if let tiffData = pasteboard.data(forType: .tiff),
-           let nsImage = NSImage(data: tiffData),
-           let pngData = convertToPNG(nsImage) {
+           let pngData = ImageProcessingService.shared.convertToPNG(tiffData) {
             #if DEBUG
             print("✓ [ImageClipboard] Pasted and converted TIFF image from clipboard (\(pngData.count) bytes)")
             #endif
@@ -169,17 +169,4 @@ class ImageClipboardManager {
         #endif
     }
 
-    // MARK: - Helper Methods
-
-    #if canImport(AppKit)
-    /// Convert NSImage to PNG data
-    private func convertToPNG(_ image: NSImage) -> Data? {
-        guard let tiffData = image.tiffRepresentation,
-              let bitmapRep = NSBitmapImageRep(data: tiffData) else {
-            return nil
-        }
-
-        return bitmapRep.representation(using: .png, properties: [:])
-    }
-    #endif
 }

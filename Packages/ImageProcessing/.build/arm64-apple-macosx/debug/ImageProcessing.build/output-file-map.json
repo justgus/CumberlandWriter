@@ -1,0 +1,47 @@
+{
+  "": {
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/master.swiftdeps"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageConverter.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageConverter.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageConverter.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageConverter~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageConverter.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageConverter.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageLoader.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageLoader.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageLoader.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageLoader~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageLoader.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageLoader.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageProcessingError.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingError.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingError.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingError~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingError.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingError.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageProcessingService.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingService.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingService.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingService~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingService.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingService.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/PlatformImage.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/PlatformImage.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/PlatformImage.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/PlatformImage~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/PlatformImage.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/PlatformImage.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ThumbnailGenerator.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ThumbnailGenerator.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ThumbnailGenerator.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ThumbnailGenerator~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ThumbnailGenerator.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ThumbnailGenerator.dia"
+  }
+}

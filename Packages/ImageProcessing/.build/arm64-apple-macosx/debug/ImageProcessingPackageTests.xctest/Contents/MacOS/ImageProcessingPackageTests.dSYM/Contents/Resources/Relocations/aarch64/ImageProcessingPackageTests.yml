@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.xctest/Contents/MacOS/ImageProcessingPackageTests'
+relocations:     []
+...

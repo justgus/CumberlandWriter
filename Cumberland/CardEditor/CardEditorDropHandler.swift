@@ -10,6 +10,7 @@
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
+import ImageProcessing
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -131,10 +132,9 @@ final class CardEditorDropHandler {
                     guard let self else { return }
                     if let img = obj as? NSImage {
                         var outData: Data?
-                        if let tiff = img.tiffRepresentation,
-                           let rep = NSBitmapImageRep(data: tiff) {
-                            outData = rep.representation(using: .png, properties: [:])
-                                ?? rep.representation(using: .jpeg, properties: [.compressionFactor: 0.9])
+                        if let tiff = img.tiffRepresentation {
+                            outData = ImageProcessingService.shared.convertToPNG(tiff)
+                                ?? ImageProcessingService.shared.convertToJPEG(tiff, compressionQuality: 0.9)
                         }
                         if let data = outData {
                             Task { @MainActor in

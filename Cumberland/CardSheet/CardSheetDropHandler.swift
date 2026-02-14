@@ -12,6 +12,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import ImageProcessing
 #if canImport(AppKit)
 import AppKit
 #endif

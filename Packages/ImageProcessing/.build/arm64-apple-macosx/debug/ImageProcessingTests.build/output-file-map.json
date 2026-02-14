@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/master.swiftdeps"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ImageConverterTests.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageConverterTests.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageConverterTests.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageConverterTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageConverterTests.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageConverterTests.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ImageLoaderTests.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageLoaderTests.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageLoaderTests.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageLoaderTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageLoaderTests.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageLoaderTests.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ThumbnailGeneratorTests.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ThumbnailGeneratorTests.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ThumbnailGeneratorTests.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ThumbnailGeneratorTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ThumbnailGeneratorTests.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ThumbnailGeneratorTests.dia"
+  }
+}

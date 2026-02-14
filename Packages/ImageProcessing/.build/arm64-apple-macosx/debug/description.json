@@ -1,0 +1,775 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.xctest/Contents/MacOS/ImageProcessingPackageTests",
+      "packagePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing",
+      "productName" : "ImageProcessingPackageTests"
+    }
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.ImageProcessing-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/sources",
+      "importPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageConverter.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageLoader.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageProcessingError.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageProcessingService.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/PlatformImage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ThumbnailGenerator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "ImageProcessing",
+      "moduleOutputPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules/ImageProcessing.swiftmodule",
+      "objects" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageConverter.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageLoader.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingError.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingService.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/PlatformImage.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ThumbnailGenerator.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx26.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/include/ImageProcessing-Swift.h",
+        "-swift-version",
+        "6",
+        "-enable-upcoming-feature",
+        "MemberImportVisibility",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "imageprocessing"
+      ],
+      "outputFileMapPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageConverter.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageLoader.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingError.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/PlatformImage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ThumbnailGenerator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules/ImageProcessing.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageConverter.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageLoader.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageProcessingError.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageProcessingService.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/PlatformImage.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ThumbnailGenerator.swift"
+      ],
+      "tempsPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.ImageProcessingPackageTests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.build/sources",
+      "importPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules/ImageProcessingTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "ImageProcessingPackageTests",
+      "moduleOutputPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules/ImageProcessingPackageTests.swiftmodule",
+      "objects" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx26.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.build/include/ImageProcessingPackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "imageprocessing"
+      ],
+      "outputFileMapPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules/ImageProcessingPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.ImageProcessingTests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/sources",
+      "importPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ImageConverterTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ImageLoaderTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ThumbnailGeneratorTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules/ImageProcessing.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "ImageProcessingTests",
+      "moduleOutputPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules/ImageProcessingTests.swiftmodule",
+      "objects" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageConverterTests.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageLoaderTests.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ThumbnailGeneratorTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx26.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "imageprocessing"
+      ],
+      "outputFileMapPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageConverterTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageLoaderTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ThumbnailGeneratorTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules/ImageProcessingTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ImageConverterTests.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ImageLoaderTests.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ThumbnailGeneratorTests.swift"
+      ],
+      "tempsPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "ImageProcessing" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "ImageProcessing",
+      "-package-name",
+      "imageprocessing",
+      "-c",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageConverter.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageLoader.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageProcessingError.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageProcessingService.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/PlatformImage.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ThumbnailGenerator.swift",
+      "-I",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx26.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/include/ImageProcessing-Swift.h",
+      "-swift-version",
+      "6",
+      "-enable-upcoming-feature",
+      "MemberImportVisibility",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "imageprocessing",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "ImageProcessingPackageTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "ImageProcessingPackageTests",
+      "-package-name",
+      "imageprocessing",
+      "-c",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx26.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.build/include/ImageProcessingPackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "imageprocessing",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "ImageProcessingTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "ImageProcessingTests",
+      "-package-name",
+      "imageprocessing",
+      "-c",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ImageConverterTests.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ImageLoaderTests.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ThumbnailGeneratorTests.swift",
+      "-I",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx26.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "imageprocessing",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "ImageProcessing" : [
+
+    ],
+    "ImageProcessingPackageTests" : [
+      "ImageProcessingTests",
+      "ImageProcessing"
+    ],
+    "ImageProcessingTests" : [
+      "ImageProcessing"
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.derived/runner.swift" : {
+      "inputs" : [
+
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageConverter.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageLoader.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageProcessingError.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ImageProcessingService.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/PlatformImage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Sources/ImageProcessing/ThumbnailGenerator.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/sources"
+    },
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.build/sources"
+    },
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageConverter.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageLoader.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingError.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ImageProcessingService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/PlatformImage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessing.build/ThumbnailGenerator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageConverterTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ImageLoaderTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/ThumbnailGeneratorTests.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingPackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ImageConverterTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ImageLoaderTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/Tests/ImageProcessingTests/ThumbnailGeneratorTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/ImageProcessingTests.build/sources"
+    },
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/ImageProcessing/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}
