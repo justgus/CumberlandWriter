@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreGraphics
+import BrushEngine
 
 #if canImport(UIKit)
 import UIKit

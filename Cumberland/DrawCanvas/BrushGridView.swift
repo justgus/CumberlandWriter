@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import BrushEngine
 
 // MARK: - Brush Grid View
 

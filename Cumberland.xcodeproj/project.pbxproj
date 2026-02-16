@@ -14,6 +14,9 @@
 		8630146C2F22AFFD00F3953B /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8630146B2F22AFFD00F3953B /* ImagePlayground.framework */; };
 		8630146D2F22B00F00F3953B /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 863014682F22AFDE00F3953B /* ImagePlayground.framework */; };
 		86544A8E2EBE946F0083F9CC /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86544A8D2EBE946F0083F9CC /* RealityKitContent */; };
+		B00BE001AAAA000100000001 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = B00BE002AAAA000200000001 /* BrushEngine */; };
+		B00BE001AAAA000100000002 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = B00BE002AAAA000200000002 /* BrushEngine */; };
+		B00BE001AAAA000100000003 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = B00BE002AAAA000200000003 /* BrushEngine */; };
 		EA05E2F2E5E0370776CB7A3D /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 01218C1931DE878413D24D98 /* ImageProcessing */; };
 /* End PBXBuildFile section */
 
@@ -93,6 +96,7 @@
 		866A3A512E8DC16F006D3723 /* CumberlandUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		86F035052F0EFBF300D79640 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		A83AD74A1C798FD74B27A499 /* ImageProcessing */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = ImageProcessing; sourceTree = "<group>"; };
+		B00BE003AAAA000300000001 /* BrushEngine */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = BrushEngine; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -201,30 +205,13 @@
 				"Diagnostic Views/RelationTypesDiagnosticsView.swift",
 				"Diagnostic Views/StoryStructureDiagnosticsView.swift",
 				DrawCanvas/BaseLayerButton.swift,
-				DrawCanvas/BaseLayerFill.swift,
-				DrawCanvas/BaseLayerImageCache.swift,
-				DrawCanvas/BaseLayerPatterns.swift,
-				DrawCanvas/BrushEngine.swift,
-				"DrawCanvas/BrushEngine+Patterns.swift",
-				"DrawCanvas/BrushEngine+PencilKit.swift",
 				DrawCanvas/BrushEngineDemo.swift,
 				DrawCanvas/BrushGridView.swift,
-				DrawCanvas/BrushRegistry.swift,
-				DrawCanvas/BrushSet.swift,
 				DrawCanvas/DrawingCanvasIntegration.swift,
 				DrawCanvas/DrawingCanvasView.swift,
-				DrawCanvas/DrawingLayer.swift,
-				DrawCanvas/ElevationMap.swift,
-				DrawCanvas/ExteriorMapBrushSet.swift,
 				DrawCanvas/FloatingToolPalette.swift,
 				DrawCanvas/InspectorTabView.swift,
-				DrawCanvas/InteriorMapBrushSet.swift,
-				DrawCanvas/LayerManager.swift,
 				DrawCanvas/LayersTabView.swift,
-				DrawCanvas/MapBrush.swift,
-				DrawCanvas/ProceduralPatternGenerator.swift,
-				DrawCanvas/TerrainMapMetadata.swift,
-				DrawCanvas/TerrainPattern.swift,
 				DrawCanvas/ToolPaletteState.swift,
 				DrawCanvas/ToolsTabView.swift,
 				FocusOverlayPresenter.swift,
@@ -423,30 +410,13 @@
 				"Diagnostic Views/RelationTypesDiagnosticsView.swift",
 				"Diagnostic Views/StoryStructureDiagnosticsView.swift",
 				DrawCanvas/BaseLayerButton.swift,
-				DrawCanvas/BaseLayerFill.swift,
-				DrawCanvas/BaseLayerImageCache.swift,
-				DrawCanvas/BaseLayerPatterns.swift,
-				DrawCanvas/BrushEngine.swift,
-				"DrawCanvas/BrushEngine+Patterns.swift",
-				"DrawCanvas/BrushEngine+PencilKit.swift",
 				DrawCanvas/BrushEngineDemo.swift,
 				DrawCanvas/BrushGridView.swift,
-				DrawCanvas/BrushRegistry.swift,
-				DrawCanvas/BrushSet.swift,
 				DrawCanvas/DrawingCanvasIntegration.swift,
 				DrawCanvas/DrawingCanvasView.swift,
-				DrawCanvas/DrawingLayer.swift,
-				DrawCanvas/ElevationMap.swift,
-				DrawCanvas/ExteriorMapBrushSet.swift,
 				DrawCanvas/FloatingToolPalette.swift,
 				DrawCanvas/InspectorTabView.swift,
-				DrawCanvas/InteriorMapBrushSet.swift,
-				DrawCanvas/LayerManager.swift,
 				DrawCanvas/LayersTabView.swift,
-				DrawCanvas/MapBrush.swift,
-				DrawCanvas/ProceduralPatternGenerator.swift,
-				DrawCanvas/TerrainMapMetadata.swift,
-				DrawCanvas/TerrainPattern.swift,
 				DrawCanvas/ToolPaletteState.swift,
 				DrawCanvas/ToolsTabView.swift,
 				FocusOverlayPresenter.swift,
@@ -624,7 +594,6 @@
 				"DR-Reports/TEST-DATA-MULTI-TIMELINE-PROMPT.md",
 				"DR-Reports/TEST-PLAN-ANALYSIS-AND-RECOMMENDATIONS.md",
 				"DR-Reports/TEST-PLAN-ER-0008-0009-0010.md",
-				DrawCanvas/BrushEngine.swift.bak,
 				"DrawCanvas/Guides/BRUSH-ENGINE-DOCUMENTATION-INDEX.md",
 				"DrawCanvas/Guides/BRUSH-ENGINE-QUICK-REFERENCE.md",
 				"DrawCanvas/Guides/BRUSH-SYSTEM-ARCHITECTURE.md",
@@ -767,6 +736,7 @@
 			files = (
 				86544A8E2EBE946F0083F9CC /* RealityKitContent in Frameworks */,
 				549A6FE34620BC15EFADDFC7 /* ImageProcessing in Frameworks */,
+				B00BE001AAAA000100000003 /* BrushEngine in Frameworks */,
 				8630146C2F22AFFD00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -783,6 +753,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				155DCD5FA5F07C36618F7AA3 /* ImageProcessing in Frameworks */,
+				B00BE001AAAA000100000002 /* BrushEngine in Frameworks */,
 				8630146A2F22AFEE00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -806,6 +777,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EA05E2F2E5E0370776CB7A3D /* ImageProcessing in Frameworks */,
+				B00BE001AAAA000100000001 /* BrushEngine in Frameworks */,
 				863014692F22AFDE00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -842,6 +814,7 @@
 			children = (
 				8646BE022E99A1CE0056F575 /* RealityKitContent */,
 				A83AD74A1C798FD74B27A499 /* ImageProcessing */,
+				B00BE003AAAA000300000001 /* BrushEngine */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -954,6 +927,7 @@
 			packageProductDependencies = (
 				86544A8D2EBE946F0083F9CC /* RealityKitContent */,
 				1228CEFA614B885090182CC5 /* ImageProcessing */,
+				B00BE002AAAA000200000003 /* BrushEngine */,
 			);
 			productName = Cumberland_visionOS;
 			productReference = 86544A8B2EBE946F0083F9CC /* Cumberland_visionOS.app */;
@@ -999,6 +973,7 @@
 			name = "Cumberland IOS";
 			packageProductDependencies = (
 				22F8B49AAA7772786C9108CA /* ImageProcessing */,
+				B00BE002AAAA000200000002 /* BrushEngine */,
 			);
 			productName = "Cumberland IOS";
 			productReference = 8663004C2E9DA49C005F471B /* Cumberland IOS.app */;
@@ -1068,6 +1043,7 @@
 			name = Cumberland;
 			packageProductDependencies = (
 				01218C1931DE878413D24D98 /* ImageProcessing */,
+				B00BE002AAAA000200000001 /* BrushEngine */,
 			);
 			productName = Cumberland;
 			productReference = 866A3A362E8DC16D006D3723 /* Cumberland.app */;
@@ -2281,6 +2257,18 @@
 		86544A8D2EBE946F0083F9CC /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RealityKitContent;
+		};
+		B00BE002AAAA000200000001 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		B00BE002AAAA000200000002 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		B00BE002AAAA000200000003 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

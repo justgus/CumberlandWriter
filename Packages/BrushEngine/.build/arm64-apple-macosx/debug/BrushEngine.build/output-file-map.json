@@ -1,0 +1,131 @@
+{
+  "": {
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/master.swiftdeps"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/BrushRegistry.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushRegistry.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushRegistry.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushRegistry~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushRegistry.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushRegistry.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/BrushSet.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushSet.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushSet.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushSet~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushSet.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushSet.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/ExteriorMapBrushSet.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ExteriorMapBrushSet.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ExteriorMapBrushSet.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ExteriorMapBrushSet~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ExteriorMapBrushSet.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ExteriorMapBrushSet.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/InteriorMapBrushSet.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/InteriorMapBrushSet.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/InteriorMapBrushSet.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/InteriorMapBrushSet~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/InteriorMapBrushSet.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/InteriorMapBrushSet.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/MapBrush.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/MapBrush.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/MapBrush.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/MapBrush~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/MapBrush.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/MapBrush.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+Patterns.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+Patterns.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+Patterns.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+Patterns~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+Patterns.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+Patterns.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+PencilKit.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+PencilKit.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+PencilKit.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+PencilKit~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+PencilKit.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+PencilKit.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+macOS.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+macOS.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+macOS.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+macOS~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+macOS.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+macOS.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerFill.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerFill.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerFill.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerFill~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerFill.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerFill.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerImageCache.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerImageCache.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerImageCache.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerImageCache~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerImageCache.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerImageCache.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/DrawingLayer.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/DrawingLayer.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/DrawingLayer.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/DrawingLayer~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/DrawingLayer.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/DrawingLayer.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerManager.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerManager.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerManager.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerManager.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerManager.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/BaseLayerPatterns.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ElevationMap.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ElevationMap.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ElevationMap.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ElevationMap~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ElevationMap.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ElevationMap.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ProceduralPatternGenerator.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ProceduralPatternGenerator.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ProceduralPatternGenerator.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ProceduralPatternGenerator~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ProceduralPatternGenerator.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ProceduralPatternGenerator.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/TerrainMapMetadata.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainMapMetadata.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainMapMetadata.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainMapMetadata~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainMapMetadata.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainMapMetadata.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/TerrainPattern.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainPattern.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainPattern.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainPattern~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainPattern.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainPattern.dia"
+  }
+}

@@ -16,6 +16,7 @@ import PhotosUI
 import MapKit
 import CoreLocation
 import Contacts
+import BrushEngine
 #if canImport(UIKit)
 import UIKit
 #endif

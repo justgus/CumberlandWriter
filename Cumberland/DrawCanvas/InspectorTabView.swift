@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import BrushEngine
 
 // MARK: - Inspector Tab View
 

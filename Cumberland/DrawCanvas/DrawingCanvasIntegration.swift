@@ -8,6 +8,7 @@
 import SwiftUI
 import Foundation
 import CoreGraphics
+import BrushEngine
 
 #if canImport(PencilKit)
 import PencilKit

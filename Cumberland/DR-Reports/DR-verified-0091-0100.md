@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0091 through DR-0100.
 
-**Batch Status:** 🚧 In Progress (4/10 verified)
+**Batch Status:** 🚧 In Progress (5/10 verified)
 
 ---
 
@@ -115,4 +115,28 @@ When restoring a previous image version from the Image History sheet (ER-0017), 
 
 ---
 
-*Last Updated: 2026-02-14*
+## DR-0095: Map Wizard Cannot Save Drawn Map — "No map data available" After Clicking Continue
+
+**Status:** ✅ Resolved - Verified
+**Platform:** macOS (likely also iOS)
+**Component:** Map Wizard, Drawing Canvas Export
+**Severity:** High
+**Date Identified:** 2026-02-16
+**Date Resolved:** 2026-02-16
+**Date Verified:** 2026-02-16
+
+**Description:**
+After drawing a map in the Map Wizard's Draw step and clicking "Continue" to proceed to the finalize step, the rendered map image briefly appeared then was replaced with "No map data available". The Save button was disabled.
+
+**Root Cause:**
+`exportAsImageData()` on macOS called `macosCanvasView?.exportAsImageData()`, but `macosCanvasView` is a `weak var` that becomes `nil` when SwiftUI destroys the `NSViewRepresentable` during step navigation. The stroke data persisted in the model but the export method had no fallback path. Similarly, `isEmpty` and `canSaveMap` relied on the dead view reference.
+
+**Resolution:**
+Added `renderFromModelData()` fallback method to `DrawingCanvasModel` that renders directly from persisted model data into a bitmap context when the NSView is deallocated. Also fixed `isEmpty` to check model data directly, and `exportCanvasAsPNG()` with the same fallback. On iOS, `exportAsImageData()` now calls `syncDrawingWithActiveLayer()` before exporting.
+
+**Files Modified:**
+- `Cumberland/DrawCanvas/DrawingCanvasView.swift` — `exportAsImageData()`, `exportCanvasAsPNG()`, `isEmpty`, `notifyStrokesChanged()`, new `renderFromModelData()`, `renderBaseLayerFill()`, `renderStrokeToContext()` methods
+
+---
+
+*Last Updated: 2026-02-16*

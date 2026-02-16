@@ -17,17 +17,19 @@ ERs are organized into separate files for easier navigation and maintenance.
 
 ### Unverified ERs (Active & Proposed)
 
-Currently: **3 unverified ERs** (3 Proposed, 0 In Progress, 0 Implemented - Not Verified)
+Currently: **1 unverified ER** (1 Proposed, 0 In Progress, 0 Implemented - Not Verified)
 
 *Note: ER-0021 verified 2026-02-05 and moved to ER-verified-0021.md*
 *Note: ER-0022 verified 2026-02-09 and moved to ER-verified-0022.md*
 *Note: ER-0023 verified 2026-02-14 and moved to ER-verified-0023.md*
+*Note: ER-0024 verified 2026-02-16 and moved to ER-verified-0024.md*
+*Note: ER-0025 verified 2026-02-16 and moved to ER-verified-0025.md*
 
 | ER | Title | Component | Status |
 |----|-------|-----------|--------|
-| ER-0024 | Extract Brush Engine to Swift Package | Drawing System, Procedural Generation, Swift Package | 🔵 Proposed |
-| ER-0025 | Integrate Map Generation into Storyscapes with Workspace | Map Generation, Storyscapes Integration, Xcode Workspace | 🔵 Proposed |
 | ER-0026 | Extract Murderboard to Standalone Target | Murderboard, Relationship Visualization, Workspace Target | 🔵 Proposed |
+| ~~ER-0024~~ | ~~Extract Brush Engine to Swift Package~~ | ~~Drawing System, Procedural Generation, Swift Package~~ | ✅ Verified (moved to ER-verified-0024.md) |
+| ~~ER-0025~~ | ~~Complete BrushEngine Package for Independent Consumption~~ | ~~BrushEngine Package, Public API, Layer Persistence~~ | ✅ Verified (moved to ER-verified-0025.md) |
 | ~~ER-0027~~ | ~~Reorganize AI Module into Subfolders~~ | ~~AI Module Organization~~ | ✅ Verified (moved to ER-verified-0027.md) |
 | ~~ER-0028~~ | ~~Consolidate Timeline System into Dedicated Folder~~ | ~~Timeline System Organization~~ | ✅ Verified (moved to ER-verified-0028.md) |
 | ~~ER-0029~~ | ~~Consolidate Citation System with Service Layer~~ | ~~Citation System Organization~~ | ✅ Verified (moved to ER-verified-0029.md) |
@@ -36,7 +38,7 @@ See: [ER-unverified.md](./ER-unverified.md)
 
 ### Verified ERs (Completed Enhancements)
 
-Currently: **29 verified ERs** | Next available ER: **ER-0030**
+Currently: **31 verified ERs** | Next available ER: **ER-0030**
 
 | Batch | ERs | File | Status |
 |-------|-----|------|--------|
@@ -56,6 +58,8 @@ Currently: **29 verified ERs** | Next available ER: **ER-0030**
 | Batch 28 | ER-0028 | [ER-verified-0028.md](./ER-verified-0028.md) | ✅ Verified (1/1) |
 | Batch 23 | ER-0023 | [ER-verified-0023.md](./ER-verified-0023.md) | ✅ Verified (1/1) |
 | Batch 29 | ER-0029 | [ER-verified-0029.md](./ER-verified-0029.md) | ✅ Verified (1/1) |
+| Batch 24 | ER-0024 | [ER-verified-0024.md](./ER-verified-0024.md) | ✅ Verified (1/1) |
+| Batch 25 | ER-0025 | [ER-verified-0025.md](./ER-verified-0025.md) | ✅ Verified (1/1) |
 
 ## ER Summary
 
@@ -118,6 +122,18 @@ Currently: **29 verified ERs** | Next available ER: **ER-0030**
 | ER-0019 | Direct "Select All" Button in Suggestion Review | SuggestionReviewView | ✅ Verified |
 | ER-0020 | Dynamic Relationship Extraction with AI-Generated Verbs | AI Providers, SuggestionEngine, RelationType System | ✅ Verified |
 
+### ER-0024 - Extract Brush Engine to Swift Package (Verified)
+
+| ER | Title | Component | Status |
+|----|-------|-----------|--------|
+| ER-0024 | Extract Brush Engine to Swift Package | Drawing System, Procedural Generation, Swift Package | ✅ Verified |
+
+### ER-0025 - Complete BrushEngine Package for Independent Consumption (Verified)
+
+| ER | Title | Component | Status |
+|----|-------|-----------|--------|
+| ER-0025 | Complete BrushEngine Package for Independent Consumption | BrushEngine Package, Public API, Layer Persistence | ✅ Verified |
+
 ## How to Use This Documentation
 
 ### Adding a New ER
@@ -153,17 +169,28 @@ When a verified batch file contains multiple ERs (flexible batching), create a n
 ## Statistics
 
 - **Total ERs:** 30
-- **Verified:** 29 (96.7%) ✅
+- **Verified:** 31 (96.9%) ✅
   - All in batch files
 - **Implemented - Not Verified:** 0 (0%) 🟡
 - **In Progress:** 0 (0%)
-- **Proposed:** 3 (10.0%) 🔵
-  - ER-0024 (Extract BrushEngine Package - proposed 2026-02-03)
-  - ER-0025 (Storyscapes Workspace Integration - proposed 2026-02-03)
+- **Proposed:** 1 (3.1%) 🔵
   - ER-0026 (Murderboard Standalone Target - proposed 2026-02-03)
-- **Latest Verifications:** ER-0023 (2026-02-14) - Extract Image Processing to Swift Package
+- **Latest Verifications:** ER-0024, ER-0025 (2026-02-16) - BrushEngine Package Extraction and Independent Consumption
 
 **Recent Activity:**
+- 2026-02-16: **ER-0025 VERIFIED** - Complete BrushEngine Package for Independent Consumption! ✅
+  - Added `LayerPersistenceDelegate` protocol for automatic save notifications
+  - Added `persistenceDelegate` to `LayerManager` with `notifyPersistence()` on all 22+ mutating methods
+  - Made `BrushRegistry.storageKey` configurable (default `"Cumberland_BrushSets"` preserved)
+  - Deleted 19 old duplicate DrawCanvas source files (pre-package copies)
+  - BUILD SUCCEEDED on macOS with zero errors, zero warnings
+- 2026-02-16: **ER-0024 VERIFIED** - Extract Brush Engine to Swift Package! ✅
+  - Extracted 18 source files (~9,400 lines) into `Packages/BrushEngine/` local Swift Package
+  - All types made `public`, explicit `public init` added where needed
+  - `BaseLayerImageCache` changed from `actor` to `@MainActor final class` for sync NSView compatibility
+  - All 3 app targets (macOS, iOS, visionOS) depend on BrushEngine package
+  - 10 Cumberland files now `import BrushEngine`
+  - BUILD SUCCEEDED on macOS with zero errors, zero warnings
 - 2026-02-14: **ER-0023 VERIFIED** - Extract Image Processing to Swift Package! ✅
   - Created `Packages/ImageProcessing/` local Swift Package (7 source files, 3 test files)
   - swift-tools-version 6.2, platforms macOS 26/iOS 26/visionOS 26
@@ -342,5 +369,5 @@ When a verified batch file contains multiple ERs (flexible batching), create a n
 
 ---
 
-*Last Updated: 2026-02-14*
-*Document Version: 15.8 (ER-0023 VERIFIED - Extract Image Processing to Swift Package)*
+*Last Updated: 2026-02-16*
+*Document Version: 15.9 (ER-0024, ER-0025 VERIFIED - BrushEngine Package Extraction and Independent Consumption)*

@@ -1,0 +1,3 @@
+module BrushEngine {
+    header "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/include/BrushEngine-Swift.h"
+}

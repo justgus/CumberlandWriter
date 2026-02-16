@@ -1,0 +1,535 @@
+//
+//  BrushRegistry.swift
+//  BrushEngine
+//
+//  Central brush management - registry of all brush sets
+//
+
+import SwiftUI
+import Foundation
+
+// MARK: - Brush Registry
+
+/// Manages all installed brush sets and handles import/export
+@Observable
+public class BrushRegistry {
+    // MARK: - Singleton
+
+    @MainActor public static let shared = BrushRegistry()
+
+    // MARK: - Properties
+
+    /// All installed brush sets
+    public var installedBrushSets: [BrushSet] = []
+
+    /// ID of the currently active brush set
+    public var activeBrushSetID: UUID?
+
+    /// Currently selected brush within the active set
+    public var selectedBrushID: UUID?
+    
+    // MARK: - Computed Properties
+    
+    /// The currently active brush set
+    public var activeBrushSet: BrushSet? {
+        get {
+            installedBrushSets.first { $0.id == activeBrushSetID }
+        }
+        set {
+            activeBrushSetID = newValue?.id
+        }
+    }
+    
+    /// The currently selected brush
+    public var selectedBrush: MapBrush? {
+        get {
+            guard let brushSetID = activeBrushSetID,
+                  let brushID = selectedBrushID else { return nil }
+            return installedBrushSets
+                .first { $0.id == brushSetID }?
+                .getBrush(id: brushID)
+        }
+        set {
+            selectedBrushID = newValue?.id
+        }
+    }
+
+    /// DR-0031: Find a brush by ID across all installed brush sets
+    public func findBrush(id: UUID) -> MapBrush? {
+        for brushSet in installedBrushSets {
+            if let brush = brushSet.getBrush(id: id) {
+                return brush
+            }
+        }
+        return nil
+    }
+
+    /// All built-in brush sets
+    public var builtInBrushSets: [BrushSet] {
+        installedBrushSets.filter { $0.isBuiltIn }
+    }
+
+    /// All custom/imported brush sets
+    public var customBrushSets: [BrushSet] {
+        installedBrushSets.filter { !$0.isBuiltIn }
+    }
+
+    /// Whether any brush sets are installed
+    public var hasBrushSets: Bool {
+        !installedBrushSets.isEmpty
+    }
+    
+    // MARK: - Initialization
+    
+    public init() {
+        loadPersistedBrushSets()
+
+        // If no brush sets exist, load built-in sets
+        if installedBrushSets.isEmpty {
+            loadBuiltInBrushSets()
+        } else {
+            // ER-0005: Always refresh built-in sets to pick up code changes
+            // Built-in sets should reflect current code, not persisted state
+            refreshBuiltInBrushSets()
+        }
+
+        // Set active brush set if not set
+        if activeBrushSetID == nil, let firstSet = installedBrushSets.first {
+            activeBrushSetID = firstSet.id
+
+            // Select first brush in set
+            if let firstBrush = firstSet.brushes.first {
+                selectedBrushID = firstBrush.id
+            }
+        }
+    }
+    
+    // MARK: - Built-In Brush Sets
+
+    /// Load all built-in brush sets
+    public func loadBuiltInBrushSets() {
+        // Create basic brush set (always available)
+        let basicSet = createBasicBrushSet()
+        installedBrushSets.append(basicSet)
+
+        // Load exterior brush set
+        let exteriorSet = ExteriorMapBrushSet.create()
+        installedBrushSets.append(exteriorSet)
+
+        // ER-0004: Load interior brush set
+        let interiorSet = InteriorMapBrushSet.create()
+        installedBrushSets.append(interiorSet)
+
+        // Set exterior as active by default (most common use case)
+        if activeBrushSetID == nil {
+            activeBrushSetID = exteriorSet.id
+            if let firstBrush = exteriorSet.brushes.first {
+                selectedBrushID = firstBrush.id
+            }
+        }
+
+        saveBrushSets()
+    }
+
+    /// ER-0005: Refresh built-in brush sets to pick up code changes
+    /// Built-in sets should always reflect current code, not persisted state
+    public func refreshBuiltInBrushSets() {
+        // Store custom (non-built-in) sets
+        let customSets = installedBrushSets.filter { !$0.isBuiltIn }
+
+        // Clear all sets
+        installedBrushSets.removeAll()
+
+        // Reload built-in sets from code
+        loadBuiltInBrushSets()
+
+        // Re-add custom sets
+        installedBrushSets.append(contentsOf: customSets)
+
+        // Re-save to persist changes
+        saveBrushSets()
+
+        print("[BrushRegistry] Refreshed built-in brush sets from code")
+    }
+    
+    /// Create the basic built-in brush set
+    private func createBasicBrushSet() -> BrushSet {
+        var brushSet = BrushSet(
+            name: "Basic Tools",
+            description: "Essential drawing tools for all map types",
+            mapType: .custom,
+            brushes: [],
+            defaultLayers: [.generic],
+            author: "Cumberland",
+            version: "1.0",
+            isBuiltIn: true,
+            isInstalled: true
+        )
+        
+        // Add basic brushes
+        brushSet.brushes = [
+            .basicPen,
+            .pencil,
+            .marker,
+            MapBrush(
+                name: "Fine Line",
+                icon: "pencil.line",
+                category: .basic,
+                defaultWidth: 1.0,
+                minWidth: 0.5,
+                maxWidth: 3.0,
+                isBuiltIn: true
+            ),
+            MapBrush(
+                name: "Thick Line",
+                icon: "rectangle.fill",
+                category: .basic,
+                defaultWidth: 15.0,
+                minWidth: 10.0,
+                maxWidth: 30.0,
+                isBuiltIn: true
+            ),
+            MapBrush(
+                name: "Dashed Line",
+                icon: "line.diagonal",
+                category: .roads,
+                defaultWidth: 3.0,
+                patternType: .dashed,
+                isBuiltIn: true
+            ),
+            MapBrush(
+                name: "Dotted Line",
+                icon: "ellipsis",
+                category: .roads,
+                defaultWidth: 3.0,
+                patternType: .dotted,
+                isBuiltIn: true
+            )
+        ]
+        
+        return brushSet
+    }
+    
+    // MARK: - Brush Set Management
+    
+    /// Install a brush set
+    public func installBrushSet(_ brushSet: BrushSet) throws {
+        // Check if already installed
+        if installedBrushSets.contains(where: { $0.id == brushSet.id }) {
+            throw BrushRegistryError.brushSetAlreadyInstalled
+        }
+        
+        var mutableSet = brushSet
+        mutableSet.isInstalled = true
+        
+        installedBrushSets.append(mutableSet)
+        saveBrushSets()
+    }
+    
+    /// Uninstall a brush set (only custom sets can be uninstalled)
+    public func uninstallBrushSet(id: UUID) throws {
+        guard let brushSet = installedBrushSets.first(where: { $0.id == id }) else {
+            throw BrushRegistryError.brushSetNotFound
+        }
+        
+        if brushSet.isBuiltIn {
+            throw BrushRegistryError.cannotUninstallBuiltIn
+        }
+        
+        installedBrushSets.removeAll { $0.id == id }
+        
+        // If we uninstalled the active set, switch to another
+        if activeBrushSetID == id {
+            activeBrushSetID = installedBrushSets.first?.id
+            if let firstBrush = activeBrushSet?.brushes.first {
+                selectedBrushID = firstBrush.id
+            } else {
+                selectedBrushID = nil
+            }
+        }
+        
+        saveBrushSets()
+    }
+    
+    /// Get a brush set by ID
+    public func getBrushSet(id: UUID) -> BrushSet? {
+        installedBrushSets.first { $0.id == id }
+    }
+    
+    /// Update a brush set
+    public func updateBrushSet(_ brushSet: BrushSet) {
+        if let index = installedBrushSets.firstIndex(where: { $0.id == brushSet.id }) {
+            installedBrushSets[index] = brushSet
+            saveBrushSets()
+        }
+    }
+    
+    // MARK: - Custom Brush Set Creation
+    
+    /// Create a new custom brush set
+    @discardableResult
+    public func createCustomBrushSet(name: String, mapType: MapType) -> BrushSet {
+        let brushSet = BrushSet(
+            name: name,
+            description: "Custom brush set",
+            mapType: mapType,
+            brushes: [],
+            defaultLayers: mapType.recommendedLayers,
+            author: nil,
+            version: "1.0",
+            isBuiltIn: false,
+            isInstalled: true
+        )
+        
+        installedBrushSets.append(brushSet)
+        saveBrushSets()
+        
+        return brushSet
+    }
+    
+    /// Add a brush to a custom brush set
+    public func addBrushToSet(brush: MapBrush, setID: UUID) throws {
+        guard var brushSet = getBrushSet(id: setID) else {
+            throw BrushRegistryError.brushSetNotFound
+        }
+        
+        if brushSet.isBuiltIn {
+            throw BrushRegistryError.cannotModifyBuiltIn
+        }
+        
+        brushSet.addBrush(brush)
+        updateBrushSet(brushSet)
+    }
+    
+    /// Remove a brush from a custom brush set
+    public func removeBrushFromSet(brushID: UUID, setID: UUID) throws {
+        guard var brushSet = getBrushSet(id: setID) else {
+            throw BrushRegistryError.brushSetNotFound
+        }
+        
+        if brushSet.isBuiltIn {
+            throw BrushRegistryError.cannotModifyBuiltIn
+        }
+        
+        brushSet.removeBrush(id: brushID)
+        updateBrushSet(brushSet)
+    }
+    
+    // MARK: - Brush Selection
+    
+    /// Set the active brush set
+    public func setActiveBrushSet(id: UUID) {
+        guard installedBrushSets.contains(where: { $0.id == id }) else { return }
+        activeBrushSetID = id
+        
+        // Auto-select first brush in new set
+        if let firstBrush = activeBrushSet?.brushes.first {
+            selectedBrushID = firstBrush.id
+        }
+    }
+    
+    /// Select a brush by ID (within the active brush set)
+    public func selectBrush(id: UUID) {
+        guard let activeBrushSet = activeBrushSet,
+              activeBrushSet.brushes.contains(where: { $0.id == id }) else { return }
+        selectedBrushID = id
+    }
+    
+    /// Select the next brush in the active set
+    public func selectNextBrush() {
+        guard let activeBrushSet = activeBrushSet,
+              let currentID = selectedBrushID,
+              let currentIndex = activeBrushSet.brushes.firstIndex(where: { $0.id == currentID }) else {
+            // Select first brush if none selected
+            selectedBrushID = activeBrushSet?.brushes.first?.id
+            return
+        }
+        
+        let nextIndex = (currentIndex + 1) % activeBrushSet.brushes.count
+        selectedBrushID = activeBrushSet.brushes[nextIndex].id
+    }
+    
+    /// Select the previous brush in the active set
+    public func selectPreviousBrush() {
+        guard let activeBrushSet = activeBrushSet,
+              let currentID = selectedBrushID,
+              let currentIndex = activeBrushSet.brushes.firstIndex(where: { $0.id == currentID }) else {
+            // Select last brush if none selected
+            selectedBrushID = activeBrushSet?.brushes.last?.id
+            return
+        }
+        
+        let previousIndex = (currentIndex - 1 + activeBrushSet.brushes.count) % activeBrushSet.brushes.count
+        selectedBrushID = activeBrushSet.brushes[previousIndex].id
+    }
+    
+    // MARK: - Import/Export
+    
+    /// Export a brush set as a package
+    public func exportBrushSet(id: UUID) -> Data? {
+        guard let brushSet = getBrushSet(id: id) else { return nil }
+        
+        let package = BrushSetPackage(brushSet: brushSet)
+        return try? JSONEncoder().encode(package)
+    }
+    
+    /// Import a brush set from package data
+    public func importBrushSet(from data: Data) throws -> BrushSet {
+        let package = try JSONDecoder().decode(BrushSetPackage.self, from: data)
+        var brushSet = package.toBrushSet()
+        
+        // Ensure unique ID if a set with this ID already exists
+        if installedBrushSets.contains(where: { $0.id == brushSet.id }) {
+            brushSet = BrushSet(
+                id: UUID(), // Generate new ID
+                name: brushSet.name + " (Imported)",
+                description: brushSet.description,
+                mapType: brushSet.mapType,
+                brushes: brushSet.brushes,
+                defaultLayers: brushSet.defaultLayers,
+                thumbnail: brushSet.thumbnail,
+                author: brushSet.author,
+                version: brushSet.version,
+                isBuiltIn: false,
+                isInstalled: false
+            )
+        }
+        
+        try installBrushSet(brushSet)
+        return brushSet
+    }
+    
+    /// Export a brush set to a file URL
+    public func exportBrushSetToFile(id: UUID, url: URL) throws {
+        guard let data = exportBrushSet(id: id) else {
+            throw BrushRegistryError.exportFailed
+        }
+        
+        try data.write(to: url)
+    }
+    
+    /// Import a brush set from a file URL
+    @discardableResult
+    public func importBrushSetFromFile(url: URL) throws -> BrushSet {
+        let data = try Data(contentsOf: url)
+        return try importBrushSet(from: data)
+    }
+    
+    // MARK: - Persistence
+
+    /// The filename stem used for persisting brush sets to disk.
+    /// Override this before the first access to ``shared`` if your app
+    /// needs a different storage location. Defaults to `"Cumberland_BrushSets"`.
+    /// Set this once at app launch; it is not thread-safe for concurrent mutation.
+    public nonisolated(unsafe) static var storageKey: String = "Cumberland_BrushSets"
+
+    private var brushSetsFileURL: URL {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return documentsDirectory.appendingPathComponent("\(BrushRegistry.storageKey).json")
+    }
+    
+    /// Save all brush sets to disk
+    private func saveBrushSets() {
+        let collection = BrushSetCollection(brushSets: installedBrushSets)
+        
+        guard let data = try? JSONEncoder().encode(collection) else {
+            print("Failed to encode brush sets")
+            return
+        }
+        
+        do {
+            try data.write(to: brushSetsFileURL)
+        } catch {
+            print("Failed to save brush sets: \(error)")
+        }
+    }
+    
+    /// Load brush sets from disk
+    private func loadPersistedBrushSets() {
+        guard FileManager.default.fileExists(atPath: brushSetsFileURL.path) else {
+            return
+        }
+        
+        do {
+            let data = try Data(contentsOf: brushSetsFileURL)
+            let collection = try JSONDecoder().decode(BrushSetCollection.self, from: data)
+            installedBrushSets = collection.brushSets
+        } catch {
+            print("Failed to load brush sets: \(error)")
+        }
+    }
+    
+    // MARK: - Search & Filter
+    
+    /// Search for brushes across all sets
+    public func searchBrushes(query: String) -> [MapBrush] {
+        guard !query.isEmpty else { return [] }
+        
+        let lowercasedQuery = query.lowercased()
+        var results: [MapBrush] = []
+        
+        for brushSet in installedBrushSets {
+            let matches = brushSet.brushes.filter { brush in
+                brush.name.lowercased().contains(lowercasedQuery) ||
+                brush.category.rawValue.lowercased().contains(lowercasedQuery)
+            }
+            results.append(contentsOf: matches)
+        }
+        
+        return results
+    }
+    
+    /// Get all brushes in a specific category across all sets
+    public func brushes(in category: BrushCategory) -> [MapBrush] {
+        installedBrushSets.flatMap { brushSet in
+            brushSet.brushes(in: category)
+        }
+    }
+    
+    /// Get brush sets for a specific map type
+    public func brushSets(for mapType: MapType) -> [BrushSet] {
+        installedBrushSets.filter { $0.mapType == mapType || $0.mapType == .hybrid }
+    }
+}
+
+// MARK: - Brush Registry Error
+
+public enum BrushRegistryError: LocalizedError {
+    case brushSetNotFound
+    case brushSetAlreadyInstalled
+    case cannotUninstallBuiltIn
+    case cannotModifyBuiltIn
+    case exportFailed
+    case importFailed
+    case invalidBrushSetData
+    
+    public var errorDescription: String? {
+        switch self {
+        case .brushSetNotFound:
+            return "The requested brush set was not found."
+        case .brushSetAlreadyInstalled:
+            return "This brush set is already installed."
+        case .cannotUninstallBuiltIn:
+            return "Built-in brush sets cannot be uninstalled."
+        case .cannotModifyBuiltIn:
+            return "Built-in brush sets cannot be modified."
+        case .exportFailed:
+            return "Failed to export brush set."
+        case .importFailed:
+            return "Failed to import brush set."
+        case .invalidBrushSetData:
+            return "The brush set data is invalid or corrupted."
+        }
+    }
+}
+
+// MARK: - Brush Registry Extension for Previews
+
+extension BrushRegistry {
+    /// Create a sample registry for previews
+    public static func sample() -> BrushRegistry {
+        let registry = BrushRegistry()
+        // The singleton already loads built-in sets
+        return registry
+    }
+}

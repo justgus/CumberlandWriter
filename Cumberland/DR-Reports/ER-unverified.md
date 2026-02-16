@@ -2,117 +2,17 @@
 
 This document tracks enhancement requests that are proposed, in progress, or implemented but awaiting user verification.
 
-**Status:** Currently **3 active ERs** (3 Proposed, 0 In Progress, 0 Implemented - Not Verified)
+**Status:** Currently **1 active ER** (1 Proposed, 0 In Progress, 0 Implemented - Not Verified)
 
-**Note:** ER-0008, ER-0009, ER-0010 verified and moved to `ER-verified-0008.md`
-**Note:** ER-0012, ER-0013, ER-0014, ER-0016 verified and moved to `ER-verified-0012.md`
-**Note:** ER-0017 verified and moved to `ER-verified-0020.md` (2026-02-03)
-**Note:** ER-0018 verified and moved to `ER-verified-0018.md`
-**Note:** ER-0019 verified and moved to `ER-verified-0019.md` (2026-01-31)
-**Note:** ER-0020 verified and moved to `ER-verified-0020.md` (2026-02-01)
-**Note:** ER-0015, ER-0011 Phase 1 verified and moved to `ER-verified-0015.md` (2026-02-01)
-**Note:** ER-0021 verified and moved to `ER-verified-0021.md` (2026-02-05)
-**Note:** ER-0022 verified and moved to `ER-verified-0022.md` (2026-02-09)
-**Note:** ER-0023 verified and moved to `ER-verified-0023.md` (2026-02-14)
-**Note:** ER-0027 verified and moved to `ER-verified-0027.md` (2026-02-11)
-**Note:** ER-0028 verified and moved to `ER-verified-0028.md` (2026-02-11)
+**Note:** ER-0024 verified and moved to `ER-verified-0024.md` (2026-02-16)
+**Note:** ER-0025 verified and moved to `ER-verified-0025.md` (2026-02-16)
 
 ---
 
-## ER-0024: Extract Brush Engine to Swift Package
+## ER-0025: Complete BrushEngine Package for Independent Consumption - VERIFIED
 
-**Status:** 🔵 Proposed
-**Component:** Drawing System, Procedural Generation, Swift Package
-**Priority:** High
-**Date Requested:** 2026-02-03
-**Dependencies:** None
-
-**Summary:**
-
-Extract the brush rendering engine and procedural terrain generation system (~5,600 lines) into a reusable Swift Package. This enables the same powerful map generation capabilities to be used in Storyscapes, game development tools, and other creative applications.
-
-**What's Extracted:**
-- `BrushEngine.swift` (2,401 lines) - Core rendering
-- `BrushEngine+Patterns.swift` (1,000 lines) - Pattern generation
-- `TerrainPattern.swift` - Procedural algorithms
-- `ProceduralPatternGenerator.swift` - Pattern utilities
-- `BaseLayerPatterns.swift` - Base layer fills
-- `BrushRegistry.swift` - Brush management
-- `MapBrush.swift` - Brush definitions
-- Interior/Exterior brush sets
-
-**What Stays in Cumberland:**
-- UI components (DrawingCanvasView, tool palettes, layer tabs)
-- Integration with Card model
-- Draft persistence via SwiftData
-
-**Abstraction Strategy:**
-- Remove SwiftData dependency → use `Codable` for layers
-- Replace Card dependency → use `LayerPersistenceDelegate` protocol
-- Make BrushRegistry configurable (not singleton)
-
-**Benefits:**
-- ~5,600 lines moved to reusable package
-- Powers Storyscapes map generation
-- Potential for game dev tools usage
-- Improvements benefit all apps using package
-
-**Timeline:** 3 weeks
-
-**Detailed Build Plan:** See `ER-0024-BuildPlan.md`
-
----
-
-## ER-0025: Integrate Map Generation into Storyscapes with Workspace
-
-**Status:** 🔵 Proposed
-**Component:** Map Generation, Storyscapes Integration, Xcode Workspace
-**Priority:** High
-**Date Requested:** 2026-02-03
-**Dependencies:** ER-0024 (BrushEngine package must be created first)
-
-**Summary:**
-
-Integrate Cumberland's powerful map generation capabilities into the existing Storyscapes application by creating a unified Xcode workspace. Storyscapes can leverage the BrushEngine package while maintaining its own independent data model and release cycle.
-
-**Workspace Structure:**
-```
-CumberlandWorkspace/
-├── CumberlandWorkspace.xcworkspace
-├── Cumberland/                  # Worldbuilding app
-├── Storyscapes/                 # Map generation app (existing)
-└── Packages/
-    ├── ImageProcessing/         # Shared
-    └── BrushEngine/             # Shared
-```
-
-**Storyscapes Data Model:**
-- Independent `MapProject` model (not Card-based)
-- Conforms to `LayerPersistenceDelegate` protocol
-- SwiftData with CloudKit sync
-- Own project management UI
-
-**Key Abstraction:**
-```swift
-class MapProject: LayerPersistenceDelegate {
-    var draftLayerData: Data?  // BrushEngine layer persistence
-
-    func save(layerData: Data) {
-        self.draftLayerData = layerData
-    }
-}
-```
-
-**Benefits:**
-- Storyscapes gains full map generation with ~1,450 lines of new code
-- Shares ~6,000 lines via packages (BrushEngine + ImageProcessing)
-- Independent development and releases
-- Improvements flow bidirectionally
-- Clear separation of concerns
-
-**Timeline:** 3 weeks
-
-**Detailed Build Plan:** See `ER-0025-BuildPlan.md`
+**Status:** ✅ Implemented - Verified (2026-02-16)
+**See:** `ER-verified-0025.md` for full details
 
 ---
 
@@ -304,5 +204,6 @@ Cumberland/Model/ (unchanged)
 
 ---
 
-*Last Updated: 2026-02-14*
-*ER-0023 verified and moved to ER-verified-0023.md*
+*Last Updated: 2026-02-16*
+*ER-0024 verified and moved to ER-verified-0024.md*
+*ER-0025 verified and moved to ER-verified-0025.md*

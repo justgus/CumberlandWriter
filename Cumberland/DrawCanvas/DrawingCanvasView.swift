@@ -11,6 +11,7 @@
 //
 
 import SwiftUI
+import BrushEngine
 
 #if canImport(PencilKit)
 import PencilKit
@@ -412,8 +413,17 @@ class DrawingCanvasModel {
         #if canImport(PencilKit) && canImport(UIKit)
         return drawing.bounds.isEmpty
         #else
-        // For macOS, this will need to be updated by the NSView
-        return !hasStrokes
+        // DR-0095: Check model data directly, not just the view's hasStrokes flag
+        // The view may be deallocated (e.g., navigating away from draw step in Map Wizard)
+        if hasStrokes { return false }
+        if !macOSStrokes.isEmpty { return false }
+        if let lm = layerManager {
+            for layer in lm.layers where !layer.macosStrokes.isEmpty {
+                return false
+            }
+            if lm.baseLayer?.layerFill != nil { return false }
+        }
+        return true
         #endif
     }
     
@@ -533,14 +543,19 @@ class DrawingCanvasModel {
     /// Export drawing as image data
     func exportAsImageData() -> Data? {
         #if canImport(PencilKit) && canImport(UIKit)
-        // iOS/iPadOS: Use PencilKit
+        // iOS/iPadOS: Use PencilKit — sync from active layer first
+        syncDrawingWithActiveLayer()
         let bounds = drawing.bounds.isEmpty ? CGRect(origin: .zero, size: canvasSize) : drawing.bounds
         let scale: CGFloat = 2.0
         let image = drawing.image(from: bounds, scale: scale)
         return image.pngData()
         #else
-        // macOS: Use native drawing view
-        return macosCanvasView?.exportAsImageData()
+        // macOS: Use native drawing view if available
+        if let view = macosCanvasView {
+            return view.exportAsImageData()
+        }
+        // DR-0095: Fallback — render from model data when the view has been deallocated
+        return renderFromModelData()
         #endif
     }
     
@@ -597,7 +612,11 @@ class DrawingCanvasModel {
         return pngData
         #elseif os(macOS)
         // For macOS, use the native view's PNG export
-        return macosCanvasView?.exportAsPNGData()
+        if let view = macosCanvasView {
+            return view.exportAsPNGData()
+        }
+        // DR-0095: Fallback — render from model data when the view has been deallocated
+        return renderFromModelData()
         #else
         return exportAsImageData()
         #endif
@@ -842,12 +861,197 @@ class DrawingCanvasModel {
     /// DR-0004.3: Pending stroke data to import when view is created
     /// Stores stroke data that needs to be imported before the macOS view exists
     var pendingStrokeData: Data?
+
+    // MARK: - DR-0095: Model-Based Rendering Fallback
+
+    /// Render canvas content from model data when the NSView has been deallocated.
+    /// Replicates the rendering logic from MacOSDrawingView.draw(_:) using persisted
+    /// model data (layerManager layers, macOSStrokes, base layer fill).
+    func renderFromModelData() -> Data? {
+        let width = Int(canvasSize.width)
+        let height = Int(canvasSize.height)
+        guard width > 0, height > 0 else { return nil }
+
+        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: bitmapInfo.rawValue
+        ) else { return nil }
+
+        let fullRect = CGRect(x: 0, y: 0, width: width, height: height)
+
+        // 1. Draw background
+        let bgNSColor = NSColor(backgroundColor)
+        context.setFillColor(bgNSColor.cgColor)
+        context.fill(fullRect)
+
+        // 2. Draw base layer fill
+        if let baseLayer = layerManager?.baseLayer,
+           baseLayer.isVisible,
+           let fill = baseLayer.layerFill {
+            context.setAlpha(fill.opacity)
+            renderBaseLayerFill(fill, in: context, rect: fullRect)
+            context.setAlpha(1.0)
+        }
+
+        // 3. Draw strokes from all visible layers
+        if let lm = layerManager {
+            for layer in lm.sortedLayers where layer.isVisible {
+                context.saveGState()
+                context.setAlpha(layer.opacity)
+                for stroke in layer.macosStrokes {
+                    renderStrokeToContext(stroke, context: context)
+                }
+                context.restoreGState()
+            }
+        }
+
+        // 4. Fallback: draw model strokes if no layer system
+        if layerManager == nil || layerManager?.layers.isEmpty == true,
+           !macOSStrokes.isEmpty {
+            for stroke in macOSStrokes {
+                renderStrokeToContext(stroke, context: context)
+            }
+        }
+
+        // Convert to PNG
+        guard let cgImage = context.makeImage() else { return nil }
+        let nsImage = NSImage(cgImage: cgImage, size: canvasSize)
+        guard let tiffData = nsImage.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData),
+              let pngData = bitmap.representation(using: .png, properties: [:]) else {
+            return nil
+        }
+        return pngData
+    }
+
+    /// Render a base layer fill into a CGContext (mirrors MacOSDrawingView logic)
+    private func renderBaseLayerFill(_ fill: LayerFill, in context: CGContext, rect: CGRect) {
+        if fill.usesProceduralTerrain, let metadata = fill.terrainMetadata {
+            let cacheKey = BaseLayerImageCache.cacheKey(
+                fillType: fill.fillType.rawValue,
+                patternSeed: fill.patternSeed,
+                terrainSeed: metadata.terrainSeed,
+                width: Int(rect.width),
+                height: Int(rect.height)
+            )
+            if let cachedNSImage = BaseLayerImageCache.shared.get(cacheKey),
+               let cgImage = cachedNSImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                context.draw(cgImage, in: rect)
+            } else {
+                let pattern = TerrainPattern(metadata: metadata, dominantFillType: fill.fillType)
+                pattern.draw(in: context, rect: rect, seed: fill.patternSeed, baseColor: fill.effectiveColor, mapScale: metadata.physicalSizeMiles)
+                if let terrainImage = context.makeImage() {
+                    let nsImage = NSImage(cgImage: terrainImage, size: rect.size)
+                    BaseLayerImageCache.shared.set(cacheKey, image: nsImage)
+                }
+            }
+        } else if fill.usesProceduralPattern,
+                  let pattern = ProceduralPatternFactory.pattern(for: fill.fillType) {
+            let mapScale = fill.terrainMetadata?.physicalSizeMiles ?? 0
+            let cacheKey = BaseLayerImageCache.cacheKey(
+                fillType: fill.fillType.rawValue,
+                patternSeed: fill.patternSeed,
+                terrainSeed: nil,
+                width: Int(rect.width),
+                height: Int(rect.height)
+            )
+            if let cachedNSImage = BaseLayerImageCache.shared.get(cacheKey),
+               let cgImage = cachedNSImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                context.draw(cgImage, in: rect)
+            } else {
+                pattern.draw(in: context, rect: rect, seed: fill.patternSeed, baseColor: fill.effectiveColor, mapScale: mapScale)
+                if let patternImage = context.makeImage() {
+                    let nsImage = NSImage(cgImage: patternImage, size: rect.size)
+                    BaseLayerImageCache.shared.set(cacheKey, image: nsImage)
+                }
+            }
+        } else {
+            let nsColor = NSColor(fill.effectiveColor)
+            context.setFillColor(nsColor.cgColor)
+            context.fill(rect)
+        }
+    }
+
+    /// Render a single stroke into a CGContext (mirrors MacOSDrawingView.drawStroke logic)
+    private func renderStrokeToContext(_ stroke: DrawingStroke, context: CGContext) {
+        let points = stroke.cgPoints
+        guard points.count > 1 else { return }
+
+        // Advanced brush rendering via BrushEngine
+        if let brushID = stroke.brushID,
+           let brush = BrushRegistry.shared.findBrush(id: brushID),
+           BrushEngine.recommendedRenderingMethod(for: brush) == .advanced {
+            if let imageData = stroke.cachedImageData,
+               let origin = stroke.cachedImageOrigin {
+                BrushEngine.drawCachedStroke(imageData: imageData, origin: CGPoint(x: origin.x, y: origin.y), context: context)
+            } else {
+                let swiftUIColor = Color(red: Double(stroke.colorRed), green: Double(stroke.colorGreen), blue: Double(stroke.colorBlue), opacity: Double(stroke.colorAlpha))
+                let terrainMetadata = layerManager?.baseLayer?.layerFill?.terrainMetadata
+                BrushEngine.renderAdvancedStroke(brush: brush, points: points, color: swiftUIColor, width: stroke.lineWidth, context: context, terrainMetadata: terrainMetadata)
+            }
+            return
+        }
+
+        // Standard stroke rendering
+        if let toolType = DrawingToolType(rawValue: stroke.toolType), toolType == .eraser {
+            context.setBlendMode(.clear)
+            context.setLineWidth(stroke.lineWidth * 2)
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
+        } else {
+            let nsColor = NSColor(red: stroke.colorRed, green: stroke.colorGreen, blue: stroke.colorBlue, alpha: stroke.colorAlpha)
+            context.setStrokeColor(nsColor.cgColor)
+            context.setLineWidth(stroke.lineWidth)
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
+            context.setBlendMode(.normal)
+
+            if let toolType = DrawingToolType(rawValue: stroke.toolType) {
+                switch toolType {
+                case .pencil: context.setAlpha(0.8)
+                case .marker:
+                    context.setAlpha(0.4)
+                    context.setLineWidth(stroke.lineWidth * 2)
+                default: context.setAlpha(1.0)
+                }
+            } else {
+                context.setAlpha(1.0)
+            }
+        }
+
+        context.beginPath()
+        context.move(to: points[0])
+        for i in 1..<points.count {
+            let current = points[i]
+            if i < points.count - 1 {
+                let next = points[i + 1]
+                let midPoint = CGPoint(x: (current.x + next.x) / 2, y: (current.y + next.y) / 2)
+                context.addQuadCurve(to: midPoint, control: current)
+            } else {
+                context.addLine(to: current)
+            }
+        }
+        context.strokePath()
+        context.setBlendMode(.normal)
+        context.setAlpha(1.0)
+    }
     #endif
 
     /// Called by macOS canvas to notify when strokes change
     func notifyStrokesChanged() {
         #if os(macOS)
-        hasStrokes = macosCanvasView?.isEmpty() == false
+        // DR-0095: Also update from model data so hasStrokes survives view deallocation
+        if macosCanvasView != nil {
+            hasStrokes = macosCanvasView?.isEmpty() == false
+        } else {
+            hasStrokes = !macOSStrokes.isEmpty || layerManager?.layers.contains(where: { !$0.macosStrokes.isEmpty }) == true
+        }
         #endif
     }
 }

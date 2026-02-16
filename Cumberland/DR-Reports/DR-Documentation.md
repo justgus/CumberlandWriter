@@ -19,6 +19,11 @@ DRs are organized into separate files for easier navigation and maintenance.
 
 Currently: **0 unverified DRs** | **0 open** | **0 resolved, awaiting verification**
 
+**Recently Verified (2026-02-16):**
+| DR | Title | Status |
+|----|-------|--------|
+| DR-0095 | Map Wizard Cannot Save Drawn Map — "No map data available" | ✅ Verified |
+
 **Recently Verified (2026-02-14):**
 | DR | Title | Status |
 |----|-------|--------|
@@ -74,12 +79,12 @@ See: [DR-unverified.md](./DR-unverified.md)
 
 ### Verified DRs (Resolved Issues)
 
-Currently: **77 verified DRs** | Next available DR: **DR-0095**
+Currently: **78 verified DRs** | Next available DR: **DR-0096**
 
 **Latest DRs:**
+- DR-0095: Map Wizard Cannot Save Drawn Map — "No map data available" (2026-02-16) - ✅ Verified
+- DR-0094: Image History Restore Does Not Update CardEditorView (2026-02-14) - ✅ Verified
 - DR-0091: Custom Calendar Date Entry Does Not Update Temporal Position (2026-02-11) - ✅ Verified
-- DR-0090: Standard Date Picker Has No Year Input — Unusable for Historical Dates (2026-02-11) - ✅ Verified
-- DR-0089: Gregorian Calendar Requires Manual Epoch Setting (2026-02-11) - ✅ Verified
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
@@ -92,7 +97,7 @@ Currently: **77 verified DRs** | Next available DR: **DR-0095**
 | Batch 7 | DR-0061 to DR-0070 | [DR-verified-0061-0070.md](./DR-verified-0061-0070.md) | 🚧 In Progress (6/10 verified) |
 | Batch 8 | DR-0071 to DR-0080 | [DR-verified-0071-0080.md](./DR-verified-0071-0080.md) | 🚧 In Progress (9/10 verified) |
 | Batch 9 | DR-0081 to DR-0090 | [DR-verified-0081-0090.md](./DR-verified-0081-0090.md) | ✅ All Verified (10/10) |
-| Batch 10 | DR-0091 to DR-0100 | [DR-verified-0091-0100.md](./DR-verified-0091-0100.md) | 🚧 In Progress (4/10 verified) |
+| Batch 10 | DR-0091 to DR-0100 | [DR-verified-0091-0100.md](./DR-verified-0091-0100.md) | 🚧 In Progress (5/10 verified) |
 
 ### Closed DRs (Not Verified)
 
@@ -198,6 +203,23 @@ Currently: **4 closed DRs**
 | DR-0067 | Relationship Inference Not Detecting Patterns (Multiple Bugs) | RelationshipInference, AI Content Analysis Phase 6 | ⚪ Closed - Deferred to ER-0020 |
 | DR-0068 | Calendar Insertion Bug - Inserting Both Card and CalendarSystem | SuggestionReviewView, SwiftData Relationship Insertion | ✅ Verified |
 
+### DR-0084 to DR-0095 - Service Layer Compliance, MurderBoard Gestures, Temporal Editor, visionOS, Image History, Map Wizard (Verified)
+
+| DR | Title | Component | Status |
+|----|-------|-----------|--------|
+| DR-0084 | ER-0022 Service Layer Compliance — Extracted Components Bypassing Services | CardRelationshipOperations, MurderBoardOperations, CardEditorSaveHandler | ✅ Verified |
+| DR-0085 | MurderBoard — All iOS Gestures Non-Functional | CanvasLayer, MultiGestureModifier | ✅ Verified |
+| DR-0086 | MurderBoard Canvas Unresponsive to Magic Keyboard Trackpad Pan (iPadOS) | MurderBoardView, UIScrollView | ✅ Verified |
+| DR-0087 | MurderBoard/CardSheetView Toolbar Left-Justified on macOS; iOS Picker Shows Text | MurderBoardToolbar, CardSheetView | ✅ Verified |
+| DR-0088 | MurderBoard Zoom Strip — Minus Button Hit Area, TextField Clamp, iOS Zoom in Toolbar | MurderBoardToolbar | ✅ Verified |
+| DR-0089 | Gregorian Calendar Requires Manual Epoch Setting | CalendarSystem, SceneTemporalPositionEditor | ✅ Verified |
+| DR-0090 | Standard Date Picker Has No Year Input — Unusable for Historical Dates | SceneTemporalPositionEditor | ✅ Verified |
+| DR-0091 | Custom Calendar Date Entry Does Not Update Temporal Position | SceneTemporalPositionEditor | ✅ Verified |
+| DR-0092 | visionOS Settings Presented as Modal Sheet Instead of Window | CumberlandApp, MainAppView, OrnamentViews | ✅ Verified |
+| DR-0093 | visionOS Developer Tools Presented as Modal Sheet Instead of Window | MainAppView, OrnamentViews | ✅ Verified |
+| DR-0094 | Image History Restore Does Not Update CardEditorView | CardEditorViewModel, CardEditorSheets | ✅ Verified |
+| DR-0095 | Map Wizard Cannot Save Drawn Map — "No map data available" | DrawingCanvasView, Map Wizard Export | ✅ Verified |
+
 ## How to Use This Documentation
 
 ### Adding a New DR
@@ -224,8 +246,8 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ## Statistics
 
-- **Total DRs:** 94 (documented)
-- **Verified:** 80 (85.1%) ✅
+- **Total DRs:** 95 (documented)
+- **Verified:** 81 (85.3%) ✅
 - **Resolved - Not Verified:** 0 (0.0%) 🟡
 - **Open:** 3 (3.2%) 🔴
   - DR-0043 (Duplicate RelationType entries) - deferred per user
@@ -238,10 +260,16 @@ When a verified batch file contains 10 DRs, create a new batch file:
   - DR-0060 (superseded by DR-0059 redesign, now verified)
   - DR-0067 (closed, deferred to ER-0020 - Dynamic AI Relationship Extraction)
   - DR-0039 (closed - OBE, fixed by draft persistence improvements)
-- **Latest DR:** DR-0094 (2026-02-14 - Image History Restore stale ViewModel) ✅ Verified
-- **Latest Verified:** DR-0094 (2026-02-14 - Image History Restore Does Not Update CardEditorView) ✅ Verified
+- **Latest DR:** DR-0095 (2026-02-16 - Map Wizard Cannot Save Drawn Map) ✅ Verified
+- **Latest Verified:** DR-0095 (2026-02-16 - Map Wizard Cannot Save Drawn Map) ✅ Verified
 
 **Recent Activity:**
+- 2026-02-16: **VERIFIED DR-0095** - Map Wizard Cannot Save Drawn Map ✅
+  - Root cause: `weak var macosCanvasView` becomes nil when SwiftUI destroys NSViewRepresentable during wizard step navigation
+  - Fix: Added `renderFromModelData()` fallback that renders from persisted model data (layerManager, macOSStrokes, base layer fills) into CGContext bitmap when NSView is deallocated
+  - Also fixed `isEmpty` to check model data directly, and iOS path to call `syncDrawingWithActiveLayer()` before export
+  - Files: DrawingCanvasView.swift
+  - BUILD SUCCEEDED on macOS with zero errors, zero warnings
 - 2026-02-14: **VERIFIED DR-0094** - Image History Restore Does Not Update CardEditorView ✅
   - Root cause: CardEditorViewModel snapshots image data on load, never updates when Card model changes externally
   - Fix: Added `reloadImageFromCard(_:)` method and `onDismiss` handler on ImageHistory sheet
@@ -393,5 +421,5 @@ When a verified batch file contains 10 DRs, create a new batch file:
 
 ---
 
-*Last Updated: 2026-02-14*
-*Document Version: 15.3 (DR-0094 verified - Image History Restore fix)*
+*Last Updated: 2026-02-16*
+*Document Version: 15.4 (DR-0095 verified - Map Wizard export fix)*

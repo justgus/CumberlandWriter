@@ -11,6 +11,7 @@
 //
 
 import SwiftUI
+import BrushEngine
 
 #if os(macOS)
 import AppKit
@@ -53,7 +54,7 @@ class MacOSDrawingView: NSView {
     var zoomScale: CGFloat = 1.0
 
     // Current stroke being drawn (using a temporary structure for active drawing)
-    private var currentStroke: MacOSDrawingStroke?
+    private var currentStroke: LocalDrawingStroke?
 
     // DR-0004.3: Strokes are now stored in the model, not here
     // This view reads/writes to canvasModel.macOSStrokes
@@ -116,7 +117,7 @@ class MacOSDrawingView: NSView {
             brushID = nil
         }
 
-        currentStroke = MacOSDrawingStroke(
+        currentStroke = LocalDrawingStroke(
             points: [location],
             color: color,
             lineWidth: lineWidth,
@@ -505,7 +506,7 @@ class MacOSDrawingView: NSView {
         context.setAlpha(1.0)
     }
     
-    private func drawCurrentStroke(_ stroke: MacOSDrawingStroke, in context: CGContext) {
+    private func drawCurrentStroke(_ stroke: LocalDrawingStroke, in context: CGContext) {
         guard stroke.points.count > 1 else { return }
 
         // Check brush type for special preview rendering
@@ -601,7 +602,7 @@ class MacOSDrawingView: NSView {
     }
 
     /// Draw preview for stamp brushes - selection lasso showing bounding box
-    private func drawStampPreview(stroke: MacOSDrawingStroke, in context: CGContext) {
+    private func drawStampPreview(stroke: LocalDrawingStroke, in context: CGContext) {
         guard let start = stroke.points.first, let end = stroke.points.last else { return }
 
         // Calculate bounding box
@@ -655,7 +656,7 @@ class MacOSDrawingView: NSView {
     }
 
     /// Draw preview for wall brushes - dotted line from start to end
-    private func drawWallPreview(stroke: MacOSDrawingStroke, in context: CGContext) {
+    private func drawWallPreview(stroke: LocalDrawingStroke, in context: CGContext) {
         guard let start = stroke.points.first, let end = stroke.points.last else { return }
 
         context.saveGState()
@@ -995,7 +996,7 @@ class MacOSDrawingView: NSView {
 // MARK: - Temporary Drawing Stroke (for active drawing)
 
 /// Temporary structure used while actively drawing before converting to the codable DrawingStroke
-private struct MacOSDrawingStroke {
+private struct LocalDrawingStroke {
     var points: [CGPoint]
     var color: NSColor
     var lineWidth: CGFloat

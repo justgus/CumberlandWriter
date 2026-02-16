@@ -1,0 +1,494 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.BrushEngine-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/sources",
+      "importPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/BrushRegistry.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/BrushSet.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/ExteriorMapBrushSet.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/InteriorMapBrushSet.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/MapBrush.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+Patterns.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+PencilKit.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+macOS.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerFill.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerImageCache.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/DrawingLayer.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/BaseLayerPatterns.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ElevationMap.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ProceduralPatternGenerator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/TerrainMapMetadata.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/TerrainPattern.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "BrushEngine",
+      "moduleOutputPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules/BrushEngine.swiftmodule",
+      "objects" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushRegistry.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushSet.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ExteriorMapBrushSet.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/InteriorMapBrushSet.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/MapBrush.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+Patterns.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+PencilKit.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+macOS.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerFill.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerImageCache.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/DrawingLayer.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerManager.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ElevationMap.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ProceduralPatternGenerator.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainMapMetadata.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainPattern.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx26.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/include/BrushEngine-Swift.h",
+        "-swift-version",
+        "6",
+        "-enable-upcoming-feature",
+        "MemberImportVisibility",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "brushengine"
+      ],
+      "outputFileMapPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushRegistry.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushSet.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ExteriorMapBrushSet.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/InteriorMapBrushSet.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/MapBrush.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+Patterns.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+PencilKit.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+macOS.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerFill.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerImageCache.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/DrawingLayer.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ElevationMap.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ProceduralPatternGenerator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainMapMetadata.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainPattern.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules/BrushEngine.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/BrushRegistry.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/BrushSet.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/ExteriorMapBrushSet.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/InteriorMapBrushSet.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/MapBrush.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+Patterns.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+PencilKit.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+macOS.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerFill.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerImageCache.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/DrawingLayer.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerManager.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/BaseLayerPatterns.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ElevationMap.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ProceduralPatternGenerator.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/TerrainMapMetadata.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/TerrainPattern.swift"
+      ],
+      "tempsPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "BrushEngine" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "BrushEngine",
+      "-package-name",
+      "brushengine",
+      "-c",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/BrushRegistry.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/BrushSet.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/ExteriorMapBrushSet.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/InteriorMapBrushSet.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/MapBrush.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+Patterns.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+PencilKit.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+macOS.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerFill.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerImageCache.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/DrawingLayer.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerManager.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/BaseLayerPatterns.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ElevationMap.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ProceduralPatternGenerator.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/TerrainMapMetadata.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/TerrainPattern.swift",
+      "-I",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx26.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/include/BrushEngine-Swift.h",
+      "-swift-version",
+      "6",
+      "-enable-upcoming-feature",
+      "MemberImportVisibility",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "brushengine",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "BrushEngine" : [
+
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/BrushRegistry.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/BrushSet.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/ExteriorMapBrushSet.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/InteriorMapBrushSet.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Brushes/MapBrush.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+Patterns.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+PencilKit.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine+macOS.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Core/BrushEngine.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerFill.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerImageCache.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/DrawingLayer.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/BaseLayerPatterns.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ElevationMap.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ProceduralPatternGenerator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/TerrainMapMetadata.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/TerrainPattern.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/sources"
+    },
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

@@ -1002,7 +1002,7 @@ private struct MacOSGestureOverlay: NSViewRepresentable {
                 handler.updatePointerLocation(cgLocation)
 
                 // Check if there's an active popup - if so, handle specially
-                if let popup = handler.activePopup {
+                if let _ = handler.activePopup {
                     let isInsidePopup = handler.hitTestPopup(at: cgLocation)
                     if event.type == .leftMouseUp {
                         if isInsidePopup {
