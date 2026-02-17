@@ -17,11 +17,18 @@ public struct BoardEdgesLayer<DS: BoardDataSource>: View {
     let dataSource: DS
     let scheme: ColorScheme
     let worldToView: (CGPoint) -> CGPoint
+    let selectedEdgeSourceTarget: (UUID, UUID)?
 
-    public init(dataSource: DS, scheme: ColorScheme, worldToView: @escaping (CGPoint) -> CGPoint) {
+    public init(
+        dataSource: DS,
+        scheme: ColorScheme,
+        worldToView: @escaping (CGPoint) -> CGPoint,
+        selectedEdgeSourceTarget: (UUID, UUID)? = nil
+    ) {
         self.dataSource = dataSource
         self.scheme = scheme
         self.worldToView = worldToView
+        self.selectedEdgeSourceTarget = selectedEdgeSourceTarget
     }
 
     public var body: some View {
@@ -35,6 +42,8 @@ public struct BoardEdgesLayer<DS: BoardDataSource>: View {
                 path.move(to: p0)
                 path.addLine(to: p1)
 
+                let isSelected = isEdgeSelected(e)
+
                 let sourceColor = e.sourceAccent
                 let targetColor = e.targetAccent
                 let midColor = gridContrastColor
@@ -45,15 +54,31 @@ public struct BoardEdgesLayer<DS: BoardDataSource>: View {
                     sourceColor
                 ])
 
+                // Draw glow behind selected edge
+                if isSelected {
+                    context.stroke(
+                        path,
+                        with: .color(.accentColor.opacity(0.35)),
+                        style: StrokeStyle(lineWidth: 12.0, lineCap: .round, lineJoin: .round)
+                    )
+                }
+
                 context.stroke(
                     path,
                     with: .linearGradient(gradient, startPoint: p0, endPoint: p1),
-                    style: StrokeStyle(lineWidth: 3.0, lineCap: .round, lineJoin: .round)
+                    style: StrokeStyle(lineWidth: isSelected ? 5.0 : 3.0, lineCap: .round, lineJoin: .round)
                 )
             }
         }
         .accessibilityHidden(true)
         .allowsHitTesting(false)
+    }
+
+    private func isEdgeSelected(_ edge: DisplayedEdge) -> Bool {
+        guard let (selA, selB) = selectedEdgeSourceTarget else { return false }
+        let pairMatches = (edge.fromID == selA && edge.toID == selB)
+            || (edge.fromID == selB && edge.toID == selA)
+        return pairMatches
     }
 }
 
@@ -72,16 +97,19 @@ extension BoardEdgesLayer {
         }
     }
 
-    private struct DisplayedEdge {
-        let fromID: UUID
-        let toID: UUID
-        let start: CGPoint
-        let end: CGPoint
-        let sourceAccent: Color
-        let targetAccent: Color
+    /// A single edge resolved for display (after deduplication).
+    public struct DisplayedEdge {
+        public let fromID: UUID
+        public let toID: UUID
+        public let typeCode: String
+        public let start: CGPoint
+        public let end: CGPoint
+        public let sourceAccent: Color
+        public let targetAccent: Color
     }
 
-    private func displayedEdges() -> [DisplayedEdge] {
+    /// Returns the deduplicated set of edges to display on the canvas.
+    public func displayedEdges() -> [DisplayedEdge] {
         let nodes = dataSource.nodes
         var centers: [UUID: CGPoint] = [:]
         var accentColors: [UUID: Color] = [:]
@@ -123,6 +151,7 @@ extension BoardEdgesLayer {
             result.append(DisplayedEdge(
                 fromID: chosen.sourceNodeID,
                 toID: chosen.targetNodeID,
+                typeCode: chosen.typeCode,
                 start: p0,
                 end: p1,
                 sourceAccent: accentColors[chosen.sourceNodeID] ?? .accentColor,

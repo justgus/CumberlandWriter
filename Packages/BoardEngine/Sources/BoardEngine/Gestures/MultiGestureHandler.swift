@@ -1066,17 +1066,22 @@ private struct MacOSGestureOverlay: NSViewRepresentable {
                       let handler = self.handler,
                       let coordinateInfo = self.coordinateInfo,
                       event.window === window else { return event }
-                
+
                 // Convert window location to our view's coordinate space and flip Y to match SwiftUI coordinates used elsewhere.
                 let pInView = self.convert(event.locationInWindow, from: nil)
                 let cgLocation = CGPoint(x: pInView.x, y: self.bounds.height - pInView.y)
-                
+
                 // Only handle if pointer is inside our overlay's bounds
                 if self.bounds.contains(pInView) {
                     handler.updatePointerLocation(cgLocation)
                     let foundTarget = handler.processRightClick(location: cgLocation, coordinateInfo: coordinateInfo)
-                    // Only return the event if we found a target, otherwise consume it to prevent unwanted context menus
-                    return foundTarget ? event : nil
+                    if foundTarget {
+                        // A registered gesture target handled the right-click (e.g., node popup menu)
+                        return event
+                    }
+                    // No gesture target handled the right-click — pass the event through
+                    // so SwiftUI .contextMenu modifiers (e.g., on edges) can receive it (ER-0030)
+                    return event
                 }
                 // Return the event so default behaviors (e.g., context menus) can proceed if desired.
                 return event

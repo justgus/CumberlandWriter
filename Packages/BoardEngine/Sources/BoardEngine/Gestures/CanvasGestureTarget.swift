@@ -22,6 +22,7 @@ public final class CanvasGestureTarget: GestureTarget {
     public var onTransformChanged: ((Double, Double, Double) -> Void)?
     public var onTransformCommit: (() -> Void)?
     public var onSelectionChanged: ((UUID?) -> Void)?
+    public var onRightClick: ((_ location: CGPoint, _ coordinateInfo: CoordinateSpaceInfo) -> Void)?
 
     // Transform state access
     public var getCurrentTransform: (() -> (scale: Double, panX: Double, panY: Double))?
@@ -38,15 +39,18 @@ public final class CanvasGestureTarget: GestureTarget {
 
     public func canHandleGesture(_ gesture: GestureType) -> Bool {
         switch gesture {
-        case .tap, .pinch, .twoFingerPan:
+        case .tap, .pinch, .twoFingerPan, .rightClick:
             return true
-        case .drag, .doubleTap, .rightClick:
+        case .drag, .doubleTap:
             return false
         }
     }
 
     public func handleGesture(_ gesture: GestureEvent) {
         switch gesture {
+        case .rightClick(let location, let coordinateInfo):
+            onRightClick?(location, coordinateInfo)
+
         case .tap(_, _):
             onSelectionChanged?(nil)
 

@@ -36,8 +36,13 @@ struct MurderBoardView: View {
     @State var panX: Double = 0.0
     @State var panY: Double = 0.0
 
-    // Selection (single)
+    // Selection (single node OR single edge, mutually exclusive)
     @State var selectedCardID: UUID? = nil
+    @State var selectedEdgeSourceTarget: (UUID, UUID)? = nil
+    @State var selectedEdgeTypeCode: String? = nil
+
+    // Edge deletion confirmation
+    @State var showDeleteEdgeConfirmation: Bool = false
 
     // One-time initial recenter
     @State var didInitialRecenter: Bool = false
@@ -113,6 +118,7 @@ struct MurderBoardView: View {
                             dataSource: ds,
                             configuration: configuration,
                             selectedNodeID: selectedCardID,
+                            selectedEdgeSourceTarget: selectedEdgeSourceTarget,
                             scheme: scheme,
                             isContentReady: isContentReady,
                             isDropTargetActive: $isDropTargetActive,
@@ -129,10 +135,13 @@ struct MurderBoardView: View {
                                 removeCardFromBoard(cardID: cardID)
                             },
                             onSelectNode: { cardID in
-                                selectedCardID = cardID
+                                selectNode(cardID)
                             },
                             onEdgeCreated: { sourceID, targetID in
                                 handleEdgeCreationRequest(sourceCardID: sourceID, targetCardID: targetID)
+                            },
+                            onSelectEdge: { sourceID, targetID, typeCode in
+                                selectEdge(sourceID: sourceID, targetID: targetID, typeCode: typeCode)
                             }
                         ) { node, isSelected, isPrimary in
                             // Cumberland-specific: render each node as a CardView
@@ -176,6 +185,9 @@ struct MurderBoardView: View {
                         panX: $panX,
                         panY: $panY,
                         selectedNodeID: $selectedCardID,
+                        onCanvasBackgroundTap: {
+                            clearEdgeSelection()
+                        },
                         nodeSizes: $nodeSizes,
                         nodeVisualSizes: $nodeVisualSizes,
                         windowSize: contentSize,
@@ -193,6 +205,9 @@ struct MurderBoardView: View {
                         },
                         onRightClickNode: { cardID, location, handler, coordinateInfo in
                             handleNodeRightClick(cardID: cardID, location: location, handler: handler, coordinateInfo: coordinateInfo)
+                        },
+                        onRightClickCanvas: { location, handler, coordinateInfo in
+                            handleCanvasRightClick(location: location, handler: handler, coordinateInfo: coordinateInfo)
                         },
                         isSidebarVisible: isSidebarVisible
                     ))
@@ -307,6 +322,45 @@ struct MurderBoardView: View {
             print("[MB] Selection changed: \(o) -> \(n)")
         }
         #endif
+        // Keyboard shortcuts for edge selection (ER-0030)
+        .onKeyPress(.delete) {
+            if selectedEdgeSourceTarget != nil {
+                requestEdgeDeletion()
+                return .handled
+            }
+            return .ignored
+        }
+        .onKeyPress(.deleteForward) {
+            if selectedEdgeSourceTarget != nil {
+                requestEdgeDeletion()
+                return .handled
+            }
+            return .ignored
+        }
+        .onKeyPress(.escape) {
+            if selectedEdgeSourceTarget != nil {
+                clearEdgeSelection()
+                return .handled
+            }
+            return .ignored
+        }
+        // Edge deletion confirmation alert (ER-0030)
+        .alert("Delete Relationship", isPresented: $showDeleteEdgeConfirmation) {
+            Button("Delete", role: .destructive) {
+                performEdgeDeletion()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            if let (srcID, tgtID) = selectedEdgeSourceTarget,
+               let srcName = allCards.first(where: { $0.id == srcID })?.name,
+               let tgtName = allCards.first(where: { $0.id == tgtID })?.name,
+               let typeCode = selectedEdgeTypeCode {
+                let label = typeCode.replacingOccurrences(of: "/", with: " / ")
+                Text("Delete the \"\(label)\" relationship between \(srcName) and \(tgtName)?")
+            } else {
+                Text("Delete this relationship?")
+            }
+        }
         // Edge creation RelationType selection sheet (DR-0076)
         .sheet(item: $pendingEdgeCreation) { pending in
             EdgeCreationRelationTypeSheet(
@@ -655,6 +709,214 @@ extension MurderBoardView {
 
         ds.addNodes(Array(selectedBacklogCards), at: worldCenter)
         selectedBacklogCards.removeAll()
+    }
+}
+
+// MARK: - Edge Selection & Deletion (ER-0030)
+
+extension MurderBoardView {
+    /// Select a node, clearing any edge selection
+    func selectNode(_ cardID: UUID) {
+        selectedCardID = cardID
+        clearEdgeSelection()
+    }
+
+    /// Select an edge, clearing any node selection
+    func selectEdge(sourceID: UUID, targetID: UUID, typeCode: String) {
+        selectedCardID = nil
+        selectedEdgeSourceTarget = (sourceID, targetID)
+        selectedEdgeTypeCode = typeCode
+    }
+
+    /// Clear edge selection state
+    func clearEdgeSelection() {
+        selectedEdgeSourceTarget = nil
+        selectedEdgeTypeCode = nil
+    }
+
+    /// Request edge deletion (shows confirmation alert)
+    func requestEdgeDeletion() {
+        guard selectedEdgeSourceTarget != nil else { return }
+        showDeleteEdgeConfirmation = true
+    }
+
+    /// Actually delete the selected edge after confirmation.
+    /// Deferred to next run loop iteration to avoid SwiftData snapshot issues
+    /// during the same view update cycle that triggered the confirmation alert.
+    func performEdgeDeletion() {
+        guard let (sourceID, targetID) = selectedEdgeSourceTarget,
+              let typeCode = selectedEdgeTypeCode else { return }
+
+        // Capture values before clearing selection
+        clearEdgeSelection()
+
+        // Defer the actual deletion to avoid SwiftData snapshot crashes
+        // when @Query re-evaluates during the same run loop as a model context mutation.
+        Task { @MainActor in
+            guard let sourceCard = allCards.first(where: { $0.id == sourceID }),
+                  let targetCard = allCards.first(where: { $0.id == targetID }) else {
+                return
+            }
+
+            // Use RelationshipManager if available
+            if let mgr = services?.relationshipManager {
+                // Find the RelationType by code
+                if let relationType = allRelationTypes.first(where: { $0.code == typeCode }) {
+                    do {
+                        try mgr.removeRelationship(between: sourceCard, and: targetCard, typeFilter: relationType)
+                    } catch {
+                        #if DEBUG
+                        print("[MB] Edge deletion via RelationshipManager failed: \(error)")
+                        #endif
+                    }
+                } else {
+                    // No type match — remove all edges between these two cards with matching code
+                    do {
+                        try mgr.removeRelationship(between: sourceCard, and: targetCard)
+                    } catch {
+                        #if DEBUG
+                        print("[MB] Edge deletion (no type filter) failed: \(error)")
+                        #endif
+                    }
+                }
+            } else {
+                // Fallback: direct modelContext deletion
+                deleteEdgePairDirectly(sourceCard: sourceCard, targetCard: targetCard, typeCode: typeCode)
+            }
+        }
+    }
+
+    /// Direct modelContext deletion of both forward and reverse edges
+    private func deleteEdgePairDirectly(sourceCard: Card, targetCard: Card, typeCode: String) {
+        let srcID: UUID? = sourceCard.id
+        let tgtID: UUID? = targetCard.id
+        let code: String? = typeCode
+
+        // Forward edges: source -> target with this type code
+        let fwdFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
+            $0.from?.id == srcID && $0.to?.id == tgtID && $0.type?.code == code
+        })
+        let fwd = (try? modelContext.fetch(fwdFetch)) ?? []
+        for e in fwd { modelContext.delete(e) }
+
+        // Reverse edges: target -> source — need to find the mirror type code
+        // The mirror code swaps forward/inverse labels: "a/b" becomes "b/a"
+        let parts = typeCode.split(separator: "/")
+        let mirrorCode: String?
+        if parts.count == 2 {
+            mirrorCode = "\(parts[1])/\(parts[0])"
+        } else {
+            mirrorCode = typeCode
+        }
+
+        let revFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
+            $0.from?.id == tgtID && $0.to?.id == srcID && $0.type?.code == mirrorCode
+        })
+        let rev = (try? modelContext.fetch(revFetch)) ?? []
+        for e in rev { modelContext.delete(e) }
+
+        // Also check for reverse edges with the same code (self-symmetric types like "sibling-of/sibling-of")
+        if mirrorCode != typeCode {
+            let revSameFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
+                $0.from?.id == tgtID && $0.to?.id == srcID && $0.type?.code == code
+            })
+            let revSame = (try? modelContext.fetch(revSameFetch)) ?? []
+            for e in revSame { modelContext.delete(e) }
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            #if DEBUG
+            print("[MB] Edge deletion save failed: \(error)")
+            #endif
+        }
+    }
+
+    // MARK: - Canvas Right-Click → Edge Hit-Test → Popup
+
+    /// Handle right-click on the canvas background (no node hit).
+    /// Test if the click is near a displayed edge and show a delete popup if so.
+    func handleCanvasRightClick(location: CGPoint, handler: MultiGestureHandler?, coordinateInfo: CoordinateSpaceInfo) {
+        guard let ds = dataSource else { return }
+
+        // Compute the worldToView transform closure matching the canvas rendering
+        let scale = zoomScale
+        let px = panX
+        let py = panY
+        let worldToView: (CGPoint) -> CGPoint = { world in
+            CGPoint(x: world.x * scale + px, y: world.y * scale + py)
+        }
+
+        // Get displayed edges using the same deduplication as the rendering layer
+        let edgesLayer = BoardEdgesLayer(
+            dataSource: ds,
+            scheme: scheme,
+            worldToView: worldToView
+        )
+        let edges = edgesLayer.displayedEdges()
+
+        // Hit-test: find the nearest edge within threshold
+        let hitThreshold: CGFloat = 16.0
+        var bestEdge: BoardEdgesLayer<CumberlandBoardDataSource>.DisplayedEdge?
+        var bestDistance: CGFloat = .greatestFiniteMagnitude
+
+        for edge in edges {
+            let p0 = worldToView(edge.start)
+            let p1 = worldToView(edge.end)
+            let dist = distanceFromPointToLineSegment(point: location, lineStart: p0, lineEnd: p1)
+            if dist < hitThreshold && dist < bestDistance {
+                bestDistance = dist
+                bestEdge = edge
+            }
+        }
+
+        guard let edge = bestEdge else { return }
+
+        // Select the edge
+        selectEdge(sourceID: edge.fromID, targetID: edge.toID, typeCode: edge.typeCode)
+
+        // Show popup menu via the existing PopupMenu system
+        let label = edge.typeCode.replacingOccurrences(of: "/", with: " / ")
+        let srcName = allCards.first(where: { $0.id == edge.fromID })?.name ?? "Unknown"
+        let tgtName = allCards.first(where: { $0.id == edge.toID })?.name ?? "Unknown"
+
+        let popup = PopupMenu(
+            items: [
+                PopupMenuItem(
+                    title: "Delete \"\(label)\" (\(srcName) ↔ \(tgtName))",
+                    systemImage: "trash",
+                    isDestructive: true,
+                    action: { [self] in
+                        self.requestEdgeDeletion()
+                    }
+                )
+            ],
+            position: location,
+            coordinateSpace: coordinateInfo
+        )
+        handler?.showPopup(popup)
+    }
+
+    /// Compute the shortest distance from a point to a line segment.
+    private func distanceFromPointToLineSegment(point: CGPoint, lineStart: CGPoint, lineEnd: CGPoint) -> CGFloat {
+        let dx = lineEnd.x - lineStart.x
+        let dy = lineEnd.y - lineStart.y
+        let lengthSq = dx * dx + dy * dy
+
+        // Degenerate case: segment is a point
+        if lengthSq < 0.001 {
+            return hypot(point.x - lineStart.x, point.y - lineStart.y)
+        }
+
+        // Project point onto the line, clamped to [0, 1]
+        let t = max(0, min(1, ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lengthSq))
+
+        // Nearest point on the segment
+        let nearestX = lineStart.x + t * dx
+        let nearestY = lineStart.y + t * dy
+
+        return hypot(point.x - nearestX, point.y - nearestY)
     }
 }
 

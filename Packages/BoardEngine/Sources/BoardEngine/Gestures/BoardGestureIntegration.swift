@@ -26,6 +26,7 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
     @Binding var panX: Double
     @Binding var panY: Double
     @Binding var selectedNodeID: UUID?
+    var onCanvasBackgroundTap: (() -> Void)?
 
     @Binding var nodeSizes: [UUID: CGSize]
     @Binding var nodeVisualSizes: [UUID: CGSize]
@@ -38,6 +39,7 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
 
     // Consumer-provided callbacks for domain-specific actions
     var onRightClickNode: ((UUID, CGPoint, MultiGestureHandler?, CoordinateSpaceInfo) -> Void)?
+    var onRightClickCanvas: ((_ location: CGPoint, _ handler: MultiGestureHandler?, _ coordinateInfo: CoordinateSpaceInfo) -> Void)?
 
     // Sidebar visibility for scroll exclusion zone
     let isSidebarVisible: Bool
@@ -56,6 +58,7 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
         panX: Binding<Double>,
         panY: Binding<Double>,
         selectedNodeID: Binding<UUID?>,
+        onCanvasBackgroundTap: (() -> Void)? = nil,
         nodeSizes: Binding<[UUID: CGSize]>,
         nodeVisualSizes: Binding<[UUID: CGSize]>,
         windowSize: CGSize,
@@ -63,6 +66,7 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
         edgeCreationState: BoardEdgeCreationState? = nil,
         onEdgeCreated: ((UUID, UUID) -> Void)? = nil,
         onRightClickNode: ((UUID, CGPoint, MultiGestureHandler?, CoordinateSpaceInfo) -> Void)? = nil,
+        onRightClickCanvas: ((_ location: CGPoint, _ handler: MultiGestureHandler?, _ coordinateInfo: CoordinateSpaceInfo) -> Void)? = nil,
         isSidebarVisible: Bool = false
     ) {
         self.dataSource = dataSource
@@ -75,6 +79,7 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
         self._panX = panX
         self._panY = panY
         self._selectedNodeID = selectedNodeID
+        self.onCanvasBackgroundTap = onCanvasBackgroundTap
         self._nodeSizes = nodeSizes
         self._nodeVisualSizes = nodeVisualSizes
         self.windowSize = windowSize
@@ -82,6 +87,7 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
         self.edgeCreationState = edgeCreationState
         self.onEdgeCreated = onEdgeCreated
         self.onRightClickNode = onRightClickNode
+        self.onRightClickCanvas = onRightClickCanvas
         self.isSidebarVisible = isSidebarVisible
     }
 
@@ -193,6 +199,13 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
 
         canvasTarget.onSelectionChanged = { nodeID in
             selectedNodeID = nodeID
+            if nodeID == nil {
+                onCanvasBackgroundTap?()
+            }
+        }
+
+        canvasTarget.onRightClick = { location, coordinateInfo in
+            onRightClickCanvas?(location, gestureHandler, coordinateInfo)
         }
 
         canvasTarget.getCurrentTransform = {

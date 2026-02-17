@@ -21,7 +21,7 @@ See: [ER-unverified.md](./ER-unverified.md)
 
 ## Verified ERs (Completed Enhancements)
 
-Currently: **32 verified ERs** | Next available ER: **ER-0030**
+Currently: **33 verified ERs** | Next available ER: **ER-0031**
 
 | Batch | ERs | File | Status |
 |-------|-----|------|--------|
@@ -44,12 +44,12 @@ Currently: **32 verified ERs** | Next available ER: **ER-0030**
 | Batch 28 | ER-0028 | [ER-verified-0028.md](./ER-verified-0028.md) | ✅ Verified (1/1) |
 | Batch 29 | ER-0029 | [ER-verified-0029.md](./ER-verified-0029.md) | ✅ Verified (1/1) |
 | Batch 26 | ER-0026 | [ER-verified-0026.md](./ER-verified-0026.md) | ✅ Verified (1/1) |
+| Batch 30 | ER-0030 | [ER-verified-0030.md](./ER-verified-0030.md) | ✅ Verified (1/1) |
 
 ## Statistics
 
-- **Total ERs:** 30
-- **Verified:** 30 (100%) ✅
-- **Proposed:** 0 (0%) 🔵
+- **Total ERs:** 31
+- **Verified:** 31 (100%) ✅
 
 ---
 

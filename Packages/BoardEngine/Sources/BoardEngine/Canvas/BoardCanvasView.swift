@@ -22,6 +22,7 @@ public struct BoardCanvasView<DS: BoardDataSource, NodeContent: View>: View {
     let dataSource: DS
     let configuration: BoardConfiguration
     let selectedNodeID: UUID?
+    let selectedEdgeSourceTarget: (UUID, UUID)?
     let scheme: ColorScheme
     let isContentReady: Bool
 
@@ -39,6 +40,7 @@ public struct BoardCanvasView<DS: BoardDataSource, NodeContent: View>: View {
     let onRemoveNode: (UUID) -> Void
     let onSelectNode: (UUID) -> Void
     let onEdgeCreated: (UUID, UUID) -> Void
+    let onSelectEdge: ((_ sourceNodeID: UUID, _ targetNodeID: UUID, _ typeCode: String) -> Void)?
 
     @ViewBuilder let nodeContent: (_ node: DS.Node, _ isSelected: Bool, _ isPrimary: Bool) -> NodeContent
 
@@ -46,6 +48,7 @@ public struct BoardCanvasView<DS: BoardDataSource, NodeContent: View>: View {
         dataSource: DS,
         configuration: BoardConfiguration = .cumberland,
         selectedNodeID: UUID?,
+        selectedEdgeSourceTarget: (UUID, UUID)? = nil,
         scheme: ColorScheme,
         isContentReady: Bool,
         isDropTargetActive: Binding<Bool>,
@@ -59,11 +62,13 @@ public struct BoardCanvasView<DS: BoardDataSource, NodeContent: View>: View {
         onRemoveNode: @escaping (UUID) -> Void,
         onSelectNode: @escaping (UUID) -> Void,
         onEdgeCreated: @escaping (UUID, UUID) -> Void,
+        onSelectEdge: ((_ sourceNodeID: UUID, _ targetNodeID: UUID, _ typeCode: String) -> Void)? = nil,
         @ViewBuilder nodeContent: @escaping (_ node: DS.Node, _ isSelected: Bool, _ isPrimary: Bool) -> NodeContent
     ) {
         self.dataSource = dataSource
         self.configuration = configuration
         self.selectedNodeID = selectedNodeID
+        self.selectedEdgeSourceTarget = selectedEdgeSourceTarget
         self.scheme = scheme
         self.isContentReady = isContentReady
         self._isDropTargetActive = isDropTargetActive
@@ -77,6 +82,7 @@ public struct BoardCanvasView<DS: BoardDataSource, NodeContent: View>: View {
         self.onRemoveNode = onRemoveNode
         self.onSelectNode = onSelectNode
         self.onEdgeCreated = onEdgeCreated
+        self.onSelectEdge = onSelectEdge
         self.nodeContent = nodeContent
     }
 
@@ -102,9 +108,24 @@ public struct BoardCanvasView<DS: BoardDataSource, NodeContent: View>: View {
                 BoardEdgesLayer(
                     dataSource: dataSource,
                     scheme: scheme,
-                    worldToView: worldToViewFunc
+                    worldToView: worldToViewFunc,
+                    selectedEdgeSourceTarget: selectedEdgeSourceTarget
                 )
                 .allowsHitTesting(false)
+
+                // Edge selection hit-test overlay (above edges, below nodes)
+                if isContentReady {
+                    BoardEdgeSelectionLayer(
+                        dataSource: dataSource,
+                        scheme: scheme,
+                        zoomScale: zoomScale,
+                        worldToView: worldToViewFunc,
+                        selectedEdgeSourceTarget: selectedEdgeSourceTarget,
+                        onSelectEdge: { sourceID, targetID, typeCode in
+                            onSelectEdge?(sourceID, targetID, typeCode)
+                        }
+                    )
+                }
 
                 // Nodes layer (with transform applied)
                 if isContentReady {
