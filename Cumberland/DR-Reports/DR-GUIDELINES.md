@@ -149,22 +149,20 @@ When DR-00X0 (the 10th DR in a batch) is verified:
 
 ### Quick Reference Index
 
-**DR-Documentation.md serves as the master index and quick reference:**
-- Lists all DRs with title, component, and status
-- Has TWO main sections:
-  1. **Unverified DRs (Active Issues)** - Current work-in-progress DRs
-  2. **DR Summary** - Verified DRs organized by batch
-- Organized by batch for easy lookup
-- **MUST be updated whenever:**
-  - A new DR is created (add to Unverified table)
-  - A DR status changes (update status emoji in table)
-  - A DR is moved from unverified to verified (move from Unverified to Summary)
-  - A new batch file is created (add to batch reference table)
-- Provides up-to-date statistics (total DRs, verified count, latest DR)
+**DR-Documentation.md serves as a lean index with these sections:**
+1. **Unverified DRs** - Table of active issues (naturally bounded)
+2. **Verified DRs** - Table of batch files (one row per batch, grows slowly)
+3. **Closed DRs** - Table of closed-without-verification batches
+4. **Archived Open DRs** - Reference to deferred issues
+5. **Statistics** - Current counts only (no history log)
 
-**Purpose:** Users can quickly scan all DRs without opening multiple batch files.
+**MUST be updated whenever:**
+- A new DR is created (add to Unverified table)
+- A DR status changes (update status emoji in table)
+- A DR is verified (remove from Unverified table, update batch row status)
+- Statistics counts change
 
-**CRITICAL:** DR-Documentation.md is the single source of truth for DR status. It MUST be kept in sync with DR-unverified.md and batch files at all times.
+**CRITICAL:** Do NOT add activity logs, summaries, or per-DR detail tables to DR-Documentation.md. Details belong in DR-unverified.md (for active work) or the verified batch files (for completed work). The index must stay compact.
 
 ## File Naming Convention
 
@@ -211,27 +209,23 @@ When DR-00X0 (the 10th DR in a batch) is verified:
 
 ### When Creating a New DR:
 - [ ] DR added to DR-unverified.md
-- [ ] DR added to "Unverified DRs (Active Issues)" table in DR-Documentation.md
-- [ ] Unverified count updated (e.g., "Currently: **6 unverified DRs**")
-- [ ] "Next available DR" incremented in "Verified DRs (Resolved Issues)" section (e.g., DR-0036 → DR-0037)
-- [ ] "Total DRs" incremented in Statistics
-- [ ] Appropriate status count incremented (Open or Resolved-Not-Verified)
-- [ ] "Latest DR" updated to new DR number
+- [ ] DR added to Unverified table in DR-Documentation.md
+- [ ] Unverified count updated
+- [ ] "Next available DR" incremented
+- [ ] Statistics updated
 - [ ] "Last Updated" date updated
 
 ### When Resolving a DR:
 - [ ] Status changed to 🟡 in DR-unverified.md
-- [ ] Status emoji updated in "Unverified DRs (Active Issues)" table
-- [ ] "Open" decremented, "Resolved - Not Verified" incremented in Statistics
+- [ ] Status emoji updated in Unverified table
+- [ ] Statistics updated
 - [ ] "Last Updated" date updated
 
 ### When Verifying a DR:
 - [ ] DR moved from DR-unverified.md to appropriate batch file
-- [ ] DR removed from "Unverified DRs (Active Issues)" table
-- [ ] DR added to appropriate "DR Summary" section
-- [ ] Unverified count decremented
-- [ ] "Verified" incremented, "Resolved - Not Verified" decremented in Statistics
-- [ ] Percentages recalculated
+- [ ] DR removed from Unverified table in DR-Documentation.md
+- [ ] Batch row status updated in Verified table (if batch completion changed)
+- [ ] Statistics updated
 - [ ] "Last Updated" date updated
 
 ### When Closing a DR Without Verification: (Added 2026-02-05)

@@ -1,0 +1,187 @@
+{
+  "": {
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/master.swiftdeps"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Canvas/BoardBorderOverlay.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardBorderOverlay.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardBorderOverlay.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardBorderOverlay~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardBorderOverlay.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardBorderOverlay.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Canvas/BoardCanvasTransform.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardCanvasTransform.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardCanvasTransform.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardCanvasTransform~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardCanvasTransform.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardCanvasTransform.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Canvas/BoardCanvasView.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardCanvasView.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardCanvasView.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardCanvasView~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardCanvasView.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardCanvasView.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Canvas/BoardEdgesLayer.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgesLayer.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgesLayer.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgesLayer~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgesLayer.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgesLayer.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Canvas/BoardGridBackground.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardGridBackground.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardGridBackground.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardGridBackground~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardGridBackground.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardGridBackground.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Canvas/BoardNodeSizeKeys.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodeSizeKeys.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodeSizeKeys.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodeSizeKeys~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodeSizeKeys.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodeSizeKeys.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Canvas/BoardNodesLayer.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodesLayer.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodesLayer.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodesLayer~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodesLayer.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodesLayer.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Configuration/BoardConfiguration.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardConfiguration.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardConfiguration.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardConfiguration~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardConfiguration.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardConfiguration.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/EdgeCreation/BoardEdgeCreationLineLayer.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeCreationLineLayer.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeCreationLineLayer.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeCreationLineLayer~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeCreationLineLayer.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeCreationLineLayer.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/EdgeCreation/BoardEdgeCreationState.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeCreationState.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeCreationState.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeCreationState~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeCreationState.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeCreationState.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/EdgeCreation/BoardEdgeDropTargetHighlight.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeDropTargetHighlight.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeDropTargetHighlight.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeDropTargetHighlight~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeDropTargetHighlight.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeDropTargetHighlight.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/EdgeCreation/BoardEdgeHandle.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeHandle.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeHandle.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeHandle~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeHandle.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeHandle.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/EdgeCreation/BoardEdgeHandlesLayer.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeHandlesLayer.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeHandlesLayer.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeHandlesLayer~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeHandlesLayer.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeHandlesLayer.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Gestures/BoardGestureIntegration.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardGestureIntegration.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardGestureIntegration.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardGestureIntegration~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardGestureIntegration.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardGestureIntegration.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Gestures/CanvasGestureTarget.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/CanvasGestureTarget.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/CanvasGestureTarget.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/CanvasGestureTarget~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/CanvasGestureTarget.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/CanvasGestureTarget.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Gestures/EdgeHandleGestureTarget.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/EdgeHandleGestureTarget.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/EdgeHandleGestureTarget.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/EdgeHandleGestureTarget~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/EdgeHandleGestureTarget.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/EdgeHandleGestureTarget.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Gestures/MultiGestureHandler.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/MultiGestureHandler.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/MultiGestureHandler.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/MultiGestureHandler~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/MultiGestureHandler.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/MultiGestureHandler.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Gestures/NodeGestureTarget.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/NodeGestureTarget.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/NodeGestureTarget.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/NodeGestureTarget~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/NodeGestureTarget.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/NodeGestureTarget.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Layout/BoardRecenter.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardRecenter.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardRecenter.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardRecenter~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardRecenter.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardRecenter.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Layout/BoardShuffleLayout.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardShuffleLayout.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardShuffleLayout.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardShuffleLayout~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardShuffleLayout.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardShuffleLayout.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Protocols/BoardDataSource.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardDataSource.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardDataSource.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardDataSource~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardDataSource.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardDataSource.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Protocols/BoardEdgeRepresentable.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeRepresentable.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeRepresentable.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeRepresentable~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeRepresentable.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardEdgeRepresentable.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Protocols/BoardNodeRepresentable.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodeRepresentable.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodeRepresentable.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodeRepresentable~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodeRepresentable.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardNodeRepresentable.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Sidebar/BoardSidebarPanel.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardSidebarPanel.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardSidebarPanel.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardSidebarPanel~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardSidebarPanel.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardSidebarPanel.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Toolbar/BoardZoomStrip.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardZoomStrip.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardZoomStrip.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardZoomStrip~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardZoomStrip.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/BoardZoomStrip.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/Sources/BoardEngine/Utilities/GeometryExtensions.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/GeometryExtensions.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/GeometryExtensions.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/GeometryExtensions~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/GeometryExtensions.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/GeometryExtensions.dia"
+  }
+}

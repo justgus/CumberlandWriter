@@ -1,0 +1,3 @@
+module BoardEngine {
+    header "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEngine.build/include/BoardEngine-Swift.h"
+}

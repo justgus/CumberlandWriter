@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEnginePackageTests.build/master.swiftdeps"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEnginePackageTests.derived/runner.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEnginePackageTests.build/runner.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEnginePackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEnginePackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEnginePackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEnginePackageTests.build/runner.dia"
+  }
+}

@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/justgus/Xcode-Projects/Cumberland/Packages/BoardEngine/.build/arm64-apple-macosx/debug/BoardEnginePackageTests.xctest/Contents/MacOS/BoardEnginePackageTests'
+relocations:     []
+...
