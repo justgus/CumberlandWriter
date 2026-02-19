@@ -37,6 +37,9 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
     var edgeCreationState: BoardEdgeCreationState?
     var onEdgeCreated: ((UUID, UUID) -> Void)?
 
+    // Edge selection via tap (integrated with gesture system)
+    var onSelectEdge: ((_ sourceID: UUID, _ targetID: UUID, _ typeCode: String) -> Void)?
+
     // Consumer-provided callbacks for domain-specific actions
     var onRightClickNode: ((UUID, CGPoint, MultiGestureHandler?, CoordinateSpaceInfo) -> Void)?
     var onRightClickCanvas: ((_ location: CGPoint, _ handler: MultiGestureHandler?, _ coordinateInfo: CoordinateSpaceInfo) -> Void)?
@@ -65,6 +68,7 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
         viewCanvasRect: @escaping () -> CGRect,
         edgeCreationState: BoardEdgeCreationState? = nil,
         onEdgeCreated: ((UUID, UUID) -> Void)? = nil,
+        onSelectEdge: ((_ sourceID: UUID, _ targetID: UUID, _ typeCode: String) -> Void)? = nil,
         onRightClickNode: ((UUID, CGPoint, MultiGestureHandler?, CoordinateSpaceInfo) -> Void)? = nil,
         onRightClickCanvas: ((_ location: CGPoint, _ handler: MultiGestureHandler?, _ coordinateInfo: CoordinateSpaceInfo) -> Void)? = nil,
         isSidebarVisible: Bool = false
@@ -86,6 +90,7 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
         self.viewCanvasRect = viewCanvasRect
         self.edgeCreationState = edgeCreationState
         self.onEdgeCreated = onEdgeCreated
+        self.onSelectEdge = onSelectEdge
         self.onRightClickNode = onRightClickNode
         self.onRightClickCanvas = onRightClickCanvas
         self.isSidebarVisible = isSidebarVisible
@@ -146,8 +151,14 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
 
     private func setupAndReturnGestureHandler() -> MultiGestureHandler {
         let handler = MultiGestureHandler(coordinateSpace: canvasCoordSpace)
-        gestureHandler = handler
-        setupGestureHandler()
+        // Defer all @Binding mutations out of body evaluation to avoid
+        // "modifying state during view update" undefined behavior.
+        // The handler is returned immediately for use in the current frame;
+        // targets and bindings are configured on the next run-loop tick.
+        DispatchQueue.main.async {
+            gestureHandler = handler
+            setupGestureHandler()
+        }
         return handler
     }
 
@@ -202,6 +213,33 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
             if nodeID == nil {
                 onCanvasBackgroundTap?()
             }
+        }
+
+        // Edge hit-testing: check if a world-space tap is near any displayed edge
+        canvasTarget.edgeHitTest = { worldPoint in
+            let edgesLayer = BoardEdgesLayer(dataSource: dataSource, scheme: .light, worldToView: { $0 })
+            let edges = edgesLayer.displayedEdges()
+            let tolerance: CGFloat = 20.0 // world-space units
+
+            var bestDistance: CGFloat = .greatestFiniteMagnitude
+            var bestEdge: BoardEdgesLayer<DS>.DisplayedEdge?
+
+            for edge in edges {
+                let d = pointToSegmentDistance(point: worldPoint, segStart: edge.start, segEnd: edge.end)
+                if d < tolerance && d < bestDistance {
+                    bestDistance = d
+                    bestEdge = edge
+                }
+            }
+
+            if let hit = bestEdge {
+                return (hit.fromID, hit.toID, hit.typeCode)
+            }
+            return nil
+        }
+
+        canvasTarget.onSelectEdge = { sourceID, targetID, typeCode in
+            onSelectEdge?(sourceID, targetID, typeCode)
         }
 
         canvasTarget.onRightClick = { location, coordinateInfo in
@@ -341,4 +379,24 @@ public struct BoardGestureIntegration<DS: BoardDataSource>: ViewModifier {
 
         updateScrollExclusionZone()
     }
+}
+
+// MARK: - Geometry Helpers
+
+/// Perpendicular distance from a point to a line segment.
+func pointToSegmentDistance(point: CGPoint, segStart: CGPoint, segEnd: CGPoint) -> CGFloat {
+    let dx = segEnd.x - segStart.x
+    let dy = segEnd.y - segStart.y
+    let lengthSq = dx * dx + dy * dy
+
+    // Degenerate segment (zero length)
+    if lengthSq < 1e-10 {
+        return hypot(point.x - segStart.x, point.y - segStart.y)
+    }
+
+    // Parameter t of the closest point on the infinite line, clamped to [0,1] for the segment
+    let t = max(0, min(1, ((point.x - segStart.x) * dx + (point.y - segStart.y) * dy) / lengthSq))
+    let closestX = segStart.x + t * dx
+    let closestY = segStart.y + t * dy
+    return hypot(point.x - closestX, point.y - closestY)
 }

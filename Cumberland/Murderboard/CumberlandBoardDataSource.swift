@@ -121,6 +121,25 @@ final class CumberlandBoardDataSource: @MainActor BoardDataSource {
         try? modelContext.save()
     }
 
+    // MARK: - Pin Management (ER-0031)
+
+    /// Toggle the pinned state of a BoardNode for the given card ID.
+    /// Returns the new pinned state, or nil if the card is not on the board.
+    @discardableResult
+    func togglePin(for cardID: UUID) -> Bool? {
+        guard let boardNode = findBoardNode(for: cardID) else { return nil }
+        boardNode.pinned.toggle()
+        try? modelContext.save()
+        return boardNode.pinned
+    }
+
+    /// Set the pinned state explicitly for a given card ID.
+    func setPin(for cardID: UUID, pinned: Bool) {
+        guard let boardNode = findBoardNode(for: cardID) else { return }
+        boardNode.pinned = pinned
+        try? modelContext.save()
+    }
+
     func addNodes(_ nodeIDs: [UUID], at position: CGPoint) {
         guard let board = board else { return }
 

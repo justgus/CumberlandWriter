@@ -68,7 +68,7 @@ struct InvestigationEdgeWrapper: BoardEdgeRepresentable {
 
 @Observable
 @MainActor
-final class InvestigationDataSource: BoardDataSource {
+final class InvestigationDataSource: @MainActor BoardDataSource {
     typealias Node = InvestigationNodeWrapper
     typealias Edge = InvestigationEdgeWrapper
 
@@ -107,7 +107,17 @@ final class InvestigationDataSource: BoardDataSource {
 
     var onEdgeCreationRequested: ((_ sourceNodeID: UUID, _ targetNodeID: UUID) -> Void)?
 
-    var backlogItems: [InvestigationNodeWrapper] { [] }
+    var backlogItems: [InvestigationNodeWrapper] {
+        guard let board = board else { return [] }
+        let currentBoardID = board.id
+        // SQL NULL != X yields NULL (not TRUE), so we must explicitly include orphans
+        let fetch = FetchDescriptor<InvestigationNode>(
+            predicate: #Predicate<InvestigationNode> { $0.board == nil || $0.board?.id != currentBoardID },
+            sortBy: [SortDescriptor(\.name, order: .forward)]
+        )
+        guard let nodes = try? modelContext.fetch(fetch) else { return [] }
+        return nodes.map { InvestigationNodeWrapper(from: $0, primaryNodeID: nil) }
+    }
 
     // MARK: - Init
 
@@ -132,6 +142,11 @@ final class InvestigationDataSource: BoardDataSource {
 
         // Seed sample data on first launch
         seedSampleData()
+    }
+
+    /// Load a specific board directly (used when board selection is externally managed).
+    func loadBoard(_ board: InvestigationBoard) {
+        self.board = board
     }
 
     // MARK: - Sample Data
@@ -230,7 +245,8 @@ final class InvestigationDataSource: BoardDataSource {
 
     @discardableResult
     private func makeEdge(from source: InvestigationNode, to target: InvestigationNode, label: String, board: InvestigationBoard) -> InvestigationEdge {
-        let edge = InvestigationEdge(sourceNodeID: source.id, targetNodeID: target.id, label: label, board: board)
+        // Edges are global relationships, not board-scoped
+        let edge = InvestigationEdge(sourceNodeID: source.id, targetNodeID: target.id, label: label)
         modelContext.insert(edge)
         return edge
     }
@@ -238,13 +254,11 @@ final class InvestigationDataSource: BoardDataSource {
     // MARK: - BoardDataSource
 
     func edges(for nodeIDs: Set<UUID>) -> [InvestigationEdgeWrapper] {
-        guard let board = board else { return [] }
-        let boardID = board.id
-        let fetch = FetchDescriptor<InvestigationEdge>(
-            predicate: #Predicate { $0.board?.id == boardID }
-        )
+        // Edges are global relationships — show any edge where both endpoints
+        // are in the provided set (i.e. both nodes are on the current board).
+        let fetch = FetchDescriptor<InvestigationEdge>()
         guard let allEdges = try? modelContext.fetch(fetch) else { return [] }
-        return allEdges.filter { nodeIDs.contains($0.sourceNodeID) || nodeIDs.contains($0.targetNodeID) }
+        return allEdges.filter { nodeIDs.contains($0.sourceNodeID) && nodeIDs.contains($0.targetNodeID) }
             .map { InvestigationEdgeWrapper(from: $0) }
     }
 
@@ -260,12 +274,33 @@ final class InvestigationDataSource: BoardDataSource {
 
     func removeNode(_ nodeID: UUID) {
         guard let node = findNode(nodeID) else { return }
-        modelContext.delete(node)
+        node.board = nil
         try? modelContext.save()
     }
 
     func addNodes(_ nodeIDs: [UUID], at position: CGPoint) {
-        // In standalone mode, nodes are created directly — this is a no-op
+        guard let board = board else { return }
+
+        for (index, nodeID) in nodeIDs.enumerated() {
+            // Skip nodes already on this board
+            if (board.nodes ?? []).contains(where: { $0.id == nodeID }) { continue }
+
+            // Find the node (may be orphaned or on another board)
+            let fetch = FetchDescriptor<InvestigationNode>(
+                predicate: #Predicate<InvestigationNode> { $0.id == nodeID }
+            )
+            guard let node = try? modelContext.fetch(fetch).first else { continue }
+
+            // Re-attach to board with angular spread for multiple drops
+            node.board = board
+            let angle = (Double(index) / Double(max(nodeIDs.count, 1))) * 2.0 * .pi
+            let radius = nodeIDs.count > 1 ? 80.0 + Double(index) * 20.0 : 0.0
+            node.posX = position.x + cos(angle) * radius
+            node.posY = position.y + sin(angle) * radius
+            node.zIndex = Double((board.nodes?.count ?? 0) + 1)
+        }
+
+        try? modelContext.save()
     }
 
     func persistTransform() {
@@ -278,38 +313,90 @@ final class InvestigationDataSource: BoardDataSource {
 
     // MARK: - Node CRUD
 
-    func createNode(name: String, subtitle: String = "", category: NodeCategory, at position: CGPoint) -> InvestigationNode? {
-        guard let board = board else { return nil }
+    /// Create a new node in the backlog (no board assignment).
+    /// The node must be explicitly added to a board via drag or the "Add to Board" action.
+    func createNode(name: String, subtitle: String = "", category: NodeCategory) -> InvestigationNode? {
         let node = InvestigationNode(
             name: name,
             subtitle: subtitle,
             category: category,
-            colorHex: "",
-            posX: position.x,
-            posY: position.y
+            colorHex: ""
         )
-        node.board = board
-        node.zIndex = Double((board.nodes?.count ?? 0) + 1)
+        // Node starts in backlog — no board assignment
         modelContext.insert(node)
         try? modelContext.save()
         return node
     }
 
     func createEdge(from sourceID: UUID, to targetID: UUID, label: String) {
-        guard let board = board else { return }
+        // Edges are global relationships between nodes, not board-scoped
         let edge = InvestigationEdge(
             sourceNodeID: sourceID,
             targetNodeID: targetID,
-            label: label,
-            board: board
+            label: label
         )
         modelContext.insert(edge)
         try? modelContext.save()
+    }
+
+    /// Permanently delete a node and its associated edges from the store.
+    func deleteNodePermanently(_ nodeID: UUID) {
+        let edgeFetch = FetchDescriptor<InvestigationEdge>(
+            predicate: #Predicate<InvestigationEdge> {
+                $0.sourceNodeID == nodeID || $0.targetNodeID == nodeID
+            }
+        )
+        if let edges = try? modelContext.fetch(edgeFetch) {
+            for edge in edges { modelContext.delete(edge) }
+        }
+        if let node = findNode(nodeID) ?? fetchOrphanedNode(nodeID) {
+            modelContext.delete(node)
+        }
+        try? modelContext.save()
+    }
+
+    /// Set a node as the primary node on the current board.
+    func setPrimaryNode(_ nodeID: UUID) {
+        board?.primaryNodeID = nodeID
+        try? modelContext.save()
+    }
+
+    // MARK: - Backlog Support
+
+    /// Fetch backlog nodes as actual model objects (for sidebar drag/detail).
+    /// Returns all nodes NOT on the current board (includes orphans and nodes on other boards).
+    func fetchBacklogNodes() -> [InvestigationNode] {
+        guard let board = board else { return [] }
+        let currentBoardID = board.id
+        // SQL NULL != X yields NULL (not TRUE), so we must explicitly include orphans
+        let fetch = FetchDescriptor<InvestigationNode>(
+            predicate: #Predicate<InvestigationNode> { $0.board == nil || $0.board?.id != currentBoardID },
+            sortBy: [SortDescriptor(\.name, order: .forward)]
+        )
+        return (try? modelContext.fetch(fetch)) ?? []
+    }
+
+    /// Count edges referencing a given node ID (as source or target).
+    func edgeCount(for nodeID: UUID) -> Int {
+        let fetch = FetchDescriptor<InvestigationEdge>(
+            predicate: #Predicate<InvestigationEdge> {
+                $0.sourceNodeID == nodeID || $0.targetNodeID == nodeID
+            }
+        )
+        return (try? modelContext.fetchCount(fetch)) ?? 0
     }
 
     // MARK: - Helpers
 
     private func findNode(_ nodeID: UUID) -> InvestigationNode? {
         (board?.nodes ?? []).first(where: { $0.id == nodeID })
+    }
+
+    /// Find a node not on any board (orphaned/backlog).
+    private func fetchOrphanedNode(_ nodeID: UUID) -> InvestigationNode? {
+        let fetch = FetchDescriptor<InvestigationNode>(
+            predicate: #Predicate<InvestigationNode> { $0.id == nodeID }
+        )
+        return try? modelContext.fetch(fetch).first
     }
 }

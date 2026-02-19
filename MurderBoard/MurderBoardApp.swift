@@ -1,32 +1,33 @@
 //
-//  MurderBoardApp.swift
-//  MurderBoard
+//  MurderboardApp.swift
+//  MurderboardApp
 //
-//  Created by Mike Stoddard on 2/17/26.
+//  Standalone investigation board app powered by BoardEngine.
+//  Uses SwiftData for persistence and BoardEngine for the
+//  visual canvas, gestures, and layout system.
 //
 
 import SwiftUI
 import SwiftData
 
 @main
-struct MurderBoardApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+struct MurderboardApp: App {
+    let container: ModelContainer
 
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    init() {
+        let schema = Schema([
+            InvestigationBoard.self,
+            InvestigationNode.self,
+            InvestigationEdge.self,
+        ])
+        let config = ModelConfiguration("MurderboardStore", isStoredInMemoryOnly: false)
+        container = try! ModelContainer(for: schema, configurations: [config])
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MurderBoardRootView()
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(container)
     }
 }

@@ -114,15 +114,6 @@
 		866A3A362E8DC16D006D3723 /* Cumberland.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cumberland.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		866A3A472E8DC16F006D3723 /* CumberlandTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		866A3A512E8DC16F006D3723 /* CumberlandUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CumberlandUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		86AC9A0F2F44CCAF0021085E /* InvestigationDataSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestigationDataSource.swift; sourceTree = "<group>"; };
-		86AC9A112F44CCAF0021085E /* InvestigationBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestigationBoard.swift; sourceTree = "<group>"; };
-		86AC9A122F44CCAF0021085E /* InvestigationEdge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestigationEdge.swift; sourceTree = "<group>"; };
-		86AC9A132F44CCAF0021085E /* InvestigationNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestigationNode.swift; sourceTree = "<group>"; };
-		86AC9A152F44CCAF0021085E /* EdgeLabelSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeLabelSheet.swift; sourceTree = "<group>"; };
-		86AC9A162F44CCAF0021085E /* InvestigationBoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestigationBoardView.swift; sourceTree = "<group>"; };
-		86AC9A172F44CCAF0021085E /* InvestigationNodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestigationNodeView.swift; sourceTree = "<group>"; };
-		86AC9A182F44CCAF0021085E /* NodeEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeEditorSheet.swift; sourceTree = "<group>"; };
-		86AC9A1A2F44CCAF0021085E /* MurderboardApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MurderboardApp.swift; sourceTree = "<group>"; };
 		86AC9A202F44CD4E0021085E /* MurderBoard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MurderBoard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		86AC9A302F44CD500021085E /* MurderBoardTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MurderBoardTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		86AC9A3A2F44CD500021085E /* MurderBoardUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MurderBoardUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -896,7 +887,6 @@
 				86544A8C2EBE946F0083F9CC /* Cumberland_visionOS */,
 				861EA1CE2F2014D6003B4897 /* CumberlandVisionOSTests */,
 				861EA1DB2F20150A003B4897 /* CumberlandVisionOSUITests */,
-				86AC9A1B2F44CCAF0021085E /* MurderboardApp */,
 				86AC9A212F44CD4E0021085E /* MurderBoard */,
 				86AC9A332F44CD500021085E /* MurderBoardTests */,
 				86AC9A3D2F44CD500021085E /* MurderBoardUITests */,
@@ -924,46 +914,6 @@
 				86AC9A3A2F44CD500021085E /* MurderBoardUITests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		86AC9A102F44CCAF0021085E /* DataSource */ = {
-			isa = PBXGroup;
-			children = (
-				86AC9A0F2F44CCAF0021085E /* InvestigationDataSource.swift */,
-			);
-			path = DataSource;
-			sourceTree = "<group>";
-		};
-		86AC9A142F44CCAF0021085E /* Model */ = {
-			isa = PBXGroup;
-			children = (
-				86AC9A112F44CCAF0021085E /* InvestigationBoard.swift */,
-				86AC9A122F44CCAF0021085E /* InvestigationEdge.swift */,
-				86AC9A132F44CCAF0021085E /* InvestigationNode.swift */,
-			);
-			path = Model;
-			sourceTree = "<group>";
-		};
-		86AC9A192F44CCAF0021085E /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				86AC9A152F44CCAF0021085E /* EdgeLabelSheet.swift */,
-				86AC9A162F44CCAF0021085E /* InvestigationBoardView.swift */,
-				86AC9A172F44CCAF0021085E /* InvestigationNodeView.swift */,
-				86AC9A182F44CCAF0021085E /* NodeEditorSheet.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		86AC9A1B2F44CCAF0021085E /* MurderboardApp */ = {
-			isa = PBXGroup;
-			children = (
-				86AC9A102F44CCAF0021085E /* DataSource */,
-				86AC9A142F44CCAF0021085E /* Model */,
-				86AC9A192F44CCAF0021085E /* Views */,
-				86AC9A1A2F44CCAF0021085E /* MurderboardApp.swift */,
-			);
-			path = MurderboardApp;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

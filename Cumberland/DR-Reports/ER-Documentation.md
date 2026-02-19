@@ -13,15 +13,17 @@ This is the main index for all Cumberland Enhancement Requests. ERs track planne
 
 ## Unverified ERs (Active & Proposed)
 
-Currently: **0 unverified ERs**
+Currently: **1 unverified ER** (0 implemented, 1 proposed)
 
-*No active enhancement requests.*
+| ER | Title | Status | Component | Priority |
+|----|-------|--------|-----------|----------|
+| [ER-0032](./ER-unverified.md#er-0032-add-search-and-multi-filter-to-backlog-sidebar) | Add Search and Multi-Filter to Backlog Sidebar | 🔵 Proposed (depends on ER-0031) | MurderBoard — Backlog Sidebar | P1 |
 
 See: [ER-unverified.md](./ER-unverified.md)
 
 ## Verified ERs (Completed Enhancements)
 
-Currently: **33 verified ERs** | Next available ER: **ER-0031**
+Currently: **33 verified ERs** | Next available ER: **ER-0035**
 
 | Batch | ERs | File | Status |
 |-------|-----|------|--------|
@@ -45,12 +47,15 @@ Currently: **33 verified ERs** | Next available ER: **ER-0031**
 | Batch 29 | ER-0029 | [ER-verified-0029.md](./ER-verified-0029.md) | ✅ Verified (1/1) |
 | Batch 26 | ER-0026 | [ER-verified-0026.md](./ER-verified-0026.md) | ✅ Verified (1/1) |
 | Batch 30 | ER-0030 | [ER-verified-0030.md](./ER-verified-0030.md) | ✅ Verified (1/1) |
+| Batch 31 | ER-0031 | [ER-verified-0031.md](./ER-verified-0031.md) | ✅ Verified (1/1) |
+| Batch 33 | ER-0033 | [ER-verified-0033.md](./ER-verified-0033.md) | ✅ Verified (1/1) |
+| Batch 34 | ER-0034 | [ER-verified-0034.md](./ER-verified-0034.md) | ✅ Verified (1/1) |
 
 ## Statistics
 
-- **Total ERs:** 31
-- **Verified:** 31 (100%) ✅
+- **Total ERs:** 34
+- **Verified:** 33 (97.1%) ✅
 
 ---
 
-*Last Updated: 2026-02-17*
+*Last Updated: 2026-02-19*

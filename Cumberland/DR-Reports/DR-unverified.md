@@ -1,5 +1,7 @@
 # Discrepancy Reports (DR) - Unverified Issues
 
+- Guidelines: [Cumberland/DR-Reports/DR-Guidelines.md]
+
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
 **Status:** Currently **0 open DRs** | **0 resolved, awaiting verification**
@@ -8,6 +10,7 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 
 ## Recently Verified
 
+- **DR-0096:** BoardGestureIntegration Modifies @Binding State During View Body Evaluation — ✅ Verified 2026-02-18 → [Batch 10](./DR-verified-0091-0100.md)
 - **DR-0095:** Map Wizard Cannot Save Drawn Map — ✅ Verified 2026-02-16 → [Batch 10](./DR-verified-0091-0100.md)
 - **DR-0094:** Image History Restore Does Not Update CardEditorView — ✅ Verified 2026-02-14 → [Batch 10](./DR-verified-0091-0100.md)
 - **DR-0092:** visionOS Settings Presented as Modal Sheet Instead of Window — ✅ Verified 2026-02-12 → [Batch 10](./DR-verified-0091-0100.md)
@@ -27,4 +30,4 @@ Per DR-GUIDELINES.md:
 
 ---
 
-*Last Updated: 2026-02-16*
+*Last Updated: 2026-02-18*

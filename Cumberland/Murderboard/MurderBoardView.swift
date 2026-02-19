@@ -68,6 +68,10 @@ struct MurderBoardView: View {
     @State var selectedKindFilter: Kinds? = nil
     @State var selectedBacklogCards: Set<UUID> = []
 
+    // ER-0031: Sidebar detail & pending pins
+    @State var detailCard: Card? = nil
+    @State var pendingPinCardIDs: Set<UUID> = []
+
     // MARK: - MultiGesture Handler Integration (from BoardEngine)
 
     @State var gestureHandler: MultiGestureHandler? = nil
@@ -203,6 +207,10 @@ struct MurderBoardView: View {
                         onEdgeCreated: { sourceID, targetID in
                             handleEdgeCreationRequest(sourceCardID: sourceID, targetCardID: targetID)
                         },
+                        onSelectEdge: { sourceID, targetID, typeCode in
+                            selectedEdgeSourceTarget = (sourceID, targetID)
+                            selectedCardID = nil
+                        },
                         onRightClickNode: { cardID, location, handler, coordinateInfo in
                             handleNodeRightClick(cardID: cardID, location: location, handler: handler, coordinateInfo: coordinateInfo)
                         },
@@ -223,8 +231,11 @@ struct MurderBoardView: View {
                         isSidebarVisible: $isSidebarVisible,
                         selectedKindFilter: $selectedKindFilter,
                         selectedBacklogCards: $selectedBacklogCards,
+                        detailCard: $detailCard,
                         backlogCards: backlogCards,
-                        onAddSelectedCards: { addSelectedCardsToBoard() }
+                        pendingPinCardIDs: pendingPinCardIDs,
+                        onAddSelectedCards: { addSelectedCardsToBoard() },
+                        onTogglePin: { card in togglePendingPin(card) }
                     )
 
                     #if os(macOS) || os(iOS)
@@ -374,6 +385,13 @@ struct MurderBoardView: View {
                 onCancel: { }
             )
             .frame(minWidth: 420, minHeight: 340)
+        }
+        // ER-0031: Card detail inspection from sidebar
+        .sheet(item: $detailCard) { card in
+            BacklogCardDetailSheet(card: card)
+                #if os(iOS) || os(visionOS)
+                .presentationDetents([.medium, .large])
+                #endif
         }
     }
 
@@ -674,7 +692,11 @@ extension MurderBoardView {
 
         if addedAny {
             try? modelContext.save()
+            // ER-0031: Apply pending pins to newly added cards
             for cardData in cards {
+                if pendingPinCardIDs.remove(cardData.id) != nil {
+                    dataSource?.setPin(for: cardData.id, pinned: true)
+                }
                 selectedBacklogCards.remove(cardData.id)
             }
         }
@@ -685,6 +707,12 @@ extension MurderBoardView {
     func handleCardDropByIDs(cardIDs: [UUID], at location: CGPoint) -> Bool {
         guard let ds = dataSource else { return false }
         ds.addNodes(cardIDs, at: location)
+        // ER-0031: Apply pending pins to newly added cards
+        for cardID in cardIDs {
+            if pendingPinCardIDs.remove(cardID) != nil {
+                ds.setPin(for: cardID, pinned: true)
+            }
+        }
         return true
     }
 
@@ -707,8 +735,25 @@ extension MurderBoardView {
             panY: panY
         )
 
-        ds.addNodes(Array(selectedBacklogCards), at: worldCenter)
+        let addedIDs = Array(selectedBacklogCards)
+        ds.addNodes(addedIDs, at: worldCenter)
+        // ER-0031: Apply pending pins to newly added cards
+        for cardID in addedIDs {
+            if pendingPinCardIDs.remove(cardID) != nil {
+                ds.setPin(for: cardID, pinned: true)
+            }
+        }
         selectedBacklogCards.removeAll()
+    }
+
+    // MARK: - Pending Pin Management (ER-0031)
+
+    func togglePendingPin(_ card: Card) {
+        if pendingPinCardIDs.contains(card.id) {
+            pendingPinCardIDs.remove(card.id)
+        } else {
+            pendingPinCardIDs.insert(card.id)
+        }
     }
 }
 

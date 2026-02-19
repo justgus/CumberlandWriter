@@ -55,5 +55,15 @@ struct InvestigationNodeView: View {
             radius: isSelected ? 8 : 4,
             y: 2
         )
+        // Report visual size for gesture hit-testing (BoardGestureIntegration requires this)
+        .overlay(
+            GeometryReader { geo in
+                Color.clear
+                    .preference(
+                        key: BoardNodeVisualSizesKey.self,
+                        value: [node.nodeID: geo.size]
+                    )
+            }
+        )
     }
 }

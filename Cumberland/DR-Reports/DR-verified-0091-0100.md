@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0091 through DR-0100.
 
-**Batch Status:** 🚧 In Progress (5/10 verified)
+**Batch Status:** 🚧 In Progress (7/10 verified)
 
 ---
 
@@ -139,4 +139,67 @@ Added `renderFromModelData()` fallback method to `DrawingCanvasModel` that rende
 
 ---
 
-*Last Updated: 2026-02-16*
+## DR-0096: BoardGestureIntegration Modifies @Binding State During View Body Evaluation
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** BoardEngine — BoardGestureIntegration, MultiGestureHandler
+**Severity:** Medium
+**Date Identified:** 2026-02-18
+**Date Resolved:** 2026-02-18
+**Date Verified:** 2026-02-18
+
+**Description:**
+SwiftUI purple triangle runtime warnings appeared at `BoardGestureIntegration.swift` lines 149 and 176, indicating state modification during view body evaluation. This is a SwiftUI pattern violation that causes undefined behavior.
+
+**Root Cause:**
+`setupAndReturnGestureHandler()` was called as a fallback from within the `body` computed property (line 136 of `BoardGestureIntegration.swift`) when `gestureHandler` was `nil`. This method directly assigned `gestureHandler = handler` (a `@Binding` property) and called `setupGestureHandler()` (which mutates additional `@Binding` properties), all during SwiftUI's view evaluation phase. SwiftUI prohibits state mutations during `body` evaluation.
+
+**Resolution:**
+Wrapped the `@Binding` mutations in `setupAndReturnGestureHandler()` inside `DispatchQueue.main.async` to defer them to the next run-loop tick. The handler object itself is returned immediately (synchronously) for use in the current frame's `.multiGestureHandler()` modifier, while the binding writes and target setup happen safely outside the view update cycle.
+
+**Files Modified:**
+- `Packages/BoardEngine/Sources/BoardEngine/Gestures/BoardGestureIntegration.swift` — `setupAndReturnGestureHandler()` (lines 147-158): wrapped `gestureHandler = handler` and `setupGestureHandler()` in `DispatchQueue.main.async { ... }`
+
+**Related Issues:**
+- Discovered during ER-0034 (Multi-Board Support) verification
+
+---
+
+## DR-0097: Edge Selection Hit-Testing Unreliable — Clicks on Edges Frequently Fail to Select
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms (macOS, iOS, visionOS)
+**Component:** BoardEngine — BoardEdgeSelectionLayer, CanvasGestureTarget, BoardGestureIntegration
+**Severity:** High
+**Date Identified:** 2026-02-19
+**Date Resolved:** 2026-02-19
+**Date Verified:** 2026-02-19
+
+**Description:**
+Clicking on edges to select them was extremely difficult in both Cumberland's MurderBoard and the standalone MurderBoard app. Users often needed many clicks before an edge was selected, and sometimes edges could never be selected at all.
+
+**Root Cause:**
+`BoardEdgeSelectionLayer` used SwiftUI `.onTapGesture` on invisible `strokedPath` shapes overlaying each edge. However, `BoardGestureIntegration` applies a `DragGesture(minimumDistance: 0)` to the entire canvas, which captured the touch first. The edge `.onTapGesture` could only fire in the rare cases where the drag gesture didn't claim the interaction — making edge selection unreliable and inconsistent.
+
+Additionally, the `strokedPath()` approach used a fixed view-space width (24pt) which scaled poorly with zoom level and had inconsistent hit zones depending on line angle.
+
+**Resolution:**
+Integrated edge hit-testing into the `MultiGestureHandler` tap flow so it goes through the same gesture system as node selection:
+
+1. Added `edgeHitTest` and `onSelectEdge` callbacks to `CanvasGestureTarget`
+2. When the canvas receives a tap, it first checks if the tap is near an edge using a proper perpendicular point-to-line-segment distance calculation with 20 world-unit tolerance
+3. If an edge is within tolerance, `onSelectEdge` fires; otherwise falls through to deselect
+4. Added `pointToSegmentDistance()` geometry helper — standard closest-point-on-segment algorithm
+5. `BoardGestureIntegration` wires the hit-test closure using `BoardEdgesLayer.displayedEdges()` for edge geometry
+6. Both `MurderBoardView` and `InvestigationBoardView` pass `onSelectEdge` to the gesture integration
+
+**Files Modified:**
+- `Packages/BoardEngine/Sources/BoardEngine/Gestures/CanvasGestureTarget.swift` — Added `edgeHitTest`, `onSelectEdge` callbacks; tap handler checks edges before deselecting
+- `Packages/BoardEngine/Sources/BoardEngine/Gestures/BoardGestureIntegration.swift` — Added `onSelectEdge` parameter; wired `edgeHitTest` closure with point-to-segment distance; added `pointToSegmentDistance()` helper
+- `Cumberland/Murderboard/MurderBoardView.swift` — Passes `onSelectEdge` to `BoardGestureIntegration`
+- `MurderBoard/Views/InvestigationBoardView.swift` — Passes `onSelectEdge` to `BoardGestureIntegration`
+
+---
+
+*Last Updated: 2026-02-19*

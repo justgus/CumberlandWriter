@@ -9,6 +9,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 @Model
 final class InvestigationNode {
@@ -101,5 +102,31 @@ enum NodeCategory: String, CaseIterable, Codable, Sendable {
         case .vehicle: .green
         case .organization: .indigo
         }
+    }
+}
+
+// MARK: - Transfer Support (Drag & Drop)
+
+extension UTType {
+    static let investigationNodeReference: UTType = UTType("com.cumberland.murderboard.node-reference") ?? .json
+}
+
+struct InvestigationNodeTransferData: Codable, Sendable, Transferable {
+    let id: UUID
+    let name: String
+    let categoryRaw: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(contentType: .investigationNodeReference) { data in
+            try JSONEncoder().encode(data)
+        } importing: { data in
+            try JSONDecoder().decode(InvestigationNodeTransferData.self, from: data)
+        }
+    }
+}
+
+extension InvestigationNode {
+    func transferData() -> InvestigationNodeTransferData {
+        InvestigationNodeTransferData(id: id, name: name, categoryRaw: categoryRaw)
     }
 }

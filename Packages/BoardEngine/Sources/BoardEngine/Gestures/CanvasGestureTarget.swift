@@ -24,6 +24,11 @@ public final class CanvasGestureTarget: GestureTarget {
     public var onSelectionChanged: ((UUID?) -> Void)?
     public var onRightClick: ((_ location: CGPoint, _ coordinateInfo: CoordinateSpaceInfo) -> Void)?
 
+    /// Edge hit-test: given a world-space tap point, returns (sourceID, targetID, typeCode)
+    /// if the tap is within tolerance of an edge, or nil otherwise.
+    public var edgeHitTest: ((_ worldPoint: CGPoint) -> (UUID, UUID, String)?)?
+    public var onSelectEdge: ((_ sourceID: UUID, _ targetID: UUID, _ typeCode: String) -> Void)?
+
     // Transform state access
     public var getCurrentTransform: (() -> (scale: Double, panX: Double, panY: Double))?
     public var getWindowSize: (() -> CGSize)?
@@ -51,8 +56,14 @@ public final class CanvasGestureTarget: GestureTarget {
         case .rightClick(let location, let coordinateInfo):
             onRightClick?(location, coordinateInfo)
 
-        case .tap(_, _):
-            onSelectionChanged?(nil)
+        case .tap(let location, let coordinateInfo):
+            // Check if the tap hits an edge before falling through to deselect
+            let worldPoint = coordinateInfo.toWorldSpace(location)
+            if let edgeHitTest, let (srcID, tgtID, typeCode) = edgeHitTest(worldPoint) {
+                onSelectEdge?(srcID, tgtID, typeCode)
+            } else {
+                onSelectionChanged?(nil)
+            }
 
         case .pinchBegan(_, _, _, _):
             break
