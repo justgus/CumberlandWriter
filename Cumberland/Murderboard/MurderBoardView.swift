@@ -18,6 +18,32 @@ import UniformTypeIdentifiers
 import CloudKit
 import BoardEngine
 
+// MARK: - Backlog Sort Option (ER-0032)
+
+enum BacklogSortOption: String, CaseIterable, Identifiable {
+    case nameAscending = "nameAsc"
+    case nameDescending = "nameDesc"
+    case kindGrouped = "kindGrouped"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .nameAscending:  return "Name (A–Z)"
+        case .nameDescending: return "Name (Z–A)"
+        case .kindGrouped:    return "Kind"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .nameAscending:  return "textformat.abc"
+        case .nameDescending: return "textformat.abc"
+        case .kindGrouped:    return "rectangle.3.group"
+        }
+    }
+}
+
 struct MurderBoardView: View {
     let primary: Card
 
@@ -72,6 +98,17 @@ struct MurderBoardView: View {
     @State var detailCard: Card? = nil
     @State var pendingPinCardIDs: Set<UUID> = []
 
+    // ER-0032: Search and sort for backlog sidebar
+    @State var backlogSearchText: String = ""
+    @State var debouncedSearchText: String = ""
+    @State private var searchDebounceTask: Task<Void, Never>? = nil
+    @State var backlogSortOption: BacklogSortOption = {
+        if let saved = BacklogSortOption(rawValue: UserDefaults.standard.string(forKey: "MurderBoard.backlogSort") ?? "") {
+            return saved
+        }
+        return .nameAscending
+    }()
+
     // MARK: - MultiGesture Handler Integration (from BoardEngine)
 
     @State var gestureHandler: MultiGestureHandler? = nil
@@ -95,19 +132,176 @@ struct MurderBoardView: View {
 
     var backlogCards: [Card] {
         guard let ds = dataSource, let board = ds.board else { return allCards }
-        let cardsOnBoard = Set((board.nodes ?? []).compactMap { $0.card?.id })
-        var filtered = allCards.filter { !cardsOnBoard.contains($0.id) }
+        let cardsOnBoard: Set<UUID> = Set((board.nodes ?? []).compactMap { $0.card?.id })
+        var filtered: [Card] = allCards.filter { !cardsOnBoard.contains($0.id) }
 
+        // ER-0032: Kind filter
         if let kindFilter = selectedKindFilter {
             filtered = filtered.filter { $0.kind == kindFilter }
         }
 
-        return filtered.sorted { (a: Card, b: Card) in
-            a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+        // ER-0032: Text search filter (uses debounced text for performance)
+        filtered = applySearchFilter(to: filtered)
+
+        // ER-0032: Sort by selected option
+        return applySortOption(to: filtered)
+    }
+
+    /// ER-0032: Apply text search filter using normalizedSearchText
+    private func applySearchFilter(to cards: [Card]) -> [Card] {
+        let query = debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return cards }
+        let normalizedQuery: String = query
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .lowercased()
+        return cards.filter { $0.normalizedSearchText.contains(normalizedQuery) }
+    }
+
+    /// ER-0032: Sort cards by the active backlog sort option
+    private func applySortOption(to cards: [Card]) -> [Card] {
+        switch backlogSortOption {
+        case .nameAscending:
+            return cards.sorted { (a: Card, b: Card) in
+                a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+            }
+        case .nameDescending:
+            return cards.sorted { (a: Card, b: Card) in
+                a.name.localizedCaseInsensitiveCompare(b.name) == .orderedDescending
+            }
+        case .kindGrouped:
+            return cards.sorted { (a: Card, b: Card) in
+                let kindA: String = a.kind.title
+                let kindB: String = b.kind.title
+                if kindA == kindB {
+                    return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+                }
+                return kindA < kindB
+            }
         }
     }
 
     var body: some View {
+        boardWithStateHandlers
+            // ER-0032: Persist sort option to UserDefaults
+            .onChange(of: backlogSortOption) { _, newValue in
+                UserDefaults.standard.set(newValue.rawValue, forKey: "MurderBoard.backlogSort")
+            }
+            // Keyboard shortcuts for edge selection (ER-0030)
+            .onKeyPress(.delete) {
+                if selectedEdgeSourceTarget != nil {
+                    requestEdgeDeletion()
+                    return .handled
+                }
+                return .ignored
+            }
+            .onKeyPress(.deleteForward) {
+                if selectedEdgeSourceTarget != nil {
+                    requestEdgeDeletion()
+                    return .handled
+                }
+                return .ignored
+            }
+            .onKeyPress(.escape) {
+                if selectedEdgeSourceTarget != nil {
+                    clearEdgeSelection()
+                    return .handled
+                }
+                return .ignored
+            }
+            // Edge deletion confirmation alert (ER-0030)
+            .alert("Delete Relationship", isPresented: $showDeleteEdgeConfirmation) {
+                Button("Delete", role: .destructive) {
+                    performEdgeDeletion()
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                if let (srcID, tgtID) = selectedEdgeSourceTarget,
+                   let srcName = allCards.first(where: { $0.id == srcID })?.name,
+                   let tgtName = allCards.first(where: { $0.id == tgtID })?.name,
+                   let typeCode = selectedEdgeTypeCode {
+                    let label = typeCode.replacingOccurrences(of: "/", with: " / ")
+                    Text("Delete the \"\(label)\" relationship between \(srcName) and \(tgtName)?")
+                } else {
+                    Text("Delete this relationship?")
+                }
+            }
+            // Edge creation RelationType selection sheet (DR-0076)
+            .sheet(item: $pendingEdgeCreation) { pending in
+                EdgeCreationRelationTypeSheet(
+                    sourceCardID: pending.sourceCardID,
+                    targetCardID: pending.targetCardID,
+                    allRelationTypes: allRelationTypes,
+                    allCards: allCards,
+                    onSelect: { relationType in
+                        createEdge(from: pending.sourceCardID, to: pending.targetCardID, type: relationType)
+                    },
+                    onCancel: { }
+                )
+                .frame(minWidth: 420, minHeight: 340)
+            }
+            // ER-0031: Card detail inspection from sidebar
+            .sheet(item: $detailCard) { card in
+                BacklogCardDetailSheet(card: card)
+                    #if os(iOS) || os(visionOS)
+                    .presentationDetents([.medium, .large])
+                    #endif
+            }
+    }
+
+    // MARK: - State Handlers (extracted to help type-checker)
+
+    @ViewBuilder
+    private var boardWithStateHandlers: some View {
+        boardContent
+            .task {
+                await loadBoardIfNeeded()
+            }
+            .onChange(of: dataSource?.board?.id) {
+                applyBoardTransform()
+                Task { await stageThumbnailsIfNeeded() }
+            }
+            .onChange(of: zoomScale) { _, newValue in
+                let clamped = newValue.clamped(to: configuration.minZoom...configuration.maxZoom)
+                if clamped != zoomScale { zoomScale = clamped; return }
+                dataSource?.persistTransform()
+            }
+            .onChange(of: panX) { _, newValue in
+                let clamped = newValue.clamped(to: configuration.minPan...configuration.maxPan)
+                if clamped != panX { panX = clamped; return }
+                dataSource?.persistTransform()
+            }
+            .onChange(of: panY) { _, newValue in
+                let clamped = newValue.clamped(to: configuration.minPan...configuration.maxPan)
+                if clamped != panY { panY = clamped; return }
+                dataSource?.persistTransform()
+            }
+            // ER-0032: Debounce search text (250ms)
+            .onChange(of: backlogSearchText) { _, newValue in
+                searchDebounceTask?.cancel()
+                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty {
+                    debouncedSearchText = ""
+                } else {
+                    searchDebounceTask = Task {
+                        try? await Task.sleep(for: .milliseconds(250))
+                        guard !Task.isCancelled else { return }
+                        debouncedSearchText = newValue
+                    }
+                }
+            }
+            #if DEBUG
+            .onChange(of: selectedCardID) { old, new in
+                let o = old?.uuidString ?? "nil"
+                let n = new?.uuidString ?? "nil"
+                print("[MB] Selection changed: \(o) -> \(n)")
+            }
+            #endif
+    }
+
+    // MARK: - Board Content (extracted to help type-checker)
+
+    @ViewBuilder
+    private var boardContent: some View {
         GeometryReader { proxy in
             let outerSize = proxy.size
             let border = configuration.windowBorderWidth
@@ -232,6 +426,9 @@ struct MurderBoardView: View {
                         selectedKindFilter: $selectedKindFilter,
                         selectedBacklogCards: $selectedBacklogCards,
                         detailCard: $detailCard,
+                        searchText: $backlogSearchText,
+                        sortOption: $backlogSortOption,
+                        hasActiveSearch: !debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                         backlogCards: backlogCards,
                         pendingPinCardIDs: pendingPinCardIDs,
                         onAddSelectedCards: { addSelectedCardsToBoard() },
@@ -303,95 +500,6 @@ struct MurderBoardView: View {
                     initialRecenterIfNeeded(on: board, windowSize: newSize)
                 }
             }
-        }
-        .task {
-            await loadBoardIfNeeded()
-        }
-        .onChange(of: dataSource?.board?.id) {
-            applyBoardTransform()
-            Task { await stageThumbnailsIfNeeded() }
-        }
-        .onChange(of: zoomScale) { _, newValue in
-            let clamped = newValue.clamped(to: configuration.minZoom...configuration.maxZoom)
-            if clamped != zoomScale { zoomScale = clamped; return }
-            dataSource?.persistTransform()
-        }
-        .onChange(of: panX) { _, newValue in
-            let clamped = newValue.clamped(to: configuration.minPan...configuration.maxPan)
-            if clamped != panX { panX = clamped; return }
-            dataSource?.persistTransform()
-        }
-        .onChange(of: panY) { _, newValue in
-            let clamped = newValue.clamped(to: configuration.minPan...configuration.maxPan)
-            if clamped != panY { panY = clamped; return }
-            dataSource?.persistTransform()
-        }
-        #if DEBUG
-        .onChange(of: selectedCardID) { old, new in
-            let o = old?.uuidString ?? "nil"
-            let n = new?.uuidString ?? "nil"
-            print("[MB] Selection changed: \(o) -> \(n)")
-        }
-        #endif
-        // Keyboard shortcuts for edge selection (ER-0030)
-        .onKeyPress(.delete) {
-            if selectedEdgeSourceTarget != nil {
-                requestEdgeDeletion()
-                return .handled
-            }
-            return .ignored
-        }
-        .onKeyPress(.deleteForward) {
-            if selectedEdgeSourceTarget != nil {
-                requestEdgeDeletion()
-                return .handled
-            }
-            return .ignored
-        }
-        .onKeyPress(.escape) {
-            if selectedEdgeSourceTarget != nil {
-                clearEdgeSelection()
-                return .handled
-            }
-            return .ignored
-        }
-        // Edge deletion confirmation alert (ER-0030)
-        .alert("Delete Relationship", isPresented: $showDeleteEdgeConfirmation) {
-            Button("Delete", role: .destructive) {
-                performEdgeDeletion()
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            if let (srcID, tgtID) = selectedEdgeSourceTarget,
-               let srcName = allCards.first(where: { $0.id == srcID })?.name,
-               let tgtName = allCards.first(where: { $0.id == tgtID })?.name,
-               let typeCode = selectedEdgeTypeCode {
-                let label = typeCode.replacingOccurrences(of: "/", with: " / ")
-                Text("Delete the \"\(label)\" relationship between \(srcName) and \(tgtName)?")
-            } else {
-                Text("Delete this relationship?")
-            }
-        }
-        // Edge creation RelationType selection sheet (DR-0076)
-        .sheet(item: $pendingEdgeCreation) { pending in
-            EdgeCreationRelationTypeSheet(
-                sourceCardID: pending.sourceCardID,
-                targetCardID: pending.targetCardID,
-                allRelationTypes: allRelationTypes,
-                allCards: allCards,
-                onSelect: { relationType in
-                    createEdge(from: pending.sourceCardID, to: pending.targetCardID, type: relationType)
-                },
-                onCancel: { }
-            )
-            .frame(minWidth: 420, minHeight: 340)
-        }
-        // ER-0031: Card detail inspection from sidebar
-        .sheet(item: $detailCard) { card in
-            BacklogCardDetailSheet(card: card)
-                #if os(iOS) || os(visionOS)
-                .presentationDetents([.medium, .large])
-                #endif
         }
     }
 

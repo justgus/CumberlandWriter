@@ -30,11 +30,19 @@ struct SidebarPanel: View {
     @Binding var selectedBacklogCards: Set<UUID>
     @Binding var detailCard: Card?
 
+    // ER-0032: Search and sort bindings
+    @Binding var searchText: String
+    @Binding var sortOption: BacklogSortOption
+    let hasActiveSearch: Bool
+
     // Data
     let backlogCards: [Card]
     let pendingPinCardIDs: Set<UUID>
     let onAddSelectedCards: () -> Void
     let onTogglePin: (Card) -> Void
+
+    // ER-0032: Track last selected index for shift-click range selection
+    @State private var lastSelectedIndex: Int? = nil
 
     var body: some View {
         HStack {
@@ -81,12 +89,46 @@ struct SidebarPanel: View {
         (card.outgoingEdges?.count ?? 0) + (card.incomingEdges?.count ?? 0)
     }
 
-    private func toggleSelection(_ card: Card) {
-        if selectedBacklogCards.contains(card.id) {
-            selectedBacklogCards.remove(card.id)
+    // ER-0032: Standard platform selection metaphor
+    private func handleSelection(card: Card, index: Int, modifiers: EventModifiers) {
+        #if os(macOS)
+        if modifiers.contains(.command) {
+            // Cmd+click: toggle this item
+            if selectedBacklogCards.contains(card.id) {
+                selectedBacklogCards.remove(card.id)
+            } else {
+                selectedBacklogCards.insert(card.id)
+            }
+            lastSelectedIndex = index
+        } else if modifiers.contains(.shift), let anchor = lastSelectedIndex {
+            // Shift+click: range select from anchor to this index
+            let lo = min(anchor, index)
+            let hi = max(anchor, index)
+            for i in lo...hi {
+                if i < backlogCards.count {
+                    selectedBacklogCards.insert(backlogCards[i].id)
+                }
+            }
         } else {
-            selectedBacklogCards.insert(card.id)
+            // Plain click on selected node: deselect all
+            if selectedBacklogCards.contains(card.id) {
+                selectedBacklogCards.removeAll()
+                lastSelectedIndex = nil
+            } else {
+                selectedBacklogCards = [card.id]
+                lastSelectedIndex = index
+            }
         }
+        #else
+        // iOS/visionOS: tap on selected deselects all, otherwise selects one
+        if selectedBacklogCards.contains(card.id) {
+            selectedBacklogCards.removeAll()
+            lastSelectedIndex = nil
+        } else {
+            selectedBacklogCards = [card.id]
+            lastSelectedIndex = index
+        }
+        #endif
     }
 }
 
@@ -145,101 +187,147 @@ extension SidebarPanel {
 
     @ViewBuilder
     private func sidebarHeader() -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Backlog")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+        VStack(spacing: 8) {
+            // Top row: title, selection actions, kind filter, sort
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Backlog")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
 
-                // Show count of filtered results and selection info
-                let count = backlogCards.count
-                let selectedCount = selectedBacklogCards.count
-
-                HStack(spacing: 8) {
-                    Text("^[\(count) card](inflect: true)")
+                    Text("^[\(backlogCards.count) card](inflect: true)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                }
 
-                    if selectedCount > 0 {
-                        Text("•")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                        Text("^[\(selectedCount) selected](inflect: true)")
-                            .font(.caption2)
+                Spacer()
+
+                // Selection actions
+                if !selectedBacklogCards.isEmpty {
+                    Menu {
+                        Button("Add Selected to Board", systemImage: "plus.circle") {
+                            onAddSelectedCards()
+                        }
+                        .disabled(selectedBacklogCards.isEmpty)
+
+                        Divider()
+
+                        Button("Clear Selection", systemImage: "xmark.circle") {
+                            selectedBacklogCards.removeAll()
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
                             .foregroundStyle(Color.accentColor)
                     }
+                    .menuStyle(.borderlessButton)
+                    .help("Actions for selected cards")
                 }
-            }
 
-            Spacer()
-
-            // Selection actions
-            if !selectedBacklogCards.isEmpty {
+                // Kind filter picker (0620, 0630, 0640)
                 Menu {
-                    Button("Add Selected to Board", systemImage: "plus.circle") {
-                        onAddSelectedCards()
+                    Button("All Kinds") {
+                        selectedKindFilter = nil
                     }
-                    .disabled(selectedBacklogCards.isEmpty)
+                    .disabled(selectedKindFilter == nil)
 
                     Divider()
 
-                    Button("Clear Selection", systemImage: "xmark.circle") {
-                        selectedBacklogCards.removeAll()
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.title3)
-                        .foregroundStyle(Color.accentColor)
-                }
-                .menuStyle(.borderlessButton)
-                .help("Actions for selected cards")
-            }
-
-            // Kind filter picker (0620, 0630, 0640)
-            Menu {
-                Button("All Kinds") {
-                    selectedKindFilter = nil
-                }
-                .disabled(selectedKindFilter == nil)
-
-                Divider()
-
-                ForEach(Kinds.orderedCases) { kind in
-                    Button {
-                        selectedKindFilter = kind == selectedKindFilter ? nil : kind
-                    } label: {
-                        HStack {
-                            kind.symbolImage()
-                            Text(kind.title)
-                            if selectedKindFilter == kind {
-                                Spacer()
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(Color.accentColor)
+                    ForEach(Kinds.orderedCases) { kind in
+                        Button {
+                            selectedKindFilter = kind == selectedKindFilter ? nil : kind
+                        } label: {
+                            HStack {
+                                kind.symbolImage()
+                                Text(kind.title)
+                                if selectedKindFilter == kind {
+                                    Spacer()
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(Color.accentColor)
+                                }
                             }
                         }
                     }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    if let filter = selectedKindFilter {
-                        filter.symbolImage()
-                            .font(.caption)
-                            .foregroundStyle(filter.accentColor(for: scheme))
-                        Text(filter.title)
-                            .font(.caption)
-                            .foregroundStyle(.primary)
-                    } else {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                            .font(.caption)
-                        Text("Filter")
-                            .font(.caption)
+                } label: {
+                    HStack(spacing: 4) {
+                        if let filter = selectedKindFilter {
+                            filter.symbolImage()
+                                .font(.caption)
+                                .foregroundStyle(filter.accentColor(for: scheme))
+                            Text(filter.title)
+                                .font(.caption)
+                                .foregroundStyle(.primary)
+                        } else {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                                .font(.caption)
+                            Text("Filter")
+                                .font(.caption)
+                        }
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
                     }
-                    Image(systemName: "chevron.down")
-                        .font(.caption2)
+                    .foregroundStyle(selectedKindFilter != nil ? .primary : .secondary)
                 }
-                .foregroundStyle(selectedKindFilter != nil ? .primary : .secondary)
+                .menuStyle(.borderlessButton)
+
+                // ER-0032: Sort picker
+                Menu {
+                    ForEach(BacklogSortOption.allCases) { option in
+                        Button {
+                            sortOption = option
+                        } label: {
+                            HStack {
+                                Image(systemName: option.systemImage)
+                                Text(option.label)
+                                if sortOption == option {
+                                    Spacer()
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.caption)
+                        Text(sortOption.label)
+                            .font(.caption)
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(sortOption != .nameAscending ? .primary : .secondary)
+                }
+                .menuStyle(.borderlessButton)
             }
-            .menuStyle(.borderlessButton)
+
+            // ER-0032: Search field
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                TextField("Search cards…", text: $searchText)
+                    .font(.subheadline)
+                    .textFieldStyle(.plain)
+
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(.quaternary)
+            )
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -249,16 +337,16 @@ extension SidebarPanel {
     private func sidebarCardsList() -> some View {
         if backlogCards.isEmpty {
             VStack(spacing: 12) {
-                Image(systemName: "tray")
+                Image(systemName: hasActiveSearch ? "magnifyingglass" : "tray")
                     .font(.largeTitle)
                     .foregroundStyle(.secondary)
 
-                Text("No cards available")
+                Text(hasActiveSearch ? "No matching cards" : "No cards available")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                if selectedKindFilter != nil {
-                    Text("Try changing the filter")
+                if hasActiveSearch || selectedKindFilter != nil {
+                    Text("Try changing the search or filter")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -267,7 +355,7 @@ extension SidebarPanel {
             .padding(40)
         } else {
             List {
-                ForEach(backlogCards) { card in
+                ForEach(Array(backlogCards.enumerated()), id: \.element.id) { index, card in
                     SidebarCardRow(
                         card: card,
                         isSelected: selectedBacklogCards.contains(card.id),
@@ -275,8 +363,10 @@ extension SidebarPanel {
                         edgeCount: edgeCount(for: card),
                         scheme: scheme,
                         selectedCount: selectedBacklogCards.count,
-                        onTap: { detailCard = card },
-                        onLongPress: { toggleSelection(card) },
+                        onSelect: { modifiers in
+                            handleSelection(card: card, index: index, modifiers: modifiers)
+                        },
+                        onDetail: { detailCard = card },
                         onTogglePin: { onTogglePin(card) }
                     )
                     .listRowBackground(Color.clear)
@@ -325,8 +415,8 @@ struct SidebarCardRow: View {
     let selectedCount: Int
 
     // Callbacks
-    let onTap: () -> Void
-    let onLongPress: () -> Void
+    let onSelect: (EventModifiers) -> Void
+    let onDetail: () -> Void
     let onTogglePin: () -> Void
 
     var body: some View {
@@ -375,6 +465,17 @@ struct SidebarCardRow: View {
 
             Spacer()
 
+            // Info button for detail sheet (ER-0032: replaces tap-for-detail)
+            Button {
+                onDetail()
+            } label: {
+                Image(systemName: "info.circle")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("View details")
+
             // Small thumbnail if available (0650)
             AsyncImage(url: card.thumbnailURL) { image in
                 image
@@ -399,12 +500,9 @@ struct SidebarCardRow: View {
                 .stroke(isSelected ? Color.accentColor.opacity(0.3) : .clear, lineWidth: 1)
         )
         .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        // ER-0031: Tap opens detail sheet; long-press toggles selection
-        .onTapGesture {
-            onTap()
-        }
-        .onLongPressGesture(minimumDuration: 0.5) {
-            onLongPress()
+        // ER-0032: Standard selection — modifier-aware click/tap
+        .onModifierTap { modifiers in
+            onSelect(modifiers)
         }
         // ER-0031: Swipe-to-pin (pending pin for backlog cards)
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
@@ -445,7 +543,7 @@ struct SidebarCardRow: View {
         // Accessibility (ER-0031)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint("Tap to view details. Long press to select.")
+        .accessibilityHint("Click to select. Command-click for multi-select. Info button for details.")
     }
 
     private var accessibilityLabel: Text {
@@ -456,3 +554,68 @@ struct SidebarCardRow: View {
         return Text(parts.joined(separator: ", "))
     }
 }
+
+// MARK: - Modifier-Aware Tap Gesture (ER-0032)
+
+/// A view modifier that detects tap gestures along with keyboard modifiers.
+/// On macOS, provides Command and Shift modifier detection for standard
+/// multi-select behavior. On iOS/visionOS, always reports empty modifiers.
+extension View {
+    func onModifierTap(perform action: @escaping (EventModifiers) -> Void) -> some View {
+        modifier(CumberlandModifierTapGesture(action: action))
+    }
+}
+
+private struct CumberlandModifierTapGesture: ViewModifier {
+    let action: (EventModifiers) -> Void
+
+    #if os(macOS)
+    func body(content: Content) -> some View {
+        content.overlay {
+            CumberlandModifierTapOverlay(action: action)
+        }
+    }
+    #else
+    func body(content: Content) -> some View {
+        content.onTapGesture {
+            action([])
+        }
+    }
+    #endif
+}
+
+#if os(macOS)
+import AppKit
+
+private struct CumberlandModifierTapOverlay: NSViewRepresentable {
+    let action: (EventModifiers) -> Void
+
+    func makeNSView(context: Context) -> CumberlandModifierTapNSView {
+        let view = CumberlandModifierTapNSView()
+        view.action = action
+        return view
+    }
+
+    func updateNSView(_ nsView: CumberlandModifierTapNSView, context: Context) {
+        nsView.action = action
+    }
+}
+
+class CumberlandModifierTapNSView: NSView {
+    var action: ((EventModifiers) -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        var modifiers: EventModifiers = []
+        if event.modifierFlags.contains(.command) { modifiers.insert(.command) }
+        if event.modifierFlags.contains(.shift) { modifiers.insert(.shift) }
+        action?(modifiers)
+        // Pass through so .draggable() and other gestures still work
+        super.mouseDown(with: event)
+    }
+
+    // Allow the view to be transparent to hit-testing for drags
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        return frame.contains(point) ? self : nil
+    }
+}
+#endif

@@ -13,11 +13,7 @@ This is the main index for all Cumberland Enhancement Requests. ERs track planne
 
 ## Unverified ERs (Active & Proposed)
 
-Currently: **1 unverified ER** (0 implemented, 1 proposed)
-
-| ER | Title | Status | Component | Priority |
-|----|-------|--------|-----------|----------|
-| [ER-0032](./ER-unverified.md#er-0032-add-search-and-multi-filter-to-backlog-sidebar) | Add Search and Multi-Filter to Backlog Sidebar | 🔵 Proposed (depends on ER-0031) | MurderBoard — Backlog Sidebar | P1 |
+Currently: **0 unverified ERs**
 
 See: [ER-unverified.md](./ER-unverified.md)
 
@@ -49,13 +45,14 @@ Currently: **33 verified ERs** | Next available ER: **ER-0035**
 | Batch 30 | ER-0030 | [ER-verified-0030.md](./ER-verified-0030.md) | ✅ Verified (1/1) |
 | Batch 31 | ER-0031 | [ER-verified-0031.md](./ER-verified-0031.md) | ✅ Verified (1/1) |
 | Batch 33 | ER-0033 | [ER-verified-0033.md](./ER-verified-0033.md) | ✅ Verified (1/1) |
+| Batch 32 | ER-0032 | [ER-verified-0032.md](./ER-verified-0032.md) | ✅ Verified (1/1) |
 | Batch 34 | ER-0034 | [ER-verified-0034.md](./ER-verified-0034.md) | ✅ Verified (1/1) |
 
 ## Statistics
 
 - **Total ERs:** 34
-- **Verified:** 33 (97.1%) ✅
+- **Verified:** 34 (100%) ✅
 
 ---
 
-*Last Updated: 2026-02-19*
+*Last Updated: 2026-02-20*

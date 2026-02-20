@@ -9,6 +9,32 @@ import SwiftUI
 import SwiftData
 import BoardEngine
 
+// MARK: - Backlog Sort Option (ER-0032)
+
+enum InvestigationBacklogSortOption: String, CaseIterable, Identifiable {
+    case nameAscending = "nameAsc"
+    case nameDescending = "nameDesc"
+    case categoryGrouped = "categoryGrouped"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .nameAscending:    return "Name (A–Z)"
+        case .nameDescending:   return "Name (Z–A)"
+        case .categoryGrouped:  return "Category"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .nameAscending:    return "textformat.abc"
+        case .nameDescending:   return "textformat.abc"
+        case .categoryGrouped:  return "rectangle.3.group"
+        }
+    }
+}
+
 // MARK: - Investigation Board View
 
 struct InvestigationBoardView: View {
@@ -55,6 +81,17 @@ struct InvestigationBoardView: View {
     @State private var detailNode: InvestigationNode? = nil
     @State private var selectedBacklogNodeIDs: Set<UUID> = []
 
+    // ER-0032: Search and sort for backlog sidebar
+    @State private var backlogSearchText: String = ""
+    @State private var debouncedSearchText: String = ""
+    @State private var searchDebounceTask: Task<Void, Never>? = nil
+    @State private var backlogSortOption: InvestigationBacklogSortOption = {
+        if let saved = InvestigationBacklogSortOption(rawValue: UserDefaults.standard.string(forKey: "MurderBoard.backlogSort") ?? "") {
+            return saved
+        }
+        return .nameAscending
+    }()
+
     let configuration = BoardConfiguration.cumberland
     let canvasCoordSpace = "InvestigationCanvasSpace"
 
@@ -62,11 +99,54 @@ struct InvestigationBoardView: View {
 
     var backlogNodes: [InvestigationNode] {
         guard let ds = dataSource else { return [] }
-        let all = ds.fetchBacklogNodes()
+        var filtered: [InvestigationNode] = ds.fetchBacklogNodes()
+
+        // ER-0032: Category filter
         if let filter = selectedCategoryFilter {
-            return all.filter { $0.category == filter }
+            filtered = filtered.filter { $0.category == filter }
         }
-        return all
+
+        // ER-0032: Text search filter
+        filtered = applySearchFilter(to: filtered)
+
+        // ER-0032: Sort
+        return applySortOption(to: filtered)
+    }
+
+    private func applySearchFilter(to nodes: [InvestigationNode]) -> [InvestigationNode] {
+        let query: String = debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return nodes }
+        let normalized: String = query
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .lowercased()
+        return nodes.filter { node in
+            let searchable: String = "\(node.name) \(node.subtitle)"
+                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+                .lowercased()
+            return searchable.contains(normalized)
+        }
+    }
+
+    private func applySortOption(to nodes: [InvestigationNode]) -> [InvestigationNode] {
+        switch backlogSortOption {
+        case .nameAscending:
+            return nodes.sorted { (a: InvestigationNode, b: InvestigationNode) in
+                a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+            }
+        case .nameDescending:
+            return nodes.sorted { (a: InvestigationNode, b: InvestigationNode) in
+                a.name.localizedCaseInsensitiveCompare(b.name) == .orderedDescending
+            }
+        case .categoryGrouped:
+            return nodes.sorted { (a: InvestigationNode, b: InvestigationNode) in
+                let catA: String = a.category.displayName
+                let catB: String = b.category.displayName
+                if catA == catB {
+                    return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+                }
+                return catA < catB
+            }
+        }
     }
 
     private func addBacklogNodesToBoard(_ nodeIDs: [UUID]) {
@@ -213,6 +293,9 @@ struct InvestigationBoardView: View {
                         selectedCategoryFilter: $selectedCategoryFilter,
                         detailNode: $detailNode,
                         selectedNodeIDs: $selectedBacklogNodeIDs,
+                        searchText: $backlogSearchText,
+                        sortOption: $backlogSortOption,
+                        hasActiveSearch: !debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                         backlogNodes: backlogNodes,
                         edgeCountProvider: { nodeID in
                             ds.edgeCount(for: nodeID)
@@ -282,6 +365,24 @@ struct InvestigationBoardView: View {
             zoomScale = ds.zoomScale
             panX = ds.panX
             panY = ds.panY
+        }
+        // ER-0032: Debounce search text (250ms)
+        .onChange(of: backlogSearchText) { _, newValue in
+            searchDebounceTask?.cancel()
+            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty {
+                debouncedSearchText = ""
+            } else {
+                searchDebounceTask = Task {
+                    try? await Task.sleep(for: .milliseconds(250))
+                    guard !Task.isCancelled else { return }
+                    debouncedSearchText = newValue
+                }
+            }
+        }
+        // ER-0032: Persist sort option
+        .onChange(of: backlogSortOption) { _, newValue in
+            UserDefaults.standard.set(newValue.rawValue, forKey: "MurderBoard.backlogSort")
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
