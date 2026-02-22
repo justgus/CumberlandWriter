@@ -132,6 +132,12 @@ final class Card: Identifiable {
     // Provide a default so migration can backfill existing rows.
     var normalizedSearchText: String = ""
 
+    // MARK: - Edge Count Sentinel (ER-0036)
+    // Cached edge counts for live desync detection. Maintained by RelationshipManager.
+    // CloudKit auto-migrates defaulted Int properties — no schema migration needed.
+    var cachedOutgoingEdgeCount: Int = 0
+    var cachedIncomingEdgeCount: Int = 0
+
     // Many-to-many with StructureElement (CloudKit: relationships must be optional; inverse is declared on StructureElement)
     @Relationship(deleteRule: .nullify)
     var structureElements: [StructureElement]? = []
@@ -374,7 +380,28 @@ extension Card {
             )
             edgeFetch.fetchLimit = 0
             let edges = try ctx.fetch(edgeFetch)
+            #if DEBUG
+            print("[EdgeAudit] cleanupBeforeDeletion: Deleting \(edges.count) edge(s) for card '\(self.name)' (\(self.id))")
             for e in edges {
+                let fromName = e.from?.name ?? "nil"
+                let toName = e.to?.name ?? "nil"
+                print("[EdgeAudit]   edge: '\(fromName)' → '\(toName)' type=\(e.type?.code ?? "nil")")
+            }
+            #endif
+            for e in edges {
+                // Decrement counterpart cached counts (ER-0036)
+                // The card being deleted doesn't need its own counts updated.
+                if e.from?.id == myID {
+                    // Outgoing edge: decrement target's incoming count
+                    if let target = e.to {
+                        target.cachedIncomingEdgeCount = max(0, target.cachedIncomingEdgeCount - 1)
+                    }
+                } else if e.to?.id == myID {
+                    // Incoming edge: decrement source's outgoing count
+                    if let source = e.from {
+                        source.cachedOutgoingEdgeCount = max(0, source.cachedOutgoingEdgeCount - 1)
+                    }
+                }
                 ctx.delete(e)
             }
         } catch {
@@ -389,7 +416,19 @@ extension Card {
             ctx.delete(source)
         }
 
-        // 6) Save if anything changed (best-effort)
+        // 6) Delete linked CalendarSystem if this is a calendar card
+        if kind == .calendars, let calSystem = calendarSystemRef {
+            calSystem.calendarCard = nil
+            calendarSystemRef = nil
+            ctx.delete(calSystem)
+        }
+
+        // 7) Nullify calendarSystem reference for timeline cards
+        if calendarSystem != nil {
+            calendarSystem = nil
+        }
+
+        // 8) Save if anything changed (best-effort)
         try? ctx.save()
     }
 

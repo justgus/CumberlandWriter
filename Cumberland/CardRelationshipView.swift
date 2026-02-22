@@ -81,6 +81,9 @@ struct CardRelationshipView: View {
     // Header image
     @State private var headerImage: Image?
 
+    // Edge desync banner (ER-0036)
+    @State private var showDesyncBanner: Bool = false
+
     // Constants
     private let areaCornerRadius: CGFloat = 16
 
@@ -176,6 +179,17 @@ struct CardRelationshipView: View {
         .task { await loadHeaderImage() }
         .task(id: primary.id) { await loadHeaderImage() }
         .task(id: primary.imageFileURL) { await loadHeaderImage() }
+        .task(id: primary.id) {
+            // ER-0036: Edge count sentinel — check for desync on view entry
+            if let monitor = services?.edgeIntegrityMonitor {
+                let status = monitor.checkIntegrity(card: primary)
+                if case .desyncDetected = status {
+                    let _ = monitor.recover(card: primary, modelContext: modelContext)
+                    showDesyncBanner = true
+                }
+            }
+        }
+        .desyncBanner(isShowing: $showDesyncBanner)
         .onChange(of: selectedKind) { _, _ in selectedRelatedCard = nil }
         .onChange(of: isPresentingCreateRelationType) { _, isPresented in
             handleCreateRelationTypeSheetDismiss(isPresented: isPresented)

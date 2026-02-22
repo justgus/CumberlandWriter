@@ -58,6 +58,7 @@ final class RelationshipManager {
             forwardEdge.note = note
         }
         modelContext.insert(forwardEdge)
+        EdgeIntegrityMonitor.incrementCounts(source: sourceCard, target: targetCard)
 
         // Create reverse edge if requested
         if createReverse {
@@ -96,6 +97,7 @@ final class RelationshipManager {
             createdAt: reverseCreatedAt
         )
         modelContext.insert(reverseEdge)
+        EdgeIntegrityMonitor.incrementCounts(source: targetCard, target: sourceCard)
     }
 
     // MARK: - Relationship Deletion
@@ -125,16 +127,37 @@ final class RelationshipManager {
             let revFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == bID && $0.to?.id == aID && $0.type?.code == mirrorCode })
             let rev = (try? modelContext.fetch(revFetch)) ?? []
 
-            for e in fwd { modelContext.delete(e) }
-            for e in rev { modelContext.delete(e) }
+            #if DEBUG
+            print("[EdgeAudit] removeRelationship(typed): Deleting \(fwd.count) fwd + \(rev.count) rev edge(s) between '\(cardA.name)' and '\(cardB.name)' type=\(type.code)")
+            #endif
+
+            for e in fwd {
+                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
+                modelContext.delete(e)
+            }
+            for e in rev {
+                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
+                modelContext.delete(e)
+            }
         } else {
             // Remove all relationships between the two cards
             let abFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == aID && $0.to?.id == bID })
             let baFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == bID && $0.to?.id == aID })
             let ab = (try? modelContext.fetch(abFetch)) ?? []
             let ba = (try? modelContext.fetch(baFetch)) ?? []
-            for e in ab { modelContext.delete(e) }
-            for e in ba { modelContext.delete(e) }
+
+            #if DEBUG
+            print("[EdgeAudit] removeRelationship(all): Deleting \(ab.count) fwd + \(ba.count) rev edge(s) between '\(cardA.name)' and '\(cardB.name)'")
+            #endif
+
+            for e in ab {
+                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
+                modelContext.delete(e)
+            }
+            for e in ba {
+                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
+                modelContext.delete(e)
+            }
         }
 
         try modelContext.save()
@@ -144,8 +167,58 @@ final class RelationshipManager {
     /// - Parameter edge: The edge to remove
     /// - Throws: SwiftData errors
     func removeEdge(_ edge: CardEdge) throws {
+        #if DEBUG
+        print("[EdgeAudit] removeEdge: Deleting edge '\(edge.from?.name ?? "nil")' → '\(edge.to?.name ?? "nil")' type=\(edge.type?.code ?? "nil")")
+        #endif
+        EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
         modelContext.delete(edge)
         try modelContext.save()
+    }
+
+    // MARK: - Bulk Deletion
+
+    /// Remove ALL edges for a card (used by changeCardType).
+    /// Fetches via FetchDescriptor (not arrays), decrements counterpart counts,
+    /// zeros the card's own counts, and deletes all edges.
+    /// - Parameter card: The card whose edges should be removed
+    /// - Returns: The number of edges deleted
+    @discardableResult
+    func removeAllEdges(for card: Card) throws -> Int {
+        let cardID: UUID? = card.id
+
+        let outFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
+        let inFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
+
+        let outgoing = (try? modelContext.fetch(outFetch)) ?? []
+        let incoming = (try? modelContext.fetch(inFetch)) ?? []
+
+        #if DEBUG
+        print("[EdgeAudit] removeAllEdges: Removing \(outgoing.count) outgoing + \(incoming.count) incoming edges for '\(card.name)'")
+        #endif
+
+        // Decrement counterpart counts and delete outgoing edges
+        for edge in outgoing {
+            if let target = edge.to, target.id != card.id {
+                target.cachedIncomingEdgeCount = max(0, target.cachedIncomingEdgeCount - 1)
+            }
+            modelContext.delete(edge)
+        }
+
+        // Decrement counterpart counts and delete incoming edges
+        for edge in incoming {
+            if let source = edge.from, source.id != card.id {
+                source.cachedOutgoingEdgeCount = max(0, source.cachedOutgoingEdgeCount - 1)
+            }
+            modelContext.delete(edge)
+        }
+
+        // Zero the card's own counts
+        card.cachedOutgoingEdgeCount = 0
+        card.cachedIncomingEdgeCount = 0
+
+        let totalDeleted = outgoing.count + incoming.count
+        try modelContext.save()
+        return totalDeleted
     }
 
     // MARK: - Relationship Queries

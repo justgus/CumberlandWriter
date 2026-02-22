@@ -213,6 +213,7 @@ extension CardRelationshipView {
 
         let edge = CardEdge(from: source, to: target, type: enforcedType, note: nil, createdAt: createdAt)
         modelContext.insert(edge)
+        EdgeIntegrityMonitor.incrementCounts(source: source, target: target)
         try? modelContext.save()
 
         ensureReverseEdge(forwardEdge: edge, appendToEnd: appendToEnd, modelContext: modelContext, services: services)
@@ -225,14 +226,15 @@ extension CardRelationshipView {
         guard let src = forwardEdge.from, let dst = forwardEdge.to, let t = forwardEdge.type else { return }
         let srcID: UUID? = src.id
         let dstID: UUID? = dst.id
+
+        let mirror = mirrorType(for: t, sourceKind: src.kind, targetKind: dst.kind, modelContext: modelContext)
+        let mirrorCodeForCheck: String? = mirror.code
         let existsFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
-            $0.from?.id == dstID && $0.to?.id == srcID
+            $0.from?.id == dstID && $0.to?.id == srcID && $0.type?.code == mirrorCodeForCheck
         })
         if let found = try? modelContext.fetch(existsFetch), found.isEmpty == false {
             return
         }
-
-        let mirror = mirrorType(for: t, sourceKind: src.kind, targetKind: dst.kind, modelContext: modelContext)
 
         let createdAt: Date
         if appendToEnd {
@@ -252,6 +254,7 @@ extension CardRelationshipView {
 
         let reverse = CardEdge(from: dst, to: src, type: mirror, note: forwardEdge.note, createdAt: createdAt)
         modelContext.insert(reverse)
+        EdgeIntegrityMonitor.incrementCounts(source: dst, target: src)
         try? modelContext.save()
     }
 
@@ -308,15 +311,36 @@ extension CardRelationshipView {
             let revFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == bID && $0.to?.id == aID && $0.type?.code == mirrorCode })
             let rev = (try? modelContext.fetch(revFetch)) ?? []
 
-            for e in fwd { modelContext.delete(e) }
-            for e in rev { modelContext.delete(e) }
+            #if DEBUG
+            print("[EdgeAudit] CardRelationshipOperations.removeRelationship(fallback, typed): Deleting \(fwd.count) fwd + \(rev.count) rev edge(s) between '\(a.name)' and '\(b.name)' type=\(t.code)")
+            #endif
+
+            for e in fwd {
+                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
+                modelContext.delete(e)
+            }
+            for e in rev {
+                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
+                modelContext.delete(e)
+            }
         } else {
             let abFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == aID && $0.to?.id == bID })
             let baFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == bID && $0.to?.id == aID })
             let ab = (try? modelContext.fetch(abFetch)) ?? []
             let ba = (try? modelContext.fetch(baFetch)) ?? []
-            for e in ab { modelContext.delete(e) }
-            for e in ba { modelContext.delete(e) }
+
+            #if DEBUG
+            print("[EdgeAudit] CardRelationshipOperations.removeRelationship(fallback, all): Deleting \(ab.count) fwd + \(ba.count) rev edge(s) between '\(a.name)' and '\(b.name)'")
+            #endif
+
+            for e in ab {
+                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
+                modelContext.delete(e)
+            }
+            for e in ba {
+                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
+                modelContext.delete(e)
+            }
         }
 
         try? modelContext.save()
@@ -345,7 +369,7 @@ extension CardRelationshipView {
         guard newKind != card.kind else { return }
 
         if let mgr = services?.cardOperations {
-            try? mgr.changeCardType(card, to: newKind)
+            do { try mgr.changeCardType(card, to: newKind) } catch {}
             return
         }
 
@@ -357,17 +381,18 @@ extension CardRelationshipView {
         let edgesFrom = (try? modelContext.fetch(fetchFrom)) ?? []
         let edgesTo = (try? modelContext.fetch(fetchTo)) ?? []
 
+        #if DEBUG
+        let totalEdges = edgesFrom.count + edgesTo.count
+        print("[EdgeAudit] CardRelationshipOperations.changeCardType(fallback): Card '\(card.name)' (\(card.id)) changing from \(card.kind.rawValue) to \(newKind.rawValue) — deleting \(edgesFrom.count) outgoing + \(edgesTo.count) incoming = \(totalEdges) edge(s)")
+        #endif
+
         for edge in edgesFrom + edgesTo {
+            EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
             modelContext.delete(edge)
         }
 
         card.kindRaw = newKind.rawValue
         try? modelContext.save()
-
-        #if DEBUG
-        print("✅ [CardRelationshipView] Changed card type from \(card.kind.title) to \(newKind.title)")
-        print("   Removed \(edgesFrom.count + edgesTo.count) relationships")
-        #endif
     }
 
     // MARK: - Canonicalization

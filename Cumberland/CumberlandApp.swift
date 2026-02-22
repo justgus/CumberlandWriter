@@ -193,6 +193,9 @@ struct CumberlandApp: App {
                     await CumberlandApp.seedStoryStructuresIfNeeded(container: modelContainer)
                     await CumberlandApp.seedCalendarSystemsIfNeeded(container: modelContainer)
 
+                    // ER-0036: One-time backfill of cached edge counts
+                    await CumberlandApp.backfillEdgeCountsIfNeeded(container: modelContainer)
+
                     // Phase 7.5: One-time migration of CalendarSystem → Calendar Cards
                     let migrationKey = "didMigrateCalendarSystemsToCards_v1"
                     if !UserDefaults.standard.bool(forKey: migrationKey) {
@@ -710,6 +713,7 @@ extension CumberlandApp {
                 guard let project = try? ctx.fetch(projFetch).first else { continue }
                 let edge = CardEdge(from: scene, to: project, type: storiesType)
                 ctx.insert(edge)
+                EdgeIntegrityMonitor.incrementCounts(source: scene, target: project)
                 existingPairs.insert(key)
                 created += 1
             }
@@ -725,6 +729,32 @@ extension CumberlandApp {
         } else {
             logger.debug("Backfill: no new 'stories' edges needed.")
         }
+    }
+
+    // ER-0036: One-time backfill of cached edge counts
+    @MainActor
+    static func backfillEdgeCountsIfNeeded(container: ModelContainer) async {
+        let key = "didBackfillEdgeCounts_v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+
+        let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "EdgeBackfill")
+        let ctx = container.mainContext
+
+        let allCards = (try? ctx.fetch(FetchDescriptor<Card>())) ?? []
+        var updated = 0
+        for card in allCards {
+            EdgeIntegrityMonitor.recalculateCounts(for: card, modelContext: ctx)
+            updated += 1
+        }
+
+        do {
+            try ctx.save()
+            logger.info("[ER-0036] Backfilled edge counts for \(updated) cards")
+        } catch {
+            logger.error("[ER-0036] Edge count backfill save failed: \(String(describing: error))")
+        }
+
+        UserDefaults.standard.set(true, forKey: key)
     }
 
     // DR-0033: Improved seeding with per-template checking and deduplication
@@ -1091,6 +1121,9 @@ extension CumberlandApp {
 
         // Clear any in-memory image caches after deletion.
         Card.purgeAllImageCaches()
+
+        // Reset one-time migration keys so they re-run after reseed
+        UserDefaults.standard.removeObject(forKey: "didBackfillEdgeCounts_v1")
 
         // Reseed baseline data
         await backfillOriginalImagesIfNeeded(container: container)
@@ -1509,6 +1542,7 @@ struct FixIncompleteRelationshipsView: View {
             // Create inverse edge
             let invEdge = CardEdge(from: to, to: from, type: mirror, note: e.note, createdAt: e.createdAt.addingTimeInterval(0.001))
             ctx.insert(invEdge)
+            EdgeIntegrityMonitor.incrementCounts(source: to, target: from)
             createdEdges += 1
             lines.append("Inverse edge created: \(from.kind.singularTitle) “\(from.name)” ⇄ \(to.kind.singularTitle) “\(to.name)” using type “\(mirror.code)”")
         }

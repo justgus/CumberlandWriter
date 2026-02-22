@@ -162,6 +162,12 @@ struct DeveloperToolsView: View {
                     } label: {
                         Label("Fix Incomplete Relationships", systemImage: "arrow.triangle.2.circlepath")
                     }
+
+                    NavigationLink {
+                        RelationshipAuditView()
+                    } label: {
+                        Label("Relationship Audit", systemImage: "stethoscope")
+                    }
                 }
                 
                 Section {
@@ -586,11 +592,41 @@ struct DeveloperToolsView: View {
 
                     actionButton(
                         title: "Validate All Relationships",
-                        description: "Check and repair broken card relationships",
+                        description: "Fetch-based audit: compare FetchDescriptor counts vs relationship arrays, detect orphans",
                         systemImage: "link.badge.plus"
                     ) {
                         confirmAction = .validateAllRelationships
                     }
+                }
+                .padding(.vertical, 4)
+            }
+
+            GroupBox("Relationship Audit") {
+                VStack(spacing: 12) {
+                    NavigationLink {
+                        RelationshipAuditView()
+                    } label: {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "stethoscope")
+                                .font(.title3)
+                                .foregroundStyle(.blue)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Relationship Audit View")
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                Text("Per-card edge audit with fetch-based queries, discrepancy detection, orphan repair, and JSON export")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(Color.secondary.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.vertical, 4)
             }
@@ -830,23 +866,42 @@ struct DeveloperToolsView: View {
                 
             case .validateAllRelationships:
                 var fixedCount = 0
+                var discrepancyCount = 0
+                var orphanCount = 0
+
+                // Phase 1: Fetch-based validation — find all edges and check for nil endpoints/type
+                let allEdgeFetch = FetchDescriptor<CardEdge>()
+                let allEdges = (try? modelContext.fetch(allEdgeFetch)) ?? []
+                let invalidEdges = allEdges.filter { $0.from == nil || $0.to == nil || $0.type == nil }
+                orphanCount = invalidEdges.count
+                for e in invalidEdges {
+                    #if DEBUG
+                    print("[EdgeAudit] validateAll: Removing orphan edge — from=\(e.from?.name ?? "nil") to=\(e.to?.name ?? "nil") type=\(e.type?.code ?? "nil")")
+                    #endif
+                    modelContext.delete(e)
+                }
+                fixedCount += orphanCount
+
+                // Phase 2: Per-card discrepancy detection (fetch count vs array count)
                 for card in cards {
-                    // Validate outgoing edges
-                    if let outgoing = card.outgoingEdges {
-                        let invalidOutgoing = outgoing.filter { $0.from == nil || $0.to == nil || $0.type == nil }
-                        fixedCount += invalidOutgoing.count
-                        invalidOutgoing.forEach { modelContext.delete($0) }
-                    }
-                    
-                    // Validate incoming edges
-                    if let incoming = card.incomingEdges {
-                        let invalidIncoming = incoming.filter { $0.from == nil || $0.to == nil || $0.type == nil }
-                        fixedCount += invalidIncoming.count
-                        invalidIncoming.forEach { modelContext.delete($0) }
+                    let cardID: UUID? = card.id
+                    let fetchFromDesc = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
+                    let fetchToDesc = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
+                    let fetchOut = (try? modelContext.fetch(fetchFromDesc))?.count ?? 0
+                    let fetchIn = (try? modelContext.fetch(fetchToDesc))?.count ?? 0
+                    let arrayOut = card.outgoingEdges?.count ?? 0
+                    let arrayIn = card.incomingEdges?.count ?? 0
+
+                    if fetchOut != arrayOut || fetchIn != arrayIn {
+                        discrepancyCount += 1
+                        #if DEBUG
+                        print("[EdgeAudit] validateAll: Discrepancy for '\(card.name)' — fetch(\(fetchOut) out, \(fetchIn) in) vs array(\(arrayOut) out, \(arrayIn) in)")
+                        #endif
                     }
                 }
+
                 try? modelContext.save()
-                actionResult = "✓ Validated relationships (\(fixedCount) issues fixed)"
+                actionResult = "✓ Validated relationships — \(fixedCount) orphan(s) removed, \(discrepancyCount) discrepancy card(s) detected (see Relationship Audit for details)"
                 
             case .clearAllThumbnails:
                 var clearedCount = 0

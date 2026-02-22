@@ -13,13 +13,13 @@ This is the main index for all Cumberland Discrepancy Reports. DRs track bugs an
 
 ## Unverified DRs (Active Issues)
 
-Currently: **0 unverified DRs** | **0 open** | **0 resolved, awaiting verification**
+Currently: **0 unverified DRs**
 
 See: [DR-unverified.md](./DR-unverified.md)
 
 ## Verified DRs (Resolved Issues)
 
-Currently: **80 verified DRs** | Next available DR: **DR-0098**
+Currently: **80 verified DRs** | Next available DR: **DR-0099**
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
@@ -32,7 +32,7 @@ Currently: **80 verified DRs** | Next available DR: **DR-0098**
 | Batch 7 | DR-0061 to DR-0070 | [DR-verified-0061-0070.md](./DR-verified-0061-0070.md) | 🚧 In Progress (6/10 verified) |
 | Batch 8 | DR-0071 to DR-0080 | [DR-verified-0071-0080.md](./DR-verified-0071-0080.md) | 🚧 In Progress (9/10 verified) |
 | Batch 9 | DR-0081 to DR-0090 | [DR-verified-0081-0090.md](./DR-verified-0081-0090.md) | ✅ All Verified (10/10) |
-| Batch 10 | DR-0091 to DR-0100 | [DR-verified-0091-0100.md](./DR-verified-0091-0100.md) | 🚧 In Progress (7/10 verified) |
+| Batch 10 | DR-0091 to DR-0100 | [DR-verified-0091-0100.md](./DR-verified-0091-0100.md) | 🚧 In Progress (8/10 verified) |
 
 ## Closed DRs (Not Verified)
 
@@ -55,12 +55,12 @@ See: [DR-archive-0038-0056.md](./DR-archive-0038-0056.md) for deferred/OBE DRs:
 
 ## Statistics
 
-- **Total DRs:** 97
-- **Verified:** 83 (85.6%) ✅
-- **Open (deferred):** 3 (3.1%) 🔴
-- **Closed/Deferred:** 5 (5.2%) ⚪
+- **Total DRs:** 98
+- **Verified:** 84 (85.7%) ✅
+- **Open:** 3 (3.1%) 🔴 *(3 deferred)*
+- **Closed/Deferred:** 5 (5.1%) ⚪
 
 ---
 
-*Last Updated: 2026-02-19*
+*Last Updated: 2026-02-22*
 

@@ -144,6 +144,7 @@ final class CardRepository {
     /// - Parameter card: The card to delete
     /// - Throws: SwiftData errors
     func delete(_ card: Card) throws {
+        card.cleanupBeforeDeletion(in: modelContext)
         modelContext.delete(card)
         try modelContext.save()
     }
@@ -161,6 +162,7 @@ final class CardRepository {
     /// - Throws: SwiftData errors
     func delete(_ cards: [Card]) throws {
         for card in cards {
+            card.cleanupBeforeDeletion(in: modelContext)
             modelContext.delete(card)
         }
         try modelContext.save()

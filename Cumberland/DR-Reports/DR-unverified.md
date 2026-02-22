@@ -8,16 +8,18 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 
 ---
 
+*No unverified DRs at this time.*
+
+---
+
 ## Recently Verified
 
-- **DR-0096:** BoardGestureIntegration Modifies @Binding State During View Body Evaluation — ✅ Verified 2026-02-18 → [Batch 10](./DR-verified-0091-0100.md)
-- **DR-0095:** Map Wizard Cannot Save Drawn Map — ✅ Verified 2026-02-16 → [Batch 10](./DR-verified-0091-0100.md)
-- **DR-0094:** Image History Restore Does Not Update CardEditorView — ✅ Verified 2026-02-14 → [Batch 10](./DR-verified-0091-0100.md)
-- **DR-0092:** visionOS Settings Presented as Modal Sheet Instead of Window — ✅ Verified 2026-02-12 → [Batch 10](./DR-verified-0091-0100.md)
-- **DR-0093:** visionOS Developer Tools Presented as Modal Sheet Instead of Window — ✅ Verified 2026-02-12 → [Batch 10](./DR-verified-0091-0100.md)
-- **DR-0089:** Gregorian Calendar Requires Manual Epoch Setting — ✅ Verified 2026-02-11 → [Batch 9](./DR-verified-0081-0090.md)
-- **DR-0090:** Standard Date Picker Has No Year Input — ✅ Verified 2026-02-11 → [Batch 9](./DR-verified-0081-0090.md)
-- **DR-0091:** Custom Calendar Date Entry Does Not Update Temporal Position — ✅ Verified 2026-02-11 → [Batch 10](./DR-verified-0091-0100.md)
+- **DR-0098:** Complete Relationship Loss for Single Card — ✅ Verified 2026-02-22 -> [Batch 10](./DR-verified-0091-0100.md)
+- **DR-0096:** BoardGestureIntegration Modifies @Binding State During View Body Evaluation — ✅ Verified 2026-02-18 -> [Batch 10](./DR-verified-0091-0100.md)
+- **DR-0095:** Map Wizard Cannot Save Drawn Map — ✅ Verified 2026-02-16 -> [Batch 10](./DR-verified-0091-0100.md)
+- **DR-0094:** Image History Restore Does Not Update CardEditorView — ✅ Verified 2026-02-14 -> [Batch 10](./DR-verified-0091-0100.md)
+- **DR-0092:** visionOS Settings Presented as Modal Sheet Instead of Window — ✅ Verified 2026-02-12 -> [Batch 10](./DR-verified-0091-0100.md)
+- **DR-0093:** visionOS Developer Tools Presented as Modal Sheet Instead of Window — ✅ Verified 2026-02-12 -> [Batch 10](./DR-verified-0091-0100.md)
 
 ---
 
@@ -30,4 +32,4 @@ Per DR-GUIDELINES.md:
 
 ---
 
-*Last Updated: 2026-02-18*
+*Last Updated: 2026-02-22*

@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0091 through DR-0100.
 
-**Batch Status:** 🚧 In Progress (7/10 verified)
+**Batch Status:** 🚧 In Progress (8/10 verified)
 
 ---
 
@@ -202,4 +202,41 @@ Integrated edge hit-testing into the `MultiGestureHandler` tap flow so it goes t
 
 ---
 
-*Last Updated: 2026-02-19*
+## DR-0098: Complete Relationship Loss for Single Card
+
+**Status:** ✅ Resolved - Verified
+**Platform:** All platforms
+**Component:** CardEdge / SwiftData Relationships
+**Severity:** Critical
+
+**Description:**
+All CardEdge relationships for a single Card ("Alyson", a primary character) were spontaneously deleted. The card had edges to Scenes, Characters, a Project, the World, Timelines, and a MurderBoard. All edges were lost in a single event while all other cards' relationships remained intact.
+
+**Root Cause:**
+SwiftData's in-memory `@Relationship` arrays (`card.outgoingEdges`, `card.incomingEdges`) can transiently desynchronize from persisted edge records — arrays report empty while edges exist in SQLite. If any code path acts on the stale empty arrays (cascade delete, cleanup routine), actual persisted edges could be deleted.
+
+Confirmed during ER-0035 testing: "DC Metro Area" showed 41/41 edges via FetchDescriptor but 0/0 via relationship arrays. The desync self-corrected on app relaunch.
+
+**Resolution:**
+Addressed across two ERs:
+
+1. **ER-0035** (Verified) — Diagnostic tools: `[EdgeAudit]` logging on all edge deletion paths, `RelationshipAuditView` using FetchDescriptor, `changeCardType()` safety guard
+2. **ER-0036** (Verified) — Live sentinel system: `cachedOutgoingEdgeCount`/`cachedIncomingEdgeCount` on Card, maintained by centralized RelationshipManager, desync detection at view entry points via `EdgeIntegrityMonitor`, `CumberlandBoardDataSource` FetchDescriptor fallback when arrays are empty but cached counts are non-zero
+
+**Verification Notes:**
+- Sentinel cached counts remain stable (41,41) even when SwiftData arrays desync to (0,0)
+- `CumberlandBoardDataSource.edges(for:)` fallback correctly uses FetchDescriptor when desync detected
+- Relationship arrays self-correct on fresh view load (SwiftData re-faults)
+- All edge creation/deletion paths instrumented with increment/decrement
+- RelationshipAuditView confirms integrity with fetch, array, and cached count columns
+
+**Fix Date:** 2026-02-21
+**Verification Date:** 2026-02-22
+
+**Related Issues:**
+- ER-0035: Relationship Diagnostic Tools and Safety Guards (verified)
+- ER-0036: Edge Count Sentinel — Live Desync Detection and Recovery (verified)
+
+---
+
+*Last Updated: 2026-02-22*

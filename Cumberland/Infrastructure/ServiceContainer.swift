@@ -63,6 +63,9 @@ final class ServiceContainer {
     /// Manager for relationship (CardEdge) operations
     let relationshipManager: RelationshipManager
 
+    /// Monitor for edge integrity / desync detection (ER-0036)
+    let edgeIntegrityMonitor: EdgeIntegrityMonitor
+
     /// Service for image processing (singleton - no context needed)
     var imageProcessing: ImageProcessingService {
         ImageProcessingService.shared
@@ -89,6 +92,10 @@ final class ServiceContainer {
         // Initialize services (they use repositories internally or the context)
         self.cardOperations = CardOperationManager(modelContext: modelContext)
         self.relationshipManager = RelationshipManager(modelContext: modelContext)
+        self.edgeIntegrityMonitor = EdgeIntegrityMonitor()
+
+        // Wire cross-references (ER-0036)
+        self.cardOperations.relationshipManager = self.relationshipManager
     }
 
     // MARK: - Convenience Factory

@@ -82,6 +82,9 @@ struct MurderBoardView: View {
     @State var nodeVisualSizes: [UUID: CGSize] = [:]
 
     // Named coordinate space for consistent math
+    // Edge desync banner (ER-0036)
+    @State private var showDesyncBanner: Bool = false
+
     let canvasCoordSpace = "MurderBoardCanvasSpace"
     let configuration = BoardConfiguration.cumberland
 
@@ -256,6 +259,17 @@ struct MurderBoardView: View {
             .task {
                 await loadBoardIfNeeded()
             }
+            .task(id: primary.id) {
+                // ER-0036: Edge count sentinel — check for desync on view entry
+                if let monitor = services?.edgeIntegrityMonitor {
+                    let status = monitor.checkIntegrity(card: primary)
+                    if case .desyncDetected = status {
+                        let _ = monitor.recover(card: primary, modelContext: modelContext)
+                        showDesyncBanner = true
+                    }
+                }
+            }
+            .desyncBanner(isShowing: $showDesyncBanner)
             .onChange(of: dataSource?.board?.id) {
                 applyBoardTransform()
                 Task { await stageThumbnailsIfNeeded() }
@@ -950,7 +964,15 @@ extension MurderBoardView {
             $0.from?.id == srcID && $0.to?.id == tgtID && $0.type?.code == code
         })
         let fwd = (try? modelContext.fetch(fwdFetch)) ?? []
-        for e in fwd { modelContext.delete(e) }
+
+        #if DEBUG
+        print("[EdgeAudit] deleteEdgePairDirectly: '\(sourceCard.name)' → '\(targetCard.name)' type=\(typeCode) — \(fwd.count) fwd edge(s)")
+        #endif
+
+        for e in fwd {
+            EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
+            modelContext.delete(e)
+        }
 
         // Reverse edges: target -> source — need to find the mirror type code
         // The mirror code swaps forward/inverse labels: "a/b" becomes "b/a"
@@ -966,7 +988,15 @@ extension MurderBoardView {
             $0.from?.id == tgtID && $0.to?.id == srcID && $0.type?.code == mirrorCode
         })
         let rev = (try? modelContext.fetch(revFetch)) ?? []
-        for e in rev { modelContext.delete(e) }
+
+        #if DEBUG
+        print("[EdgeAudit] deleteEdgePairDirectly: mirror=\(mirrorCode ?? "nil") — \(rev.count) rev edge(s)")
+        #endif
+
+        for e in rev {
+            EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
+            modelContext.delete(e)
+        }
 
         // Also check for reverse edges with the same code (self-symmetric types like "sibling-of/sibling-of")
         if mirrorCode != typeCode {
@@ -974,14 +1004,22 @@ extension MurderBoardView {
                 $0.from?.id == tgtID && $0.to?.id == srcID && $0.type?.code == code
             })
             let revSame = (try? modelContext.fetch(revSameFetch)) ?? []
-            for e in revSame { modelContext.delete(e) }
+            #if DEBUG
+            if !revSame.isEmpty {
+                print("[EdgeAudit] deleteEdgePairDirectly: \(revSame.count) symmetric rev edge(s) with same code")
+            }
+            #endif
+            for e in revSame {
+                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
+                modelContext.delete(e)
+            }
         }
 
         do {
             try modelContext.save()
         } catch {
             #if DEBUG
-            print("[MB] Edge deletion save failed: \(error)")
+            print("[EdgeAudit] deleteEdgePairDirectly: save failed: \(error)")
             #endif
         }
     }
@@ -1130,11 +1168,13 @@ extension MurderBoardView {
         if !forwardExists {
             let forwardEdge = CardEdge(from: sourceCard, to: targetCard, type: type)
             modelContext.insert(forwardEdge)
+            EdgeIntegrityMonitor.incrementCounts(source: sourceCard, target: targetCard)
         }
 
         if !reverseExists {
             let reverseEdge = CardEdge(from: targetCard, to: sourceCard, type: type)
             modelContext.insert(reverseEdge)
+            EdgeIntegrityMonitor.incrementCounts(source: targetCard, target: sourceCard)
         }
 
         do {

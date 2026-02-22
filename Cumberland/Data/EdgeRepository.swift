@@ -138,6 +138,7 @@ final class EdgeRepository {
     /// - Throws: SwiftData errors
     func insert(_ edge: CardEdge) throws {
         modelContext.insert(edge)
+        EdgeIntegrityMonitor.incrementCounts(source: edge.from, target: edge.to)
         try modelContext.save()
     }
 
@@ -145,6 +146,10 @@ final class EdgeRepository {
     /// - Parameter edge: The edge to delete
     /// - Throws: SwiftData errors
     func delete(_ edge: CardEdge) throws {
+        #if DEBUG
+        print("[EdgeAudit] EdgeRepository.delete: Deleting edge '\(edge.from?.name ?? "nil")' → '\(edge.to?.name ?? "nil")' type=\(edge.type?.code ?? "nil")")
+        #endif
+        EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
         modelContext.delete(edge)
         try modelContext.save()
     }
@@ -153,7 +158,14 @@ final class EdgeRepository {
     /// - Parameter edges: Array of edges to delete
     /// - Throws: SwiftData errors
     func delete(_ edges: [CardEdge]) throws {
+        #if DEBUG
+        print("[EdgeAudit] EdgeRepository.delete(batch): Deleting \(edges.count) edge(s)")
         for edge in edges {
+            print("[EdgeAudit]   '\(edge.from?.name ?? "nil")' → '\(edge.to?.name ?? "nil")' type=\(edge.type?.code ?? "nil")")
+        }
+        #endif
+        for edge in edges {
+            EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
             modelContext.delete(edge)
         }
         try modelContext.save()

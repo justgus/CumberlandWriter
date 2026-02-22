@@ -96,7 +96,19 @@ final class CumberlandBoardDataSource: @MainActor BoardDataSource {
         let cardIDSet = Set(cards.map { $0.id })
 
         for card in cards where nodeIDs.contains(card.id) {
-            for edge in (card.outgoingEdges ?? []) {
+            // ER-0036: Desync-aware edge query
+            // If cached count says edges exist but array is empty, fetch via FetchDescriptor
+            let arrayEdges = card.outgoingEdges ?? []
+            let edges: [CardEdge]
+            if arrayEdges.isEmpty && card.cachedOutgoingEdgeCount > 0 {
+                let cardID: UUID? = card.id
+                let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
+                edges = (try? modelContext.fetch(fetch)) ?? []
+            } else {
+                edges = arrayEdges
+            }
+
+            for edge in edges {
                 guard let targetID = edge.to?.id, cardIDSet.contains(targetID) else { continue }
                 result.append(CumberlandEdge(from: edge))
             }

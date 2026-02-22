@@ -581,6 +581,7 @@ class SuggestionEngine {
             // Create the forward CardEdge (source → target)
             let forwardEdge = CardEdge(from: sourceCard, to: targetCard, type: relationType)
             context.insert(forwardEdge)
+            EdgeIntegrityMonitor.incrementCounts(source: sourceCard, target: targetCard)
             createdCount += 1
 
             #if DEBUG
@@ -643,11 +644,15 @@ class SuggestionEngine {
             return
         }
 
-        // Check if reverse edge already exists
+        // Get or create the mirror type (needed for existence check)
+        let mirrorType = getMirrorType(for: forwardType, sourceKind: src.kind, targetKind: dst.kind, context: context)
+
+        // Check if reverse edge of this type already exists
         let srcID = src.id
         let dstID = dst.id
+        let mirrorCode: String? = mirrorType.code
         let reversePredicate = #Predicate<CardEdge> {
-            $0.from?.id == dstID && $0.to?.id == srcID
+            $0.from?.id == dstID && $0.to?.id == srcID && $0.type?.code == mirrorCode
         }
         let reverseFetch = FetchDescriptor(predicate: reversePredicate)
 
@@ -657,9 +662,6 @@ class SuggestionEngine {
             #endif
             return
         }
-
-        // Get or create the mirror type
-        let mirrorType = getMirrorType(for: forwardType, sourceKind: src.kind, targetKind: dst.kind, context: context)
 
         // Create reverse edge with slightly later timestamp for ordering
         let reverseCreatedAt = forwardEdge.createdAt.addingTimeInterval(0.001)
@@ -671,6 +673,7 @@ class SuggestionEngine {
             createdAt: reverseCreatedAt
         )
         context.insert(reverseEdge)
+        EdgeIntegrityMonitor.incrementCounts(source: dst, target: src)
 
         #if DEBUG
         print("   ✅ Created reverse: \(dst.name) → [\(mirrorType.forwardLabel)] → \(src.name)")

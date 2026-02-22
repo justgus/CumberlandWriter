@@ -10,10 +10,12 @@
 
 ## Recently Verified
 
-- **ER-0032:** Add Search and Multi-Filter to Backlog Sidebar — ✅ Verified 2026-02-20 → [ER-verified-0032.md](./ER-verified-0032.md)
-- **ER-0031:** Enhance Existing Backlog Sidebar — ✅ Verified 2026-02-19 → [ER-verified-0031.md](./ER-verified-0031.md)
-- **ER-0033:** Wire Gesture Callbacks in MurderBoard App — ✅ Verified 2026-02-19 → [ER-verified-0033.md](./ER-verified-0033.md)
+- **ER-0036:** Edge Count Sentinel — Live Desync Detection and Recovery — ✅ Verified 2026-02-22 -> [ER-verified-0036.md](./ER-verified-0036.md)
+- **ER-0035:** Relationship Diagnostic Tools and Safety Guards — ✅ Verified 2026-02-21 -> [ER-verified-0035.md](./ER-verified-0035.md)
+- **ER-0032:** Add Search and Multi-Filter to Backlog Sidebar — ✅ Verified 2026-02-20 -> [ER-verified-0032.md](./ER-verified-0032.md)
+- **ER-0031:** Enhance Existing Backlog Sidebar — ✅ Verified 2026-02-19 -> [ER-verified-0031.md](./ER-verified-0031.md)
+- **ER-0033:** Wire Gesture Callbacks in MurderBoard App — ✅ Verified 2026-02-19 -> [ER-verified-0033.md](./ER-verified-0033.md)
 
 ---
 
-*Last Updated: 2026-02-20*
+*Last Updated: 2026-02-22*

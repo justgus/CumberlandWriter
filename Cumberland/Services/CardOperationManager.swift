@@ -24,6 +24,10 @@ final class CardOperationManager {
 
     private let modelContext: ModelContext
 
+    /// RelationshipManager reference for centralized edge operations (ER-0036)
+    /// Set after ServiceContainer initialization to avoid circular dependency.
+    var relationshipManager: RelationshipManager?
+
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
@@ -57,6 +61,12 @@ final class CardOperationManager {
     /// - Parameter card: The card to delete
     /// - Throws: SwiftData errors
     func deleteCard(_ card: Card) throws {
+        #if DEBUG
+        let outCount = card.outgoingEdges?.count ?? 0
+        let inCount = card.incomingEdges?.count ?? 0
+        print("[EdgeAudit] deleteCard: About to delete card '\(card.name)' (\(card.id)) with \(outCount) outgoing + \(inCount) incoming edges")
+        #endif
+
         // Clean up associated image files/caches and context-local related rows first
         card.cleanupBeforeDeletion(in: modelContext)
 
@@ -115,30 +125,46 @@ final class CardOperationManager {
     /// - Parameters:
     ///   - card: The card to modify
     ///   - newKind: The new card kind
+    /// - Returns: The number of edges deleted
     /// - Throws: SwiftData errors
-    func changeCardType(_ card: Card, to newKind: Kinds) throws {
-        guard newKind != card.kind else { return }
+    @discardableResult
+    func changeCardType(_ card: Card, to newKind: Kinds) throws -> Int {
+        guard newKind != card.kind else { return 0 }
 
-        // Fetch all edges where this card is either source or target
-        let cardID: UUID? = card.id
-        let fetchFrom = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
-        let fetchTo = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
+        // Use RelationshipManager's centralized removeAllEdges (ER-0036)
+        // This handles sentinel count decrements for all counterpart cards.
+        let totalEdges: Int
+        if let mgr = relationshipManager {
+            totalEdges = try mgr.removeAllEdges(for: card)
+        } else {
+            // Fallback: direct deletion (should not happen in normal app flow)
+            let cardID: UUID? = card.id
+            let fetchFrom = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
+            let fetchTo = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
 
-        let edgesFrom = (try? modelContext.fetch(fetchFrom)) ?? []
-        let edgesTo = (try? modelContext.fetch(fetchTo)) ?? []
+            let edgesFrom = (try? modelContext.fetch(fetchFrom)) ?? []
+            let edgesTo = (try? modelContext.fetch(fetchTo)) ?? []
 
-        // Delete all relationships
-        for edge in edgesFrom {
-            modelContext.delete(edge)
-        }
-        for edge in edgesTo {
-            modelContext.delete(edge)
+            #if DEBUG
+            print("[EdgeAudit] changeCardType(fallback): Card '\(card.name)' (\(card.id)) — deleting \(edgesFrom.count) outgoing + \(edgesTo.count) incoming edge(s)")
+            #endif
+
+            for edge in edgesFrom {
+                EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
+                modelContext.delete(edge)
+            }
+            for edge in edgesTo {
+                EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
+                modelContext.delete(edge)
+            }
+            totalEdges = edgesFrom.count + edgesTo.count
         }
 
         // Change the card type by updating the raw value
         card.kindRaw = newKind.rawValue
 
         try modelContext.save()
+        return totalEdges
     }
 
     // MARK: - Card Queries
