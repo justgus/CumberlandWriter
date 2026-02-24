@@ -33,6 +33,8 @@ struct CardSheetEditorArea: View {
     let onTextDrop: ([NSItemProvider]) -> Bool
     let onIndent: (Bool) -> Void  // isOutdent
 
+    @EnvironmentObject private var themeManager: ThemeManager
+
     private var isDetailsEditable: Bool {
         editorMode != .preview
     }
@@ -54,6 +56,7 @@ struct CardSheetEditorArea: View {
 
     @ViewBuilder
     private var editorStack: some View {
+        let theme = themeManager.currentTheme
         VStack(alignment: .leading, spacing: 8) {
             AdaptiveToolbar(items: toolbarItems)
                 .disabled(!isDetailsEditable)
@@ -73,8 +76,8 @@ struct CardSheetEditorArea: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(8)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(.regularMaterial)
+                theme.colors.surfaceSecondary.platformResolved.asBackground(
+                    cornerRadius: theme.shapes.panelCornerRadius, style: .continuous)
                     .allowsHitTesting(false)
             )
             .onDrop(of: Self.textDropTypes, isTargeted: nil) { providers in
@@ -99,6 +102,7 @@ struct CardSheetEditorArea: View {
 
     @ViewBuilder
     private var previewStack: some View {
+        let theme = themeManager.currentTheme
         Group {
             if !detailsDraft.isEmpty {
                 RichTextEditor(
@@ -110,8 +114,8 @@ struct CardSheetEditorArea: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(8)
                 .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(.regularMaterial)
+                    theme.colors.surfaceSecondary.platformResolved.asBackground(
+                        cornerRadius: theme.shapes.panelCornerRadius, style: .continuous)
                         .allowsHitTesting(false)
                 )
                 .contentShape(Rectangle())
@@ -122,13 +126,13 @@ struct CardSheetEditorArea: View {
                 }
             } else {
                 Text("No details yet.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
+                    .font(theme.fonts.body)
+                    .foregroundStyle(theme.colors.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
                     .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(.regularMaterial)
+                        theme.colors.surfaceSecondary.platformResolved.asBackground(
+                            cornerRadius: theme.shapes.panelCornerRadius, style: .continuous)
                             .allowsHitTesting(false)
                     )
                     .contentShape(Rectangle())

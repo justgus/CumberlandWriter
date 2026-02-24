@@ -31,6 +31,7 @@ struct MapWizardView: View {
     
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var themeManager: ThemeManager
     
     // MARK: - Wizard State
 
@@ -104,10 +105,12 @@ struct MapWizardView: View {
             .sheet(isPresented: $isFocusModeEnabled) {
                 focusedWorkSurface
                     .frame(minWidth: 1200, idealWidth: 1400, minHeight: 900, idealHeight: 1000)
+                    .environmentObject(themeManager)
             }
             #else
             .fullScreenCover(isPresented: $isFocusModeEnabled) {
                 focusedWorkSurface
+                    .environmentObject(themeManager)
             }
             #endif
             .onAppear {
@@ -186,6 +189,7 @@ struct MapWizardView: View {
                         #endif
                     }
                 )
+                .environmentObject(themeManager)
             }
     }
     
@@ -2114,34 +2118,37 @@ extension MapWizardView {
         
         var displayName: String {
             switch self {
-            case .standard:
-                return "Standard"
-            case .imagery:
-                return "Satellite"
-            case .hybrid:
-                return "Hybrid"
+            case .standard: return String(localized: "Standard")
+            case .imagery:  return String(localized: "Satellite")
+            case .hybrid:   return String(localized: "Hybrid")
             }
         }
     }
-    
+
     enum WizardStep: String, CaseIterable {
         // DR-0017: Welcome step removed (merged with Select Method)
         case selectMethod = "Select Method"
         case configure = "Configure"
         case finalize = "Finalize"
 
-        var title: String { rawValue }
+        var title: String {
+            switch self {
+            case .selectMethod: return String(localized: "Select Method")
+            case .configure:    return String(localized: "Configure")
+            case .finalize:     return String(localized: "Finalize")
+            }
+        }
     }
-    
+
     enum MapCreationMethod: String, CaseIterable, Identifiable {
         case importImage = "Import Image"
         case draw = "Draw Map"
         case interior = "Interior / Architectural"
         case captureFromMaps = "Capture from Maps"
         case aiGenerate = "AI Generate"
-        
+
         var id: String { rawValue }
-        
+
         var icon: String {
             switch self {
             case .importImage: return "photo.on.rectangle"
@@ -2151,14 +2158,14 @@ extension MapWizardView {
             case .aiGenerate: return "wand.and.stars"
             }
         }
-        
+
         var description: String {
             switch self {
-            case .importImage: return "Use an existing image file"
-            case .draw: return "Create with drawing tools"
-            case .interior: return "Floorplans, dungeons, caverns with grid presets"
-            case .captureFromMaps: return "Import from Apple Maps"
-            case .aiGenerate: return "Generate with AI assistance"
+            case .importImage:    return String(localized: "Use an existing image file")
+            case .draw:           return String(localized: "Create with drawing tools")
+            case .interior:       return String(localized: "Floorplans, dungeons, caverns with grid presets")
+            case .captureFromMaps: return String(localized: "Import from Apple Maps")
+            case .aiGenerate:     return String(localized: "Generate with AI assistance")
             }
         }
     }
@@ -2194,7 +2201,12 @@ extension MapWizardView {
         case feet = "Feet"
         case meters = "Meters"
         var id: String { rawValue }
-        var displayName: String { rawValue }
+        var displayName: String {
+            switch self {
+            case .feet:   return String(localized: "Feet")
+            case .meters: return String(localized: "Meters")
+            }
+        }
     }
     
     // MARK: - Draft Persistence Containers

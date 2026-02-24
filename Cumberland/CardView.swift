@@ -25,6 +25,7 @@ struct CardView: View {
     @State private var thumbnail: Image?
     @State private var showAIImageInfo: Bool = false
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     // MARK: - Tunable constants (adjust here later if needed)
     private let compactDetailLines: Int = 1
@@ -51,9 +52,11 @@ struct CardView: View {
     private let bottomTabOffsetX: CGFloat = -12
 
     var body: some View {
-        let cardShape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let theme = themeManager.currentTheme
+        let cardShape = RoundedRectangle(cornerRadius: theme.shapes.cardCornerRadius, style: .continuous)
         // Subtle drop shadow that adapts to color scheme
-        let shadowColor = Color.black.opacity(scheme == .dark ? 0.25 : 0.10)
+        let shadows = theme.shadows
+        let shadowColor = shadows.cardColor.opacity(scheme == .dark ? shadows.cardDarkOpacity : shadows.cardLightOpacity)
         // Allowance so the overlay tab that’s offset upward is included in the view’s height
         let tabTopAllowance = max(0, -tabOffsetTop)
         // Allowance so the bottom-trailing decoration tab that’s offset downward is included in the view’s height
@@ -62,17 +65,18 @@ struct CardView: View {
         HStack(alignment: .top, spacing: 12) {
             thumbnailView
                 .frame(width: thumbnailSide, height: thumbnailSide)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: theme.shapes.thumbnailCornerRadius, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(.quaternary, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: theme.shapes.thumbnailCornerRadius, style: .continuous)
+                        .stroke(theme.colors.border, lineWidth: 1)
                 }
                 .padding(.top, thumbnailTopPadding) // space from the tab
             
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(card.name)
-                        .font(.headline)
+                    Text(verbatim: card.name)
+                        .font(theme.fonts.headline)
+                        .foregroundStyle(theme.colors.textPrimary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                     
@@ -83,17 +87,17 @@ struct CardView: View {
                 
                 if let subtitleLine = subtitleAuthorLine, !subtitleLine.isEmpty {
                     Text(subtitleLine)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(theme.fonts.subheadline)
+                        .foregroundStyle(theme.colors.textSecondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .accessibilityLabel(accessibleSubtitleAuthorLabel)
                 }
-                
+
                 if !card.detailedText.isEmpty {
-                    Text(card.detailedText)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    Text(verbatim: card.detailedText)
+                        .font(theme.fonts.footnote)
+                        .foregroundStyle(theme.colors.textSecondary)
                         .lineLimit(detailLineLimit)
                         .truncationMode(.tail)
                 }
@@ -108,8 +112,8 @@ struct CardView: View {
         // Draw the card surface and give the card a subtle drop shadow
         .background(
             cardShape
-                .fill(.background)
-                .shadow(color: shadowColor, radius: 6, x: 0, y: 3)
+                .fill(theme.colors.cardBackground)
+                .shadow(color: shadowColor, radius: shadows.cardRadius - 2, x: shadows.cardX, y: shadows.cardY - 1)
         )
         // Cap the overall width so long text doesn’t try to render on one line
         .frame(maxWidth: maxCardWidth, alignment: .topLeading)
@@ -169,11 +173,12 @@ struct CardView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(card.name))
+        .accessibilityLabel(Text(verbatim: card.name))
         .accessibilityHint(Text(subtitleAuthorHint))
         // Present AI Image Info panel (ER-0009)
         .sheet(isPresented: $showAIImageInfo) {
             AIImageInfoView(card: card)
+                .environmentObject(themeManager)
         }
     } //end var body
 
@@ -393,6 +398,7 @@ struct CardViewActualSizeKey: PreferenceKey {
     }
     .padding()
     .modelContainer(for: Card.self, inMemory: true)
+    .environmentObject(ThemeManager())
 }
 
 #Preview("CardView - Scroll Context") {
@@ -413,4 +419,5 @@ struct CardViewActualSizeKey: PreferenceKey {
     }
     .frame(width: 420)
     .modelContainer(for: Card.self, inMemory: true)
+    .environmentObject(ThemeManager())
 }

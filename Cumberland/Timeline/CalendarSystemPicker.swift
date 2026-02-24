@@ -19,6 +19,7 @@ import SwiftData
 struct CalendarSystemPicker: View {
     @Binding var selection: CalendarSystem?
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @Query(filter: #Predicate<Card> { $0.kindRaw == "Calendars" }, sort: \Card.name, order: .forward)
     private var calendarCards: [Card]
@@ -118,6 +119,7 @@ struct CalendarSystemPicker: View {
         }
         .sheet(isPresented: $showCalendarEditor) {
             CalendarSystemEditor(calendar: calendarToEdit)
+                .environmentObject(themeManager)
         }
     }
 }

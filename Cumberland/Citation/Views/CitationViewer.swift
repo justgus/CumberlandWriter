@@ -14,6 +14,7 @@ struct CitationViewer: View {
     let card: Card
 
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var citations: [Citation] = []
     @State private var isShowingAddCitation: Bool = false
@@ -99,6 +100,7 @@ struct CitationViewer: View {
                 reloadCitations()
             }
             .frame(minWidth: 420, minHeight: 360)
+            .environmentObject(themeManager)
         }
         .sheet(
             isPresented: Binding(
@@ -111,6 +113,7 @@ struct CitationViewer: View {
                     reloadCitations()
                 }
                 .frame(minWidth: 420, minHeight: 360)
+                .environmentObject(themeManager)
             } else {
                 EmptyView()
                     .frame(minWidth: 420, minHeight: 360)

@@ -14,6 +14,7 @@ import SwiftUI
 
 private struct GlassButtonModifier: ViewModifier {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.themeManager) private var themeManager
     @State private var hovering: Bool = false
 
     var cornerRadius: CGFloat = 8
@@ -21,31 +22,36 @@ private struct GlassButtonModifier: ViewModifier {
     var prominent: Bool = false
 
     func body(content: Content) -> some View {
+        let theme = themeManager.currentTheme
+        let fill = prominent ? theme.colors.surfaceGlassProminent : theme.colors.surfaceGlass
+        let shadows = theme.shadows
+
         content
             .padding(padding)
             .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    // Slightly heavier material when "prominent"
-                    .fill(prominent ? .thinMaterial : .ultraThinMaterial)
+                fill.platformResolved.asBackground(
+                    cornerRadius: cornerRadius, style: .continuous)
                     .allowsHitTesting(false)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(.white.opacity(scheme == .dark ? 0.20 : 0.30), lineWidth: 0.75)
+                    .stroke(theme.colors.highlightHairline.opacity(
+                        scheme == .dark ? theme.colors.highlightHairlineDarkOpacity
+                                       : theme.colors.highlightHairlineLightOpacity
+                    ), lineWidth: 0.75)
                     .blendMode(.overlay)
                     .allowsHitTesting(false)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(.quaternary.opacity(0.6), lineWidth: 0.5)
+                    .stroke(theme.colors.border.opacity(0.6), lineWidth: 0.5)
                     .allowsHitTesting(false)
             )
-            // Slightly stronger shadow/scale when prominent or hovering
             .shadow(
-                color: .black.opacity(scheme == .dark ? 0.28 : 0.12),
-                radius: (prominent ? 6 : 4) + (hovering ? 2 : 0),
-                x: 0,
-                y: (prominent ? 3 : 2) + (hovering ? 1 : 0)
+                color: shadows.cardColor.opacity(scheme == .dark ? shadows.cardDarkOpacity : shadows.cardLightOpacity),
+                radius: (prominent ? 6 : 4) + (hovering ? shadows.hoverRadiusBoost : 0),
+                x: shadows.cardX,
+                y: (prominent ? 3 : 2) + (hovering ? shadows.hoverYBoost / 2 : 0)
             )
             .scaleEffect(hovering ? (prominent ? 1.03 : 1.02) : 1.0)
             .animation(.easeInOut(duration: 0.12), value: hovering)
@@ -73,6 +79,7 @@ public extension View {
 
 private struct GlassSurfaceModifier: ViewModifier {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.themeManager) private var themeManager
     let cornerRadius: CGFloat
     let tint: Color
     let interactive: Bool
@@ -80,10 +87,13 @@ private struct GlassSurfaceModifier: ViewModifier {
     @State private var hovering: Bool = false
 
     func body(content: Content) -> some View {
+        let theme = themeManager.currentTheme
+        let shadows = theme.shadows
+
         content
             .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                theme.colors.surfaceGlass.platformResolved.asBackground(
+                    cornerRadius: cornerRadius, style: .continuous)
                     .allowsHitTesting(false)
             )
             .overlay(
@@ -106,17 +116,25 @@ private struct GlassSurfaceModifier: ViewModifier {
             .overlay(
                 // Inner highlight hairline
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(.white.opacity(scheme == .dark ? 0.20 : 0.35), lineWidth: 0.75)
+                    .stroke(theme.colors.highlightHairline.opacity(
+                        scheme == .dark ? theme.colors.highlightHairlineDarkOpacity
+                                       : theme.colors.highlightHairlineLightOpacity + 0.05
+                    ), lineWidth: 0.75)
                     .blendMode(.overlay)
                     .allowsHitTesting(false)
             )
             .overlay(
                 // Outer subtle keyline to define edges on busy backgrounds
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(.quaternary.opacity(0.6), lineWidth: 0.5)
+                    .stroke(theme.colors.border.opacity(0.6), lineWidth: 0.5)
                     .allowsHitTesting(false)
             )
-            .shadow(color: .black.opacity(scheme == .dark ? 0.28 : 0.10), radius: interactive ? (hovering ? 10 : 8) : 8, x: 0, y: interactive ? (hovering ? 6 : 4) : 4)
+            .shadow(
+                color: shadows.cardColor.opacity(scheme == .dark ? shadows.cardDarkOpacity : shadows.cardLightOpacity),
+                radius: interactive ? (hovering ? shadows.cardRadius + shadows.hoverRadiusBoost : shadows.cardRadius) : shadows.cardRadius,
+                x: shadows.cardX,
+                y: interactive ? (hovering ? shadows.cardY + shadows.hoverYBoost : shadows.cardY) : shadows.cardY
+            )
             .scaleEffect(interactive && hovering ? 1.01 : 1.0)
             .animation(.easeInOut(duration: 0.15), value: hovering)
             .onHoverIfAvailable { hovering = interactive ? $0 : false }
@@ -133,6 +151,7 @@ public extension View {
 
 public struct GlassEffectContainer<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
     private let spacing: CGFloat
     private let cornerRadius: CGFloat
     private let content: Content
@@ -144,28 +163,34 @@ public struct GlassEffectContainer<Content: View>: View {
     }
 
     public var body: some View {
+        let theme = themeManager.currentTheme
+        let shadows = theme.shadows
+
         HStack(spacing: spacing) {
             content
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 8)
+        .padding(.vertical, theme.spacing.buttonPaddingVertical)
+        .padding(.horizontal, theme.spacing.buttonPaddingHorizontal)
         .background(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(.thinMaterial)
+            theme.colors.surfaceGlassProminent.platformResolved.asBackground(
+                cornerRadius: cornerRadius, style: .continuous)
                 .allowsHitTesting(false)
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(.white.opacity(scheme == .dark ? 0.18 : 0.28), lineWidth: 0.75)
+                .stroke(theme.colors.highlightHairline.opacity(
+                    scheme == .dark ? theme.colors.highlightHairlineDarkOpacity - 0.02
+                                   : theme.colors.highlightHairlineLightOpacity - 0.02
+                ), lineWidth: 0.75)
                 .blendMode(.overlay)
                 .allowsHitTesting(false)
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(.quaternary.opacity(0.6), lineWidth: 0.5)
+                .stroke(theme.colors.border.opacity(0.6), lineWidth: 0.5)
                 .allowsHitTesting(false)
         )
-        .shadow(color: .black.opacity(scheme == .dark ? 0.22 : 0.08), radius: 6, x: 0, y: 3)
+        .shadow(color: shadows.cardColor.opacity(scheme == .dark ? shadows.cardDarkOpacity - 0.06 : shadows.cardLightOpacity - 0.02), radius: 6, x: 0, y: 3)
     }
 }
 
@@ -173,6 +198,7 @@ public struct GlassEffectContainer<Content: View>: View {
 
 public struct GlassFormSection<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     private let title: String
     private let footer: String?
@@ -190,15 +216,16 @@ public struct GlassFormSection<Content: View>: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let theme = themeManager.currentTheme
+        VStack(alignment: .leading, spacing: theme.spacing.sectionSpacing) {
             // Header
             HStack(spacing: 8) {
                 Circle()
                     .fill(tint.opacity(0.9))
                     .frame(width: 8, height: 8)
                 Text(title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+                    .font(theme.fonts.headline)
+                    .foregroundStyle(theme.colors.textPrimary)
             }
             .padding(.horizontal, 6)
             .padding(.top, 6)
@@ -207,13 +234,13 @@ public struct GlassFormSection<Content: View>: View {
             VStack(spacing: 0) {
                 content
             }
-            .glassSurfaceStyle(cornerRadius: 12, tint: tint.opacity(0.25), interactive: true)
+            .glassSurfaceStyle(cornerRadius: theme.shapes.panelCornerRadius, tint: tint.opacity(0.25), interactive: true)
 
             // Footer
             if let footer, !footer.isEmpty {
                 Text(footer)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .font(theme.fonts.footnote)
+                    .foregroundStyle(theme.colors.textSecondary)
                     .padding(.top, 6)
                     .padding(.horizontal, 6)
             }

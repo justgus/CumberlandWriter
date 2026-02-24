@@ -430,7 +430,7 @@ struct SidebarCardRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 // Card name with optional pin indicator
                 HStack(spacing: 4) {
-                    Text(card.name)
+                    Text(verbatim: card.name)
                         .font(.subheadline)
                         .foregroundStyle(.primary)
                         .lineLimit(2)
@@ -445,7 +445,7 @@ struct SidebarCardRow: View {
                 // Subtitle + metadata row
                 HStack(spacing: 6) {
                     if !card.subtitle.isEmpty {
-                        Text(card.subtitle)
+                        Text(verbatim: card.subtitle)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -521,7 +521,7 @@ struct SidebarCardRow: View {
                     .font(.title3)
                     .foregroundStyle(card.kind.accentColor(for: scheme))
 
-                Text(card.name)
+                Text(verbatim: card.name)
                     .font(.subheadline)
                     .lineLimit(1)
 

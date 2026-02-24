@@ -18,8 +18,10 @@ struct GlassDropZone: View {
     let label: String
 
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
+        let theme = themeManager.currentTheme
         ZStack {
             // Transparent spacer to reserve inset
             Color.clear
@@ -30,13 +32,16 @@ struct GlassDropZone: View {
                 .fill(.ultraThinMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(.white.opacity(scheme == .dark ? 0.20 : 0.32), lineWidth: 0.75)
+                        .stroke(theme.colors.highlightHairline.opacity(
+                            scheme == .dark ? theme.colors.highlightHairlineDarkOpacity
+                                           : theme.colors.highlightHairlineLightOpacity + 0.02
+                        ), lineWidth: 0.75)
                         .blendMode(.overlay)
                 )
                 .overlay(
                     // Glow when targeted
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(Color.accentColor.opacity(isTargeted ? 0.8 : 0.0), lineWidth: 2.0)
+                        .stroke(theme.colors.accentPrimary.opacity(isTargeted ? 0.8 : 0.0), lineWidth: 2.0)
                         .blur(radius: isTargeted ? 3 : 0)
                         .animation(.easeInOut(duration: 0.15), value: isTargeted)
                 )
@@ -45,10 +50,10 @@ struct GlassDropZone: View {
                 .overlay(
                     HStack(spacing: 8) {
                         Image(systemName: "tray.and.arrow.down")
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(theme.colors.accentPrimary)
                         Text(label)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .font(theme.fonts.footnote)
+                            .foregroundStyle(theme.colors.textSecondary)
                         Spacer(minLength: 0)
                     }
                     .padding(.horizontal, contentPadding)

@@ -23,6 +23,7 @@ struct FullSizeImageViewer: View {
     let card: Card
     let pendingImageData: Data? // Optional pending image data from editor (not yet saved to card)
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0

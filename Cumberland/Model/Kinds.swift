@@ -41,27 +41,46 @@ enum Kinds: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         .maps, .locations, .buildings, .vehicles, .artifacts, .chronicles, .rules, .sources, .structure
     ]
 
-    var title: String { rawValue }
+    var title: String {
+        switch self {
+        case .projects:   return String(localized: "Projects")
+        case .worlds:     return String(localized: "Worlds")
+        case .characters: return String(localized: "Characters")
+        case .chapters:   return String(localized: "Chapters")
+        case .scenes:     return String(localized: "Scenes")
+        case .timelines:  return String(localized: "Timelines")
+        case .calendars:  return String(localized: "Calendars")
+        case .maps:       return String(localized: "Maps")
+        case .locations:  return String(localized: "Locations")
+        case .buildings:  return String(localized: "Buildings")
+        case .vehicles:   return String(localized: "Vehicles")
+        case .artifacts:  return String(localized: "Artifacts")
+        case .chronicles: return String(localized: "Chronicles")
+        case .rules:      return String(localized: "Rules")
+        case .sources:    return String(localized: "Sources")
+        case .structure:  return String(localized: "Structure")
+        }
+    }
 
     // Singular display name for button labels and other contexts.
     var singularTitle: String {
         switch self {
-        case .projects:   return "Project"
-        case .worlds:     return "World"
-        case .characters: return "Character"
-        case .chapters:   return "Chapter"
-        case .scenes:     return "Scene"
-        case .timelines:  return "Timeline"
-        case .calendars:  return "Calendar"
-        case .maps:       return "Map"
-        case .locations:  return "Location"
-        case .buildings:  return "Building"
-        case .vehicles:   return "Vehicle"
-        case .artifacts:  return "Artifact"
-        case .chronicles: return "Chronicle"
-        case .rules:      return "Rule"
-        case .sources:    return "Source"
-        case .structure:  return "Structure"
+        case .projects:   return String(localized: "Project")
+        case .worlds:     return String(localized: "World")
+        case .characters: return String(localized: "Character")
+        case .chapters:   return String(localized: "Chapter")
+        case .scenes:     return String(localized: "Scene")
+        case .timelines:  return String(localized: "Timeline")
+        case .calendars:  return String(localized: "Calendar")
+        case .maps:       return String(localized: "Map")
+        case .locations:  return String(localized: "Location")
+        case .buildings:  return String(localized: "Building")
+        case .vehicles:   return String(localized: "Vehicle")
+        case .artifacts:  return String(localized: "Artifact")
+        case .chronicles: return String(localized: "Chronicle")
+        case .rules:      return String(localized: "Rule")
+        case .sources:    return String(localized: "Source")
+        case .structure:  return String(localized: "Structure")
         }
     }
 

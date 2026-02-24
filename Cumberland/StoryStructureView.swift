@@ -15,6 +15,7 @@ import SwiftData
 
 struct StoryStructureView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var themeManager: ThemeManager
     @Query(sort: \StoryStructure.name, order: .forward) private var structures: [StoryStructure]
 
     // Use a stable UUID-based selection to avoid Hashable conformance on @Model classes.
@@ -57,9 +58,11 @@ struct StoryStructureView: View {
         .navigationTitle("Story Structures")
         .sheet(isPresented: $showingNewStructureSheet) {
             NewStructureSheet()
+                .environmentObject(themeManager)
         }
         .sheet(isPresented: $showingTemplateSheet) {
             StructureTemplateSheet()
+                .environmentObject(themeManager)
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -99,7 +102,7 @@ struct StoryStructureView: View {
                 ForEach(structures) { structure in
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(structure.name)
+                            Text(verbatim: structure.name)
                                 .font(.callout)
                                 .lineLimit(1)
                                 .truncationMode(.middle)

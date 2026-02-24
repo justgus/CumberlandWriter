@@ -20,7 +20,17 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
     case mapWizard = "Map Wizard" // Map creation/editing wizard (Maps only)
 
     var id: String { rawValue }
-    var title: String { rawValue }
+    var title: String {
+        switch self {
+        case .details:       return String(localized: "Details")
+        case .relationships: return String(localized: "Relationships")
+        case .citations:     return String(localized: "Citations")
+        case .aggregateText: return String(localized: "Aggregate")
+        case .board:         return String(localized: "Board")
+        case .timeline:      return String(localized: "Timeline")
+        case .mapWizard:     return String(localized: "Map Wizard")
+        }
+    }
 
     var systemImage: String {
         switch self {
@@ -36,13 +46,13 @@ enum CardDetailTab: String, CaseIterable, Identifiable {
 
     var helpText: String {
         switch self {
-        case .details: return "Show Details"
-        case .relationships: return "Manage Relationships"
-        case .citations: return "Manage Citations"
-        case .aggregateText: return "Aggregate Text"
-        case .board: return "Board"
-        case .timeline: return "Timeline Visualization"
-        case .mapWizard: return "Create or Edit Map"
+        case .details:       return String(localized: "Show Details")
+        case .relationships: return String(localized: "Manage Relationships")
+        case .citations:     return String(localized: "Manage Citations")
+        case .aggregateText: return String(localized: "Aggregate Text")
+        case .board:         return String(localized: "Board")
+        case .timeline:      return String(localized: "Timeline Visualization")
+        case .mapWizard:     return String(localized: "Create or Edit Map")
         }
     }
 

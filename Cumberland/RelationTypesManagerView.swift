@@ -14,6 +14,7 @@ import SwiftData
 struct RelationTypesManagerView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @Query(sort: \RelationType.code, order: .forward)
     private var types: [RelationType]
@@ -59,12 +60,14 @@ struct RelationTypesManagerView: View {
                 isPresentingNew = false
             }
             .frame(minWidth: 480, minHeight: 420)
+            .environmentObject(themeManager)
         }
         .sheet(item: $editing) { type in
             RelationTypeFormView(mode: .edit(type)) { _ in
                 editing = nil
             }
             .frame(minWidth: 480, minHeight: 420)
+            .environmentObject(themeManager)
         }
         .sheet(item: $reassignSource) { src in
             ReassignRelationTypeSheet(source: src) { didReassign in
@@ -73,6 +76,7 @@ struct RelationTypesManagerView: View {
                 }
             }
             .frame(minWidth: 520, minHeight: 380)
+            .environmentObject(themeManager)
         }
         .alert("Delete Relation Type?", isPresented: $showDeleteAlert, presenting: toDelete) { type in
             Button("Cancel", role: .cancel) { toDelete = nil }

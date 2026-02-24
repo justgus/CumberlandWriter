@@ -39,6 +39,7 @@ struct CardSheetView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.undoManager) private var undoManager
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var themeManager: ThemeManager
 
     // MARK: - Image State
     @State private var fullImage: Image?
@@ -130,10 +131,12 @@ struct CardSheetView: View {
                     onSkip: {}
                 )
                 .frame(minWidth: 420, minHeight: 360)
+                .environmentObject(themeManager)
             }
             .applyFullSizeImageViewer(isPresented: $showFullSizeImage, card: card)
             .sheet(isPresented: $showAIImageInfo) {
                 AIImageInfoView(card: card)
+                    .environmentObject(themeManager)
             }
             .applyImporters(
                 isImportingImage: $isImportingImage,
@@ -154,10 +157,10 @@ struct CardSheetView: View {
 
     @ViewBuilder
     private var mainContent: some View {
+        let theme = themeManager.currentTheme
         ZStack {
             #if !os(visionOS)
-            Rectangle()
-                .fill(.ultraThinMaterial)
+            theme.colors.surfacePrimary.platformResolved.asBackground()
                 .ignoresSafeArea()
             #endif
 
@@ -726,6 +729,9 @@ private extension View {
 
     @ViewBuilder
     func applyFullSizeImageViewer(isPresented: Binding<Bool>, card: Card) -> some View {
+        // Note: .environmentObject cannot be injected here (private extension, no access to themeManager).
+        // The parent view's environmentObject propagates into sheet content on most platforms,
+        // but for full reliability, callers should ensure themeManager is in the environment.
         #if os(macOS)
         self.sheet(isPresented: isPresented) {
             FullSizeImageViewer(card: card, pendingImageData: nil)

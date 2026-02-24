@@ -19,10 +19,10 @@ enum CitationKind: String, Codable, Identifiable, CaseIterable, Hashable {
 
     var displayName: String {
         switch self {
-        case .quote:      return "Quote"
-        case .paraphrase: return "Paraphrase"
-        case .image:      return "Image"
-        case .data:       return "Data"
+        case .quote:      return String(localized: "Quote")
+        case .paraphrase: return String(localized: "Paraphrase")
+        case .image:      return String(localized: "Image")
+        case .data:       return String(localized: "Data")
         } //end switch
     } //end displayName
     

@@ -22,6 +22,7 @@ struct TimelineChartView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
     #if os(macOS) || os(visionOS)
     @Environment(\.openWindow) private var openWindow
     #endif
@@ -223,6 +224,7 @@ struct TimelineChartView: View {
             #else
             .frame(minWidth: 420, minHeight: 420)
             #endif
+            .environmentObject(themeManager)
         }
         #if os(iOS)
         // iOS: Use sheet presentation (works fine)
@@ -241,6 +243,7 @@ struct TimelineChartView: View {
                         await loadData()
                     }
                 }
+                .environmentObject(themeManager)
             }
         }
         #else

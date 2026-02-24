@@ -27,10 +27,10 @@ struct CardDiagnosticsView: View {
                     Text(card.kind.title)
                         .font(.title3).bold()
                 }
-                Text(card.name)
+                Text(verbatim: card.name)
                     .font(.title2)
                 if !card.subtitle.isEmpty {
-                    Text(card.subtitle)
+                    Text(verbatim: card.subtitle)
                         .foregroundStyle(.secondary)
                 }
 
@@ -61,7 +61,7 @@ struct CardDiagnosticsView: View {
                 // Details
                 if !card.detailedText.isEmpty {
                     Divider()
-                    Text(card.detailedText)
+                    Text(verbatim: card.detailedText)
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
 

@@ -34,6 +34,7 @@ struct AIImageGenerationView: View {
     let onImageGenerated: (GeneratedImageData) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var themeManager: ThemeManager
 
     /// Check if ImagePlayground is supported (iOS 18.1+, macOS 15.1+)
     #if canImport(ImagePlayground)
@@ -354,6 +355,7 @@ struct AIImageGenerationView: View {
                 ) { elements in
                     handleReviewedElements(elements)
                 }
+                .environmentObject(themeManager)
             }
         }
         .onChange(of: showVisualElementReview) { _, isShowing in

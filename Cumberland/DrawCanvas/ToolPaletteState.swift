@@ -76,7 +76,12 @@ class ToolPaletteState: Codable {
         }
 
         /// Display name for this tab
-        var displayName: String { rawValue }
+        var displayName: String {
+            switch self {
+            case .tools:  return String(localized: "Tools")
+            case .layers: return String(localized: "Layers")
+            }
+        }
     }
 
     // MARK: - Helper Methods

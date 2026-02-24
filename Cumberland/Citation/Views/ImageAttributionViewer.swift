@@ -14,6 +14,7 @@ struct ImageAttributionViewer: View {
     let card: Card
 
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var imageCitations: [Citation] = []
     @State private var isShowingAddAttribution: Bool = false
@@ -81,12 +82,14 @@ struct ImageAttributionViewer: View {
                 reloadImageCitations()
             }
             .frame(minWidth: 420, minHeight: 360)
+            .environmentObject(themeManager)
         }
         .sheet(item: $editingAttribution) { c in
             ImageAttributionEditor(card: card, citation: c) { _ in
                 reloadImageCitations()
             }
             .frame(minWidth: 420, minHeight: 360)
+            .environmentObject(themeManager)
         }
     }
     

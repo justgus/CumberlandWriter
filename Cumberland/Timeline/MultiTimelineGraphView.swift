@@ -17,6 +17,7 @@ struct MultiTimelineGraphView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     // All timelines using this calendar
     @State private var allTimelines: [Card] = []
@@ -121,6 +122,7 @@ struct MultiTimelineGraphView: View {
                         }
                     }
                 }
+                .environmentObject(themeManager)
             }
         }
     }

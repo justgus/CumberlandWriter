@@ -12,6 +12,7 @@ import SwiftData
 
 struct SourcesView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var themeManager: ThemeManager
     @Query(sort: \Source.title, order: .forward) private var sources: [Source]
 
     @State private var selection: Source?
@@ -28,6 +29,7 @@ struct SourcesView: View {
                 selection = created
             }
             .frame(minWidth: 520, minHeight: 420)
+            .environmentObject(themeManager)
         }
     }
     
@@ -138,7 +140,7 @@ private struct SourceRowView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(source.title)
+            Text(verbatim: source.title)
                 .font(.headline)
                 .lineLimit(2)
             

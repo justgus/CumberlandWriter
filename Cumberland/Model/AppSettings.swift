@@ -18,9 +18,9 @@ enum ColorSchemePreference: String, Codable, CaseIterable, Hashable, Sendable {
 
     var displayName: String {
         switch self {
-        case .system: return "System"
-        case .light:  return "Light"
-        case .dark:   return "Dark"
+        case .system: return String(localized: "System")
+        case .light:  return String(localized: "Light")
+        case .dark:   return String(localized: "Dark")
         }
     }
 

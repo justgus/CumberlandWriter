@@ -32,6 +32,9 @@ struct CumberlandApp: App {
     // ER-0022 Phase 4: Service container for dependency injection
     @State private var serviceContainer: ServiceContainer?
 
+    // ER-0037: Theme manager for theming system
+    @StateObject private var themeManager = ThemeManager()
+
     // Build the app's SwiftData container using your schema.
     // If opening the on-disk store fails, we fall back to local on-disk, then in-memory.
     private static func makeContainer() -> ModelContainer {
@@ -168,9 +171,10 @@ struct CumberlandApp: App {
                 .environment(appModel)
                 .modelContainer(modelContainer)
                 .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 #if os(macOS)
-                .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
+                .toolbarBackground(themeManager.currentTheme.colors.surfaceGlass.toolbarShapeStyle, for: .windowToolbar)
                 .toolbarBackground(.visible, for: .windowToolbar)
                 // Persist/restore window frame and state
                 .background(WindowStateBridge(id: "mainWindow",
@@ -267,6 +271,7 @@ struct CumberlandApp: App {
                     .environment(appModel)
                     .modelContainer(modelContainer)
                     .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
+                    .themeEnvironment(themeManager)
                     .preferredColorScheme(appPreferredColorScheme)
             }
         }
@@ -279,6 +284,7 @@ struct CumberlandApp: App {
             SettingsView()
                 .modelContainer(modelContainer)
                 .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 640)
         }
@@ -292,6 +298,7 @@ struct CumberlandApp: App {
             DeveloperToolsView()
                 .modelContainer(modelContainer)
                 .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 520, minHeight: 480)
         }
@@ -306,6 +313,7 @@ struct CumberlandApp: App {
             SettingsView()
                 .modelContainer(modelContainer)
                 .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 520, minHeight: 380)
         }
@@ -314,6 +322,7 @@ struct CumberlandApp: App {
         // About window scene for macOS
         Window("About Cumberland", id: "about") {
             AboutView()
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 420, minHeight: 260)
         }
@@ -325,6 +334,7 @@ struct CumberlandApp: App {
             DeveloperToolsView()
                 .modelContainer(modelContainer)
                 .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 600, minHeight: 500)
         }
@@ -339,6 +349,7 @@ struct CumberlandApp: App {
                 TemporalEditorWindowView(editorRequest: request)
                     .modelContainer(modelContainer)
                     .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
+                    .themeEnvironment(themeManager)
                     .preferredColorScheme(appPreferredColorScheme)
             }
         }
@@ -350,24 +361,28 @@ struct CumberlandApp: App {
         // Existing sample-backed diagnostics
         Window("Diagnostics: Swimlane Viewer", id: "dev.swimlane") {
             DevSwimlaneWindow()
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 960, minHeight: 560)
         }
 
         Window("Diagnostics: Card Relationship", id: "dev.cardRelationship") {
             DevCardRelationshipWindow()
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 880, minHeight: 560)
         }
 
         Window("Diagnostics: Card Sheet", id: "dev.cardSheet") {
             DevCardSheetWindow()
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 560)
         }
 
         Window("Diagnostics: Image Attribution", id: "dev.imageAttribution") {
             DevImageAttributionWindow()
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 560, minHeight: 460)
         }
@@ -376,6 +391,7 @@ struct CumberlandApp: App {
         Window("Diagnostics: Recent Edges", id: "dev.recentEdges") {
             RecentEdgesDiagnosticsView()
                 .modelContainer(modelContainer) // live container
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 520)
         }
@@ -383,6 +399,7 @@ struct CumberlandApp: App {
         Window("Diagnostics: Relation Types", id: "dev.relationTypes") {
             RelationTypesDiagnosticsView()
                 .modelContainer(modelContainer) // live container
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 520)
         }
@@ -391,6 +408,7 @@ struct CumberlandApp: App {
         Window("Diagnostics: Story Structure", id: "dev.storyStructure") {
             StoryStructureDiagnosticsView()
                 .modelContainer(modelContainer) // live container
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 520)
         }
@@ -399,6 +417,7 @@ struct CumberlandApp: App {
         Window("Diagnostics: Scene → Project Relations", id: "dev.sceneProjectRelations") {
             SceneProjectRelationDiagnosticsView()
                 .modelContainer(modelContainer) // live container
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 520)
         }
@@ -407,6 +426,7 @@ struct CumberlandApp: App {
         Window("Diagnostics: Fix Incomplete Relationships", id: "dev.fixInverseEdges") {
             FixIncompleteRelationshipsView()
                 .modelContainer(modelContainer) // live container
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 780, minHeight: 560)
         }
@@ -415,6 +435,7 @@ struct CumberlandApp: App {
         Window("Diagnostics: Boards", id: "dev.boards") {
             DeveloperBoardsView()
                 .modelContainer(modelContainer) // live container
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 920, minHeight: 560)
         }
@@ -423,6 +444,7 @@ struct CumberlandApp: App {
         Window("Fix CalendarSystem Relationships (DR-0065)", id: "dev.fixCalendarRelationships") {
             CalendarSystemCleanupView()
                 .modelContainer(modelContainer) // live container
+                .themeEnvironment(themeManager)
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 640, minHeight: 560)
         }
@@ -627,8 +649,8 @@ extension CumberlandApp {
             }
             let t = RelationType(
                 code: s.code,
-                forwardLabel: s.forward,
-                inverseLabel: s.inverse,
+                forwardLabel: String(localized: String.LocalizationValue(s.forward)),
+                inverseLabel: String(localized: String.LocalizationValue(s.inverse)),
                 sourceKind: s.source,
                 targetKind: s.target
             )

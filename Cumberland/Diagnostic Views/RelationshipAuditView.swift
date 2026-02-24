@@ -127,7 +127,7 @@ struct RelationshipAuditView: View {
                             Text("\(group.name) (\(group.kind)) — \(group.cards.count) copies")
                                 .font(.caption.bold())
 
-                            ForEach(Array(group.cards.enumerated()), id: \.element.card.id) { index, info in
+                            ForEach(Array(group.cards.enumerated()), id: \.offset) { index, info in
                                 HStack(spacing: 8) {
                                     if index == 0 {
                                         Image(systemName: "star.fill")
@@ -476,25 +476,40 @@ struct RelationshipAuditView: View {
     }
 
     private func deleteDuplicateCard(_ card: Card, keepingPrimary primary: Card) {
-        // Move any edges from the duplicate to the primary if they don't already exist
+        // Use persistentModelID to distinguish cards that may share the same UUID
+        let dupePersistentID = card.persistentModelID
+        let primaryPersistentID = primary.persistentModelID
+        let sameUUID = (card.id == primary.id)
+
+        // Fetch ALL edges referencing the duplicate's UUID
         let dupeID: UUID? = card.id
         let outFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == dupeID })
         let inFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == dupeID })
         let outEdges = (try? modelContext.fetch(outFetch)) ?? []
         let inEdges = (try? modelContext.fetch(inFetch)) ?? []
 
+        // When cards share UUID, filter to only edges that belong to the duplicate by object identity
+        let dupeOutEdges = sameUUID ? outEdges.filter { $0.from?.persistentModelID == dupePersistentID } : outEdges
+        let dupeInEdges = sameUUID ? inEdges.filter { $0.to?.persistentModelID == dupePersistentID } : inEdges
+
         var migrated = 0
-        let primaryID: UUID? = primary.id
 
         // Migrate outgoing edges: duplicate→target becomes primary→target (if not already there)
-        for edge in outEdges {
+        for edge in dupeOutEdges {
             guard let target = edge.to, let edgeType = edge.type else { continue }
-            let targetID: UUID? = target.id
-            let typeCode: String? = edgeType.code
-            let existsFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
-                $0.from?.id == primaryID && $0.to?.id == targetID && $0.type?.code == typeCode
-            })
-            let alreadyExists = ((try? modelContext.fetch(existsFetch))?.isEmpty == false)
+            // Check if primary already has this edge (by object identity for same-UUID case)
+            let primaryOutEdges = sameUUID
+                ? outEdges.filter { $0.from?.persistentModelID == primaryPersistentID }
+                : { () -> [CardEdge] in
+                    let primaryID: UUID? = primary.id
+                    let targetID: UUID? = target.id
+                    let typeCode: String? = edgeType.code
+                    let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
+                        $0.from?.id == primaryID && $0.to?.id == targetID && $0.type?.code == typeCode
+                    })
+                    return (try? modelContext.fetch(fetch)) ?? []
+                }()
+            let alreadyExists = primaryOutEdges.contains { $0.to?.persistentModelID == target.persistentModelID && $0.type?.code == edgeType.code }
             if !alreadyExists {
                 let newEdge = CardEdge(from: primary, to: target, type: edgeType, note: edge.note, createdAt: edge.createdAt)
                 modelContext.insert(newEdge)
@@ -504,14 +519,20 @@ struct RelationshipAuditView: View {
         }
 
         // Migrate incoming edges: source→duplicate becomes source→primary (if not already there)
-        for edge in inEdges {
+        for edge in dupeInEdges {
             guard let source = edge.from, let edgeType = edge.type else { continue }
-            let sourceID: UUID? = source.id
-            let typeCode: String? = edgeType.code
-            let existsFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
-                $0.from?.id == sourceID && $0.to?.id == primaryID && $0.type?.code == typeCode
-            })
-            let alreadyExists = ((try? modelContext.fetch(existsFetch))?.isEmpty == false)
+            let primaryInEdges = sameUUID
+                ? inEdges.filter { $0.to?.persistentModelID == primaryPersistentID }
+                : { () -> [CardEdge] in
+                    let primaryID: UUID? = primary.id
+                    let sourceID: UUID? = source.id
+                    let typeCode: String? = edgeType.code
+                    let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
+                        $0.from?.id == sourceID && $0.to?.id == primaryID && $0.type?.code == typeCode
+                    })
+                    return (try? modelContext.fetch(fetch)) ?? []
+                }()
+            let alreadyExists = primaryInEdges.contains { $0.from?.persistentModelID == source.persistentModelID && $0.type?.code == edgeType.code }
             if !alreadyExists {
                 let newEdge = CardEdge(from: source, to: primary, type: edgeType, note: edge.note, createdAt: edge.createdAt)
                 modelContext.insert(newEdge)
@@ -540,77 +561,22 @@ struct RelationshipAuditView: View {
             return
         }
 
-        actionResult = "Deleted duplicate '\(cardName)', migrated \(migrated) edge(s) to primary"
+        actionResult = "Deleted duplicate '\(cardName)' (sameUUID: \(sameUUID)), migrated \(migrated) edge(s) to primary"
         runAudit()
     }
 
     private func deleteAllDuplicates() {
         var totalDeleted = 0
-        var totalMigrated = 0
 
         for group in duplicateGroups {
             let primary = group.cards[0].card
             for info in group.cards.dropFirst() {
-                let dupeID: UUID? = info.card.id
-                let outFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == dupeID })
-                let inFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == dupeID })
-                let outEdges = (try? modelContext.fetch(outFetch)) ?? []
-                let inEdges = (try? modelContext.fetch(inFetch)) ?? []
-                let primaryID: UUID? = primary.id
-
-                for edge in outEdges {
-                    guard let target = edge.to, let edgeType = edge.type else { continue }
-                    let targetID: UUID? = target.id
-                    let typeCode: String? = edgeType.code
-                    let existsFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
-                        $0.from?.id == primaryID && $0.to?.id == targetID && $0.type?.code == typeCode
-                    })
-                    if (try? modelContext.fetch(existsFetch))?.isEmpty ?? true {
-                        let newEdge = CardEdge(from: primary, to: target, type: edgeType, note: edge.note, createdAt: edge.createdAt)
-                        modelContext.insert(newEdge)
-                        EdgeIntegrityMonitor.incrementCounts(source: primary, target: target)
-                        totalMigrated += 1
-                    }
-                }
-
-                for edge in inEdges {
-                    guard let source = edge.from, let edgeType = edge.type else { continue }
-                    let sourceID: UUID? = source.id
-                    let typeCode: String? = edgeType.code
-                    let existsFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
-                        $0.from?.id == sourceID && $0.to?.id == primaryID && $0.type?.code == typeCode
-                    })
-                    if (try? modelContext.fetch(existsFetch))?.isEmpty ?? true {
-                        let newEdge = CardEdge(from: source, to: primary, type: edgeType, note: edge.note, createdAt: edge.createdAt)
-                        modelContext.insert(newEdge)
-                        EdgeIntegrityMonitor.incrementCounts(source: source, target: primary)
-                        totalMigrated += 1
-                    }
-                }
-
-                if primary.detailedText.isEmpty && !info.card.detailedText.isEmpty {
-                    primary.detailedText = info.card.detailedText
-                }
-                if primary.originalImageData == nil, let dupeImage = info.card.originalImageData {
-                    try? primary.setOriginalImageData(dupeImage)
-                }
-
-                // Save migrated edges before deleting
-                try? modelContext.save()
-
-                // Delete via CardOperationManager
-                do {
-                    try services?.cardOperations.deleteCard(info.card)
-                    totalDeleted += 1
-                } catch {
-                    #if DEBUG
-                    print("[EdgeAudit] Failed to delete duplicate '\(info.card.name)': \(error)")
-                    #endif
-                }
+                deleteDuplicateCard(info.card, keepingPrimary: primary)
+                totalDeleted += 1
             }
         }
 
-        actionResult = "Deleted \(totalDeleted) duplicate(s), migrated \(totalMigrated) edge(s)"
+        actionResult = "Deleted \(totalDeleted) duplicate(s) across \(duplicateGroups.count) group(s)"
         runAudit()
     }
 

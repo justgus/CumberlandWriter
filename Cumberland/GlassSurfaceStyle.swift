@@ -11,6 +11,7 @@
 import SwiftUI
 
 public struct GlassSurfaceStyle: ViewModifier {
+    @Environment(\.themeManager) private var themeManager
     var cornerRadius: CGFloat
     var isInteractive: Bool
     var tintColor: Color?
@@ -28,9 +29,11 @@ public struct GlassSurfaceStyle: ViewModifier {
     }
 
     public func body(content: Content) -> some View {
+        let theme = themeManager.currentTheme
         content
             #if os(visionOS)
             .background {
+                // visionOS always uses materials for spatial depth
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .fill(.ultraThinMaterial, style: FillStyle())
                     .overlay {
@@ -41,12 +44,17 @@ public struct GlassSurfaceStyle: ViewModifier {
                     }
             }
             #else
-            .glassEffect(
-                .regular
-                    .tint(tintColor ?? .clear)
-                    .interactive(isInteractive),
-                in: .rect(cornerRadius: cornerRadius)
-            )
+            .background {
+                theme.colors.surfaceGlass.asBackground(
+                    cornerRadius: cornerRadius, style: .continuous)
+            }
+            .overlay {
+                if let tintColor {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(tintColor.opacity(0.15))
+                        .allowsHitTesting(false)
+                }
+            }
             #endif
             #if os(macOS)
             .onHover { hover in

@@ -10,6 +10,7 @@
 import SwiftUI
 
 public struct GlassToolbarStyle: ViewModifier {
+    @Environment(\.themeManager) private var themeManager
     var cornerRadius: CGFloat
     var padding: CGFloat
     var isInteractive: Bool
@@ -21,6 +22,7 @@ public struct GlassToolbarStyle: ViewModifier {
     }
 
     public func body(content: Content) -> some View {
+        let theme = themeManager.currentTheme
         content
             .padding(padding)
             #if os(visionOS)
@@ -29,10 +31,10 @@ public struct GlassToolbarStyle: ViewModifier {
                     .fill(.regularMaterial.opacity(0.8))
             )
             #else
-            .glassEffect(
-                .regular.interactive(isInteractive),
-                in: .rect(cornerRadius: cornerRadius)
-            )
+            .background {
+                theme.colors.surfaceGlassProminent.asBackground(
+                    cornerRadius: cornerRadius, style: .continuous)
+            }
             #endif
     }
 }

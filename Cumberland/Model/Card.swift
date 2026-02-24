@@ -428,7 +428,38 @@ extension Card {
             calendarSystem = nil
         }
 
-        // 8) Save if anything changed (best-effort)
+        // 8) Delete linked Citations (cascade relationship)
+        do {
+            var citFetch = FetchDescriptor<Citation>(
+                predicate: #Predicate { $0.card?.id == myID }
+            )
+            citFetch.fetchLimit = 0
+            let cits = try ctx.fetch(citFetch)
+            for c in cits {
+                c.card = nil
+                c.source = nil
+                ctx.delete(c)
+            }
+        } catch {
+            // continue
+        }
+
+        // 9) Delete linked ImageVersions (cascade relationship)
+        do {
+            var ivFetch = FetchDescriptor<ImageVersion>(
+                predicate: #Predicate { $0.card?.id == myID }
+            )
+            ivFetch.fetchLimit = 0
+            let versions = try ctx.fetch(ivFetch)
+            for v in versions {
+                v.card = nil
+                ctx.delete(v)
+            }
+        } catch {
+            // continue
+        }
+
+        // 10) Save if anything changed (best-effort)
         try? ctx.save()
     }
 
@@ -748,9 +779,9 @@ enum SizeCategory: Int, Codable, CaseIterable, Hashable, Sendable {
 
     var displayName: String {
         switch self {
-        case .compact:  return "Compact"
-        case .standard: return "Standard"
-        case .large:    return "Large"
+        case .compact:  return String(localized: "Compact")
+        case .standard: return String(localized: "Standard")
+        case .large:    return String(localized: "Large")
         }
     }
 }

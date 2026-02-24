@@ -43,7 +43,7 @@ struct InspectorTabView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 
-                Text(layer.name)
+                Text(verbatim: layer.name)
                     .font(.subheadline)
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)

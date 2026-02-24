@@ -26,6 +26,7 @@ struct ImageHistoryView: View {
 
     /// Model context for operations
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var themeManager: ThemeManager
 
     /// Dismiss action
     @Environment(\.dismiss) private var dismiss
@@ -66,11 +67,13 @@ struct ImageHistoryView: View {
         .sheet(isPresented: $showingComparison) {
             if let version = selectedVersion {
                 ComparisonView(card: card, version: version)
+                    .environmentObject(themeManager)
             }
         }
         .sheet(isPresented: $showingExport) {
             if let version = selectedVersion {
                 ExportVersionView(version: version)
+                    .environmentObject(themeManager)
             }
         }
         .alert("Delete Version", isPresented: $showingDeleteConfirmation) {

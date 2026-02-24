@@ -49,7 +49,7 @@ struct AggregateTextView: View {
                 Text(card.name.isEmpty ? card.kind.singularTitle : card.name)
                     .font(.title3.bold())
                 if !card.subtitle.isEmpty {
-                    Text(card.subtitle)
+                    Text(verbatim: card.subtitle)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

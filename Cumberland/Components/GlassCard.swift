@@ -25,6 +25,7 @@ import SwiftUI
 /// }
 /// ```
 struct GlassCard<Content: View>: View {
+    @EnvironmentObject private var themeManager: ThemeManager
     let cornerRadius: CGFloat
     let tint: Color?
     let interactive: Bool
@@ -49,12 +50,20 @@ struct GlassCard<Content: View>: View {
     }
 
     var body: some View {
+        let theme = themeManager.currentTheme
+        let shadows = theme.shadows
+
         ZStack {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(.thinMaterial)
+                .fill(.clear)
+                .background(
+                    theme.colors.surfaceSecondary.platformResolved.asBackground(
+                        cornerRadius: cornerRadius, style: .continuous)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(.separator.opacity(0.6), lineWidth: 0.5)
+                        .stroke(theme.colors.border.opacity(0.6), lineWidth: 0.5)
                 )
                 .overlay(
                     Group {
@@ -67,12 +76,17 @@ struct GlassCard<Content: View>: View {
                 )
         }
         .compositingGroup()
-        .shadow(color: .black.opacity(0.08), radius: interactive ? 6 : 4, x: 0, y: interactive ? 3 : 2)
+        .shadow(
+            color: shadows.cardColor.opacity(interactive ? shadows.cardLightOpacity : shadows.cardLightOpacity * 0.8),
+            radius: interactive ? 6 : 4,
+            x: shadows.cardX,
+            y: interactive ? 3 : 2
+        )
         .overlay(
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: theme.spacing.sectionSpacing) {
                 content
             }
-            .padding(12)
+            .padding(theme.spacing.cardPadding)
         )
     }
 }
@@ -124,5 +138,6 @@ extension String {
     }
     .padding()
     .background(Color.gray.opacity(0.2))
+    .environmentObject(ThemeManager())
 }
 #endif

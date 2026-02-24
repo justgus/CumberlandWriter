@@ -39,6 +39,7 @@ struct EdgeCreationRelationTypeSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var selectedTypeCode: String?
     @State private var showingCreateNew: Bool = false
@@ -192,6 +193,7 @@ struct EdgeCreationRelationTypeSheet: View {
                 }
             )
             .frame(minWidth: 420, minHeight: 300)
+            .environmentObject(themeManager)
         }
     }
 }

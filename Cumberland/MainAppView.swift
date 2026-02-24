@@ -23,6 +23,8 @@ struct MainAppView: View {
     @Environment(\.modelContext) private var modelContext
     // ER-0022 Phase 4: Service container for dependency injection (optional during migration)
     @Environment(\.services) private var services
+    // ER-0037: Theme manager for theming system
+    @EnvironmentObject private var themeManager: ThemeManager
     #if os(visionOS)
     @Environment(\.openWindow) private var openWindow
     @Environment(AppModel.self) private var appModel
@@ -168,6 +170,10 @@ struct MainAppView: View {
         } detail: {
             detailColumn
         }
+        .background {
+            themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground()
+                .ignoresSafeArea()
+        }
     }
 
     var body: some View {
@@ -237,6 +243,7 @@ struct MainAppView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+            .environmentObject(themeManager)
             #else
             NavigationStack {
                 CardEditorView(mode: .create(kind: currentCreationKind) { _ in
@@ -244,6 +251,7 @@ struct MainAppView: View {
                 })
             }
             .frame(minWidth: 760, idealWidth: 900, maxWidth: 1200, minHeight: 720)
+            .environmentObject(themeManager)
             #endif
         }
         // Edit sheet
@@ -257,6 +265,7 @@ struct MainAppView: View {
                 }
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+                .environmentObject(themeManager)
                 #else
                 NavigationStack {
                     CardEditorView(mode: .edit(card: card) {
@@ -264,6 +273,7 @@ struct MainAppView: View {
                     })
                 }
                 .frame(minWidth: 760, idealWidth: 900, maxWidth: 1200, minHeight: 720)
+                .environmentObject(themeManager)
                 #endif
             }
         }
@@ -278,6 +288,7 @@ struct MainAppView: View {
             #else
             .frame(minWidth: 560, idealWidth: 640, maxWidth: 800, minHeight: 600)
             #endif
+            .environmentObject(themeManager)
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("showSettings"))) { _ in
             showingSettings = true
@@ -296,12 +307,14 @@ struct MainAppView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+            .environmentObject(themeManager)
             #elseif os(macOS)
             NavigationView {
                 SettingsView()
             }
             .frame(minWidth: 560, minHeight: 420)
             .presentationSizing(.fitted)
+            .environmentObject(themeManager)
             #endif
         }
         #if DEBUG
@@ -312,12 +325,14 @@ struct MainAppView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+            .environmentObject(themeManager)
             #elseif os(macOS)
             NavigationView {
                 DeveloperBoardsView()
             }
             .frame(minWidth: 920, minHeight: 560)
             .presentationSizing(.fitted)
+            .environmentObject(themeManager)
             #endif
         }
         .sheet(isPresented: $showingDeveloperTools) {
@@ -327,12 +342,14 @@ struct MainAppView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+            .environmentObject(themeManager)
             #elseif os(macOS)
             NavigationView {
                 DeveloperToolsView()
             }
             .frame(minWidth: 520, minHeight: 480)
             .presentationSizing(.fitted)
+            .environmentObject(themeManager)
             #endif
         }
         #endif
@@ -352,18 +369,21 @@ struct MainAppView: View {
                 }
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+                .environmentObject(themeManager)
                 #elseif os(visionOS)
                 NavigationStack {
                     BatchGenerationView(queue: queue)
                 }
                 .frame(minWidth: 640, minHeight: 480)
                 .glassBackgroundEffect()
+                .environmentObject(themeManager)
                 #else
                 NavigationView {
                     BatchGenerationView(queue: queue)
                 }
                 .frame(minWidth: 640, minHeight: 480)
                 .presentationSizing(.fitted)
+                .environmentObject(themeManager)
                 #endif
             }
         }
@@ -583,6 +603,8 @@ struct MainAppView: View {
         }
         .navigationTitle("Cumberland")
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
         #if os(visionOS)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Navigation sidebar")
@@ -917,6 +939,8 @@ struct MainAppView: View {
             .onDelete(perform: deleteCards(at:))
         }
         .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
         #if os(visionOS)
         // Phase 4: Better list accessibility
         .accessibilityElement(children: .contain)
@@ -942,7 +966,7 @@ struct MainAppView: View {
             ForEach(structures) { structure in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(structure.name)
+                        Text(verbatim: structure.name)
                             .font(.callout)
                             .lineLimit(1)
                             .truncationMode(.middle)
@@ -959,6 +983,8 @@ struct MainAppView: View {
             .onDelete(perform: deleteStructures)
         }
         .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Menu("Add Structure", systemImage: "plus") {
@@ -973,9 +999,11 @@ struct MainAppView: View {
         }
         .sheet(isPresented: $showingNewStructureSheet) {
             NewStructureSheet()
+                .environmentObject(themeManager)
         }
         .sheet(isPresented: $showingTemplateSheet) {
             StructureTemplateSheet()
+                .environmentObject(themeManager)
         }
         .onAppear {
             // Auto-select the first structure if nothing is selected
@@ -1148,27 +1176,27 @@ struct MainAppView: View {
         let title: String = {
             if searchText.isEmpty {
                 if let k = selectedKind {
-                    return "No \(k.title)"
+                    return String(localized: "No \(k.title)")
                 } else {
-                    return "No Cards"
+                    return String(localized: "No Cards")
                 }
             } else {
-                return "No Results"
+                return String(localized: "No Results")
             }
         }()
 
         let subtitle: String = {
             if searchText.isEmpty {
                 if let k = selectedKind {
-                    return "Create your first \(k.singularTitle.lowercased()) to get started."
+                    return String(localized: "Create your first \(k.singularTitle.lowercased()) to get started.")
                 } else {
-                    return "Create your first card to get started with your creative writing journey."
+                    return String(localized: "Create your first card to get started with your creative writing journey.")
                 }
             } else {
                 if let k = selectedKind {
-                    return "No \(k.title.lowercased()) match your search."
+                    return String(localized: "No \(k.title.lowercased()) match your search.")
                 } else {
-                    return "No cards match your search."
+                    return String(localized: "No cards match your search.")
                 }
             }
         }()
@@ -1176,9 +1204,9 @@ struct MainAppView: View {
         // Create button title adapts to selected kind
         let createButtonTitle: String = {
             if let k = selectedKind {
-                return "Create \(k.singularTitle)"
+                return String(localized: "Create \(k.singularTitle)")
             } else {
-                return "Create Card"
+                return String(localized: "Create Card")
             }
         }()
 
@@ -1708,6 +1736,7 @@ struct MainAppView: View {
 private struct CardListRow: View {
     let card: Card
     @State private var thumbnailImage: Image?
+    @EnvironmentObject private var themeManager: ThemeManager
 
     #if os(visionOS)
     // Phase 4: Larger tap targets for spatial input (gaze/pinch)
@@ -1730,61 +1759,61 @@ private struct CardListRow: View {
     }
 
     var body: some View {
+        let theme = themeManager.currentTheme
         HStack(spacing: 12) {
             ZStack {
-                // Background placeholder/border area (use Color-based approximation for cross-toolchain compatibility)
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.secondary.opacity(0.12))
+                    .fill(theme.colors.border.opacity(0.15))
 
                 if let thumbnailImage {
                     thumbnailImage
                         .resizable()
-                        .scaledToFit() // preserve original aspect ratio
+                        .scaledToFit()
                         .frame(maxWidth: thumbWidth - 4, maxHeight: thumbSize - 4)
                         .clipShape(RoundedRectangle(cornerRadius: cornerRadius - 1, style: .continuous))
                 } else {
-                    // Subtle placeholder
                     Image(systemName: "photo")
                         #if os(visionOS)
                         .font(.body)
                         #else
-                        .font(.caption2)
+                        .font(theme.fonts.caption)
                         #endif
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.colors.textTertiary)
                 }
             }
             .frame(width: thumbWidth, height: thumbSize)
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
+                    .stroke(theme.colors.border.opacity(0.35), lineWidth: 1)
             )
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(card.name.isEmpty ? "Untitled" : card.name)
                         #if os(visionOS)
-                        .font(.title3) // Larger, more comfortable for spatial reading
+                        .font(.title3)
                         #else
-                        .font(.headline)
+                        .font(theme.fonts.headline)
                         #endif
+                        .foregroundStyle(theme.colors.textPrimary)
                         .lineLimit(1)
                     Spacer()
                     Text(card.kind.singularTitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(theme.fonts.caption)
+                        .foregroundStyle(theme.colors.textSecondary)
                         #if os(visionOS)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(
                             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(Color.secondary.opacity(0.15))
+                                .fill(theme.colors.border.opacity(0.15))
                         )
                         #endif
                 }
                 if !card.subtitle.isEmpty {
-                    Text(card.subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    Text(verbatim: card.subtitle)
+                        .font(theme.fonts.subheadline)
+                        .foregroundStyle(theme.colors.textSecondary)
                         .lineLimit(2)
                 }
             }

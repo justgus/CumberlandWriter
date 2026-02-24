@@ -23,25 +23,31 @@ struct CardEditorSheets: ViewModifier {
     let modelContext: ModelContext
     let onAIImageGenerated: (GeneratedImageData) -> Void
 
+    @Environment(\.themeManager) private var themeManager
+
     func body(content: Content) -> some View {
         content
             // Full-size image viewer
             #if os(macOS)
             .sheet(isPresented: $viewModel.showFullSizeImage) {
                 fullSizeImageViewer
+                    .environmentObject(themeManager)
             }
             #else
             .fullScreenCover(isPresented: $viewModel.showFullSizeImage) {
                 fullSizeImageViewer
+                    .environmentObject(themeManager)
             }
             #endif
             // AI Image Generation sheet (ER-0009)
             .sheet(isPresented: $viewModel.showAIImageGeneration) {
                 aiImageGenerationSheet
+                    .environmentObject(themeManager)
             }
             // AI Image Info panel (ER-0009)
             .sheet(isPresented: $viewModel.showAIImageInfo) {
                 aiImageInfoSheet
+                    .environmentObject(themeManager)
             }
             // Image History panel (ER-0017)
             // DR-0091: onDismiss reloads card image into ViewModel after restore
@@ -51,10 +57,12 @@ struct CardEditorSheets: ViewModifier {
                 }
             }) {
                 imageHistorySheet
+                    .environmentObject(themeManager)
             }
             // Suggestion Review panel (ER-0010)
             .sheet(isPresented: $viewModel.showAnalysisSuggestions) {
                 suggestionReviewSheet
+                    .environmentObject(themeManager)
             }
             // Analysis error alert (ER-0010)
             .alert("Analysis Complete", isPresented: $viewModel.showAnalysisError) {

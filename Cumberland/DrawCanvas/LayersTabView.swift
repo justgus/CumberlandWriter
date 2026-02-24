@@ -62,7 +62,7 @@ struct LayersTabView: View {
 
             // Layer name and type
             VStack(alignment: .leading, spacing: 2) {
-                Text(layer.name)
+                Text(verbatim: layer.name)
                     .font(.subheadline)
                     .foregroundColor(layer.id == layerManager.activeLayerID ? .primary : .secondary)
 

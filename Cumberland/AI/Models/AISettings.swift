@@ -344,20 +344,17 @@ enum AnalysisScope: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .conservative: return "Conservative"
-        case .moderate: return "Moderate"
-        case .aggressive: return "Aggressive"
+        case .conservative: return String(localized: "Conservative")
+        case .moderate:     return String(localized: "Moderate")
+        case .aggressive:   return String(localized: "Aggressive")
         }
     }
 
     var description: String {
         switch self {
-        case .conservative:
-            return "Fewer suggestions with high confidence"
-        case .moderate:
-            return "Balanced suggestions"
-        case .aggressive:
-            return "More suggestions with lower confidence"
+        case .conservative: return String(localized: "Fewer suggestions with high confidence")
+        case .moderate:     return String(localized: "Balanced suggestions")
+        case .aggressive:   return String(localized: "More suggestions with lower confidence")
         }
     }
 

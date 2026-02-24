@@ -191,6 +191,7 @@ struct RelationTypePickerSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var selectedCode: String?
     @State private var isPresentingCreate: Bool = false
@@ -298,6 +299,7 @@ struct RelationTypePickerSheet: View {
                 isPresentingCreate = false
             }
             .frame(minWidth: 420, minHeight: 300)
+            .environmentObject(themeManager)
         }
     }
 }
@@ -344,10 +346,10 @@ struct ExistingCardPickerSheet: View {
                             Image(systemName: card.kind.systemImage)
                                 .foregroundStyle(.secondary)
                             VStack(alignment: .leading) {
-                                Text(card.name)
+                                Text(verbatim: card.name)
                                     .font(.body)
                                 if !card.subtitle.isEmpty {
-                                    Text(card.subtitle)
+                                    Text(verbatim: card.subtitle)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

@@ -36,6 +36,7 @@ struct CardRelationshipView: View {
     @Environment(\.services) private var services
     @Environment(\.colorScheme) private var scheme
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+    @EnvironmentObject private var themeManager: ThemeManager
 
     // Selection state
     @State private var selectedKind: Kinds = .projects
@@ -204,6 +205,7 @@ struct CardRelationshipView: View {
                 handleNewCardCreated(newCard)
             })
             .frame(minWidth: 560, minHeight: 520)
+            .environmentObject(themeManager)
         }
         .sheet(item: $existingPickerState) { state in
             ExistingCardPickerSheet(
@@ -216,6 +218,7 @@ struct CardRelationshipView: View {
                 handleExistingCardsPicked(picked)
             }
             .frame(minWidth: 520, minHeight: 420)
+            .environmentObject(themeManager)
         }
         .sheet(isPresented: $isPresentingCreateRelationType) {
             RelationTypeCreatorSheet(
@@ -227,6 +230,7 @@ struct CardRelationshipView: View {
                 handleRelationTypeCreationCancelled()
             }
             .frame(minWidth: 420, minHeight: 300)
+            .environmentObject(themeManager)
         }
         .sheet(isPresented: $isPresentingPickRelationType) {
             RelationTypePickerSheet(
@@ -238,6 +242,7 @@ struct CardRelationshipView: View {
                 handleRelationTypePicked(chosen)
             }
             .frame(minWidth: 420, minHeight: 320)
+            .environmentObject(themeManager)
         }
         .sheet(isPresented: $isPresentingRetype) {
             RelationTypePickerSheet(
@@ -249,6 +254,7 @@ struct CardRelationshipView: View {
                 handleRetypePicked(chosen)
             }
             .frame(minWidth: 420, minHeight: 320)
+            .environmentObject(themeManager)
         }
         .sheet(isPresented: $isPresentingEditCard) {
             if let card = selectedRelatedCard {
@@ -256,11 +262,13 @@ struct CardRelationshipView: View {
                     isPresentingEditCard = false
                 })
                 .frame(minWidth: 560, minHeight: 520)
+                .environmentObject(themeManager)
             }
         }
         .sheet(isPresented: $isPresentingManageRelationTypes) {
             RelationTypesManagerView()
                 .frame(minWidth: 680, minHeight: 420)
+                .environmentObject(themeManager)
         }
         .sheet(isPresented: $isPresentingChangeCardType) {
             ChangeCardTypeSheet(
@@ -273,15 +281,18 @@ struct CardRelationshipView: View {
             } onCancel: {
                 isPresentingChangeCardType = false
             }
+            .environmentObject(themeManager)
         }
         // Full-size image viewer
         #if os(macOS)
         .sheet(isPresented: $showFullSizeImage) {
             FullSizeImageViewer(card: primary, pendingImageData: nil)
+                .environmentObject(themeManager)
         }
         #else
         .fullScreenCover(isPresented: $showFullSizeImage) {
             FullSizeImageViewer(card: primary, pendingImageData: nil)
+                .environmentObject(themeManager)
         }
         #endif
     }

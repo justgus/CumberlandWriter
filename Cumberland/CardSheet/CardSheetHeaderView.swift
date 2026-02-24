@@ -45,6 +45,7 @@ struct CardSheetHeaderView: View {
 
     // Environment
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     // Whether image operations are allowed (not in Preview mode)
     let canAcceptImageDrop: Bool
@@ -62,7 +63,8 @@ struct CardSheetHeaderView: View {
     ]
 
     var body: some View {
-        let corner: CGFloat = 10
+        let theme = themeManager.currentTheme
+        let corner: CGFloat = theme.shapes.panelCornerRadius
         HStack(alignment: .top, spacing: 16) {
             leftColumn
             Spacer(minLength: 12)
@@ -71,24 +73,24 @@ struct CardSheetHeaderView: View {
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
         .background(
-            RoundedRectangle(cornerRadius: corner, style: .continuous)
-                .fill(.thinMaterial)
+            theme.colors.surfaceSecondary.platformResolved.asBackground(
+                cornerRadius: corner, style: .continuous)
                 .allowsHitTesting(false)
         )
         .overlay(
             ZStack {
                 RoundedRectangle(cornerRadius: corner, style: .continuous)
-                    .stroke(.separator.opacity(0.6), lineWidth: 0.5)
+                    .stroke(theme.colors.border.opacity(0.6), lineWidth: 0.5)
                     .allowsHitTesting(false)
                 if isDropTargeted && canAcceptImageDrop {
                     RoundedRectangle(cornerRadius: corner, style: .continuous)
-                        .stroke(Color.accentColor, lineWidth: 2)
+                        .stroke(theme.colors.accentPrimary, lineWidth: 2)
                         .allowsHitTesting(false)
                         .animation(.easeInOut(duration: 0.2), value: isDropTargeted)
                 }
             }
         )
-        .shadow(color: .black.opacity(scheme == .dark ? 0.22 : 0.08), radius: 6, x: 0, y: 3)
+        .shadow(color: theme.shadows.cardColor.opacity(scheme == .dark ? theme.shadows.cardDarkOpacity : theme.shadows.cardLightOpacity), radius: theme.shadows.cardRadius, x: theme.shadows.cardX, y: theme.shadows.cardY)
         .contentShape(Rectangle())
         .onDrop(
             of: Self.imageTypeIdentifiers,
@@ -113,20 +115,22 @@ struct CardSheetHeaderView: View {
 
     @ViewBuilder
     private var leftColumn: some View {
+        let theme = themeManager.currentTheme
         VStack(alignment: .leading, spacing: 8) {
             // Kind badge
             Text(card.kind.title)
-                .font(.title2).bold()
+                .font(theme.fonts.largeTitle).bold()
+                .foregroundStyle(theme.colors.textPrimary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(.thinMaterial)
+                    theme.colors.surfaceGlass.platformResolved.asBackground(
+                        cornerRadius: theme.shapes.buttonCornerRadius, style: .continuous)
                         .allowsHitTesting(false)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(.separator.opacity(0.6), lineWidth: 0.5)
+                    RoundedRectangle(cornerRadius: theme.shapes.buttonCornerRadius, style: .continuous)
+                        .stroke(theme.colors.border.opacity(0.6), lineWidth: 0.5)
                         .allowsHitTesting(false)
                 )
 
@@ -140,15 +144,18 @@ struct CardSheetHeaderView: View {
 
     @ViewBuilder
     private var nameField: some View {
+        let theme = themeManager.currentTheme
         Group {
             if isEditingName {
                 TextField("Name", text: $nameDraft, onCommit: onCommitName)
                     .textFieldStyle(.plain)
+                    .font(theme.fonts.headline)
+                    .foregroundStyle(theme.colors.textPrimary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(.regularMaterial)
+                        theme.colors.surfaceGlass.platformResolved.asBackground(
+                            cornerRadius: theme.shapes.buttonCornerRadius, style: .continuous)
                             .allowsHitTesting(false)
                     )
                     .focused($focusedField, equals: .name)
@@ -158,13 +165,14 @@ struct CardSheetHeaderView: View {
                         }
                     }
             } else {
-                Text(card.name)
-                    .font(.title3)
+                Text(verbatim: card.name)
+                    .font(theme.fonts.headline)
+                    .foregroundStyle(theme.colors.textPrimary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(.regularMaterial)
+                        theme.colors.surfaceGlass.platformResolved.asBackground(
+                            cornerRadius: theme.shapes.buttonCornerRadius, style: .continuous)
                             .allowsHitTesting(false)
                     )
                     .contentShape(Rectangle())
@@ -179,15 +187,18 @@ struct CardSheetHeaderView: View {
 
     @ViewBuilder
     private var subtitleField: some View {
+        let theme = themeManager.currentTheme
         Group {
             if isEditingSubtitle {
                 TextField("Subtitle (optional)", text: $subtitleDraft, onCommit: onCommitSubtitle)
                     .textFieldStyle(.plain)
+                    .font(theme.fonts.subheadline)
+                    .foregroundStyle(theme.colors.textSecondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(.regularMaterial)
+                        theme.colors.surfaceGlass.platformResolved.asBackground(
+                            cornerRadius: theme.shapes.buttonCornerRadius, style: .continuous)
                             .allowsHitTesting(false)
                     )
                     .focused($focusedField, equals: .subtitle)
@@ -198,13 +209,14 @@ struct CardSheetHeaderView: View {
                     }
             } else {
                 if !card.subtitle.isEmpty {
-                    Text(card.subtitle)
-                        .foregroundStyle(.secondary)
+                    Text(verbatim: card.subtitle)
+                        .foregroundStyle(theme.colors.textSecondary)
+                        .font(theme.fonts.subheadline)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(.regularMaterial)
+                            theme.colors.surfaceGlass.platformResolved.asBackground(
+                                cornerRadius: theme.shapes.buttonCornerRadius, style: .continuous)
                                 .allowsHitTesting(false)
                         )
                         .contentShape(Rectangle())
@@ -215,13 +227,14 @@ struct CardSheetHeaderView: View {
                         }
                 } else {
                     Text("Add subtitle")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.colors.textTertiary)
+                        .font(theme.fonts.subheadline)
                         .italic()
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(.regularMaterial)
+                            theme.colors.surfaceGlass.platformResolved.asBackground(
+                                cornerRadius: theme.shapes.buttonCornerRadius, style: .continuous)
                                 .allowsHitTesting(false)
                         )
                         .contentShape(Rectangle())

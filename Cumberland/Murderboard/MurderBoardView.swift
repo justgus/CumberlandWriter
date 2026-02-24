@@ -29,9 +29,9 @@ enum BacklogSortOption: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .nameAscending:  return "Name (A–Z)"
-        case .nameDescending: return "Name (Z–A)"
-        case .kindGrouped:    return "Kind"
+        case .nameAscending:  return String(localized: "Name (A–Z)")
+        case .nameDescending: return String(localized: "Name (Z–A)")
+        case .kindGrouped:    return String(localized: "Kind")
         }
     }
 
@@ -50,6 +50,7 @@ struct MurderBoardView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.services) var services
     @Environment(\.colorScheme) var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     // Query for all cards (used by backlog)
     @Query(sort: \Card.name) var allCards: [Card]
@@ -241,6 +242,7 @@ struct MurderBoardView: View {
                     onCancel: { }
                 )
                 .frame(minWidth: 420, minHeight: 340)
+                .environmentObject(themeManager)
             }
             // ER-0031: Card detail inspection from sidebar
             .sheet(item: $detailCard) { card in
@@ -248,6 +250,7 @@ struct MurderBoardView: View {
                     #if os(iOS) || os(visionOS)
                     .presentationDetents([.medium, .large])
                     #endif
+                    .environmentObject(themeManager)
             }
     }
 

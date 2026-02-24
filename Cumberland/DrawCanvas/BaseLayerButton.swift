@@ -13,6 +13,7 @@ import BrushEngine
 /// Button for selecting and displaying the current base layer fill
 struct BaseLayerButton: View {
     @Binding var canvasState: DrawingCanvasModel
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var showingFillMenu: Bool = false
     @State private var showingColorPicker: Bool = false
@@ -73,6 +74,7 @@ struct BaseLayerButton: View {
                     }
             }
             .presentationDetents([.medium, .large])
+            .environmentObject(themeManager)
         }
         #endif
         .sheet(isPresented: $showingColorPicker) {
@@ -98,6 +100,7 @@ struct BaseLayerButton: View {
                     }
             }
             .presentationDetents([.medium])
+            .environmentObject(themeManager)
         }
     }
 

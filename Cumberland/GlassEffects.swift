@@ -15,6 +15,9 @@ import SwiftUI
 extension View {
     @ViewBuilder
     func glassEffect(_ effect: GlassEffect, in shape: some InsettableShape) -> some View {
+        // Note: This modifier is used directly by GlassSurfaceStyle.swift on non-visionOS
+        // platforms via the native .glassEffect API. On those paths the theme is applied
+        // at the GlassSurfaceStyle level. This fallback uses ultraThinMaterial as default.
         self
             .background {
                 shape
@@ -65,17 +68,20 @@ extension ButtonStyle where Self == GlassButtonStyle {
 }
 
 struct GlassButtonStyle: ButtonStyle {
+    @Environment(\.themeManager) private var themeManager
+
     func makeBody(configuration: Configuration) -> some View {
+        let theme = themeManager.currentTheme
         configuration.label
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, theme.spacing.buttonPaddingHorizontal + 4)
+            .padding(.vertical, theme.spacing.buttonPaddingVertical + 2)
             .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                theme.colors.surfaceGlass.platformResolved.asBackground(
+                    cornerRadius: theme.shapes.buttonCornerRadius, style: .continuous)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(.separator.opacity(0.6), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: theme.shapes.buttonCornerRadius, style: .continuous)
+                    .stroke(theme.colors.border.opacity(0.6), lineWidth: 0.5)
             }
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)

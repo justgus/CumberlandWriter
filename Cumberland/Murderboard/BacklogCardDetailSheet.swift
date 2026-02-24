@@ -34,11 +34,11 @@ struct BacklogCardDetailSheet: View {
                             .frame(width: 32, height: 32)
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(card.name)
+                            Text(verbatim: card.name)
                                 .font(.headline)
 
                             if !card.subtitle.isEmpty {
-                                Text(card.subtitle)
+                                Text(verbatim: card.subtitle)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
@@ -66,7 +66,7 @@ struct BacklogCardDetailSheet: View {
                     if !card.detailedText.isEmpty {
                         Divider()
 
-                        Text(card.detailedText)
+                        Text(verbatim: card.detailedText)
                             .font(.body)
                             .foregroundStyle(.secondary)
                             .lineLimit(8)

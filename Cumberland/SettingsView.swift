@@ -22,7 +22,17 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String { rawValue }
+    var title: String {
+        switch self {
+        case .display:   return String(localized: "Display")
+        case .cards:     return String(localized: "Cards")
+        case .views:     return String(localized: "Views")
+        case .relations: return String(localized: "Relations")
+        case .images:    return String(localized: "Images")
+        case .ai:        return String(localized: "AI & Providers")
+        case .author:    return String(localized: "Author")
+        }
+    }
 
     var systemImage: String {
         switch self {
@@ -255,6 +265,7 @@ struct SettingsView: View {
 private struct DisplaySettingsPane: View {
     @Binding var settings: AppSettings
     var onSave: () -> Void
+    @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
         Form {
@@ -278,8 +289,52 @@ private struct DisplaySettingsPane: View {
             } footer: {
                 Text("The app can follow System appearance or always use Light/Dark. This preference takes effect app-wide.")
             }
+
+            // ER-0037: Theme picker
+            Section {
+                Picker("Theme", selection: Binding(
+                    get: { themeManager.themeIdentifier },
+                    set: { newValue in
+                        themeManager.setTheme(newValue)
+                    }
+                )) {
+                    ForEach(themeManager.availableThemes, id: \.id) { theme in
+                        HStack(spacing: 8) {
+                            ThemeSwatchView(theme: theme)
+                            Text(theme.displayName)
+                        }
+                        .tag(theme.id)
+                    }
+                }
+                .accessibilityLabel("Theme")
+                .help("Choose the visual theme for the app.")
+            } header: {
+                Text("Theme")
+            } footer: {
+                Text("Changes the app's visual style. The Default theme uses translucent materials. Whimsical uses warm parchment tones with serif fonts.")
+            }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// Small color swatch preview for a theme in the picker.
+private struct ThemeSwatchView: View {
+    let theme: any Theme
+
+    var body: some View {
+        HStack(spacing: 2) {
+            swatchColor(for: theme.colors.accentPrimary)
+            swatchColor(for: theme.colors.textPrimary)
+            swatchColor(for: theme.shadows.cardColor)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+    }
+
+    private func swatchColor(for color: Color) -> some View {
+        Rectangle()
+            .fill(color)
+            .frame(width: 8, height: 14)
     }
 }
 
@@ -480,6 +535,7 @@ private struct AuthorSettingsPane: View {
 
 private struct ImagesSettingsPane: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var themeManager: ThemeManager
 
     // Fetch all cards that have either a thumbnail or an original image
     @Query(filter: #Predicate<Card> { $0.thumbnailData != nil || $0.originalImageData != nil },
@@ -527,12 +583,14 @@ private struct ImagesSettingsPane: View {
                                       note: result.note)
             }
             .frame(minWidth: 520, minHeight: 360)
+            .environmentObject(themeManager)
         }
         .sheet(item: $editingCard, content: { card in
             ImageAttributionEditor(card: card, citation: nil) { _ in
                 // No-op; editor already saves
             }
             .frame(minWidth: 420, minHeight: 360)
+            .environmentObject(themeManager)
         })
     }
 
@@ -559,12 +617,12 @@ private struct ImagesSettingsPane: View {
 
     private var emptyMessage: String {
         if imageCards.isEmpty {
-            return "No cards with images were found."
+            return String(localized: "No cards with images were found.")
         }
         if showMissingOnly {
-            return "All images have attribution."
+            return String(localized: "All images have attribution.")
         } else {
-            return "No images to show."
+            return String(localized: "No images to show.")
         }
     }
 
@@ -587,7 +645,7 @@ private struct ImagesSettingsPane: View {
                             .font(.body)
                             .lineLimit(1)
                     }
-                    Text(card.subtitle)
+                    Text(verbatim: card.subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)

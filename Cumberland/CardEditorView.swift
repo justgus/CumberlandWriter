@@ -59,6 +59,7 @@ struct CardEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.services) private var services
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     // App settings (for default author)
     @Query(
@@ -203,6 +204,7 @@ struct CardEditorView: View {
             }
             .sheet(item: $pendingAttribution) { ctx in
                 attributionSheet(for: ctx)
+                    .environmentObject(themeManager)
             }
             .cardEditorSheets(
                 viewModel: viewModel,
@@ -394,7 +396,7 @@ struct CardEditorView: View {
                         .padding(8)
                         .background(
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(.background)
+                                .fill(themeManager.currentTheme.colors.cardBackground)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -496,7 +498,7 @@ struct CardEditorView: View {
         .padding(.bottom)
         .background {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.background)
+                .fill(themeManager.currentTheme.colors.cardBackground)
         }
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
