@@ -109,8 +109,63 @@ struct CardRelationshipView: View {
     // MARK: - Body
 
     var body: some View {
+        mainContent
+            .navigationTitle("Relationships: \(primary.name)")
+            .task {
+                if masterCards(for: selectedKind, modelContext: modelContext).isEmpty,
+                   let initial = firstAvailableKind(modelContext: modelContext) {
+                    selectedKind = initial
+                }
+            }
+            .task { await loadHeaderImage() }
+            .task(id: primary.id) { await loadHeaderImage() }
+            .task(id: primary.imageFileURL) { await loadHeaderImage() }
+            .task(id: primary.id) {
+                // ER-0036: Edge count sentinel — check for desync on view entry
+                if let monitor = services?.edgeIntegrityMonitor {
+                    let status = monitor.checkIntegrity(card: primary)
+                    if case .desyncDetected = status {
+                        let _ = monitor.recover(card: primary, modelContext: modelContext)
+                        showDesyncBanner = true
+                    }
+                }
+            }
+            .desyncBanner(isShowing: $showDesyncBanner)
+            .onChange(of: selectedKind) { _, _ in selectedRelatedCard = nil }
+            .onChange(of: isPresentingCreateRelationType) { _, isPresented in
+                handleCreateRelationTypeSheetDismiss(isPresented: isPresented)
+            }
+            .onChange(of: isPresentingPickRelationType) { _, isPresented in
+                handlePickRelationTypeSheetDismiss(isPresented: isPresented)
+            }
+            // MARK: - Sheet Presentations
+            .sheet(isPresented: $isPresentingAddCard) { addCardSheet }
+            .sheet(item: $existingPickerState) { state in existingPickerSheet(state: state) }
+            .sheet(isPresented: $isPresentingCreateRelationType) { createRelationTypeSheet }
+            .sheet(isPresented: $isPresentingPickRelationType) { pickRelationTypeSheet }
+            .sheet(isPresented: $isPresentingRetype) { retypeSheet }
+            .sheet(isPresented: $isPresentingEditCard) { editCardSheet }
+            .sheet(isPresented: $isPresentingManageRelationTypes) { manageRelationTypesSheet }
+            .sheet(isPresented: $isPresentingChangeCardType) { changeCardTypeSheet }
+            // Full-size image viewer
+            #if os(macOS)
+            .sheet(isPresented: $showFullSizeImage) {
+                FullSizeImageViewer(card: primary, pendingImageData: nil)
+                    .environmentObject(themeManager)
+            }
+            #else
+            .fullScreenCover(isPresented: $showFullSizeImage) {
+                FullSizeImageViewer(card: primary, pendingImageData: nil)
+                    .environmentObject(themeManager)
+            }
+            #endif
+    }
+
+    // MARK: - Body Subviews (extracted for type-checker performance)
+
+    @ViewBuilder
+    private var mainContent: some View {
         let pageBackground: Color = primary.kind.backgroundColor(for: scheme).opacity(scheme == .dark ? 0.15 : 0.10)
-        let _: Color = selectedKind.backgroundColor(for: scheme)
 
         VStack(alignment: .leading, spacing: 12) {
             // Primary card header
@@ -170,131 +225,101 @@ struct CardRelationshipView: View {
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(pageBackground)
-        .navigationTitle("Relationships: \(primary.name)")
-        .task {
-            if masterCards(for: selectedKind, modelContext: modelContext).isEmpty,
-               let initial = firstAvailableKind(modelContext: modelContext) {
-                selectedKind = initial
-            }
+    }
+
+    // MARK: - Sheet Views (extracted for type-checker performance)
+
+    private var addCardSheet: some View {
+        CardEditorView(mode: .create(kind: selectedKind) { newCard in
+            isPresentingAddCard = false
+            handleNewCardCreated(newCard)
+        })
+        .frame(minWidth: 560, minHeight: 520)
+        .environmentObject(themeManager)
+    }
+
+    private func existingPickerSheet(state: ExistingPickerState) -> some View {
+        ExistingCardPickerSheet(
+            kind: state.kind,
+            candidates: state.candidates,
+            initiallySelected: state.initiallySelected
+        ) { picked in
+            existingPickerState = nil
+            guard !picked.isEmpty else { return }
+            handleExistingCardsPicked(picked)
         }
-        .task { await loadHeaderImage() }
-        .task(id: primary.id) { await loadHeaderImage() }
-        .task(id: primary.imageFileURL) { await loadHeaderImage() }
-        .task(id: primary.id) {
-            // ER-0036: Edge count sentinel — check for desync on view entry
-            if let monitor = services?.edgeIntegrityMonitor {
-                let status = monitor.checkIntegrity(card: primary)
-                if case .desyncDetected = status {
-                    let _ = monitor.recover(card: primary, modelContext: modelContext)
-                    showDesyncBanner = true
-                }
-            }
+        .frame(minWidth: 520, minHeight: 420)
+        .environmentObject(themeManager)
+    }
+
+    private var createRelationTypeSheet: some View {
+        RelationTypeCreatorSheet(
+            sourceKind: selectedKind,
+            targetKind: primary.kind
+        ) { newType in
+            handleRelationTypeCreated(newType)
+        } onCancel: {
+            handleRelationTypeCreationCancelled()
         }
-        .desyncBanner(isShowing: $showDesyncBanner)
-        .onChange(of: selectedKind) { _, _ in selectedRelatedCard = nil }
-        .onChange(of: isPresentingCreateRelationType) { _, isPresented in
-            handleCreateRelationTypeSheetDismiss(isPresented: isPresented)
+        .frame(minWidth: 420, minHeight: 300)
+        .environmentObject(themeManager)
+    }
+
+    private var pickRelationTypeSheet: some View {
+        RelationTypePickerSheet(
+            sourceKind: selectedKind,
+            targetKind: primary.kind,
+            types: relationTypeChoices,
+            selectedCode: selectedRelationTypeCode
+        ) { chosen in
+            handleRelationTypePicked(chosen)
         }
-        .onChange(of: isPresentingPickRelationType) { _, isPresented in
-            handlePickRelationTypeSheetDismiss(isPresented: isPresented)
+        .frame(minWidth: 420, minHeight: 320)
+        .environmentObject(themeManager)
+    }
+
+    private var retypeSheet: some View {
+        RelationTypePickerSheet(
+            sourceKind: selectedKind,
+            targetKind: primary.kind,
+            types: retypeChoices,
+            selectedCode: retypeSelectedCode
+        ) { chosen in
+            handleRetypePicked(chosen)
         }
-        // MARK: - Sheet Presentations
-        .sheet(isPresented: $isPresentingAddCard) {
-            CardEditorView(mode: .create(kind: selectedKind) { newCard in
-                isPresentingAddCard = false
-                handleNewCardCreated(newCard)
+        .frame(minWidth: 420, minHeight: 320)
+        .environmentObject(themeManager)
+    }
+
+    @ViewBuilder
+    private var editCardSheet: some View {
+        if let card = selectedRelatedCard {
+            CardEditorView(mode: .edit(card: card) {
+                isPresentingEditCard = false
             })
             .frame(minWidth: 560, minHeight: 520)
             .environmentObject(themeManager)
         }
-        .sheet(item: $existingPickerState) { state in
-            ExistingCardPickerSheet(
-                kind: state.kind,
-                candidates: state.candidates,
-                initiallySelected: state.initiallySelected
-            ) { picked in
-                existingPickerState = nil
-                guard !picked.isEmpty else { return }
-                handleExistingCardsPicked(picked)
-            }
-            .frame(minWidth: 520, minHeight: 420)
+    }
+
+    private var manageRelationTypesSheet: some View {
+        RelationTypesManagerView()
+            .frame(minWidth: 680, minHeight: 420)
             .environmentObject(themeManager)
+    }
+
+    private var changeCardTypeSheet: some View {
+        ChangeCardTypeSheet(
+            currentKind: primary.kind,
+            cardName: primary.name,
+            selectedKind: $selectedNewCardType
+        ) { newKind in
+            changeCardType(card: primary, to: newKind, modelContext: modelContext, services: services)
+            isPresentingChangeCardType = false
+        } onCancel: {
+            isPresentingChangeCardType = false
         }
-        .sheet(isPresented: $isPresentingCreateRelationType) {
-            RelationTypeCreatorSheet(
-                sourceKind: selectedKind,
-                targetKind: primary.kind
-            ) { newType in
-                handleRelationTypeCreated(newType)
-            } onCancel: {
-                handleRelationTypeCreationCancelled()
-            }
-            .frame(minWidth: 420, minHeight: 300)
-            .environmentObject(themeManager)
-        }
-        .sheet(isPresented: $isPresentingPickRelationType) {
-            RelationTypePickerSheet(
-                sourceKind: selectedKind,
-                targetKind: primary.kind,
-                types: relationTypeChoices,
-                selectedCode: selectedRelationTypeCode
-            ) { chosen in
-                handleRelationTypePicked(chosen)
-            }
-            .frame(minWidth: 420, minHeight: 320)
-            .environmentObject(themeManager)
-        }
-        .sheet(isPresented: $isPresentingRetype) {
-            RelationTypePickerSheet(
-                sourceKind: selectedKind,
-                targetKind: primary.kind,
-                types: retypeChoices,
-                selectedCode: retypeSelectedCode
-            ) { chosen in
-                handleRetypePicked(chosen)
-            }
-            .frame(minWidth: 420, minHeight: 320)
-            .environmentObject(themeManager)
-        }
-        .sheet(isPresented: $isPresentingEditCard) {
-            if let card = selectedRelatedCard {
-                CardEditorView(mode: .edit(card: card) {
-                    isPresentingEditCard = false
-                })
-                .frame(minWidth: 560, minHeight: 520)
-                .environmentObject(themeManager)
-            }
-        }
-        .sheet(isPresented: $isPresentingManageRelationTypes) {
-            RelationTypesManagerView()
-                .frame(minWidth: 680, minHeight: 420)
-                .environmentObject(themeManager)
-        }
-        .sheet(isPresented: $isPresentingChangeCardType) {
-            ChangeCardTypeSheet(
-                currentKind: primary.kind,
-                cardName: primary.name,
-                selectedKind: $selectedNewCardType
-            ) { newKind in
-                changeCardType(card: primary, to: newKind, modelContext: modelContext, services: services)
-                isPresentingChangeCardType = false
-            } onCancel: {
-                isPresentingChangeCardType = false
-            }
-            .environmentObject(themeManager)
-        }
-        // Full-size image viewer
-        #if os(macOS)
-        .sheet(isPresented: $showFullSizeImage) {
-            FullSizeImageViewer(card: primary, pendingImageData: nil)
-                .environmentObject(themeManager)
-        }
-        #else
-        .fullScreenCover(isPresented: $showFullSizeImage) {
-            FullSizeImageViewer(card: primary, pendingImageData: nil)
-                .environmentObject(themeManager)
-        }
-        #endif
+        .environmentObject(themeManager)
     }
 
     // MARK: - Event Handlers

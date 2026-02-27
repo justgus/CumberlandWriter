@@ -13,13 +13,17 @@ This is the main index for all Cumberland Discrepancy Reports. DRs track bugs an
 
 ## Unverified DRs (Active Issues)
 
-Currently: **0 unverified DRs**
+Currently: **1 unverified DR**
+
+| DR | Title | Status |
+|----|-------|--------|
+| DR-0099 | iOS/visionOS Targets Missing File Memberships — Build Failures | 🟡 Resolved - Not Verified |
 
 See: [DR-unverified.md](./DR-unverified.md)
 
 ## Verified DRs (Resolved Issues)
 
-Currently: **80 verified DRs** | Next available DR: **DR-0099**
+Currently: **80 verified DRs** | Next available DR: **DR-0100**
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
