@@ -2,7 +2,7 @@
 
 This file contains verified discrepancy reports DR-0091 through DR-0100.
 
-**Batch Status:** 🚧 In Progress (8/10 verified)
+**Batch Status:** ✅ All Verified (10/10)
 
 ---
 
@@ -239,4 +239,77 @@ Addressed across two ERs:
 
 ---
 
-*Last Updated: 2026-02-22*
+## DR-0099: iOS/visionOS Targets Missing File Memberships — Build Failures
+
+**Status:** ✅ Resolved - Verified
+**Severity:** High
+**Platform:** iOS, visionOS
+**Component:** Build System / Xcode Project Configuration
+**Date Identified:** 2026-02-27
+**Date Resolved:** 2026-02-27
+**Date Verified:** 2026-02-27
+
+**Description:**
+Multiple Swift files were missing from the iOS and visionOS target membership exceptions in `project.pbxproj`. Because Cumberland uses `PBXFileSystemSynchronizedBuildFileExceptionSet` (where `membershipExceptions` for non-primary targets means "files explicitly included"), any new file added to the `Cumberland/` folder is automatically compiled for macOS but must be manually added to the iOS and visionOS exception lists.
+
+**Root Cause:**
+When new files were created (e.g., `Theming/*.swift`, `Services/EdgeIntegrityMonitor.swift`, `Diagnostic Views/RelationshipAuditView.swift`, `Murderboard/BacklogCardDetailSheet.swift`), they were added to the filesystem-synchronized `Cumberland/` folder and automatically picked up by the macOS target. However, they were not added to the `membershipExceptions` arrays for the iOS (`Cumberland IOS`) and visionOS (`Cumberland_visionOS`) targets.
+
+**Files that were missing:**
+- `Theming/DefaultTheme.swift`
+- `Theming/Theme.swift`
+- `Theming/ThemeEnvironment.swift`
+- `Theming/ThemeManager.swift`
+- `Theming/ThemeTokens.swift`
+- `Theming/WhimsicalTheme.swift`
+- `Services/EdgeIntegrityMonitor.swift`
+- `Diagnostic Views/RelationshipAuditView.swift`
+- `Murderboard/BacklogCardDetailSheet.swift`
+
+**Resolution:**
+User manually added all missing files to the correct build targets via Xcode's target membership inspector. Additionally, `CardRelationshipView.swift` body was refactored to extract sheet views into separate computed properties to resolve a Swift type-checker timeout on the iOS target (the body was ~190 lines with many chained `.sheet()` modifiers).
+
+**Code Changes:**
+- `Cumberland.xcodeproj/project.pbxproj` — Added missing files to iOS and visionOS `membershipExceptions` (user-performed via Xcode GUI)
+- `CardRelationshipView.swift` — Extracted `mainContent`, `addCardSheet`, `existingPickerSheet()`, `createRelationTypeSheet`, `pickRelationTypeSheet`, `retypeSheet`, `editCardSheet`, `manageRelationTypesSheet`, `changeCardTypeSheet` from monolithic `body`
+
+**Prevention:**
+When creating new Swift files in the `Cumberland/` folder, always verify target membership includes all three platform targets (macOS, iOS, visionOS) in Xcode's File Inspector.
+
+---
+
+## DR-0100: Auxiliary Windows Restore on App Launch Instead of Main UI
+
+**Status:** ✅ Resolved - Verified
+**Severity:** Medium
+**Platform:** macOS
+**Component:** CumberlandApp / Window Management
+**Date Identified:** 2026-02-27
+**Date Resolved:** 2026-02-27
+**Date Verified:** 2026-02-27
+
+**Description:**
+If the user has the Preferences panel (or any other auxiliary window such as Card Editor, About, Developer Tools, etc.) open and prominent when they quit the app, macOS state restoration brings that window back on relaunch — potentially without opening the main UI window. The user must manually close the auxiliary window and select File > New Window to get the main UI back.
+
+**Root Cause:**
+macOS automatically restores all windows that were open at quit time. The `Window` and `WindowGroup` scenes for Preferences, About, Card Editor, Temporal Editor, and all diagnostic windows had no launch behavior or restoration behavior modifiers, so they participated in the default state restoration.
+
+**Resolution:**
+Added `.defaultLaunchBehavior(.suppressed)` and `.restorationBehavior(.disabled)` to all auxiliary `Window` and `WindowGroup` scenes in `CumberlandApp.swift`. This ensures:
+1. Only the main `WindowGroup` (ContentView) opens on app launch
+2. Auxiliary windows are never restored across launches — they must be explicitly opened by the user
+
+**Code Changes:**
+- `CumberlandApp.swift` — Added `.defaultLaunchBehavior(.suppressed)` and `.restorationBehavior(.disabled)` to:
+  - macOS Preferences window (id: "settings")
+  - macOS About window (id: "about")
+  - macOS Developer Tools window (id: "dev.tools")
+  - visionOS Settings window (id: "settings")
+  - visionOS Developer Tools window (id: "dev.tools")
+  - visionOS Card Editor WindowGroup
+  - Temporal Editor WindowGroup
+  - All DEBUG diagnostic windows
+
+---
+
+*Last Updated: 2026-02-27*

@@ -299,15 +299,15 @@ private struct DisplaySettingsPane: View {
                     }
                 )) {
                     ForEach(themeManager.availableThemes, id: \.id) { theme in
-                        HStack(spacing: 8) {
-                            ThemeSwatchView(theme: theme)
-                            Text(theme.displayName)
-                        }
-                        .tag(theme.id)
+                        Text(theme.displayName)
+                            .tag(theme.id)
                     }
                 }
                 .accessibilityLabel("Theme")
                 .help("Choose the visual theme for the app.")
+
+                // Live swatch preview of the current theme
+                ThemeSwatchView(theme: themeManager.currentTheme)
             } header: {
                 Text("Theme")
             } footer: {
@@ -318,23 +318,60 @@ private struct DisplaySettingsPane: View {
     }
 }
 
-/// Small color swatch preview for a theme in the picker.
+/// Color swatch preview showing key theme colors.
 private struct ThemeSwatchView: View {
     let theme: any Theme
 
     var body: some View {
-        HStack(spacing: 2) {
-            swatchColor(for: theme.colors.accentPrimary)
-            swatchColor(for: theme.colors.textPrimary)
-            swatchColor(for: theme.shadows.cardColor)
+        HStack(spacing: 0) {
+            // Surface primary
+            swatchCell(fill: theme.colors.surfacePrimary)
+            // Card background
+            Rectangle()
+                .fill(theme.colors.cardBackground)
+                .frame(width: 28, height: 24)
+            // Accent primary
+            Rectangle()
+                .fill(theme.colors.accentPrimary)
+                .frame(width: 28, height: 24)
+            // Accent secondary
+            Rectangle()
+                .fill(theme.colors.accentSecondary)
+                .frame(width: 28, height: 24)
+            // Text primary
+            Rectangle()
+                .fill(theme.colors.textPrimary)
+                .frame(width: 28, height: 24)
+            // Shadow color
+            Rectangle()
+                .fill(theme.shadows.cardColor)
+                .frame(width: 28, height: 24)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .stroke(theme.colors.border, lineWidth: 0.5)
+        )
     }
 
-    private func swatchColor(for color: Color) -> some View {
-        Rectangle()
-            .fill(color)
-            .frame(width: 8, height: 14)
+    /// Render a SurfaceFill as a swatch cell — materials show as a system gray.
+    @ViewBuilder
+    private func swatchCell(fill: SurfaceFill) -> some View {
+        switch fill {
+        case .solid(let color):
+            Rectangle()
+                .fill(color)
+                .frame(width: 28, height: 24)
+        case .textured(let color, _):
+            Rectangle()
+                .fill(color)
+                .frame(width: 28, height: 24)
+        case .material:
+            // Materials can't be rendered as a simple color; show a neutral gray placeholder
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 28, height: 24)
+        }
     }
 }
 

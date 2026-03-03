@@ -16,7 +16,8 @@ Cumberland v1.0 ships the **core worldbuilding toolkit** — cards, relationship
 
 | Metric | Status |
 |--------|--------|
-| Open DRs | **0** — bug backlog clean |
+| Open DRs | **0** — bug backlog clean (3 deferred) |
+| Verified DRs | **87** of 101 total (86.1%) |
 | Unverified ERs | **1** — ER-0037 Phase 1 (Theming) awaiting verification |
 | Proposed ERs (v1.0 scope) | **0** — ER-0037 Phases 2-3 are new implementation work |
 | Proposed ERs (v2.0 deferred) | **10** — ER-0042 through ER-0051 (all visionOS spatial) |
@@ -34,34 +35,34 @@ Cumberland v1.0 ships the **core worldbuilding toolkit** — cards, relationship
 
 #### Step 1: Verify Phase 1 (Current Implementation)
 
-**macOS Testing:**
-- [ ] Launch app — Default theme active, everything looks identical to pre-theme appearance (zero regression)
-- [ ] Open Settings > Display > Theme — picker shows "Default" and "Whimsical" with color swatches
-- [ ] Select "Whimsical" — observe changes:
-  - [ ] Sidebar and main backgrounds shift to warm parchment tones
-  - [ ] Card names render in serif fonts
-  - [ ] Glass surfaces (toolbars, buttons, panels) adopt warm solid fills instead of translucent materials
-  - [ ] Shadows feel warmer (brown-toned instead of pure black)
-  - [ ] Corner radii are slightly softer (16pt vs 12pt on cards)
-- [ ] Navigate through features in Whimsical theme:
-  - [ ] Card grid — serif fonts, warm card backgrounds
-  - [ ] Card detail/editor — warm surfaces
-  - [ ] Murderboard — themed backgrounds
-  - [ ] Structure Board — themed lanes
-  - [ ] Map Wizard — themed landing page
-  - [ ] Relationships tab — themed glass cards and toolbar
-- [ ] Switch back to Default — verify clean revert to system appearance
-- [ ] Quit and relaunch — verify theme choice persists
-- [ ] Toggle light/dark mode — verify both themes adapt correctly in both modes
+**macOS Testing:** ✅ Completed 2026-02-27
+- [x] Launch app — Default theme active, everything looks identical to pre-theme appearance (zero regression)
+- [x] Open Settings > Display > Theme — picker shows "Default" and "Whimsical" with color swatches
+- [x] Select "Whimsical" — observe changes:
+  - [x] Sidebar and main backgrounds shift to warm parchment tones
+  - [x] Card names render in serif fonts
+  - [x] Glass surfaces (toolbars, buttons, panels) adopt warm solid fills instead of translucent materials
+  - [x] Shadows feel warmer (brown-toned instead of pure black)
+  - [x] Corner radii are slightly softer (16pt vs 12pt on cards)
+- [x] Navigate through features in Whimsical theme:
+  - [x] Card grid — serif fonts, warm card backgrounds
+  - [x] Card detail/editor — warm surfaces
+  - [x] Murderboard — themed backgrounds
+  - [x] Structure Board — themed lanes
+  - [x] Map Wizard — themed landing page
+  - [x] Relationships tab — themed glass cards and toolbar
+- [x] Switch back to Default — verify clean revert to system appearance
+- [x] Quit and relaunch — verify theme choice persists
+- [x] Toggle light/dark mode — verify both themes adapt correctly in both modes
 
 **iOS Testing:**
-- [ ] Repeat all macOS tests on iOS device or simulator
-- [ ] Verify sheet presentations are themed (card editor, relationship sheets)
-- [ ] Verify touch interactions work normally in both themes
+- [x] Repeat all macOS tests on iOS device or simulator
+- [x] Verify sheet presentations are themed (card editor, relationship sheets)
+- [x] Verify touch interactions work normally in both themes
 
 **visionOS Testing (if available):**
-- [ ] Verify materials preserved — no solid colors on spatial surfaces regardless of theme
-- [ ] Verify ornament controls are theme-aware
+- [x] Verify materials preserved — no solid colors on spatial surfaces regardless of theme
+- [x] Verify ornament controls are theme-aware
 
 **Things to watch for (file DRs if found):**
 - Any text that becomes unreadable (wrong contrast in Whimsical)

@@ -265,6 +265,7 @@ struct CumberlandApp: App {
         // PHASE 2: Floating card editor windows
         // Allows card creation/editing in independent floating windows
         // Users can position editors alongside main content for side-by-side workflows
+        // DR-0100: Suppressed on launch
         WindowGroup(for: AppModel.CardEditorRequest.self) { $request in
             if let request {
                 CardEditorWindowView(editorRequest: request)
@@ -276,10 +277,13 @@ struct CumberlandApp: App {
             }
         }
         .defaultSize(width: 840, height: 780)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
         #endif
 
         #if os(visionOS)
         // Settings window for visionOS (full window, not modal sheet)
+        // DR-0100: Suppressed on launch
         Window("Settings", id: "settings") {
             SettingsView()
                 .modelContainer(modelContainer)
@@ -290,10 +294,13 @@ struct CumberlandApp: App {
         }
         .windowStyle(.plain)
         .defaultSize(width: 800, height: 700)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
         #endif
 
         #if os(visionOS) && DEBUG
         // Developer Tools window for visionOS
+        // DR-0100: Suppressed on launch
         Window("Developer Tools", id: "dev.tools") {
             DeveloperToolsView()
                 .modelContainer(modelContainer)
@@ -304,11 +311,14 @@ struct CumberlandApp: App {
         }
         .windowStyle(.plain)
         .defaultSize(width: 600, height: 600)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
         #endif
 
         #if os(macOS)
         // Dedicated Settings/Preferences window for macOS
         // DR-0030: Accessible via Cumberland > Preferences... menu (Cmd+,)
+        // DR-0100: Suppressed on launch so only the main window opens on restart
         Window("Preferences", id: "settings") {
             SettingsView()
                 .modelContainer(modelContainer)
@@ -318,8 +328,11 @@ struct CumberlandApp: App {
                 .frame(minWidth: 520, minHeight: 380)
         }
         .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
         // About window scene for macOS
+        // DR-0100: Suppressed on launch
         Window("About Cumberland", id: "about") {
             AboutView()
                 .themeEnvironment(themeManager)
@@ -327,9 +340,12 @@ struct CumberlandApp: App {
                 .frame(minWidth: 420, minHeight: 260)
         }
         .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
         #if DEBUG
         // Developer Tools window for macOS (consolidated utilities)
+        // DR-0100: Suppressed on launch
         Window("Developer Tools", id: "dev.tools") {
             DeveloperToolsView()
                 .modelContainer(modelContainer)
@@ -339,11 +355,14 @@ struct CumberlandApp: App {
                 .frame(minWidth: 600, minHeight: 500)
         }
         .defaultSize(width: 800, height: 600)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
         #endif
 
         #if os(macOS) || os(visionOS)
         // Temporal editor window for macOS and visionOS
         // DR-0061: Using window instead of sheet to fix rendering issues
+        // DR-0100: Suppressed on launch
         WindowGroup(for: AppModel.TemporalEditorRequest.self) { $request in
             if let request {
                 TemporalEditorWindowView(editorRequest: request)
@@ -354,9 +373,12 @@ struct CumberlandApp: App {
             }
         }
         .defaultSize(width: 560, height: 640)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
         #endif
 
         // Developer diagnostic windows (DEBUG only, some use in-memory samples, some live)
+        // DR-0100: All diagnostic windows suppressed on launch
         #if DEBUG
         // Existing sample-backed diagnostics
         Window("Diagnostics: Swimlane Viewer", id: "dev.swimlane") {
@@ -365,6 +387,8 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 960, minHeight: 560)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
         Window("Diagnostics: Card Relationship", id: "dev.cardRelationship") {
             DevCardRelationshipWindow()
@@ -372,6 +396,8 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 880, minHeight: 560)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
         Window("Diagnostics: Card Sheet", id: "dev.cardSheet") {
             DevCardSheetWindow()
@@ -379,6 +405,8 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 560)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
         Window("Diagnostics: Image Attribution", id: "dev.imageAttribution") {
             DevImageAttributionWindow()
@@ -386,8 +414,10 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 560, minHeight: 460)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
-        // New diagnostics that use the live ModelContainer
+        // Diagnostics that use the live ModelContainer
         Window("Diagnostics: Recent Edges", id: "dev.recentEdges") {
             RecentEdgesDiagnosticsView()
                 .modelContainer(modelContainer) // live container
@@ -395,6 +425,8 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 520)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
         Window("Diagnostics: Relation Types", id: "dev.relationTypes") {
             RelationTypesDiagnosticsView()
@@ -403,8 +435,9 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 520)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
-        // New: Story Structure diagnostics (live container)
         Window("Diagnostics: Story Structure", id: "dev.storyStructure") {
             StoryStructureDiagnosticsView()
                 .modelContainer(modelContainer) // live container
@@ -412,8 +445,9 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 520)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
-        // New: Scene → Project relation diagnostics (live container)
         Window("Diagnostics: Scene → Project Relations", id: "dev.sceneProjectRelations") {
             SceneProjectRelationDiagnosticsView()
                 .modelContainer(modelContainer) // live container
@@ -421,8 +455,9 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 720, minHeight: 520)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
-        // New: Fix incomplete relationships (live container)
         Window("Diagnostics: Fix Incomplete Relationships", id: "dev.fixInverseEdges") {
             FixIncompleteRelationshipsView()
                 .modelContainer(modelContainer) // live container
@@ -430,8 +465,9 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 780, minHeight: 560)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
-        // New: Boards diagnostics (live container)
         Window("Diagnostics: Boards", id: "dev.boards") {
             DeveloperBoardsView()
                 .modelContainer(modelContainer) // live container
@@ -439,6 +475,8 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 920, minHeight: 560)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
         // DR-0065: CalendarSystem relationship fix tool (live container)
         Window("Fix CalendarSystem Relationships (DR-0065)", id: "dev.fixCalendarRelationships") {
@@ -448,6 +486,8 @@ struct CumberlandApp: App {
                 .preferredColorScheme(appPreferredColorScheme)
                 .frame(minWidth: 640, minHeight: 560)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
         #endif
         #endif
      }

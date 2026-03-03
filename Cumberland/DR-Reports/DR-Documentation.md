@@ -13,17 +13,15 @@ This is the main index for all Cumberland Discrepancy Reports. DRs track bugs an
 
 ## Unverified DRs (Active Issues)
 
-Currently: **1 unverified DR**
+Currently: **0 unverified DRs**
 
-| DR | Title | Status |
-|----|-------|--------|
-| DR-0099 | iOS/visionOS Targets Missing File Memberships — Build Failures | 🟡 Resolved - Not Verified |
+*No unverified DRs at this time.*
 
 See: [DR-unverified.md](./DR-unverified.md)
 
 ## Verified DRs (Resolved Issues)
 
-Currently: **80 verified DRs** | Next available DR: **DR-0100**
+Currently: **83 verified DRs** | Next available DR: **DR-0102**
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
@@ -36,7 +34,8 @@ Currently: **80 verified DRs** | Next available DR: **DR-0100**
 | Batch 7 | DR-0061 to DR-0070 | [DR-verified-0061-0070.md](./DR-verified-0061-0070.md) | 🚧 In Progress (6/10 verified) |
 | Batch 8 | DR-0071 to DR-0080 | [DR-verified-0071-0080.md](./DR-verified-0071-0080.md) | 🚧 In Progress (9/10 verified) |
 | Batch 9 | DR-0081 to DR-0090 | [DR-verified-0081-0090.md](./DR-verified-0081-0090.md) | ✅ All Verified (10/10) |
-| Batch 10 | DR-0091 to DR-0100 | [DR-verified-0091-0100.md](./DR-verified-0091-0100.md) | 🚧 In Progress (8/10 verified) |
+| Batch 10 | DR-0091 to DR-0100 | [DR-verified-0091-0100.md](./DR-verified-0091-0100.md) | ✅ All Verified (10/10) |
+| Batch 11 | DR-0101 to DR-0110 | [DR-verified-0101-0110.md](./DR-verified-0101-0110.md) | 🚧 In Progress (1/10 verified) |
 
 ## Closed DRs (Not Verified)
 
@@ -59,12 +58,12 @@ See: [DR-archive-0038-0056.md](./DR-archive-0038-0056.md) for deferred/OBE DRs:
 
 ## Statistics
 
-- **Total DRs:** 98
-- **Verified:** 84 (85.7%) ✅
-- **Open:** 3 (3.1%) 🔴 *(3 deferred)*
-- **Closed/Deferred:** 5 (5.1%) ⚪
+- **Total DRs:** 101
+- **Verified:** 87 (86.1%) ✅
+- **Open:** 3 (3.0%) 🔴 *(3 deferred)*
+- **Closed/Deferred:** 5 (5.0%) ⚪
 
 ---
 
-*Last Updated: 2026-02-22*
+*Last Updated: 2026-02-27*
 
