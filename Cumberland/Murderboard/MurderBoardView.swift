@@ -259,6 +259,7 @@ struct MurderBoardView: View {
     @ViewBuilder
     private var boardWithStateHandlers: some View {
         boardContent
+            .themeBackground(\.murderboardCanvas, theme: themeManager.currentTheme)
             .task {
                 await loadBoardIfNeeded()
             }

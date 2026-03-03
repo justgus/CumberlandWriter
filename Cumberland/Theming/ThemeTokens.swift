@@ -51,9 +51,16 @@ extension SurfaceFill {
             shape.fill(m)
         case .solid(let c):
             shape.fill(c)
-        case .textured(let c, _):
-            // Future: overlay a named texture image
-            shape.fill(c)
+        case .textured(let c, let textureName):
+            ZStack {
+                shape.fill(c)
+                if let textureName {
+                    Image(textureName)
+                        .resizable(resizingMode: .tile)
+                        .opacity(0.15)
+                        .clipShape(shape)
+                }
+            }
         }
     }
 
@@ -90,6 +97,9 @@ struct ThemeColors {
     /// Secondary surface fill (cards, panels, inspectors).
     let surfaceSecondary: SurfaceFill
 
+    /// Tertiary surface fill (alternating list rows, sidebar sections, navigation backgrounds).
+    let surfaceTertiary: SurfaceFill
+
     /// Glass overlay fill (toolbars, floating containers, overlays).
     let surfaceGlass: SurfaceFill
 
@@ -102,6 +112,9 @@ struct ThemeColors {
     /// Secondary accent color.
     let accentSecondary: Color
 
+    /// Tertiary accent color (badges, tags, secondary buttons).
+    let accentTertiary: Color
+
     /// Primary text color.
     let textPrimary: Color
 
@@ -110,6 +123,18 @@ struct ThemeColors {
 
     /// Tertiary text color.
     let textTertiary: Color
+
+    /// Background color for Kind badges and tags.
+    let tagBackground: Color
+
+    /// Text color for Kind badges and tags.
+    let tagText: Color
+
+    /// Color for delete/warning actions.
+    let destructive: Color
+
+    /// Color for confirmation/positive states.
+    let success: Color
 
     /// Border/stroke color for card edges, separators.
     let border: Color
@@ -212,4 +237,50 @@ struct ThemeSpacing {
 
     /// Standard button padding (horizontal).
     let buttonPaddingHorizontal: CGFloat
+}
+
+// MARK: - ThemeBackgroundImages
+
+/// Optional named image assets for themed background textures on key surfaces.
+///
+/// Each value is an optional asset catalog name. `nil` means no background
+/// image for that surface — the surface uses its normal fill only.
+/// Built-in themes reference assets in the `ThemeAssets/` group in
+/// Assets.xcassets. User themes will bundle images within the
+/// `.cumberlandtheme` file.
+///
+/// On visionOS, background images are suppressed — materials take
+/// precedence for spatial depth perception.
+struct ThemeBackgroundImages {
+    /// Tiled/stretched texture for the sidebar.
+    let sidebarBackground: String?
+
+    /// Tiled texture for the main card list / content area.
+    let contentBackground: String?
+
+    /// Tiled texture for the Murderboard workspace canvas.
+    let murderboardCanvas: String?
+
+    /// Tiled texture for the Structure Board.
+    let structureBoardCanvas: String?
+
+    /// Decorative image for the Map Wizard landing page.
+    let wizardHero: String?
+
+    /// Illustration for empty content states.
+    let emptyState: String?
+
+    /// Hero/watermark for the "no selection" detail placeholder.
+    let detailPlaceholder: String?
+
+    /// Convenience initializer with all-nil defaults.
+    static let none = ThemeBackgroundImages(
+        sidebarBackground: nil,
+        contentBackground: nil,
+        murderboardCanvas: nil,
+        structureBoardCanvas: nil,
+        wizardHero: nil,
+        emptyState: nil,
+        detailPlaceholder: nil
+    )
 }

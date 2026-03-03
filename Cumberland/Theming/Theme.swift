@@ -38,4 +38,7 @@ protocol Theme: Sendable {
 
     /// Semantic spacing tokens.
     var spacing: ThemeSpacing { get }
+
+    /// Optional background image assets for themed surface textures.
+    var backgroundImages: ThemeBackgroundImages { get }
 }

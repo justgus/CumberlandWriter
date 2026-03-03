@@ -10,6 +10,7 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 enum SettingsSection: String, CaseIterable, Identifiable {
     case display = "Display"
@@ -267,6 +268,13 @@ private struct DisplaySettingsPane: View {
     var onSave: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
 
+    @State private var showImportPicker = false
+    @State private var showExportPicker = false
+    @State private var showDeleteConfirmation = false
+    @State private var importError: String?
+    @State private var showImportError = false
+    @State private var exportData: Data?
+
     var body: some View {
         Form {
             Section {
@@ -308,13 +316,116 @@ private struct DisplaySettingsPane: View {
 
                 // Live swatch preview of the current theme
                 ThemeSwatchView(theme: themeManager.currentTheme)
+
+                // Import / Export / Delete buttons
+                HStack(spacing: 12) {
+                    Button {
+                        showImportPicker = true
+                    } label: {
+                        Label("Import", systemImage: "square.and.arrow.down")
+                    }
+                    .help("Import a .cumberlandtheme file.")
+
+                    Button {
+                        exportCurrentTheme()
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                    }
+                    .help("Export the current theme as a .cumberlandtheme file.")
+
+                    if themeManager.isUserTheme(themeManager.themeIdentifier) {
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .help("Delete this user-defined theme.")
+                    }
+                }
             } header: {
                 Text("Theme")
             } footer: {
-                Text("Changes the app's visual style. The Default theme uses translucent materials. Whimsical uses warm parchment tones with serif fonts.")
+                Text("Choose a built-in theme or import a custom .cumberlandtheme file. Export any theme to share or customize it.")
             }
         }
         .formStyle(.grouped)
+        .fileImporter(
+            isPresented: $showImportPicker,
+            allowedContentTypes: [.cumberlandTheme, .json],
+            allowsMultipleSelection: false
+        ) { result in
+            handleImport(result)
+        }
+        .fileExporter(
+            isPresented: $showExportPicker,
+            document: exportData.map { ThemeDocument(data: $0) },
+            contentType: .cumberlandTheme,
+            defaultFilename: "\(themeManager.currentTheme.id).cumberlandtheme"
+        ) { _ in
+            exportData = nil
+        }
+        .alert("Import Error", isPresented: $showImportError) {
+            Button("OK") { }
+        } message: {
+            Text(importError ?? "An unknown error occurred while importing the theme.")
+        }
+        .alert("Delete Theme?", isPresented: $showDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                themeManager.removeUserTheme(id: themeManager.themeIdentifier)
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will permanently delete the \"\(themeManager.currentTheme.displayName)\" theme. This cannot be undone.")
+        }
+    }
+
+    private func exportCurrentTheme() {
+        do {
+            exportData = try ThemeFileManager.shared.exportThemeData(from: themeManager.currentTheme)
+            showExportPicker = true
+        } catch {
+            importError = error.localizedDescription
+            showImportError = true
+        }
+    }
+
+    private func handleImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            do {
+                let theme = try ThemeFileManager.shared.importTheme(from: url)
+                themeManager.addUserTheme(theme)
+                themeManager.setTheme(theme.id)
+            } catch {
+                importError = "Could not import theme: \(error.localizedDescription)"
+                showImportError = true
+            }
+        case .failure(let error):
+            importError = error.localizedDescription
+            showImportError = true
+        }
+    }
+}
+
+// MARK: - ThemeDocument (for fileExporter)
+
+/// A simple `FileDocument` wrapper for exporting theme JSON data.
+struct ThemeDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.cumberlandTheme] }
+
+    let data: Data
+
+    init(data: Data) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        data = configuration.file.regularFileContents ?? Data()
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
     }
 }
 
@@ -338,13 +449,21 @@ private struct ThemeSwatchView: View {
             Rectangle()
                 .fill(theme.colors.accentSecondary)
                 .frame(width: 28, height: 24)
+            // Accent tertiary
+            Rectangle()
+                .fill(theme.colors.accentTertiary)
+                .frame(width: 28, height: 24)
             // Text primary
             Rectangle()
                 .fill(theme.colors.textPrimary)
                 .frame(width: 28, height: 24)
-            // Shadow color
+            // Destructive
             Rectangle()
-                .fill(theme.shadows.cardColor)
+                .fill(theme.colors.destructive)
+                .frame(width: 28, height: 24)
+            // Success
+            Rectangle()
+                .fill(theme.colors.success)
                 .frame(width: 28, height: 24)
         }
         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))

@@ -225,6 +225,7 @@ struct MapWizardView: View {
             footerView
         }
         .background(platformBackgroundColor.opacity(0.5))
+        .themeBackground(\.wizardHero, mode: .stretch, opacity: 0.10, theme: themeManager.currentTheme)
     }
     
     // MARK: - Focused Work Surface

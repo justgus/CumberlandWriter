@@ -4,27 +4,28 @@
 //
 //  ER-0037: Theming System — Whimsical Skin
 //
-//  A warm, handcrafted aesthetic theme inspired by parchment, leather,
-//  and vintage stationery. Uses earthy tones, serif fonts (system Georgia),
-//  softer corner radii, and warm brown shadows.
+//  A playful, storybook-inspired theme with a pastel multi-color
+//  palette. Surfaces use soft fairy-tale tones (rose cream, lavender mist),
+//  accents are pastel teal, coral, and gold, and semantic colors use
+//  storybook crimson and enchanted green. Cochin serif fonts and generous
+//  shapes evoke illustrated manuscripts and handbound journals.
 //
-//  Colors adapt to light/dark mode: light mode uses warm cream parchment,
-//  dark mode uses deep warm browns (like aged leather by candlelight).
+//  Colors adapt to light/dark mode: light mode is bright and airy like
+//  an open picture book; dark mode is rich and cozy like reading by
+//  candlelight in a wizard's study.
 //
-//  On visionOS, solid parchment fills are promoted to materials to
-//  preserve spatial depth perception.
+//  On visionOS, solid fills are promoted to materials for spatial depth.
 //
 
 import SwiftUI
 
-/// A warm, whimsical theme with parchment colors and a handcrafted feel.
+/// A playful, storybook theme with a multi-color palette of teal, coral, gold, and blush.
 struct WhimsicalTheme: Theme {
     let id = "whimsical"
     let displayName = String(localized: "Whimsical")
 
     // MARK: - Adaptive Palette (light / dark)
 
-    // Helper to create colors that adapt to light/dark mode
     #if os(macOS)
     private static func adaptive(light: (CGFloat, CGFloat, CGFloat), dark: (CGFloat, CGFloat, CGFloat)) -> Color {
         Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
@@ -42,86 +43,132 @@ struct WhimsicalTheme: Theme {
     }
     #endif
 
-    // --- Surfaces ---
-    /// Parchment base: warm cream (light) / deep warm charcoal (dark)
-    private static let parchment = adaptive(
-        light: (0.96, 0.90, 0.78),   // #F5E6C8
-        dark:  (0.12, 0.10, 0.08)    // #1E1914 — aged leather in shadow
+    // MARK: - Surface Palette
+
+    /// Rose cream: main surface — pinkish pastel storybook page
+    private static let roseCream = adaptive(
+        light: (0.98, 0.93, 0.94),   // #FAEDF0 — rose-tinted page
+        dark:  (0.16, 0.12, 0.14)    // #291F24 — dusky rose binding
     )
-    /// Aged paper: slightly darker cream (light) / slightly lighter charcoal (dark)
-    private static let agedPaper = adaptive(
-        light: (0.93, 0.88, 0.78),   // #EDE0C8
-        dark:  (0.16, 0.13, 0.10)    // #29211A — parchment by candlelight
+    /// Lavender mist: secondary surface — chapter dividers, cards
+    private static let lavenderMist = adaptive(
+        light: (0.95, 0.92, 0.97),   // #F2EBF8 — lavender petal
+        dark:  (0.15, 0.12, 0.18)    // #261F2E — dried lavender
     )
-    /// Card background
+    /// Soft sky: tertiary surface — alternating rows, subtle variation
+    private static let softSky = adaptive(
+        light: (0.92, 0.95, 0.98),   // #EBF2FA — morning sky
+        dark:  (0.12, 0.14, 0.18)    // #1F242E — twilight sky
+    )
+    /// Card background: warm pastel pink
     private static let cardBg = adaptive(
-        light: (0.96, 0.90, 0.78),   // same as parchment light
-        dark:  (0.14, 0.12, 0.09)    // #241E17 — slightly warmer than surface
+        light: (0.97, 0.93, 0.93),   // #F8EDED — rose parchment
+        dark:  (0.17, 0.13, 0.14)    // #2B2124 — candlelit rose desk
     )
 
-    // --- Text ---
-    /// Ink: deep brown (light) / warm off-white (dark)
-    private static let ink = adaptive(
-        light: (0.17, 0.09, 0.06),   // #2C1810
-        dark:  (0.91, 0.84, 0.72)    // #E8D6B8 — warm parchment text
+    // MARK: - Text Palette
+
+    /// Deep charcoal with warmth (light) / soft cream (dark)
+    private static let storyInk = adaptive(
+        light: (0.18, 0.15, 0.12),   // #2E261F — fountain pen ink
+        dark:  (0.92, 0.88, 0.82)    // #EBE0D1 — candlelit page
     )
-    /// Secondary text
-    private static let secondaryText = adaptive(
-        light: (0.40, 0.30, 0.22),
-        dark:  (0.68, 0.58, 0.48)    // #AD9479
+    /// Secondary text: muted story tone
+    private static let marginNote = adaptive(
+        light: (0.42, 0.38, 0.34),   // #6B6157 — pencil margin note
+        dark:  (0.65, 0.60, 0.55)    // #A6998C — faded annotation
     )
     /// Tertiary text
-    private static let tertiaryText = adaptive(
-        light: (0.55, 0.45, 0.38),
-        dark:  (0.50, 0.42, 0.34)    // #806B57
+    private static let whisper = adaptive(
+        light: (0.58, 0.54, 0.50),   // #948A80 — whispered aside
+        dark:  (0.48, 0.44, 0.40)    // #7A7066 — distant echo
     )
 
-    // --- Accents ---
-    /// Leather: rich brown (light) / warm copper (dark)
-    private static let leather = adaptive(
-        light: (0.545, 0.271, 0.075), // #8B4513
-        dark:  (0.72, 0.45, 0.20)    // #B87333 — burnished copper
+    // MARK: - Accent Palette
+
+    /// Pastel teal: primary accent — soft enchanted pool
+    private static let pastelTeal = adaptive(
+        light: (0.40, 0.68, 0.68),   // #66ADAD — soft teal
+        dark:  (0.45, 0.75, 0.75)    // #73BFBF — glowing lagoon
     )
-    /// Muted gold
-    private static let mutedGold = adaptive(
-        light: (0.72, 0.53, 0.04),   // #B8860B
-        dark:  (0.82, 0.65, 0.20)    // #D1A633 — brighter gold for dark bg
+    /// Pastel coral: secondary accent — gentle warmth
+    private static let pastelCoral = adaptive(
+        light: (0.90, 0.58, 0.55),   // #E6948C — soft coral
+        dark:  (0.92, 0.62, 0.58)    // #EB9E94 — rosy fireside
+    )
+    /// Pastel gold: tertiary accent — gentle fairy shimmer
+    private static let pastelGold = adaptive(
+        light: (0.85, 0.75, 0.42),   // #D9BF6B — soft fairy dust
+        dark:  (0.90, 0.80, 0.48)    // #E6CC7A — warm lantern
     )
 
-    // --- Chrome ---
-    /// Border
+    // MARK: - Tag Palette
+
+    /// Pastel teal tag background
+    private static let tagTealBg = adaptive(
+        light: (0.86, 0.94, 0.94),   // #DBF0F0 — misty lagoon
+        dark:  (0.12, 0.22, 0.22)    // #1F3838 — deep pool
+    )
+    /// Teal tag text
+    private static let tagTealText = adaptive(
+        light: (0.25, 0.52, 0.52),   // #408585 — soft teal
+        dark:  (0.50, 0.78, 0.78)    // #80C7C7 — bright lagoon
+    )
+
+    // MARK: - Semantic State Colors
+
+    /// Storybook crimson for destructive/warning
+    private static let crimsonRose = adaptive(
+        light: (0.72, 0.15, 0.22),   // #B82638 — red riding hood
+        dark:  (0.88, 0.30, 0.35),   // #E04D59 — enchanted apple
+    )
+    /// Enchanted green for success
+    private static let enchantedGreen = adaptive(
+        light: (0.15, 0.50, 0.28),   // #268047 — forest clearing
+        dark:  (0.30, 0.70, 0.45)    // #4DB373 — fairy glade
+    )
+
+    // MARK: - Chrome Palette
+
+    /// Warm border
     private static let warmBorder = adaptive(
-        light: (0.78, 0.70, 0.60),
-        dark:  (0.30, 0.25, 0.20)    // #4D4033
+        light: (0.80, 0.75, 0.68),   // #CCBFAD — gilt edge
+        dark:  (0.28, 0.24, 0.20)    // #473D33 — dark binding
     )
-    /// Divider
+    /// Warm divider
     private static let warmDivider = adaptive(
-        light: (0.82, 0.74, 0.64),
-        dark:  (0.25, 0.21, 0.17)    // #40352B
+        light: (0.84, 0.79, 0.72),   // #D6C9B8 — page crease
+        dark:  (0.22, 0.19, 0.16)    // #383029 — shadow crease
     )
     /// Warm shadow
     private static let warmShadow = adaptive(
-        light: (0.30, 0.18, 0.10),
-        dark:  (0.0, 0.0, 0.0)       // pure black shadow in dark mode
+        light: (0.25, 0.18, 0.12),   // #402E1F — cast shadow
+        dark:  (0.0, 0.0, 0.0)       // pure black in dark
     )
-    /// Highlight hairline
+    /// Warm highlight
     private static let warmHighlight = adaptive(
-        light: (1.0, 0.97, 0.90),
-        dark:  (0.35, 0.28, 0.20)    // warm brown highlight in dark
+        light: (1.0, 0.98, 0.94),    // #FFFAF0 — page gleam
+        dark:  (0.30, 0.25, 0.20)    // #4D4033 — candlelight edge
     )
 
     // MARK: - Tokens
 
     let colors = ThemeColors(
-        surfacePrimary: .solid(parchment),
-        surfaceSecondary: .solid(agedPaper),
-        surfaceGlass: .solid(parchment),
-        surfaceGlassProminent: .solid(agedPaper),
-        accentPrimary: leather,
-        accentSecondary: mutedGold,
-        textPrimary: ink,
-        textSecondary: secondaryText,
-        textTertiary: tertiaryText,
+        surfacePrimary: .solid(roseCream),
+        surfaceSecondary: .solid(lavenderMist),
+        surfaceTertiary: .solid(softSky),
+        surfaceGlass: .solid(roseCream),
+        surfaceGlassProminent: .solid(lavenderMist),
+        accentPrimary: pastelTeal,
+        accentSecondary: pastelCoral,
+        accentTertiary: pastelGold,
+        textPrimary: storyInk,
+        textSecondary: marginNote,
+        textTertiary: whisper,
+        tagBackground: tagTealBg,
+        tagText: tagTealText,
+        destructive: crimsonRose,
+        success: enchantedGreen,
         border: warmBorder,
         shadow: warmShadow,
         divider: warmDivider,
@@ -132,12 +179,12 @@ struct WhimsicalTheme: Theme {
     )
 
     let fonts = ThemeFonts(
-        largeTitle: .system(.largeTitle, design: .serif),
-        headline: .system(.headline, design: .serif),
-        subheadline: .system(.subheadline, design: .serif),
-        body: .system(.body, design: .serif),
-        caption: .system(.caption, design: .serif),
-        footnote: .system(.footnote, design: .serif)
+        largeTitle: .custom("Cochin", size: 28, relativeTo: .largeTitle),
+        headline: .custom("Cochin-Bold", size: 14, relativeTo: .headline),
+        subheadline: .custom("Cochin", size: 12, relativeTo: .subheadline),
+        body: .custom("Cochin", size: 14, relativeTo: .body),
+        caption: .custom("Cochin", size: 10, relativeTo: .caption),
+        footnote: .custom("Cochin", size: 11, relativeTo: .footnote)
     )
 
     let shapes = ThemeShapes(
@@ -166,4 +213,6 @@ struct WhimsicalTheme: Theme {
         buttonPaddingVertical: 8,
         buttonPaddingHorizontal: 12
     )
+
+    let backgroundImages = ThemeBackgroundImages.none
 }

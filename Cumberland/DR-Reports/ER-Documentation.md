@@ -13,11 +13,11 @@ This is the main index for all Cumberland Enhancement Requests. ERs track planne
 
 ## Unverified ERs (Active & Proposed)
 
-Currently: **1 implemented (not verified)** + **10 proposed ERs**
+Currently: **1 in progress** + **10 proposed ERs**
 
 | ER | Title | Status |
 |----|-------|--------|
-| ER-0037 | Theming System — Multi-Color Themes, Background Images & User-Defined Themes | 🟡 Phase 1 Implemented / 🔵 Phases 2-3 Proposed |
+| ER-0037 | Theming System — Multi-Color Themes, Background Images & User-Defined Themes | ✅ Phase 1 Verified / 🟡 Phase 2 Implemented — Not Verified / 🟡 Phase 3 Implemented — Not Verified |
 | ER-0042 | visionOS Spatial Murderboard — Foundation & Obsession Wall | 🔵 Proposed |
 | ER-0043 | visionOS Spatial Murderboard — Bulletin Board | 🔵 Proposed |
 | ER-0044 | visionOS Spatial Murderboard — Spatial Cloud | 🔵 Proposed |
@@ -72,9 +72,9 @@ Currently: **40 verified ERs** | Next available ER: **ER-0052**
 
 - **Total ERs:** 51
 - **Verified:** 40 (78.4%) ✅
-- **Implemented (Not Verified):** 1 (2.0%) 🟡
+- **In Progress:** 1 (2.0%) 🟡
 - **Proposed:** 10 (19.6%) 🔵
 
 ---
 
-*Last Updated: 2026-02-27*
+*Last Updated: 2026-03-03*

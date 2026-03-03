@@ -2,11 +2,12 @@
 //  ThemeManager.swift
 //  Cumberland
 //
-//  ER-0037: Theming System — Whimsical Skin
+//  ER-0037: Theming System
 //
 //  ObservableObject manager that tracks the active theme and persists the
 //  user's choice via UserDefaults. Views read the current theme from the
-//  environment; the manager handles theme switching and registry.
+//  environment; the manager handles theme switching, registry, and
+//  user-defined theme management.
 //
 
 import SwiftUI
@@ -35,16 +36,18 @@ final class ThemeManager: ObservableObject {
     // MARK: - Theme Registry
 
     /// All available themes, keyed by their `id`.
-    private let themes: [String: any Theme]
+    private var themes: [String: any Theme]
 
     /// Ordered list of available themes for display in the picker.
-    let availableThemes: [any Theme]
+    /// Built-in themes first, then user themes sorted by display name.
+    @Published private(set) var availableThemes: [any Theme]
+
+    /// IDs of built-in themes (cannot be deleted).
+    private let builtInIDs: Set<String>
 
     // MARK: - Persisted Preference
 
     /// The identifier of the active theme, persisted across launches.
-    /// `@Published` ensures SwiftUI re-renders all views that read
-    /// from this manager when the theme changes.
     @Published var themeIdentifier: String
 
     private static let storageKey = "AppSettings.themeIdentifier"
@@ -57,13 +60,27 @@ final class ThemeManager: ObservableObject {
         themes[themeIdentifier] ?? DefaultTheme()
     }
 
+    /// Whether the given theme ID is a user-defined (deletable) theme.
+    func isUserTheme(_ id: String) -> Bool {
+        !builtInIDs.contains(id)
+    }
+
     // MARK: - Initialization
 
     init() {
-        let defaultTheme = DefaultTheme()
-        let whimsicalTheme = WhimsicalTheme()
+        let builtIn: [any Theme] = [
+            DefaultTheme(),
+            WhimsicalTheme(),
+            PurpleTheme(),
+            HalloweenTheme()
+        ]
+        let builtInIDs = Set(builtIn.map(\.id))
+        self.builtInIDs = builtInIDs
 
-        let allThemes: [any Theme] = [defaultTheme, whimsicalTheme]
+        // Load user themes from disk
+        let userThemes = ThemeFileManager.shared.loadUserThemes()
+
+        let allThemes: [any Theme] = builtIn + userThemes
         self.themes = Dictionary(uniqueKeysWithValues: allThemes.map { ($0.id, $0) })
         self.availableThemes = allThemes
 
@@ -74,10 +91,37 @@ final class ThemeManager: ObservableObject {
     // MARK: - Actions
 
     /// Switch to the theme with the given identifier.
-    /// - Parameter id: The `Theme.id` to activate.
     func setTheme(_ id: String) {
         guard themes[id] != nil else { return }
         themeIdentifier = id
         UserDefaults.standard.set(id, forKey: Self.storageKey)
+    }
+
+    /// Add an imported user theme to the registry.
+    func addUserTheme(_ theme: UserTheme) {
+        themes[theme.id] = theme
+        rebuildAvailableThemes()
+    }
+
+    /// Remove a user theme by ID. Falls back to Default if the deleted
+    /// theme was active.
+    func removeUserTheme(id: String) {
+        guard isUserTheme(id) else { return }
+        themes.removeValue(forKey: id)
+        try? ThemeFileManager.shared.deleteTheme(id: id)
+        if themeIdentifier == id {
+            setTheme("default")
+        }
+        rebuildAvailableThemes()
+    }
+
+    // MARK: - Private
+
+    private func rebuildAvailableThemes() {
+        let builtIn = availableThemes.filter { builtInIDs.contains($0.id) }
+        let user = themes.values
+            .filter { !builtInIDs.contains($0.id) }
+            .sorted { $0.displayName < $1.displayName }
+        availableThemes = builtIn + user
     }
 }

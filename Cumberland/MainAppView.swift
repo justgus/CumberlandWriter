@@ -570,11 +570,19 @@ struct MainAppView: View {
 
     // MARK: - Sidebar
 
+    private var sidebarTheme: any Theme { themeManager.currentTheme }
+
     private var sidebar: some View {
         List(selection: $sidebarSelection) {
             // Structure goes first, as requested (separate from Kinds)
             NavigationLink(value: SidebarItem.structure) {
-                Label("Structure", systemImage: Kinds.structure.systemImage)
+                Label {
+                    Text("Structure")
+                        .foregroundStyle(sidebarTheme.colors.textPrimary)
+                } icon: {
+                    Image(systemName: Kinds.structure.systemImage)
+                        .foregroundStyle(sidebarTheme.colors.accentPrimary)
+                }
             }
             #if os(visionOS)
             .accessibilityLabel("Structure view")
@@ -582,7 +590,13 @@ struct MainAppView: View {
             #endif
 
             NavigationLink(value: SidebarItem.all) {
-                Label("All Cards", systemImage: "rectangle.stack")
+                Label {
+                    Text("All Cards")
+                        .foregroundStyle(sidebarTheme.colors.textPrimary)
+                } icon: {
+                    Image(systemName: "rectangle.stack")
+                        .foregroundStyle(sidebarTheme.colors.accentPrimary)
+                }
             }
             #if os(visionOS)
             .accessibilityLabel("All Cards")
@@ -592,7 +606,13 @@ struct MainAppView: View {
             Section("Card Types") {
                 ForEach(Kinds.orderedCases.filter { $0 != .structure }, id: \.self) { kind in
                     NavigationLink(value: SidebarItem.kind(kind)) {
-                        Label(kind.title, systemImage: kind.systemImage)
+                        Label {
+                            Text(kind.title)
+                                .foregroundStyle(sidebarTheme.colors.textPrimary)
+                        } icon: {
+                            Image(systemName: kind.systemImage)
+                                .foregroundStyle(sidebarTheme.colors.accentPrimary)
+                        }
                     }
                     #if os(visionOS)
                     .accessibilityLabel(kind.title)
@@ -605,6 +625,7 @@ struct MainAppView: View {
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
+        .themeBackground(\.sidebarBackground, theme: themeManager.currentTheme)
         #if os(visionOS)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Navigation sidebar")
@@ -941,6 +962,7 @@ struct MainAppView: View {
         .listStyle(.inset)
         .scrollContentBackground(.hidden)
         .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
+        .themeBackground(\.contentBackground, theme: themeManager.currentTheme)
         #if os(visionOS)
         // Phase 4: Better list accessibility
         .accessibilityElement(children: .contain)
@@ -1212,7 +1234,8 @@ struct MainAppView: View {
 
         return ContentPlaceholderView(
             title: title,
-            subtitle: subtitle
+            subtitle: subtitle,
+            backgroundImageKeyPath: \.emptyState
         )
         .overlay(alignment: .bottom) {
             if searchText.isEmpty {

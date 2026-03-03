@@ -17,6 +17,11 @@ struct ContentPlaceholderView: View {
     let subtitle: String
     var systemImage: String? = "rectangle.and.text.magnifyingglass"
 
+    /// Which background image slot to use from `ThemeBackgroundImages`.
+    /// Defaults to `\.detailPlaceholder` for "no selection" states.
+    /// Use `\.emptyState` for "no content" empty states.
+    var backgroundImageKeyPath: KeyPath<ThemeBackgroundImages, String?> = \.detailPlaceholder
+
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var themeManager: ThemeManager
 
@@ -77,6 +82,7 @@ struct ContentPlaceholderView: View {
                     )
                 }
         }
+        .themeBackground(backgroundImageKeyPath, mode: .stretch, opacity: 0.08, theme: theme)
     }
 }
 

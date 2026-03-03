@@ -2,13 +2,13 @@
 
 - Guidelines: [Cumberland/DR-Reports/ER-Guidelines.md]
 
-**Status:** Currently **1 implemented (not verified)** + **10 proposed ERs**
+**Status:** Currently **1 in progress** + **10 proposed ERs**
 
 ---
 
 ## ER-0037: Theming System — Multi-Color Themes, Background Images & User-Defined Themes
 
-**Status:** 🟡 Implemented - Not Verified (Phase 1) / 🔵 Proposed (Phases 2 & 3)
+**Status:** ✅ Phase 1 Verified (2026-03-03) / 🟡 Phase 2 Implemented — Not Verified (2026-03-03) / 🟡 Phase 3 Implemented — Not Verified (2026-03-03)
 **Component:** UI / Theming Infrastructure
 **Priority:** High
 **Date Requested:** 2026-02-22
@@ -73,7 +73,7 @@ A rich theming system where:
 
 ---
 
-### Phase 2: Multi-Color Palettes & Background Images (PROPOSED)
+### Phase 2: Multi-Color Palettes & Background Images (IMPLEMENTED — 2026-03-03)
 
 **Requirements:**
 
@@ -166,9 +166,28 @@ A rich theming system where:
 9. Toggle light/dark mode within each theme — verify all colors adapt
 10. Verify new tokens (tagBackground, destructive, success) are used in appropriate UI locations
 
+**Phase 2 Files Created:**
+- `Theming/PurpleTheme.swift` — "Purple Reign" theme: amethyst, lavender, royal gold, dusty rose palette
+- `Theming/HalloweenTheme.swift` — Spooky dark theme: charcoal, bone-white, pumpkin orange, blood red, witch purple
+- `Theming/ThemeBackgroundView.swift` — ThemeBackgroundModifier + ThemeBackgroundMode enum + View extension
+
+**Phase 2 Files Modified:**
+- `Theming/ThemeTokens.swift` — 6 new color tokens (surfaceTertiary, accentTertiary, tagBackground, tagText, destructive, success) + ThemeBackgroundImages struct + SurfaceFill.textured fully implemented
+- `Theming/Theme.swift` — Added `backgroundImages: ThemeBackgroundImages` to protocol
+- `Theming/DefaultTheme.swift` — Defaults for all new tokens, nil background images
+- `Theming/WhimsicalTheme.swift` — Complete rewrite from brown monochrome to multi-color storybook palette (teal, coral, fairy gold, blush pink, soft sky)
+- `Theming/ThemeManager.swift` — Registers 4 built-in themes (Default, Whimsical, Purple, Halloween)
+- `MainAppView.swift` — Background images wired into sidebar, content list, empty state
+- `ContentPlaceholderView.swift` — Added backgroundImageKeyPath parameter for theme backgrounds
+- `Murderboard/MurderBoardView.swift` — Background image on canvas
+- `StructureBoardView.swift` — Background image on board + added @EnvironmentObject for ThemeManager
+- `MapWizardView.swift` — Background image on wizard landing
+
+**Note:** Background image assets (parchment, cork, damask, spiderweb textures) deferred — infrastructure is in place but no actual PNG texture assets have been created yet. Themes currently use `ThemeBackgroundImages.none`.
+
 ---
 
-### Phase 3: User-Defined Themes (PROPOSED)
+### Phase 3: User-Defined Themes (IMPLEMENTED — 2026-03-03)
 
 **Requirements:**
 
@@ -298,6 +317,19 @@ A rich theming system where:
 9. Built-in themes cannot be deleted — verify swipe-to-delete is disabled
 10. Export Whimsical theme — verify it includes all tokens and can be re-imported
 11. Share a `.cumberlandtheme` file to another device — verify it can be opened and imported
+
+**Phase 3 Files Created:**
+- `Theming/UserTheme.swift` — UTType.cumberlandTheme, UserTheme struct (Codable, Theme-conforming), ThemeJSON schema types, Color hex conversion helpers, decode with DefaultTheme fallback for all fields, export any Theme as JSON
+- `Theming/ThemeFileManager.swift` — Singleton managing ~/Library/Application Support/Cumberland/Themes/, import/export/delete/persistence with security-scoped resource access
+
+**Phase 3 Files Modified:**
+- `Theming/ThemeManager.swift` — Rewritten to support user themes: loads from disk on init, addUserTheme/removeUserTheme/isUserTheme, builtInIDs set for undeletable themes, rebuildAvailableThemes
+- `SettingsView.swift` — Import button (fileImporter), Export button (fileExporter with ThemeDocument), Delete button (for user themes only), error alerts, delete confirmation, ThemeSwatchView expanded to 8 color cells
+- `Cumberland/Info.plist` — UTType com.cumberland.theme registered (UTExportedTypeDeclarations)
+- `Cumberland IOS/Info.plist` — Same UTType registration
+- `Cumberland_visionOS/Info.plist` — Same UTType registration
+
+**Note:** ThemeJSONSchema.swift was not created as a separate file — validation logic is integrated directly into UserTheme.swift via the ThemeJSON Codable types with DefaultTheme fallback.
 
 ---
 
@@ -1391,4 +1423,4 @@ A polished, integrated visionOS workspace where:
 
 ---
 
-*Last Updated: 2026-02-27*
+*Last Updated: 2026-03-03*

@@ -31,6 +31,8 @@ struct DefaultTheme: Theme {
         surfacePrimary: .material(.ultraThinMaterial),
         // Matches GlassCard / GlassEffectContainer background (.thinMaterial)
         surfaceSecondary: .material(.thinMaterial),
+        // Tertiary surface for alternating rows, sidebar sections
+        surfaceTertiary: .material(.regularMaterial),
         // Matches GlassButtonModifier non-prominent (.ultraThinMaterial)
         surfaceGlass: .material(.ultraThinMaterial),
         // Matches GlassButtonModifier prominent (.thinMaterial)
@@ -38,10 +40,17 @@ struct DefaultTheme: Theme {
         // System accent
         accentPrimary: .accentColor,
         accentSecondary: .accentColor.opacity(0.7),
+        accentTertiary: .accentColor.opacity(0.5),
         // System text colors
         textPrimary: .primary,
         textSecondary: .secondary,
         textTertiary: .secondary.opacity(0.7),
+        // Tag colors — subtle system accent tint
+        tagBackground: .accentColor.opacity(0.12),
+        tagText: .accentColor,
+        // Semantic state colors
+        destructive: .red,
+        success: .green,
         // Matches .quaternary.opacity(0.6) used for outer keylines
         border: Color.secondary.opacity(0.3),
         // Matches .black.opacity() shadow used throughout Glass files
@@ -102,5 +111,8 @@ struct DefaultTheme: Theme {
         // Matches GlassButtonModifier padding: 8
         buttonPaddingHorizontal: 8
     )
+
+    // Default theme uses no background images — pure material/solid fills.
+    let backgroundImages = ThemeBackgroundImages.none
 }
 

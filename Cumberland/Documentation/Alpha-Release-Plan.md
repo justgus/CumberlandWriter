@@ -73,44 +73,44 @@ Cumberland v1.0 ships the **core worldbuilding toolkit** — cards, relationship
 
 **Outcome:** Mark ER-0037 Phase 1 as verified, or file DRs for issues found
 
-#### Step 2: Expand ThemeColors Token Set
-- [ ] Add new tokens to `ThemeTokens.swift`: `accentTertiary`, `surfaceTertiary`, `tagBackground`, `tagText`, `destructive`, `success`
-- [ ] Add `ThemeBackgroundImages` struct to `Theme` protocol
-- [ ] Update `DefaultTheme.swift` with sensible defaults for all new tokens
-- [ ] Update `WhimsicalTheme.swift` with enriched multi-color palette using all new tokens
+#### Step 2: Expand ThemeColors Token Set ✅ Completed 2026-03-03
+- [x] Add new tokens to `ThemeTokens.swift`: `accentTertiary`, `surfaceTertiary`, `tagBackground`, `tagText`, `destructive`, `success`
+- [x] Add `ThemeBackgroundImages` struct to `Theme` protocol
+- [x] Update `DefaultTheme.swift` with sensible defaults for all new tokens
+- [x] Update `WhimsicalTheme.swift` with enriched multi-color palette using all new tokens
 
-#### Step 3: Implement Background Image Support
-- [ ] Implement `SurfaceFill.textured` case fully (currently stub)
-- [ ] Create `ThemeBackgroundView` modifier for optional tiled/stretched image overlay
-- [ ] Wire into sidebar background (`MainAppView.swift`)
-- [ ] Wire into content/card list area (`MainAppView.swift`)
-- [ ] Wire into Murderboard canvas (`MurderBoardView.swift`)
-- [ ] Wire into Structure Board (`StructureBoardView.swift`)
-- [ ] Wire into Map Wizard landing (`MapWizardView.swift`)
-- [ ] Wire into empty state views
-- [ ] Wire into detail placeholder / "no selection" state
-- [ ] Verify visionOS suppresses background images (uses materials instead)
+#### Step 3: Implement Background Image Support ✅ Completed 2026-03-03
+- [x] Implement `SurfaceFill.textured` case fully (currently stub)
+- [x] Create `ThemeBackgroundView` modifier for optional tiled/stretched image overlay
+- [x] Wire into sidebar background (`MainAppView.swift`)
+- [x] Wire into content/card list area (`MainAppView.swift`)
+- [x] Wire into Murderboard canvas (`MurderBoardView.swift`)
+- [x] Wire into Structure Board (`StructureBoardView.swift`)
+- [x] Wire into Map Wizard landing (`MapWizardView.swift`)
+- [x] Wire into empty state views
+- [x] Wire into detail placeholder / "no selection" state
+- [x] Verify visionOS suppresses background images (uses materials instead)
 
-#### Step 4: Build Additional Themes
-- [ ] Create `PurpleTheme.swift` — deep plums, lavenders, violet accents, silver text
-- [ ] Create `HalloweenTheme.swift` — black, bone-white, pumpkin orange, blood red
-- [ ] Create background image assets for Whimsical (parchment, cork textures)
-- [ ] Create background image assets for Purple (optional: damask, velvet)
-- [ ] Create background image assets for Halloween (optional: spiderweb, haunted)
-- [ ] Add all theme assets to Assets.xcassets under `ThemeAssets/` group
-- [ ] Register new themes in `ThemeManager.init()`
-- [ ] Verify all themes in light and dark mode on macOS and iOS
+#### Step 4: Build Additional Themes ✅ Completed 2026-03-03
+- [x] Create `PurpleTheme.swift` — deep plums, lavenders, violet accents, silver text
+- [x] Create `HalloweenTheme.swift` — black, bone-white, pumpkin orange, blood red
+- [ ] Create background image assets for Whimsical (parchment, cork textures) — deferred to Phase 3
+- [ ] Create background image assets for Purple (optional: damask, velvet) — deferred to Phase 3
+- [ ] Create background image assets for Halloween (optional: spiderweb, haunted) — deferred to Phase 3
+- [ ] Add all theme assets to Assets.xcassets under `ThemeAssets/` group — deferred to Phase 3
+- [x] Register new themes in `ThemeManager.init()`
+- [x] Verify all themes in light and dark mode on macOS and iOS
 
-#### Step 5: User-Defined Theme Support
-- [ ] Define `.cumberlandtheme` JSON schema
-- [ ] Implement `UserTheme` Codable struct conforming to `Theme` protocol
-- [ ] Implement `ThemeFileManager` for import/export/persistence
-- [ ] Register `UTType.cumberlandTheme` in Info.plist
-- [ ] Add Import/Export buttons to Settings > Display > Theme
-- [ ] Implement validation with user-friendly error alerts
-- [ ] Implement fallback to DefaultTheme for missing/invalid fields
-- [ ] Verify import, export, delete, and persistence across app launches
-- [ ] Verify shared `.cumberlandtheme` files open correctly on another device
+#### Step 5: User-Defined Theme Support ✅ Completed 2026-03-03
+- [x] Define `.cumberlandtheme` JSON schema
+- [x] Implement `UserTheme` Codable struct conforming to `Theme` protocol
+- [x] Implement `ThemeFileManager` for import/export/persistence
+- [x] Register `UTType.cumberlandTheme` in Info.plist (all three platforms)
+- [x] Add Import/Export buttons to Settings > Display > Theme
+- [x] Implement validation with user-friendly error alerts
+- [x] Implement fallback to DefaultTheme for missing/invalid fields
+- [x] Verify import, export, delete, and persistence across app launches
+- [x] Verify shared `.cumberlandtheme` files open correctly on another device
 
 ---
 

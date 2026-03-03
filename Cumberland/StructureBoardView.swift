@@ -17,6 +17,7 @@ struct StructureBoardView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     // App settings (for persisted zoom)
     @Query(
@@ -118,6 +119,7 @@ struct StructureBoardView: View {
                 }
             }
         }
+        .themeBackground(\.structureBoardCanvas, theme: themeManager.currentTheme)
         .task(id: project.id) {
             await loadStructure()
             await reloadBacklog()
