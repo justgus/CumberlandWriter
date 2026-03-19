@@ -82,7 +82,7 @@ struct ContentPlaceholderView: View {
                     )
                 }
         }
-        .themeBackground(backgroundImageKeyPath, mode: .stretch, opacity: 0.08, theme: theme)
+        .themeBackground(backgroundImageKeyPath, mode: .stretch, opacity: 0.20, theme: theme)
     }
 }
 

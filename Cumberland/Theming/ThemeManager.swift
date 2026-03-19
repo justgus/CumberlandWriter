@@ -109,10 +109,21 @@ final class ThemeManager: ObservableObject {
         guard isUserTheme(id) else { return }
         themes.removeValue(forKey: id)
         try? ThemeFileManager.shared.deleteTheme(id: id)
+        ThemeFileManager.shared.removeCachedImages(forThemeID: id)
         if themeIdentifier == id {
             setTheme("default")
         }
         rebuildAvailableThemes()
+    }
+
+    /// Duplicate the current theme as a new user theme with a unique ID.
+    func duplicateCurrentTheme() throws {
+        let source = currentTheme
+        let newID = "\(source.id)-copy-\(Int(Date().timeIntervalSince1970))"
+        let newName = "\(source.displayName) (Copy)"
+        let duplicate = try ThemeFileManager.shared.duplicateTheme(source, newID: newID, newDisplayName: newName)
+        addUserTheme(duplicate)
+        setTheme(duplicate.id)
     }
 
     // MARK: - Private

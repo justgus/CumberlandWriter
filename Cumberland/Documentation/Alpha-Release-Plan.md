@@ -94,10 +94,10 @@ Cumberland v1.0 ships the **core worldbuilding toolkit** — cards, relationship
 #### Step 4: Build Additional Themes ✅ Completed 2026-03-03
 - [x] Create `PurpleTheme.swift` — deep plums, lavenders, violet accents, silver text
 - [x] Create `HalloweenTheme.swift` — black, bone-white, pumpkin orange, blood red
-- [ ] Create background image assets for Whimsical (parchment, cork textures) — deferred to Phase 3
-- [ ] Create background image assets for Purple (optional: damask, velvet) — deferred to Phase 3
-- [ ] Create background image assets for Halloween (optional: spiderweb, haunted) — deferred to Phase 3
-- [ ] Add all theme assets to Assets.xcassets under `ThemeAssets/` group — deferred to Phase 3
+- [x] Create background image assets for Whimsical (parchment, cork textures)
+- [x] Create background image assets for Purple (damask)
+- [x] Create background image assets for Halloween (cobweb)
+- [x] Add all theme assets to Assets.xcassets under `ThemeAssets/` group
 - [x] Register new themes in `ThemeManager.init()`
 - [x] Verify all themes in light and dark mode on macOS and iOS
 
@@ -116,54 +116,96 @@ Cumberland v1.0 ships the **core worldbuilding toolkit** — cards, relationship
 
 ### Part 2: Placeholder & Stub Cleanup
 
-#### Step 6: Audit Visible Stubs
-- [ ] AI Generate map method: hide behind a "Coming Soon" indicator, or remove from the method picker entirely for v1.0
-- [ ] Search for any other visible placeholder text, "TODO" strings, or "Coming Soon" labels in the UI
-- [ ] Verify no debug-only features are accessible in Release builds
-- [ ] Verify `#if DEBUG` guards are correctly excluding developer tools
+#### Step 6: Audit Visible Stubs ✅ Completed 2026-03-03
+- [x] AI Generate map method: kept visible — actually functional (Apple Intelligence + OpenAI DALL-E 3), not a placeholder
+- [x] Search for any other visible placeholder text, "TODO" strings, or "Coming Soon" labels in the UI — none found in Release builds (8 debug-only placeholders properly guarded)
+- [x] Verify no debug-only features are accessible in Release builds — all developer tools, diagnostic views, and destructive operations properly `#if DEBUG` guarded
+- [x] Verify `#if DEBUG` guards are correctly excluding developer tools — confirmed all DeveloperToolsView, DeveloperBoardsView, diagnostic views, erase/reseed only instantiated within `#if DEBUG` blocks
+- [x] Bonus: Wrapped ~50 unguarded `print()` statements in MainAppView.swift and MapWizardView.swift with `#if DEBUG` guards to prevent data leakage in Release builds
 
 ---
 
 ### Part 3: Platform Scoping
 
 #### Step 7: visionOS v1.0 Scope Confirmation
-- [ ] Basic visionOS features verified: multi-window, ornaments, navigation
-- [ ] All 10 spatial ERs (ER-0042 through ER-0051) confirmed deferred to v2.0
-- [ ] visionOS theme falls back to materials gracefully (already handled by `platformResolved`)
-- [ ] No broken or half-implemented visionOS features visible to users
-- [ ] Decision: include visionOS build in alpha, or defer visionOS TestFlight to v1.1/v2.0?
+- [ ] Basic visionOS features verified: multi-window, ornaments, navigation — code audit confirms functional; awaiting device verification
+- [x] All 10 spatial ERs (ER-0042 through ER-0051) confirmed deferred to v2.0 — all `🔵 Proposed` status, no implementation
+- [ ] visionOS theme falls back to materials gracefully (already handled by `platformResolved`) — code audit confirms correct; awaiting device verification
+- [x] No broken or half-implemented visionOS features visible to users — ImmersiveView stub hidden (toggle commented out), all debug tools behind `#if DEBUG`, all scenes `.defaultLaunchBehavior(.suppressed)`
+- [x] Decision: **include visionOS build in alpha** — basic multi-window + ornaments functional, Release build compiles and signs cleanly
 
 ---
 
 ### Part 4: Build Configuration & App Store Setup
 
-#### Step 8: Entitlements & Signing
-- [ ] Change APS environment from `development` to `production` in `Cumberland.entitlements`
-- [ ] Verify CloudKit container is configured for production environment
-- [ ] Verify app group identifiers are correct (`group.com.caposoft.Cumberland`)
-- [ ] Verify keychain sharing configuration
-- [ ] Verify code signing for all three platform targets (macOS, iOS, visionOS)
-- [ ] Verify provisioning profiles are valid and not expired
+#### Step 8: Entitlements & Signing ✅ Completed by user
+- [x] Change APS environment from `development` to `production` in `Cumberland.entitlements`
+- [x] Verify CloudKit container is configured for production environment
+- [x] Verify app group identifiers are correct (`group.com.caposoft.Cumberland`)
+- [x] Verify keychain sharing configuration
+- [x] Verify code signing for all three platform targets (macOS, iOS, visionOS)
+- [x] Verify provisioning profiles are valid and not expired
 
-#### Step 9: App Store Connect Setup
-- [ ] Create App Store Connect record for Cumberland
-- [ ] Register bundle identifier (`com.caposoft.Cumberland` or equivalent)
-- [ ] Configure TestFlight for alpha distribution
-- [ ] Set up internal testing group (immediate access, no review)
-- [ ] Set up external testing group if needed (requires Beta App Review)
+#### Step 9: App Store Connect Setup ✅ Completed by user
+- [x] Create App Store Connect record for Cumberland
+- [x] Register bundle identifier (`com.caposoft.Cumberland` or equivalent)
+- [x] Configure TestFlight for alpha distribution
+- [x] Set up internal testing group (immediate access, no review)
+- [x] Set up external testing group if needed (requires Beta App Review)
 
 #### Step 10: App Store Metadata
-- [ ] App name: "Cumberland"
-- [ ] Subtitle (30 characters max): decide on tagline
-- [ ] App description (4000 characters max)
-- [ ] Category: Productivity (primary), Entertainment or Reference (secondary)
-- [ ] App icon verified across all platforms and sizes
+- [x] App name: **"Cumberland Writer"**
+- [x] Subtitle (30 characters max) — pick one:
+  - `Worldbuilding Design Canvas` (29 chars)
+  - `Your Narrative Design Canvas` (28 chars)
+  - `Dream. Build. Create Worlds.` (28 chars)
+  - `Worldbuilding & Story Design` (28 chars)
+- [x] App description (4000 characters max) — draft below
+- [x] Category: Productivity (primary), Reference (secondary)
+- [x] App icon verified across all platforms and sizes — macOS (16–512@2x PNGs), iOS (full set including 1024 App Store), visionOS (3-layer solidimagestack with PNGs)
 - [ ] Screenshots: macOS (at least 1 size)
 - [ ] Screenshots: iOS/iPadOS (at least 2 sizes)
 - [ ] Screenshots: visionOS (optional for alpha)
 - [ ] Privacy policy URL (required for App Store — can be a simple page)
 - [ ] Age rating questionnaire completed
 - [ ] Support URL configured
+
+**App Description Draft:**
+
+```
+Cumberland Writer is a worldbuilding and narrative design toolkit for writers, game designers, and storytellers. Organize your characters, locations, scenes, artifacts, factions, and every element of your story world in one place — then map the connections between them.
+
+CARDS FOR EVERYTHING
+Create cards for 14 different element types: Characters, Locations, Scenes, Maps, Artifacts, Factions, Creatures, Events, Lore, Concepts, Flora, Fauna, Structures, and more. Each card holds names, descriptions, detailed text, images, timeline positions, and research citations.
+
+THE MURDERBOARD
+Visualize relationships between any cards on a freeform canvas. Drag nodes, draw edges, and see how your story world connects. Custom relationship types let you define exactly how elements relate — "owns/owned-by," "born-in/birthplace-of," "appears-in/features" — with full bidirectional awareness.
+
+MAP CREATION
+Build maps four ways: import existing images, draw freehand with a full layer-based drawing canvas and terrain brushes, capture regions from Apple Maps, or generate with AI assistance. The drawing system supports multiple layers, procedural terrain fills, and Apple Pencil on iPad.
+
+STORY STRUCTURE BOARD
+Organize scenes into narrative structures with a kanban-style board. Assign scenes to story beats — three-act structure, hero's journey, or your own custom framework. Drag cards between lanes to reshape your story's architecture.
+
+TIMELINE
+Place events and scenes along a temporal axis. Track when things happen in your story world with custom calendar systems and epoch dates.
+
+CITATIONS & RESEARCH
+Track your research sources and attach citations to any card. Cumberland Writer generates attribution automatically, so you always know where your worldbuilding details came from.
+
+THEMES
+Choose from four built-in visual themes — Default, Whimsical (warm pastels with Cochin serif), Purple Reign (amethyst and lavender), and Halloween (bold black and orange). Or create your own: import and export custom themes as .cumberlandtheme files with full control over colors, fonts, shapes, shadows, and background textures.
+
+SYNC EVERYWHERE
+CloudKit keeps your worlds in sync across Mac, iPad, iPhone, and Apple Vision Pro. Start on your Mac, refine on your iPad with Apple Pencil, review on your iPhone. Your data stays yours — stored in your iCloud account.
+
+APPLE VISION PRO
+Cumberland Writer runs natively on Apple Vision Pro with multi-window support and ornament-based controls. Open cards in floating windows, navigate with spatial gestures, and explore your story world in a new dimension.
+
+Built for writers who build worlds.
+```
+
+**Note:** AI Map Generation line in the alpha tester release notes should be updated — it is functional (Apple Intelligence + OpenAI DALL-E 3), not a placeholder.
 
 ---
 
@@ -256,23 +298,24 @@ Cumberland v1.0 ships the **core worldbuilding toolkit** — cards, relationship
 #### Step 16: Alpha Tester Release Notes Template
 
 ```
-Cumberland v1.0 Alpha Build [N]
+Cumberland Writer v1.0 Alpha Build [N]
 
-Welcome to the Cumberland alpha! This build includes the core worldbuilding
-toolkit for macOS and iOS/iPadOS. visionOS is included with basic functionality.
+Welcome to the Cumberland Writer alpha! This build includes the core
+worldbuilding toolkit for macOS and iOS/iPadOS. visionOS is included
+with basic multi-window functionality.
 
 WHAT TO TEST:
 - Card creation, editing, and deletion (all 14 card types)
 - Relationships and the Murderboard
-- Map creation (Import, Draw, Maps Capture)
+- Map creation (Import, Draw, Maps Capture, AI Generate)
 - Story Structure Board
 - Timeline
 - Theme switching (Settings > Display > Theme)
-- CloudKit sync between devices
 - Custom theme import/export (.cumberlandtheme files)
+- CloudKit sync between devices
 
 KNOWN LIMITATIONS:
-- AI Map Generation: placeholder only, not yet functional
+- AI Map Generation requires Apple Intelligence or an OpenAI API key
 - visionOS: basic multi-window support only; spatial features coming in v2.0
 - Test automation: manual testing only for this build
 
@@ -280,7 +323,7 @@ HOW TO REPORT ISSUES:
 - Use TestFlight's built-in feedback (shake device or screenshot)
 - [Additional feedback channel details]
 
-Thank you for testing Cumberland!
+Thank you for testing Cumberland Writer!
 ```
 
 ---

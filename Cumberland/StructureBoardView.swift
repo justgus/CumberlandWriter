@@ -119,7 +119,7 @@ struct StructureBoardView: View {
                 }
             }
         }
-        .themeBackground(\.structureBoardCanvas, theme: themeManager.currentTheme)
+        .themeBackground(\.structureBoardCanvas, opacity: 0.20, theme: themeManager.currentTheme)
         .task(id: project.id) {
             await loadStructure()
             await reloadBacklog()

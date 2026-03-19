@@ -152,6 +152,17 @@ struct BackgroundImagesJSON: Codable {
     var wizardHero: String?
     var emptyState: String?
     var detailPlaceholder: String?
+
+    // Base64-encoded PNG data for user themes. When present, these are
+    // decoded at import time, saved to disk, and referenced by generated
+    // asset names in the String? fields above.
+    var sidebarBackgroundData: String?
+    var contentBackgroundData: String?
+    var murderboardCanvasData: String?
+    var structureBoardCanvasData: String?
+    var wizardHeroData: String?
+    var emptyStateData: String?
+    var detailPlaceholderData: String?
 }
 
 // MARK: - Decoding

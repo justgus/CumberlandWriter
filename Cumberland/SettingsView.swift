@@ -274,6 +274,8 @@ private struct DisplaySettingsPane: View {
     @State private var importError: String?
     @State private var showImportError = false
     @State private var exportData: Data?
+    @State private var showShareSheet = false
+    @State private var shareURL: URL?
 
     var body: some View {
         Form {
@@ -317,7 +319,7 @@ private struct DisplaySettingsPane: View {
                 // Live swatch preview of the current theme
                 ThemeSwatchView(theme: themeManager.currentTheme)
 
-                // Import / Export / Delete buttons
+                // Import / Export / Duplicate / Share / Delete buttons
                 HStack(spacing: 12) {
                     Button {
                         showImportPicker = true
@@ -332,6 +334,22 @@ private struct DisplaySettingsPane: View {
                         Label("Export", systemImage: "square.and.arrow.up")
                     }
                     .help("Export the current theme as a .cumberlandtheme file.")
+
+                    Button {
+                        duplicateCurrentTheme()
+                    } label: {
+                        Label("Duplicate", systemImage: "doc.on.doc")
+                    }
+                    .help("Create an editable copy of the current theme.")
+
+                    #if os(iOS)
+                    Button {
+                        shareCurrentTheme()
+                    } label: {
+                        Label("Share", systemImage: "square.and.arrow.up.on.square")
+                    }
+                    .help("Share the current theme via the system share sheet.")
+                    #endif
 
                     if themeManager.isUserTheme(themeManager.themeIdentifier) {
                         Button(role: .destructive) {
@@ -377,6 +395,13 @@ private struct DisplaySettingsPane: View {
         } message: {
             Text("This will permanently delete the \"\(themeManager.currentTheme.displayName)\" theme. This cannot be undone.")
         }
+        #if os(iOS)
+        .sheet(isPresented: $showShareSheet) {
+            if let shareURL {
+                ShareSheet(items: [shareURL])
+            }
+        }
+        #endif
     }
 
     private func exportCurrentTheme() {
@@ -388,6 +413,31 @@ private struct DisplaySettingsPane: View {
             showImportError = true
         }
     }
+
+    private func duplicateCurrentTheme() {
+        do {
+            try themeManager.duplicateCurrentTheme()
+        } catch {
+            importError = "Could not duplicate theme: \(error.localizedDescription)"
+            showImportError = true
+        }
+    }
+
+    #if os(iOS)
+    private func shareCurrentTheme() {
+        do {
+            let data = try ThemeFileManager.shared.exportThemeData(from: themeManager.currentTheme)
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("\(themeManager.currentTheme.id).cumberlandtheme")
+            try data.write(to: tempURL, options: .atomic)
+            shareURL = tempURL
+            showShareSheet = true
+        } catch {
+            importError = "Could not share theme: \(error.localizedDescription)"
+            showImportError = true
+        }
+    }
+    #endif
 
     private func handleImport(_ result: Result<[URL], Error>) {
         switch result {
@@ -1409,6 +1459,21 @@ private struct AISettingsPane: View {
         }
     }
 }
+
+// MARK: - ShareSheet (iOS)
+
+#if os(iOS)
+/// UIActivityViewController wrapper for sharing theme files.
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+#endif
 
 // MARK: - Previews
 

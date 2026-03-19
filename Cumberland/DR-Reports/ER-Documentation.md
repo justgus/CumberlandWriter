@@ -13,11 +13,10 @@ This is the main index for all Cumberland Enhancement Requests. ERs track planne
 
 ## Unverified ERs (Active & Proposed)
 
-Currently: **1 in progress** + **10 proposed ERs**
+Currently: **10 proposed ERs**
 
 | ER | Title | Status |
 |----|-------|--------|
-| ER-0037 | Theming System — Multi-Color Themes, Background Images & User-Defined Themes | ✅ Phase 1 Verified / 🟡 Phase 2 Implemented — Not Verified / 🟡 Phase 3 Implemented — Not Verified |
 | ER-0042 | visionOS Spatial Murderboard — Foundation & Obsession Wall | 🔵 Proposed |
 | ER-0043 | visionOS Spatial Murderboard — Bulletin Board | 🔵 Proposed |
 | ER-0044 | visionOS Spatial Murderboard — Spatial Cloud | 🔵 Proposed |
@@ -33,7 +32,7 @@ See: [ER-unverified.md](./ER-unverified.md)
 
 ## Verified ERs (Completed Enhancements)
 
-Currently: **40 verified ERs** | Next available ER: **ER-0052**
+Currently: **41 verified ERs** | Next available ER: **ER-0052**
 
 | Batch | ERs | File | Status |
 |-------|-----|------|--------|
@@ -66,13 +65,14 @@ Currently: **40 verified ERs** | Next available ER: **ER-0052**
 | Batch 38 | ER-0038 | [ER-verified-0038.md](./ER-verified-0038.md) | ✅ Verified (1/1) |
 | Batch 39 | ER-0039 | [ER-verified-0039.md](./ER-verified-0039.md) | ✅ Verified (1/1) |
 | Batch 40 | ER-0040 | [ER-verified-0040.md](./ER-verified-0040.md) | ✅ Verified (1/1) |
+| Batch 37 | ER-0037 | [ER-verified-0037.md](./ER-verified-0037.md) | ✅ Verified (1/1) |
 | Batch 41 | ER-0041 | [ER-verified-0041.md](./ER-verified-0041.md) | ✅ Verified (1/1) |
 
 ## Statistics
 
 - **Total ERs:** 51
-- **Verified:** 40 (78.4%) ✅
-- **In Progress:** 1 (2.0%) 🟡
+- **Verified:** 41 (80.4%) ✅
+- **In Progress:** 0 (0.0%) 🟡
 - **Proposed:** 10 (19.6%) 🔵
 
 ---

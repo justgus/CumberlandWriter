@@ -208,5 +208,13 @@ struct PurpleTheme: Theme {
         buttonPaddingHorizontal: 10
     )
 
-    let backgroundImages = ThemeBackgroundImages.none
+    let backgroundImages = ThemeBackgroundImages(
+        sidebarBackground: "purple-damask",
+        contentBackground: nil,
+        murderboardCanvas: "purple-damask",
+        structureBoardCanvas: nil,
+        wizardHero: nil,
+        emptyState: nil,
+        detailPlaceholder: nil
+    )
 }

@@ -625,7 +625,7 @@ struct MainAppView: View {
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
-        .themeBackground(\.sidebarBackground, theme: themeManager.currentTheme)
+        .themeBackground(\.sidebarBackground, opacity: 0.20, theme: themeManager.currentTheme)
         #if os(visionOS)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Navigation sidebar")
@@ -962,7 +962,7 @@ struct MainAppView: View {
         .listStyle(.inset)
         .scrollContentBackground(.hidden)
         .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
-        .themeBackground(\.contentBackground, theme: themeManager.currentTheme)
+        .themeBackground(\.contentBackground, opacity: 0.20, theme: themeManager.currentTheme)
         #if os(visionOS)
         // Phase 4: Better list accessibility
         .accessibilityElement(children: .contain)
@@ -1105,7 +1105,9 @@ struct MainAppView: View {
             do {
                 try modelContext.save()
             } catch {
+                #if DEBUG
                 print("Failed to delete structures: \(error)")
+                #endif
             }
         }
     }
@@ -1381,7 +1383,9 @@ struct MainAppView: View {
         let cardsToDelete = filteredCards.filter { selectedCardIDs.contains($0.id) }
 
         guard !cardsToDelete.isEmpty else {
+            #if DEBUG
             print("⚠️ No cards selected for deletion")
+            #endif
             return
         }
 
@@ -1394,9 +1398,13 @@ struct MainAppView: View {
         if let services = services {
             do {
                 try services.cardOperations.deleteCards(cardsToDelete)
+                #if DEBUG
                 print("✅ Deleted \(cardsToDelete.count) cards")
+                #endif
             } catch {
+                #if DEBUG
                 print("❌ Failed to delete cards: \(error)")
+                #endif
             }
         } else {
             // Fallback: Direct modelContext operation (legacy path)
@@ -1419,7 +1427,9 @@ struct MainAppView: View {
         let cardsToDuplicate = filteredCards.filter { selectedCardIDs.contains($0.id) }
 
         guard !cardsToDuplicate.isEmpty else {
+            #if DEBUG
             print("⚠️ No cards selected for duplication")
+            #endif
             return
         }
 
@@ -1428,9 +1438,13 @@ struct MainAppView: View {
             for card in cardsToDuplicate {
                 do {
                     let duplicate = try services.cardOperations.duplicateCard(card)
+                    #if DEBUG
                     print("✅ Duplicated '\(card.name)' → '\(duplicate.name)'")
+                    #endif
                 } catch {
+                    #if DEBUG
                     print("❌ Failed to duplicate '\(card.name)': \(error)")
+                    #endif
                 }
             }
         } else {
@@ -1464,11 +1478,15 @@ struct MainAppView: View {
         if let services = services {
             do {
                 let duplicate = try services.cardOperations.duplicateCard(card)
+                #if DEBUG
                 print("✅ Duplicated '\(card.name)' → '\(duplicate.name)'")
+                #endif
                 // Optionally select the new card
                 selectedCardID = duplicate.id
             } catch {
+                #if DEBUG
                 print("❌ Failed to duplicate '\(card.name)': \(error)")
+                #endif
             }
         } else {
             // Fallback: Manual duplication
@@ -1495,7 +1513,9 @@ struct MainAppView: View {
         let cardsToGenerate = filteredCards.filter { selectedCardIDs.contains($0.id) }
 
         guard !cardsToGenerate.isEmpty else {
+            #if DEBUG
             print("⚠️ No cards selected for batch generation")
+            #endif
             return
         }
 
@@ -1506,8 +1526,10 @@ struct MainAppView: View {
 
         // Set the provider to the user's preferred image generation provider
         let selectedProvider = AISettings.shared.imageGenerationProvider
+        #if DEBUG
         print("🔧 Starting batch generation with provider: '\(selectedProvider)'")
         print("🔧 Selected \(cardsToGenerate.count) cards: \(cardsToGenerate.map { $0.name }.joined(separator: ", "))")
+        #endif
 
         batchGenerationQueue?.provider = selectedProvider
 

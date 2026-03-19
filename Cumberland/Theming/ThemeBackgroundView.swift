@@ -44,15 +44,15 @@ struct ThemeBackgroundModifier: ViewModifier {
         // visionOS: suppress background images — materials required for spatial depth
         EmptyView()
         #else
-        if let imageName {
+        if let imageName, let resolved = resolveImage(named: imageName) {
             switch mode {
             case .tile:
-                Image(imageName)
+                resolved
                     .resizable(resizingMode: .tile)
                     .opacity(opacity)
                     .ignoresSafeArea()
             case .stretch:
-                Image(imageName)
+                resolved
                     .resizable()
                     .scaledToFill()
                     .opacity(opacity)
@@ -60,6 +60,36 @@ struct ThemeBackgroundModifier: ViewModifier {
             }
         }
         #endif
+    }
+
+    /// Try asset catalog first, then fall back to cached theme image on disk.
+    private func resolveImage(named name: String) -> Image? {
+        // Check asset catalog first (built-in themes)
+        #if canImport(AppKit)
+        if NSImage(named: name) != nil {
+            return Image(name)
+        }
+        #elseif canImport(UIKit)
+        if UIImage(named: name) != nil {
+            return Image(name)
+        }
+        #endif
+
+        // Fall back to cached user theme image
+        if let url = ThemeFileManager.shared.cachedImageURL(named: name),
+           let data = try? Data(contentsOf: url) {
+            #if canImport(AppKit)
+            if let nsImage = NSImage(data: data) {
+                return Image(nsImage: nsImage)
+            }
+            #elseif canImport(UIKit)
+            if let uiImage = UIImage(data: data) {
+                return Image(uiImage: uiImage)
+            }
+            #endif
+        }
+
+        return nil
     }
 }
 

@@ -212,5 +212,13 @@ struct HalloweenTheme: Theme {
         buttonPaddingHorizontal: 10
     )
 
-    let backgroundImages = ThemeBackgroundImages.none
+    let backgroundImages = ThemeBackgroundImages(
+        sidebarBackground: nil,
+        contentBackground: nil,
+        murderboardCanvas: "halloween-cobweb",
+        structureBoardCanvas: nil,
+        wizardHero: nil,
+        emptyState: nil,
+        detailPlaceholder: nil
+    )
 }

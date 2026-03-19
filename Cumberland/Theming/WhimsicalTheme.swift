@@ -214,5 +214,13 @@ struct WhimsicalTheme: Theme {
         buttonPaddingHorizontal: 12
     )
 
-    let backgroundImages = ThemeBackgroundImages.none
+    let backgroundImages = ThemeBackgroundImages(
+        sidebarBackground: "whimsical-parchment",
+        contentBackground: "whimsical-parchment",
+        murderboardCanvas: "whimsical-cork",
+        structureBoardCanvas: nil,
+        wizardHero: nil,
+        emptyState: nil,
+        detailPlaceholder: nil
+    )
 }

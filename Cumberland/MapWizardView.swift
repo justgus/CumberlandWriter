@@ -225,7 +225,7 @@ struct MapWizardView: View {
             footerView
         }
         .background(platformBackgroundColor.opacity(0.5))
-        .themeBackground(\.wizardHero, mode: .stretch, opacity: 0.10, theme: themeManager.currentTheme)
+        .themeBackground(\.wizardHero, mode: .stretch, opacity: 0.20, theme: themeManager.currentTheme)
     }
     
     // MARK: - Focused Work Surface
@@ -1444,7 +1444,9 @@ struct MapWizardView: View {
     }
     
     private func nextStep() {
+        #if DEBUG
         print("➡️ nextStep called - current: \(currentStep.rawValue)")
+        #endif
 
         // ER-0009 Phase 9.4: Trigger AI map generation before advancing
         if currentStep == .configure, selectedMethod == .aiGenerate, importedImageData == nil {
@@ -1457,12 +1459,16 @@ struct MapWizardView: View {
 
         guard let currentIndex = WizardStep.allCases.firstIndex(of: currentStep),
               currentIndex < WizardStep.allCases.count - 1 else {
+            #if DEBUG
             print("⚠️ Cannot advance - already at last step or invalid index")
+            #endif
             return
         }
 
         let nextStepValue = WizardStep.allCases[currentIndex + 1]
+        #if DEBUG
         print("➡️ Advancing from \(currentStep.rawValue) to \(nextStepValue.rawValue)")
+        #endif
 
         // Save draft work before moving to next step
         saveDraftWork()
@@ -1474,8 +1480,10 @@ struct MapWizardView: View {
                 isFocusModeEnabled = false
             }
         }
-        
+
+        #if DEBUG
         print("✅ Step advanced to: \(currentStep.rawValue)")
+        #endif
     }
     
     private func previousStep() {
@@ -1715,39 +1723,53 @@ struct MapWizardView: View {
     private func restoreDraftWork() {
         guard let draftData = card.draftMapWorkData,
               let methodRaw = card.draftMapMethodRaw else {
+            #if DEBUG
             print("⚠️ No draft data to restore")
+            #endif
             return
         }
-        
+
+        #if DEBUG
         print("📦 Restoring draft work for method: \(methodRaw)")
-        
+        #endif
+
         // Restore the selected method first
         guard let method = MapCreationMethod(rawValue: methodRaw) else {
+            #if DEBUG
             print("⚠️ Invalid method: \(methodRaw)")
+            #endif
             return
         }
-        
+
         // Restore method-specific state FIRST before changing wizard state
         switch method {
         case .draw, .interior:
             // Restore drawing canvas state
             guard !draftData.isEmpty else {
+                #if DEBUG
                 print("⚠️ Canvas state data is empty, skipping restore")
+                #endif
                 break
             }
             do {
                 try drawingCanvasModel.importCanvasState(draftData)
+                #if DEBUG
                 print("✅ Restored drawing canvas state")
+                #endif
             } catch {
+                #if DEBUG
                 print("⚠️ Failed to restore canvas state (data may be corrupted): \(error)")
+                #endif
             }
-            
+
         case .importImage:
             // For imported images, the data is the image itself
             importedImageData = draftData
             imageMetadata = ImageMetadataExtractor.extract(from: draftData)
+            #if DEBUG
             print("✅ Restored imported image data")
-            
+            #endif
+
         case .captureFromMaps:
             // For map captures, restore the captured image and metadata
             // Try to restore metadata if it was encoded
@@ -1755,47 +1777,61 @@ struct MapWizardView: View {
                 mapMetadata = container.metadata
                 capturedMapData = container.imageData
                 importedImageData = container.imageData // Also set this for the wizard flow
+                #if DEBUG
                 print("✅ Restored map capture with metadata")
+                #endif
             } else {
                 // Fallback if no container structure (legacy data)
                 capturedMapData = draftData
                 importedImageData = draftData
+                #if DEBUG
                 print("✅ Restored map capture (legacy format)")
+                #endif
             }
-            
+
         case .aiGenerate:
             // For AI generation, restore the prompt and any generated data
             if let container = try? JSONDecoder().decode(AIGenerationDraft.self, from: draftData) {
                 generationPrompt = container.prompt
                 importedImageData = container.generatedImageData
+                #if DEBUG
                 print("✅ Restored AI generation draft")
+                #endif
             }
         }
-        
+
         // Now restore UI state with animation
         withAnimation {
             selectedMethod = method
-            
+
             // Restore wizard step if saved, otherwise default to configure
             if let stepRaw = card.draftMapWizardStepRaw,
                let step = WizardStep(rawValue: stepRaw) {
                 currentStep = step
+                #if DEBUG
                 print("📍 Restored to step: \(step.rawValue)")
+                #endif
             } else {
                 currentStep = .configure
+                #if DEBUG
                 print("📍 Defaulting to configure step")
+                #endif
             }
-            
+
             // DR-0017: Ensure we skip the selectMethod step by going directly to configure if we have draft data
             if currentStep == .selectMethod {
                 currentStep = .configure
+                #if DEBUG
                 print("📍 Corrected to configure step")
+                #endif
             }
         }
-        
+
         // Start auto-save for continued work
         startAutoSaveIfNeeded()
+        #if DEBUG
         print("✅ Draft restoration complete - currentStep: \(currentStep.rawValue), method: \(method.rawValue)")
+        #endif
     }
     
     /// Start auto-save timer if in a saveable state
@@ -1830,7 +1866,9 @@ struct MapWizardView: View {
                 guard !Task.isCancelled else { return }
 
                 await MainActor.run {
+                    #if DEBUG
                     print("[DEBOUNCE] Drawing changed - triggering save")
+                    #endif
                     Task {
                         await autoSaveDraftWork()
                     }
@@ -1862,9 +1900,13 @@ struct MapWizardView: View {
         switch method {
         case .draw, .interior:
             // Save complete canvas state
+            #if DEBUG
             print("[SAVE] autoSaveDraftWork - Exporting canvas state for \(method)")
+            #endif
             draftData = drawingCanvasModel.exportCanvasState()
+            #if DEBUG
             print("[SAVE] Got \(draftData?.count ?? 0) bytes of canvas state")
+            #endif
 
         case .importImage:
             // Save the imported image data
@@ -1890,21 +1932,29 @@ struct MapWizardView: View {
         }
         
         if let data = draftData, !data.isEmpty {
+            #if DEBUG
             print("[SAVE] Persisting \(data.count) bytes to card as draft")
+            #endif
             card.saveDraftMapWork(data, method: method.rawValue, wizardStep: currentStep.rawValue)
 
             // DR-0010: Properly handle save errors to diagnose CloudKit sync issues
             do {
                 try modelContext.save()
+                #if DEBUG
                 print("[SAVE] ✅ Draft saved successfully to local store")
                 print("[SAVE] 📡 CloudKit will sync in background (if enabled)")
+                #endif
             } catch {
+                #if DEBUG
                 print("[SAVE] ❌ Failed to save draft: \(error)")
                 print("[SAVE] ⚠️ Draft data will NOT sync to other devices")
+                #endif
                 // Don't throw - allow app to continue but log the failure
             }
         } else {
+            #if DEBUG
             print("[SAVE] ⚠️ No data to save (draftData is nil or empty)")
+            #endif
         }
     }
     
@@ -2306,27 +2356,35 @@ extension MapWizardView {
     private func applyBaseLayerFill(_ fillType: BaseLayerFillType?) {
         // Get or create layer manager
         if drawingCanvasModel.layerManager == nil {
+            #if DEBUG
             print("[MapWizard] Creating new LayerManager")
+            #endif
             drawingCanvasModel.layerManager = LayerManager()
         }
 
         guard let layerManager = drawingCanvasModel.layerManager else {
+            #if DEBUG
             print("[MapWizard] ERROR: LayerManager is nil after creation")
+            #endif
             return
         }
 
         // Apply fill or remove it
         if let fillType = fillType {
+            #if DEBUG
             print("[MapWizard] Applying base layer: \(fillType.displayName), category: \(fillType.category.rawValue)")
 
             // DR-0018.1: Preserve existing map scale if available
             print("[MapWizard] DEBUG - baseLayer exists: \(layerManager.baseLayer != nil)")
             print("[MapWizard] DEBUG - layerFill exists: \(layerManager.baseLayer?.layerFill != nil)")
             print("[MapWizard] DEBUG - terrainMetadata exists: \(layerManager.baseLayer?.layerFill?.terrainMetadata != nil)")
+            #endif
 
             let existingScale = layerManager.baseLayer?.layerFill?.terrainMetadata?.physicalSizeMiles
+            #if DEBUG
             print("[MapWizard] DEBUG - existingScale: \(existingScale?.description ?? "nil")")
             print("[MapWizard] DEBUG - terrainMapSizeMiles fallback: \(terrainMapSizeMiles)")
+            #endif
 
             let mapScale = existingScale ?? terrainMapSizeMiles
 
@@ -2344,6 +2402,7 @@ extension MapWizardView {
                 // Restore water percentage override
                 terrainMetadata?.waterPercentageOverride = existingWaterOverride
 
+                #if DEBUG
                 print("[MapWizard] Created terrain metadata: \(terrainMetadata!.description)")
                 if existingScale != nil {
                     print("[MapWizard] Preserved map scale: \(mapScale) mi")
@@ -2351,6 +2410,7 @@ extension MapWizardView {
                 if existingWaterOverride != nil {
                     print("[MapWizard] Preserved water override: \(Int(existingWaterOverride! * 100))%")
                 }
+                #endif
             }
 
             // Create and apply the fill
@@ -2362,10 +2422,13 @@ extension MapWizardView {
                 terrainMetadata: terrainMetadata
             )
 
+            #if DEBUG
             print("[MapWizard] LayerFill created - usesProceduralTerrain: \(fill.usesProceduralTerrain), usesProceduralPattern: \(fill.usesProceduralPattern)")
+            #endif
 
             layerManager.applyFillToBaseLayer(fill)
 
+            #if DEBUG
             // Verify the fill was applied
             if let appliedFill = layerManager.baseLayer?.layerFill {
                 print("[MapWizard] Fill successfully applied to base layer. Metadata: \(appliedFill.terrainMetadata?.description ?? "none")")
@@ -2375,10 +2438,13 @@ extension MapWizardView {
 
             print("[MapWizard] Applied \(fillType.displayName) base layer" +
                   (terrainMetadata != nil ? " with terrain scale: \(terrainMapSizeMiles) mi (\(currentScaleCategory.rawValue))" : ""))
+            #endif
         } else {
             // Remove fill
             layerManager.applyFillToBaseLayer(nil)
+            #if DEBUG
             print("[MapWizard] Removed base layer fill")
+            #endif
         }
 
         // @Observable automatically tracks changes - no need for objectWillChange.send()
