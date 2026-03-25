@@ -17,7 +17,7 @@ import SwiftData
 /// Part of ER-0009: AI Image Generation
 /// TEMPORARILY DISABLED - Needs type fixes
 #if false
-@Suite("Image Generation Workflow Tests")
+@Suite("Image Generation Workflow Tests", .serialized)
 struct ImageGenerationWorkflowTests {
 
     // MARK: - Test Helpers

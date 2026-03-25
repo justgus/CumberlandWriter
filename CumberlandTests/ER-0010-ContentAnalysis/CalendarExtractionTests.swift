@@ -17,7 +17,7 @@ import SwiftData
 /// Part of ER-0010: AI Content Analysis (Calendar Extraction)
 /// TEMPORARILY DISABLED - Needs fixes for CalendarSystem vs CalendarStructure
 #if false
-@Suite("Calendar Extraction Tests")
+@Suite("Calendar Extraction Tests", .serialized)
 struct CalendarExtractionTests {
 
     // MARK: - Test Helpers

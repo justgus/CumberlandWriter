@@ -17,7 +17,7 @@ import SwiftData
 /// Part of ER-0010: AI Content Analysis
 /// TEMPORARILY DISABLED - Needs type fixes
 #if false
-@Suite("Entity Extraction Tests")
+@Suite("Entity Extraction Tests", .serialized)
 struct EntityExtractionTests {
 
     // MARK: - Test Helpers

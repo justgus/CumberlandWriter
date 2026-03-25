@@ -15,7 +15,7 @@ import SwiftData
 
 /// Tests for temporal positioning of scenes on timelines
 /// Part of ER-0008: Time-Based Timeline System
-@Suite("Temporal Positioning Tests")
+@Suite("Temporal Positioning Tests", .serialized)
 struct TemporalPositioningTests {
 
     // MARK: - Test Helpers

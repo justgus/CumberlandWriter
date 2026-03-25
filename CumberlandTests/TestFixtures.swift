@@ -303,6 +303,93 @@ enum TestFixtures {
     }
     """
 
+    // MARK: - Full Schema Container Helper
+
+    /// Creates an in-memory container with ALL AppSchemaV5 models registered.
+    /// Use this when tests need the full object graph (edges, boards, citations, etc.)
+    ///
+    /// Each call creates a unique store file in a temp directory so that multiple
+    /// containers can coexist in the same test-host process without triggering
+    /// SwiftData `loadIssueModelContainer` errors.
+    @MainActor private static var _containerIndex = 0
+
+    @MainActor
+    static func makeFullSchemaContainer() throws -> (ModelContainer, ModelContext) {
+        _containerIndex += 1
+        let schema = Schema([
+            AppSettings.self,
+            Card.self,
+            RelationType.self,
+            CardEdge.self,
+            Source.self,
+            Citation.self,
+            StoryStructure.self,
+            StructureElement.self,
+            Board.self,
+            BoardNode.self,
+            ImageVersion.self,
+            CalendarSystem.self,
+            SuggestionFeedback.self
+        ])
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CumberlandTests", isDirectory: true)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        let storeURL = tmpDir.appendingPathComponent("test_\(_containerIndex).store")
+        // Remove leftover stores from previous runs
+        try? FileManager.default.removeItem(at: storeURL)
+        let config = ModelConfiguration(url: storeURL)
+        let container = try ModelContainer(for: schema, configurations: [config])
+        let context = container.mainContext
+        context.autosaveEnabled = false
+        return (container, context)
+    }
+
+    // MARK: - Additional Card Factories
+
+    /// Create a sample artifact card
+    static func createSampleArtifact(name: String = "Sword of Dawn", context: ModelContext? = nil) -> Card {
+        let card = Card(
+            kind: .artifacts,
+            name: name,
+            subtitle: "Legendary Weapon",
+            detailedText: "A blade of starlight, forged in the First Age."
+        )
+        if let context { context.insert(card) }
+        return card
+    }
+
+    // MARK: - RelationType Factory
+
+    static func createRelationType(
+        code: String = "owns/owned-by",
+        forward: String = "owns",
+        inverse: String = "owned-by",
+        sourceKind: Kinds? = nil,
+        targetKind: Kinds? = nil,
+        context: ModelContext
+    ) -> RelationType {
+        let rt = RelationType(code: code, forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind)
+        context.insert(rt)
+        return rt
+    }
+
+    // MARK: - Board Factory
+
+    static func createBoard(name: String = "Test Board", primaryCard: Card? = nil, context: ModelContext) -> Board {
+        let board = Board(name: name, primaryCard: primaryCard)
+        context.insert(board)
+        return board
+    }
+
+    // MARK: - Edge Factory
+
+    @discardableResult
+    static func createEdge(from source: Card, to target: Card, type: RelationType, context: ModelContext) -> CardEdge {
+        let edge = CardEdge(from: source, to: target, type: type)
+        context.insert(edge)
+        return edge
+    }
+
     /// Mock calendar extraction result
     static let mockCalendarExtractionResult = """
     {

@@ -12,7 +12,6 @@
 
 import SwiftUI
 import RealityKit
-import RealityKitContent
 import OSLog
 
 struct ImmersiveView: View {
@@ -39,7 +38,7 @@ struct ImmersiveView: View {
     }
 }
 
-#Preview(immersionStyle: .mixed) {
+#Preview() {
     ImmersiveView()
         .environment(AppModel())
 }

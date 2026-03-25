@@ -13,7 +13,7 @@ import Foundation
 
 /// Tests for AISettings data model
 /// Part of ER-0009: AI Image Generation (Phase 1)
-@Suite("AISettings Tests")
+@Suite("AISettings Tests", .serialized)
 struct AISettingsTests {
 
     // MARK: - Setup

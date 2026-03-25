@@ -12,7 +12,7 @@ import Testing
 
 /// Tests for KeychainHelper secure API key storage
 /// Part of ER-0009: AI Image Generation (Phase 1)
-@Suite("KeychainHelper Tests")
+@Suite("KeychainHelper Tests", .serialized)
 struct KeychainHelperTests {
 
     // MARK: - Setup/Teardown

@@ -15,7 +15,7 @@ import SwiftData
 
 /// Tests for multi-timeline functionality and shared calendars
 /// Part of ER-0008: Time-Based Timeline System
-@Suite("Multi-Timeline Tests")
+@Suite("Multi-Timeline Tests", .serialized)
 struct MultiTimelineTests {
 
     // MARK: - Test Helpers
