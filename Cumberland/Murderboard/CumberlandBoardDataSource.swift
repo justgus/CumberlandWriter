@@ -81,8 +81,10 @@ final class CumberlandBoardDataSource: @MainActor BoardDataSource {
 
     // MARK: - Board Loading
 
+    /// DR-0104: Delegate to BoardManager for board loading
     func loadBoard(for primary: Card) {
-        let b = Board.fetchOrCreatePrimaryBoard(for: primary, in: modelContext)
+        let mgr = BoardManager(modelContext: modelContext)
+        let b = mgr.fetchOrCreatePrimaryBoard(for: primary)
         b.clampState()
         self.board = b
     }

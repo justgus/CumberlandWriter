@@ -21,7 +21,9 @@ struct AISettingsTests {
     init() {
         // Reset settings before each test
         AISettings.shared.resetToDefaults()
-        try? KeychainHelper.shared.deleteAllAPIKeys()
+        // Only clean up the specific provider key used by this suite's tests
+        // (deleteAllAPIKeys would race with KeychainHelperTests running concurrently)
+        try? KeychainHelper.shared.deleteAPIKey(for: "openai")
     }
 
     // MARK: - Default Values Tests

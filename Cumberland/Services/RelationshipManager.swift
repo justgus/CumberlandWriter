@@ -24,6 +24,10 @@ final class RelationshipManager {
 
     private let modelContext: ModelContext
 
+    /// RelationTypeManager reference for centralized mirror-type operations (DR-0103).
+    /// Set after ServiceContainer initialization to avoid circular dependency.
+    var relationTypeManager: RelationTypeManager?
+
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
@@ -269,13 +273,19 @@ final class RelationshipManager {
     // MARK: - Mirror Type Handling
 
     /// Get or create the mirror relationship type
+    /// DR-0103: Delegates to RelationTypeManager when available
     /// - Parameters:
     ///   - originalType: The original relationship type
     ///   - sourceKind: The source card kind
     ///   - targetKind: The target card kind
     /// - Returns: The mirror type
     private func getMirrorType(for originalType: RelationType, sourceKind: Kinds, targetKind: Kinds) -> RelationType {
-        // Try to find existing mirror type
+        // DR-0103: Delegate to RelationTypeManager when available
+        if let mgr = relationTypeManager {
+            return mgr.mirrorType(for: originalType, sourceKind: sourceKind, targetKind: targetKind)
+        }
+
+        // Fallback: direct modelContext operations
         let mirrorForward = originalType.inverseLabel
         let mirrorInverse = originalType.forwardLabel
 
@@ -290,9 +300,7 @@ final class RelationshipManager {
             return existing
         }
 
-        // Create new mirror type
-        // Generate code by combining forward and inverse labels (same as existing pattern)
-        let code = "\(mirrorForward)/\(mirrorInverse)"
+        let code = RelationTypeManager.makeCode(forward: mirrorForward, inverse: mirrorInverse)
         let mirrorType = RelationType(
             code: code,
             forwardLabel: mirrorForward,

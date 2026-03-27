@@ -59,7 +59,7 @@ extension CardRelationshipView {
         return nil
     }
 
-    // MARK: - Relationship Type Helpers
+    // MARK: - Relationship Type Helpers (DR-0103: delegate to RelationTypeManager)
 
     /// Fetch a RelationType by its code.
     func fetchRelationType(code: String, modelContext: ModelContext) -> RelationType? {
@@ -68,8 +68,13 @@ extension CardRelationshipView {
     }
 
     /// Ensure a RelationType exists, creating it if necessary.
+    /// Delegates to RelationTypeManager when available via services.
     @discardableResult
-    func ensureRelationType(code: String, forward: String, inverse: String, sourceKind: Kinds? = nil, targetKind: Kinds? = nil, modelContext: ModelContext) -> RelationType {
+    func ensureRelationType(code: String, forward: String, inverse: String, sourceKind: Kinds? = nil, targetKind: Kinds? = nil, modelContext: ModelContext, services: ServiceContainer? = nil) -> RelationType {
+        if let mgr = services?.relationTypeManager {
+            return mgr.ensureRelationType(code: code, forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind)
+        }
+        // Fallback: direct modelContext operations
         if let existing = fetchRelationType(code: code, modelContext: modelContext) {
             ensureMirror(forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind, modelContext: modelContext)
             return existing
@@ -88,7 +93,7 @@ extension CardRelationshipView {
         let mirrorSource = targetKind
         let mirrorTarget = sourceKind
 
-        let desiredCode = makeCode(forward: mirrorForward, inverse: mirrorInverse)
+        let desiredCode = RelationTypeManager.makeCode(forward: mirrorForward, inverse: mirrorInverse)
         if fetchRelationType(code: desiredCode, modelContext: modelContext) != nil {
             return
         }
@@ -97,7 +102,7 @@ extension CardRelationshipView {
         var suffix = 1
         while fetchRelationType(code: codeToUse, modelContext: modelContext) != nil {
             suffix += 1
-            codeToUse = makeCode(forward: mirrorForward, inverse: mirrorInverse, suffix: suffix)
+            codeToUse = RelationTypeManager.makeCode(forward: mirrorForward, inverse: mirrorInverse, suffix: suffix)
         }
 
         let mirror = RelationType(code: codeToUse, forwardLabel: mirrorForward, inverseLabel: mirrorInverse, sourceKind: mirrorSource, targetKind: mirrorTarget)
@@ -105,8 +110,13 @@ extension CardRelationshipView {
     }
 
     /// Get the mirror type for a given RelationType.
-    func mirrorType(for type: RelationType, sourceKind: Kinds, targetKind: Kinds, modelContext: ModelContext) -> RelationType {
-        let desiredCode = makeCode(forward: type.inverseLabel, inverse: type.forwardLabel)
+    /// Delegates to RelationTypeManager when available via services.
+    func mirrorType(for type: RelationType, sourceKind: Kinds, targetKind: Kinds, modelContext: ModelContext, services: ServiceContainer? = nil) -> RelationType {
+        if let mgr = services?.relationTypeManager {
+            return mgr.mirrorType(for: type, sourceKind: sourceKind, targetKind: targetKind)
+        }
+        // Fallback: direct modelContext operations
+        let desiredCode = RelationTypeManager.makeCode(forward: type.inverseLabel, inverse: type.forwardLabel)
         if let existing = fetchRelationType(code: desiredCode, modelContext: modelContext) {
             return existing
         }
@@ -124,11 +134,11 @@ extension CardRelationshipView {
         }) {
             return match
         }
-        var codeToUse = makeCode(forward: type.inverseLabel, inverse: type.forwardLabel)
+        var codeToUse = RelationTypeManager.makeCode(forward: type.inverseLabel, inverse: type.forwardLabel)
         var suffix = 1
         while fetchRelationType(code: codeToUse, modelContext: modelContext) != nil {
             suffix += 1
-            codeToUse = makeCode(forward: type.inverseLabel, inverse: type.forwardLabel, suffix: suffix)
+            codeToUse = RelationTypeManager.makeCode(forward: type.inverseLabel, inverse: type.forwardLabel, suffix: suffix)
         }
         let mirror = RelationType(code: codeToUse, forwardLabel: type.inverseLabel, inverseLabel: type.forwardLabel, sourceKind: targetKind, targetKind: sourceKind)
         modelContext.insert(mirror)
@@ -467,28 +477,15 @@ extension CardRelationshipView {
         return nil
     }
 
-    // MARK: - Code Generation
+    // MARK: - Code Generation (DR-0103: delegate to RelationTypeManager)
 
     /// Sanitize a string for use in a code.
     func sanitize(_ s: String) -> String {
-        let lowered = s.lowercased()
-        let replaced = lowered.replacingOccurrences(of: " ", with: "-")
-        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
-        let filtered = String(replaced.unicodeScalars.filter { allowed.contains($0) })
-        var result = filtered
-        while result.contains("--") {
-            result = result.replacingOccurrences(of: "--", with: "-")
-        }
-        return result
+        RelationTypeManager.sanitize(s)
     }
 
     /// Generate a code from forward and inverse labels.
     func makeCode(forward: String, inverse: String, suffix: Int? = nil) -> String {
-        let base = "\(sanitize(forward))/\(sanitize(inverse))"
-        if let suffix {
-            return "\(base)-\(suffix)"
-        } else {
-            return "\(base)"
-        }
+        RelationTypeManager.makeCode(forward: forward, inverse: inverse, suffix: suffix)
     }
 }

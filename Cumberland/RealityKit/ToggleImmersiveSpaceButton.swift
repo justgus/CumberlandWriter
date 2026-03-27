@@ -9,6 +9,7 @@
 //  Reads AppModel.immersiveSpaceState to disable itself during transitions.
 //
 
+#if os(visionOS)
 import SwiftUI
 
 struct ToggleImmersiveSpaceButton: View {
@@ -60,3 +61,4 @@ struct ToggleImmersiveSpaceButton: View {
         .fontWeight(.semibold)
     }
 }
+#endif

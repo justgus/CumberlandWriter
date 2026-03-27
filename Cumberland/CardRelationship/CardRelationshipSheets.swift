@@ -88,6 +88,7 @@ struct RelationTypeCreatorSheet: View {
         !inverseLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    // DR-0103: Delegate to RelationTypeManager for creation and mirror management
     @MainActor
     private func createType() async {
         guard isValid else { return }
@@ -96,85 +97,19 @@ struct RelationTypeCreatorSheet: View {
 
         let forward = forwardLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         let inverse = inverseLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        var code = makeCode(forward: forward, inverse: inverse)
+        let code = RelationTypeManager.makeCode(forward: forward, inverse: inverse)
 
-        var suffix = 1
-        while codeExists(code) {
-            suffix += 1
-            code = makeCode(forward: forward, inverse: inverse, suffix: suffix)
-        }
-
-        let type = RelationType(
+        // Use RelationTypeManager for creation + mirror
+        let mgr = RelationTypeManager(modelContext: modelContext)
+        let type = mgr.ensureRelationType(
             code: code,
             forwardLabel: forward,
             inverseLabel: inverse,
             sourceKind: sourceKind,
             targetKind: targetKind
         )
-        modelContext.insert(type)
-
-        createMirrorIfMissing(forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind)
-
-        try? modelContext.save()
         onCreate(type)
         dismiss()
-    }
-
-    private func codeExists(_ code: String) -> Bool {
-        let fetch = FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == code })
-        if let found = try? modelContext.fetch(fetch) {
-            return !found.isEmpty
-        }
-        return false
-    }
-
-    private func sanitize(_ s: String) -> String {
-        let lowered = s.lowercased()
-        let replaced = lowered.replacingOccurrences(of: " ", with: "-")
-        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
-        let filtered = String(replaced.unicodeScalars.filter { allowed.contains($0) })
-        var result = filtered
-        while result.contains("--") {
-            result = result.replacingOccurrences(of: "--", with: "-")
-        }
-        return result
-    }
-
-    private func makeCode(forward: String, inverse: String, suffix: Int? = nil) -> String {
-        let base = "\(sanitize(forward))/\(sanitize(inverse))"
-        if let suffix {
-            return "\(base)-\(suffix)"
-        } else {
-            return "\(base)"
-        }
-    }
-
-    private func createMirrorIfMissing(forwardLabel: String, inverseLabel: String, sourceKind: Kinds, targetKind: Kinds) {
-        let mirrorForward = inverseLabel
-        let mirrorInverse = forwardLabel
-        let mirrorSource = targetKind
-        let mirrorTarget = sourceKind
-
-        var mirrorCode = makeCode(forward: mirrorForward, inverse: mirrorInverse)
-        var suffix = 1
-        while codeExists(mirrorCode) {
-            suffix += 1
-            mirrorCode = makeCode(forward: mirrorForward, inverse: mirrorInverse, suffix: suffix)
-        }
-
-        let fetch = FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == mirrorCode })
-        if let found = try? modelContext.fetch(fetch), found.isEmpty == false {
-            return
-        }
-
-        let mirror = RelationType(
-            code: mirrorCode,
-            forwardLabel: mirrorForward,
-            inverseLabel: mirrorInverse,
-            sourceKind: mirrorSource,
-            targetKind: mirrorTarget
-        )
-        modelContext.insert(mirror)
     }
 }
 

@@ -144,24 +144,12 @@ extension Board {
         _ = node(for: primary, in: ctx, createIfMissing: true, defaultPosition: (0, 0))
     }
 
-    // Fetch or create a board whose primaryCard == given card.
+    /// Fetch or create a board whose primaryCard == given card.
+    /// DR-0104: Thin wrapper — delegates to BoardManager for the actual logic.
     @MainActor
     static func fetchOrCreatePrimaryBoard(for primary: Card, in ctx: ModelContext) -> Board {
-        let primaryID: UUID? = primary.id
-        let fetch = FetchDescriptor<Board>(predicate: #Predicate { $0.primaryCard?.id == primaryID },
-                                           sortBy: [SortDescriptor(\.name, order: .forward)])
-        if let existing = try? ctx.fetch(fetch), let board = existing.first {
-            board.ensurePrimaryPresence(in: ctx)
-            board.clampState()
-            try? ctx.save()
-            return board
-        }
-        // Create a new board
-        let board = Board(name: "\(primary.name.isEmpty ? primary.kind.singularTitle : primary.name) Board", primaryCard: primary, zoomScale: 1.0, panX: 0, panY: 0)
-        ctx.insert(board)
-        board.ensurePrimaryPresence(in: ctx)
-        try? ctx.save()
-        return board
+        let mgr = BoardManager(modelContext: ctx)
+        return mgr.fetchOrCreatePrimaryBoard(for: primary)
     }
 
     var backlogKind: Kinds? {

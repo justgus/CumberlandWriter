@@ -147,26 +147,31 @@ struct RelationTypeFormView: View {
         !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    // DR-0103: Delegate to RelationTypeManager for save, mirror, and code operations
     @MainActor
     private func save() async {
         guard isValid else { return }
+        let mgr = RelationTypeManager(modelContext: modelContext)
 
         if case .create = mode {
-            if codeExists(code) {
-                errorMessage = "A relation type with code “\(code)” already exists."
+            if mgr.fetchRelationType(code: code) != nil {
+                errorMessage = "A relation type with code \"\(code)\" already exists."
                 return
             }
-            let t = RelationType(code: code, forwardLabel: forwardLabel, inverseLabel: inverseLabel, sourceKind: sourceKind, targetKind: targetKind)
-            modelContext.insert(t)
-            if autoEnsureMirror {
-                ensureMirror(forward: forwardLabel, inverse: inverseLabel, source: sourceKind, target: targetKind)
+            do {
+                let t = try mgr.createRelationType(code: code, forwardLabel: forwardLabel, inverseLabel: inverseLabel, sourceKind: sourceKind, targetKind: targetKind)
+                if autoEnsureMirror {
+                    mgr.ensureMirror(forwardLabel: forwardLabel, inverseLabel: inverseLabel, sourceKind: sourceKind, targetKind: targetKind)
+                    try? modelContext.save()
+                }
+                onDone(t)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
             }
-            try? modelContext.save()
-            onDone(t)
-            dismiss()
         } else if case .edit(let existing) = mode {
-            if existing.code != code, codeExists(code) {
-                errorMessage = "A relation type with code “\(code)” already exists."
+            if existing.code != code, mgr.fetchRelationType(code: code) != nil {
+                errorMessage = "A relation type with code \"\(code)\" already exists."
                 return
             }
             existing.code = code
@@ -175,18 +180,12 @@ struct RelationTypeFormView: View {
             existing.sourceKind = sourceKind
             existing.targetKind = targetKind
             if autoEnsureMirror {
-                ensureMirror(forward: forwardLabel, inverse: inverseLabel, source: sourceKind, target: targetKind)
+                mgr.ensureMirror(forwardLabel: forwardLabel, inverseLabel: inverseLabel, sourceKind: sourceKind, targetKind: targetKind)
             }
             try? modelContext.save()
             onDone(existing)
             dismiss()
         }
-    }
-
-    private func codeExists(_ code: String) -> Bool {
-        let fetch = FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == code })
-        let found = (try? modelContext.fetch(fetch)) ?? []
-        return !found.isEmpty
     }
 
     private func kindPicker(title: String, selection: Binding<Kinds?>) -> some View {
@@ -222,56 +221,9 @@ struct RelationTypeFormView: View {
         }
     }
 
-    private func ensureMirror(forward: String, inverse: String, source: Kinds?, target: Kinds?) {
-        let mirrorForward = inverse
-        let mirrorInverse = forward
-        let mirrorSource = target
-        let mirrorTarget = source
-
-        var mirrorCode = makeCode(forward: mirrorForward, inverse: mirrorInverse)
-        var suffix = 1
-        while codeExists(mirrorCode) {
-            if let existing = fetchType(code: mirrorCode),
-               existing.forwardLabel == mirrorForward,
-               existing.inverseLabel == mirrorInverse,
-               existing.sourceKind == mirrorSource,
-               existing.targetKind == mirrorTarget {
-                return
-            }
-            suffix += 1
-            mirrorCode = makeCode(forward: mirrorForward, inverse: mirrorInverse, suffix: suffix)
-        }
-
-        let mirror = RelationType(code: mirrorCode, forwardLabel: mirrorForward, inverseLabel: mirrorInverse, sourceKind: mirrorSource, targetKind: mirrorTarget)
-        modelContext.insert(mirror)
-    }
-
-    private func fetchType(code: String) -> RelationType? {
-        let fetch = FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == code })
-        return try? modelContext.fetch(fetch).first
-    }
-
-    private func sanitize(_ s: String) -> String {
-        let lowered = s.lowercased()
-        let replaced = lowered.replacingOccurrences(of: " ", with: "-")
-        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
-        let filtered = String(replaced.unicodeScalars.filter { allowed.contains($0) })
-        var result = filtered
-        while result.contains("--") {
-            result = result.replacingOccurrences(of: "--", with: "-")
-        }
-        return result
-    }
-
+    // DR-0103: Delegate to RelationTypeManager static utilities
     private func makeCode(forward: String, inverse: String, suffix: Int? = nil) -> String {
-        let f = sanitize(forward)
-        let i = sanitize(inverse)
-        let base = "\(f)/\(i)"
-        if let suffix {
-            return "\(base)-\(suffix)"
-        } else {
-            return base
-        }
+        RelationTypeManager.makeCode(forward: forward, inverse: inverse, suffix: suffix)
     }
 
     private func swapLabels() {

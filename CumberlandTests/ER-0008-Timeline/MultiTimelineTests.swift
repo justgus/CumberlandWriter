@@ -7,6 +7,9 @@
 //  references across multiple timeline cards and scene ordering within
 //  each timeline.
 //
+//  DR-0105: Migrated inline RelationType/CardEdge creations to use
+//  TestFixtures factories (which delegate to service managers).
+//
 
 import Testing
 import Foundation
@@ -29,6 +32,17 @@ struct MultiTimelineTests {
         )
         let context = ModelContext(container)
         return (container, context)
+    }
+
+    /// Shared helper: create the "appears-in/features" RelationType via manager
+    @MainActor
+    private func makeAppearsInType(context: ModelContext) -> RelationType {
+        TestFixtures.createRelationType(
+            code: "appears-in/features",
+            forward: "appears in",
+            inverse: "features",
+            context: context
+        )
     }
 
     // MARK: - Shared Calendar Tests
@@ -100,8 +114,7 @@ struct MultiTimelineTests {
     func parallelScenes() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let calendar = CalendarSystem(name: "Shared Calendar", divisions: [])
         context.insert(calendar)
@@ -128,14 +141,12 @@ struct MultiTimelineTests {
         // Same temporal position on different timelines
         let sameTime = Date(timeIntervalSince1970: 1000)
 
-        let edge1 = CardEdge(from: scene1, to: timeline1, type: relType)
+        let edge1 = TestFixtures.createEdge(from: scene1, to: timeline1, type: relType, context: context)
         edge1.temporalPosition = sameTime
 
-        let edge2 = CardEdge(from: scene2, to: timeline2, type: relType)
+        let edge2 = TestFixtures.createEdge(from: scene2, to: timeline2, type: relType, context: context)
         edge2.temporalPosition = sameTime
 
-        context.insert(edge1)
-        context.insert(edge2)
         try context.save()
 
         #expect(edge1.temporalPosition?.timeIntervalSince1970 == edge2.temporalPosition?.timeIntervalSince1970)
@@ -180,8 +191,7 @@ struct MultiTimelineTests {
     func queryScenesAcrossTimelines() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline1 = Card(kind: .timelines, name: "TL1", subtitle: "", detailedText: "")
         let timeline2 = Card(kind: .timelines, name: "TL2", subtitle: "", detailedText: "")
@@ -198,13 +208,10 @@ struct MultiTimelineTests {
         context.insert(scene3)
 
         // Distribute scenes across timelines
-        let edge1 = CardEdge(from: scene1, to: timeline1, type: relType)
-        let edge2 = CardEdge(from: scene2, to: timeline1, type: relType)
-        let edge3 = CardEdge(from: scene3, to: timeline2, type: relType)
+        TestFixtures.createEdge(from: scene1, to: timeline1, type: relType, context: context)
+        TestFixtures.createEdge(from: scene2, to: timeline1, type: relType, context: context)
+        TestFixtures.createEdge(from: scene3, to: timeline2, type: relType, context: context)
 
-        context.insert(edge1)
-        context.insert(edge2)
-        context.insert(edge3)
         try context.save()
 
         // Query all edges
@@ -221,8 +228,7 @@ struct MultiTimelineTests {
     func timelineWithoutCalendar() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline = Card(kind: .timelines, name: "Ordinal Timeline", subtitle: "", detailedText: "")
         // No calendar assigned
@@ -231,8 +237,7 @@ struct MultiTimelineTests {
         let scene = Card(kind: .scenes, name: "Scene", subtitle: "", detailedText: "")
         context.insert(scene)
 
-        let edge = CardEdge(from: scene, to: timeline, type: relType)
-        context.insert(edge)
+        let edge = TestFixtures.createEdge(from: scene, to: timeline, type: relType, context: context)
         try context.save()
 
         #expect(timeline.calendarSystem == nil)
@@ -296,8 +301,7 @@ struct MultiTimelineTests {
     func sceneOnMultipleTimelines() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline1 = Card(kind: .timelines, name: "Timeline 1", subtitle: "", detailedText: "")
         let timeline2 = Card(kind: .timelines, name: "Timeline 2", subtitle: "", detailedText: "")
@@ -308,11 +312,9 @@ struct MultiTimelineTests {
         context.insert(scene)
 
         // Same scene on both timelines
-        let edge1 = CardEdge(from: scene, to: timeline1, type: relType)
-        let edge2 = CardEdge(from: scene, to: timeline2, type: relType)
+        TestFixtures.createEdge(from: scene, to: timeline1, type: relType, context: context)
+        TestFixtures.createEdge(from: scene, to: timeline2, type: relType, context: context)
 
-        context.insert(edge1)
-        context.insert(edge2)
         try context.save()
 
         // Query edges for this scene

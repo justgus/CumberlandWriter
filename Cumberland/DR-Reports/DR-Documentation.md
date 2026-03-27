@@ -13,15 +13,20 @@ This is the main index for all Cumberland Discrepancy Reports. DRs track bugs an
 
 ## Unverified DRs (Active Issues)
 
-Currently: **0 unverified DRs**
+Currently: **4 unverified DRs**
 
-*No unverified DRs at this time.*
+| DR | Title | Status | Date |
+|----|-------|--------|------|
+| DR-0102 | TestFixtures Factory Methods Bypass Service Layer — Crash on context.insert() | 🟡 Resolved - Not Verified | 2026-03-27 |
+| DR-0103 | RelationTypeManager Service — Centralize RelationType CRUD | 🟡 Resolved - Not Verified | 2026-03-27 |
+| DR-0104 | BoardManager Service — Centralize Board/BoardNode CRUD | 🟡 Resolved - Not Verified | 2026-03-27 |
+| DR-0105 | Test Infrastructure — Migrate Factories to Service Managers | 🟡 Resolved - Not Verified | 2026-03-27 |
 
 See: [DR-unverified.md](./DR-unverified.md)
 
 ## Verified DRs (Resolved Issues)
 
-Currently: **83 verified DRs** | Next available DR: **DR-0102**
+Currently: **83 verified DRs** | Next available DR: **DR-0106**
 
 | Batch | DRs | File | Status |
 |-------|-----|------|--------|
@@ -58,12 +63,13 @@ See: [DR-archive-0038-0056.md](./DR-archive-0038-0056.md) for deferred/OBE DRs:
 
 ## Statistics
 
-- **Total DRs:** 101
-- **Verified:** 87 (86.1%) ✅
-- **Open:** 3 (3.0%) 🔴 *(3 deferred)*
-- **Closed/Deferred:** 5 (5.0%) ⚪
+- **Total DRs:** 105
+- **Verified:** 87 (82.9%) ✅
+- **Unverified:** 4 (3.8%) 🟡
+- **Open:** 3 (2.9%) 🔴 *(3 deferred)*
+- **Closed/Deferred:** 5 (4.8%) ⚪
 
 ---
 
-*Last Updated: 2026-02-27*
+*Last Updated: 2026-03-27*
 

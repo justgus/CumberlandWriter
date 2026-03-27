@@ -6,7 +6,8 @@
 //  Part of ER-0022: Code Maintainability Refactoring - Phase 4
 //
 //  Dependency-injection container that holds shared service instances:
-//  CardOperationManager, RelationshipManager, and ImageProcessingService.
+//  CardOperationManager, RelationshipManager, RelationTypeManager,
+//  BoardManager, and ImageProcessingService.
 //  Initialised in CumberlandApp and injected into the SwiftUI environment
 //  via a custom EnvironmentKey so views can access services without singletons.
 //
@@ -63,6 +64,12 @@ final class ServiceContainer {
     /// Manager for relationship (CardEdge) operations
     let relationshipManager: RelationshipManager
 
+    /// Manager for RelationType CRUD and mirror management (DR-0103)
+    let relationTypeManager: RelationTypeManager
+
+    /// Manager for Board and BoardNode CRUD (DR-0104)
+    let boardManager: BoardManager
+
     /// Monitor for edge integrity / desync detection (ER-0036)
     let edgeIntegrityMonitor: EdgeIntegrityMonitor
 
@@ -92,10 +99,13 @@ final class ServiceContainer {
         // Initialize services (they use repositories internally or the context)
         self.cardOperations = CardOperationManager(modelContext: modelContext)
         self.relationshipManager = RelationshipManager(modelContext: modelContext)
+        self.relationTypeManager = RelationTypeManager(modelContext: modelContext)
+        self.boardManager = BoardManager(modelContext: modelContext)
         self.edgeIntegrityMonitor = EdgeIntegrityMonitor()
 
         // Wire cross-references (ER-0036)
         self.cardOperations.relationshipManager = self.relationshipManager
+        self.relationshipManager.relationTypeManager = self.relationTypeManager
     }
 
     // MARK: - Convenience Factory

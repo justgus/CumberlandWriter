@@ -7,6 +7,9 @@
 //  epoch-relative offset calculations, CalendarSystem assignment, and
 //  sorted scene ordering.
 //
+//  DR-0105: Migrated inline RelationType/CardEdge creations to use
+//  TestFixtures factories (which delegate to service managers).
+//
 
 import Testing
 import Foundation
@@ -31,6 +34,19 @@ struct TemporalPositioningTests {
         return (container, context)
     }
 
+    /// Shared helper: create the "appears-in/features" RelationType via manager
+    @MainActor
+    private func makeAppearsInType(context: ModelContext) -> RelationType {
+        TestFixtures.createRelationType(
+            code: "appears-in/features",
+            forward: "appears in",
+            inverse: "features",
+            sourceKind: .scenes,
+            targetKind: .timelines,
+            context: context
+        )
+    }
+
     // MARK: - Basic Temporal Positioning Tests
 
     @Test("Scene on timeline with temporal position")
@@ -38,8 +54,7 @@ struct TemporalPositioningTests {
     func sceneWithTemporalPosition() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline = Card(kind: .timelines, name: "Timeline", subtitle: "", detailedText: "")
         let scene = Card(kind: .scenes, name: "Battle Scene", subtitle: "", detailedText: "")
@@ -47,10 +62,9 @@ struct TemporalPositioningTests {
         context.insert(timeline)
         context.insert(scene)
 
-        let edge = CardEdge(from: scene, to: timeline, type: relType)
+        let edge = TestFixtures.createEdge(from: scene, to: timeline, type: relType, context: context)
         edge.temporalPosition = Date()
 
-        context.insert(edge)
         try context.save()
 
         #expect(edge.temporalPosition != nil)
@@ -62,8 +76,7 @@ struct TemporalPositioningTests {
     func temporalPositionPersists() async throws {
         let (container, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline = Card(kind: .timelines, name: "Timeline", subtitle: "", detailedText: "")
         let scene = Card(kind: .scenes, name: "Test Scene", subtitle: "", detailedText: "")
@@ -72,10 +85,9 @@ struct TemporalPositioningTests {
         context.insert(scene)
 
         let testDate = Date(timeIntervalSince1970: 1000000)
-        let edge = CardEdge(from: scene, to: timeline, type: relType)
+        let edge = TestFixtures.createEdge(from: scene, to: timeline, type: relType, context: context)
         edge.temporalPosition = testDate
 
-        context.insert(edge)
         try context.save()
 
         // Fetch in new context
@@ -95,29 +107,18 @@ struct TemporalPositioningTests {
     func timelineSceneRelationship() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        // Create relationship type
-        let relType = RelationType(
-            code: "appears-in/features",
-            forwardLabel: "appears in",
-            inverseLabel: "features",
-            sourceKind: .scenes,
-            targetKind: .timelines
-        )
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
-        // Create timeline and scene
         let timeline = Card(kind: .timelines, name: "Main Timeline", subtitle: "", detailedText: "")
         let scene = Card(kind: .scenes, name: "Opening Scene", subtitle: "", detailedText: "")
 
         context.insert(timeline)
         context.insert(scene)
 
-        // Create relationship with temporal position
-        let edge = CardEdge(from: scene, to: timeline, type: relType)
+        let edge = TestFixtures.createEdge(from: scene, to: timeline, type: relType, context: context)
         edge.temporalPosition = Date(timeIntervalSince1970: 500000)
         edge.duration = 3600 // 1 hour in seconds
 
-        context.insert(edge)
         try context.save()
 
         #expect(edge.temporalPosition != nil)
@@ -131,12 +132,7 @@ struct TemporalPositioningTests {
     func sceneAtSpecificDate() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(
-            code: "appears-in/features",
-            forwardLabel: "appears in",
-            inverseLabel: "features"
-        )
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline = Card(kind: .timelines, name: "Story Timeline", subtitle: "", detailedText: "")
         let scene = Card(kind: .scenes, name: "Climax Scene", subtitle: "", detailedText: "")
@@ -155,10 +151,9 @@ struct TemporalPositioningTests {
 
         // Place scene 1 year after epoch
         let oneYearLater = Date(timeIntervalSince1970: 31536000) // ~1 year in seconds
-        let edge = CardEdge(from: scene, to: timeline, type: relType)
+        let edge = TestFixtures.createEdge(from: scene, to: timeline, type: relType, context: context)
         edge.temporalPosition = oneYearLater
 
-        context.insert(edge)
         try context.save()
 
         #expect(edge.temporalPosition != nil)
@@ -172,8 +167,7 @@ struct TemporalPositioningTests {
     func sceneWithDuration() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline = Card(kind: .timelines, name: "Timeline", subtitle: "", detailedText: "")
         let scene = Card(kind: .scenes, name: "Long Scene", subtitle: "", detailedText: "")
@@ -181,11 +175,10 @@ struct TemporalPositioningTests {
         context.insert(timeline)
         context.insert(scene)
 
-        let edge = CardEdge(from: scene, to: timeline, type: relType)
+        let edge = TestFixtures.createEdge(from: scene, to: timeline, type: relType, context: context)
         edge.temporalPosition = Date()
         edge.duration = 7200 // 2 hours
 
-        context.insert(edge)
         try context.save()
 
         #expect(edge.duration == 7200)
@@ -196,8 +189,7 @@ struct TemporalPositioningTests {
     func sceneWithZeroDuration() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline = Card(kind: .timelines, name: "Timeline", subtitle: "", detailedText: "")
         let scene = Card(kind: .scenes, name: "Instant Scene", subtitle: "", detailedText: "")
@@ -205,11 +197,10 @@ struct TemporalPositioningTests {
         context.insert(timeline)
         context.insert(scene)
 
-        let edge = CardEdge(from: scene, to: timeline, type: relType)
+        let edge = TestFixtures.createEdge(from: scene, to: timeline, type: relType, context: context)
         edge.temporalPosition = Date()
         edge.duration = 0
 
-        context.insert(edge)
         try context.save()
 
         #expect(edge.duration == 0)
@@ -222,8 +213,7 @@ struct TemporalPositioningTests {
     func multipleScenesOnTimeline() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline = Card(kind: .timelines, name: "Main Timeline", subtitle: "", detailedText: "")
         context.insert(timeline)
@@ -234,9 +224,8 @@ struct TemporalPositioningTests {
             let scene = Card(kind: .scenes, name: "Scene \(i)", subtitle: "", detailedText: "")
             context.insert(scene)
 
-            let edge = CardEdge(from: scene, to: timeline, type: relType)
+            let edge = TestFixtures.createEdge(from: scene, to: timeline, type: relType, context: context)
             edge.temporalPosition = Date(timeIntervalSince1970: baseTime + Double(i * 3600)) // 1 hour apart
-            context.insert(edge)
         }
 
         try context.save()
@@ -252,8 +241,7 @@ struct TemporalPositioningTests {
     func scenesWithOverlappingDurations() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline = Card(kind: .timelines, name: "Timeline", subtitle: "", detailedText: "")
         context.insert(timeline)
@@ -266,16 +254,14 @@ struct TemporalPositioningTests {
 
         let baseTime = Date()
 
-        let edge1 = CardEdge(from: scene1, to: timeline, type: relType)
+        let edge1 = TestFixtures.createEdge(from: scene1, to: timeline, type: relType, context: context)
         edge1.temporalPosition = baseTime
         edge1.duration = 7200 // 2 hours
 
-        let edge2 = CardEdge(from: scene2, to: timeline, type: relType)
+        let edge2 = TestFixtures.createEdge(from: scene2, to: timeline, type: relType, context: context)
         edge2.temporalPosition = Date(timeInterval: 3600, since: baseTime) // 1 hour later
         edge2.duration = 3600 // 1 hour
 
-        context.insert(edge1)
-        context.insert(edge2)
         try context.save()
 
         // Scenes overlap for 1 hour
@@ -290,8 +276,7 @@ struct TemporalPositioningTests {
     func sceneWithoutTemporalPosition() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline = Card(kind: .timelines, name: "Timeline", subtitle: "", detailedText: "")
         let scene = Card(kind: .scenes, name: "Unpositioned Scene", subtitle: "", detailedText: "")
@@ -299,10 +284,9 @@ struct TemporalPositioningTests {
         context.insert(timeline)
         context.insert(scene)
 
-        let edge = CardEdge(from: scene, to: timeline, type: relType)
+        let edge = TestFixtures.createEdge(from: scene, to: timeline, type: relType, context: context)
         // No temporal position set
 
-        context.insert(edge)
         try context.save()
 
         #expect(edge.temporalPosition == nil)
@@ -314,8 +298,7 @@ struct TemporalPositioningTests {
     func sceneOnTimelineWithoutCalendar() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline = Card(kind: .timelines, name: "Ordinal Timeline", subtitle: "", detailedText: "")
         // No calendar system assigned
@@ -324,10 +307,9 @@ struct TemporalPositioningTests {
         context.insert(timeline)
         context.insert(scene)
 
-        let edge = CardEdge(from: scene, to: timeline, type: relType)
+        let edge = TestFixtures.createEdge(from: scene, to: timeline, type: relType, context: context)
         edge.temporalPosition = Date()
 
-        context.insert(edge)
         try context.save()
 
         #expect(timeline.calendarSystem == nil)
@@ -339,8 +321,7 @@ struct TemporalPositioningTests {
     func negativeDuration() async throws {
         let (_, context) = try makeInMemoryContainer()
 
-        let relType = RelationType(code: "appears-in/features", forwardLabel: "appears in", inverseLabel: "features")
-        context.insert(relType)
+        let relType = makeAppearsInType(context: context)
 
         let timeline = Card(kind: .timelines, name: "Timeline", subtitle: "", detailedText: "")
         let scene = Card(kind: .scenes, name: "Scene", subtitle: "", detailedText: "")
@@ -348,10 +329,9 @@ struct TemporalPositioningTests {
         context.insert(timeline)
         context.insert(scene)
 
-        let edge = CardEdge(from: scene, to: timeline, type: relType)
+        let edge = TestFixtures.createEdge(from: scene, to: timeline, type: relType, context: context)
         edge.duration = -3600 // Negative duration (flashback?)
 
-        context.insert(edge)
         try context.save()
 
         #expect(edge.duration == -3600)

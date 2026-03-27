@@ -671,41 +671,33 @@ extension CumberlandApp {
         }
     }
 
+    /// DR-0103: Delegate to RelationTypeManager for seeding
     @MainActor
     static func seedRelationTypesIfNeeded(container: ModelContainer) async {
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "Seeding")
         let context = container.mainContext
         context.autosaveEnabled = true
 
-        // Fetch existing codes once (SwiftData: no propertiesToFetch API)
-        let fetch = FetchDescriptor<RelationType>()
-        let existing = (try? context.fetch(fetch)) ?? []
-        var existingCodes = Set(existing.map { $0.code })
+        let mgr = RelationTypeManager(modelContext: context)
 
         var insertedCount = 0
         for s in relationTypeSeeds {
-            if existingCodes.contains(s.code) {
+            // ensureRelationType is idempotent — skips if code already exists
+            if mgr.fetchRelationType(code: s.code) != nil {
                 continue
             }
-            let t = RelationType(
+            mgr.ensureRelationType(
                 code: s.code,
                 forwardLabel: String(localized: String.LocalizationValue(s.forward)),
                 inverseLabel: String(localized: String.LocalizationValue(s.inverse)),
                 sourceKind: s.source,
                 targetKind: s.target
             )
-            context.insert(t)
-            existingCodes.insert(s.code)
             insertedCount += 1
         }
 
         if insertedCount > 0 {
-            do {
-                try context.save()
-                logger.info("Seeded \(insertedCount) RelationType(s).")
-            } catch {
-                logger.error("Failed to save seeded RelationTypes: \(String(describing: error))")
-            }
+            logger.info("Seeded \(insertedCount) RelationType(s) via RelationTypeManager.")
         } else {
             logger.debug("RelationType seeding skipped; all seeds already present.")
         }
@@ -1673,26 +1665,9 @@ struct FixIncompleteRelationshipsView: View {
         return mirror
     }
 
-    // Code building helpers
-    private func sanitize(_ s: String) -> String {
-        let lowered = s.lowercased()
-        let replaced = lowered.replacingOccurrences(of: " ", with: "-")
-        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
-        let filtered = String(replaced.unicodeScalars.filter { allowed.contains($0) })
-        var result = filtered
-        while result.contains("--") {
-            result = result.replacingOccurrences(of: "--", with: "-")
-        }
-        return result
-    }
-
+    // DR-0103: Delegate to RelationTypeManager static utilities
     private func makeCode(forward: String, inverse: String, suffix: Int? = nil) -> String {
-        let base = "\(sanitize(forward))/\(sanitize(inverse))"
-        if let suffix {
-            return "\(base)-\(suffix)"
-        } else {
-            return base
-        }
+        RelationTypeManager.makeCode(forward: forward, inverse: inverse, suffix: suffix)
     }
 }
 #endif // DEBUG

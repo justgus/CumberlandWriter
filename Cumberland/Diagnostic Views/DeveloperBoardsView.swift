@@ -415,19 +415,20 @@ struct DeveloperBoardsView: View {
         }
     }
 
+    /// DR-0104: Delegate to BoardManager for board deletion
     private func deleteBoard(_ board: Board) {
-        // Clear selection if deleting the selected board
         if selection == board.id {
             selection = nil
         }
-        modelContext.delete(board)
-        try? modelContext.save()
+        let mgr = BoardManager(modelContext: modelContext)
+        try? mgr.deleteBoard(board)
         confirmDestructive = nil
     }
 
+    /// DR-0104: Delegate to BoardManager for node deletion
     private func deleteNode(_ node: BoardNode) {
-        modelContext.delete(node)
-        try? modelContext.save()
+        let mgr = BoardManager(modelContext: modelContext)
+        try? mgr.removeNode(node)
         confirmDestructive = nil
     }
 

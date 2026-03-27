@@ -604,39 +604,19 @@ class SuggestionEngine {
     }
 
     /// Find or create a RelationType for the given verbs (ER-0020)
-    /// Implements dynamic RelationType creation for AI-extracted relationships
+    /// DR-0103: Delegates to RelationTypeManager for creation and mirror management
     private func findOrCreateRelationType(forwardVerb: String, inverseVerb: String, context: ModelContext) throws -> RelationType {
-        let code = "\(forwardVerb)/\(inverseVerb)"
-
-        // Try to find existing RelationType with this code
-        let fetchDescriptor = FetchDescriptor<RelationType>(
-            predicate: #Predicate { $0.code == code }
-        )
-
-        if let existing = try context.fetch(fetchDescriptor).first {
-            #if DEBUG
-            print("      Found existing RelationType: \(code)")
-            #endif
-            return existing
-        }
-
-        // Create new RelationType dynamically (ER-0020)
-        #if DEBUG
-        print("      Creating new RelationType: \(code)")
-        #endif
-
-        let newType = RelationType(
+        let mgr = RelationTypeManager(modelContext: context)
+        let code = RelationTypeManager.makeCode(forward: forwardVerb, inverse: inverseVerb)
+        return mgr.ensureRelationType(
             code: code,
             forwardLabel: forwardVerb,
             inverseLabel: inverseVerb
         )
-
-        context.insert(newType)
-        return newType
     }
 
     /// Create the reverse edge for bidirectional relationships
-    /// Mirrors the pattern from CardRelationshipView
+    /// DR-0103: Uses RelationTypeManager for mirror type resolution
     private func ensureReverseEdge(forwardEdge: CardEdge, context: ModelContext) {
         guard let src = forwardEdge.from,
               let dst = forwardEdge.to,
@@ -644,13 +624,14 @@ class SuggestionEngine {
             return
         }
 
-        // Get or create the mirror type (needed for existence check)
-        let mirrorType = getMirrorType(for: forwardType, sourceKind: src.kind, targetKind: dst.kind, context: context)
+        // DR-0103: Get or create the mirror type via manager
+        let mgr = RelationTypeManager(modelContext: context)
+        let mirror = mgr.mirrorType(for: forwardType, sourceKind: src.kind, targetKind: dst.kind)
 
         // Check if reverse edge of this type already exists
         let srcID = src.id
         let dstID = dst.id
-        let mirrorCode: String? = mirrorType.code
+        let mirrorCode: String? = mirror.code
         let reversePredicate = #Predicate<CardEdge> {
             $0.from?.id == dstID && $0.to?.id == srcID && $0.type?.code == mirrorCode
         }
@@ -668,7 +649,7 @@ class SuggestionEngine {
         let reverseEdge = CardEdge(
             from: dst,
             to: src,
-            type: mirrorType,
+            type: mirror,
             note: forwardEdge.note,
             createdAt: reverseCreatedAt
         )
@@ -676,46 +657,8 @@ class SuggestionEngine {
         EdgeIntegrityMonitor.incrementCounts(source: dst, target: src)
 
         #if DEBUG
-        print("   ✅ Created reverse: \(dst.name) → [\(mirrorType.forwardLabel)] → \(src.name)")
+        print("   ✅ Created reverse: \(dst.name) → [\(mirror.forwardLabel)] → \(src.name)")
         #endif
-    }
-
-    /// Get or create the mirror RelationType for reverse edges
-    /// Forward type: "pilots/piloted-by" → Mirror type: "piloted-by/pilots"
-    private func getMirrorType(for type: RelationType, sourceKind: Kinds, targetKind: Kinds, context: ModelContext) -> RelationType {
-        // Mirror type has swapped labels and kinds
-        let desiredCode = makeRelationTypeCode(forward: type.inverseLabel, inverse: type.forwardLabel)
-
-        // Try to find existing mirror type
-        let mirrorPredicate = #Predicate<RelationType> { rt in
-            rt.code == desiredCode
-        }
-        let mirrorFetch = FetchDescriptor(predicate: mirrorPredicate)
-
-        if let existing = try? context.fetch(mirrorFetch).first {
-            return existing
-        }
-
-        // Create new mirror type
-        let mirror = RelationType(
-            code: desiredCode,
-            forwardLabel: type.inverseLabel,
-            inverseLabel: type.forwardLabel,
-            sourceKind: targetKind,  // Swapped
-            targetKind: sourceKind   // Swapped
-        )
-        context.insert(mirror)
-
-        #if DEBUG
-        print("   🆕 Created mirror RelationType: \(desiredCode)")
-        #endif
-
-        return mirror
-    }
-
-    /// Build RelationType code from forward/inverse labels
-    private func makeRelationTypeCode(forward: String, inverse: String) -> String {
-        return "\(forward)/\(inverse)"
     }
 
     /// Check if a relationship already exists

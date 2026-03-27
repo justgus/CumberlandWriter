@@ -162,79 +162,86 @@ enum TestFixtures {
     /// Empty description
     static let emptyDescription = ""
 
+    // MARK: - Service-Layer Card Creation Helper (DR-0102)
+
+    /// Creates a card through CardOperationManager, matching production code paths.
+    /// Falls back to direct construction when no context is provided (pure model tests).
+    @MainActor
+    private static func createCardViaManager(
+        kind: Kinds,
+        name: String,
+        subtitle: String,
+        detailedText: String,
+        context: ModelContext?
+    ) -> Card {
+        if let context = context {
+            let mgr = CardOperationManager(modelContext: context)
+            // Service handles insert + save
+            if let card = try? mgr.createCard(kind: kind, name: name, subtitle: subtitle, detailedText: detailedText) {
+                return card
+            }
+        }
+        // No context provided or manager threw — return unmanaged card for pure model tests
+        return Card(kind: kind, name: name, subtitle: subtitle, detailedText: detailedText)
+    }
+
     // MARK: - Sample Cards for Testing
 
     /// Create a sample character card
+    @MainActor
     static func createSampleCharacter(name: String = "Sir Aldric", context: ModelContext? = nil) -> Card {
-        let card = Card(
+        createCardViaManager(
             kind: .characters,
             name: name,
             subtitle: "Knight-Commander",
-            detailedText: richCharacterDescription
+            detailedText: richCharacterDescription,
+            context: context
         )
-
-        if let context = context {
-            context.insert(card)
-        }
-
-        return card
     }
 
     /// Create a sample location card
+    @MainActor
     static func createSampleLocation(name: String = "Westport", context: ModelContext? = nil) -> Card {
-        let card = Card(
+        createCardViaManager(
             kind: .locations,
             name: name,
             subtitle: "Port City",
-            detailedText: "A bustling port city on the western coast, known for its shipyards and markets."
+            detailedText: "A bustling port city on the western coast, known for its shipyards and markets.",
+            context: context
         )
-
-        if let context = context {
-            context.insert(card)
-        }
-
-        return card
     }
 
     /// Create a sample timeline card
     /// Note: calendarSystem, epochDate, and epochDescription properties will be added in AppSchemaV6
     /// For now, this creates a basic timeline card with the calendar info in detailedText
+    @MainActor
     static func createSampleTimeline(name: String = "Main Timeline", calendar: CalendarSystem? = nil, context: ModelContext? = nil) -> Card {
         var detailedText = "The beginning of the Age of Starlight"
-        
+
         if let calendar = calendar {
             detailedText += "\n\nCalendar System: \(calendar.name)"
             detailedText += "\nEpoch: January 1, 1970"
         }
-        
-        let card = Card(
+
+        return createCardViaManager(
             kind: .timelines,
             name: name,
             subtitle: calendar?.name ?? "",
-            detailedText: detailedText
+            detailedText: detailedText,
+            context: context
         )
-
-        if let context = context {
-            context.insert(card)
-        }
-
-        return card
     }
 
     /// Create a sample scene card
+    @MainActor
     static func createSampleScene(name: String = "The Council Meeting", context: ModelContext? = nil) -> Card {
-        let card = Card(
+        createCardViaManager(
             kind: .scenes,
             name: name,
             subtitle: "",
-            detailedText: temporalSceneDescription
+            detailedText: temporalSceneDescription,
+            context: context
         )
-
-        if let context = context {
-            context.insert(card)
-        }
-
-        return card
     }
 
     // MARK: - Mock AI Responses
@@ -317,7 +324,6 @@ enum TestFixtures {
     static func makeFullSchemaContainer() throws -> (ModelContainer, ModelContext) {
         _containerIndex += 1
         let schema = Schema([
-            AppSettings.self,
             Card.self,
             RelationType.self,
             CardEdge.self,
@@ -328,8 +334,7 @@ enum TestFixtures {
             Board.self,
             BoardNode.self,
             ImageVersion.self,
-            CalendarSystem.self,
-            SuggestionFeedback.self
+            CalendarSystem.self
         ])
         let tmpDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("CumberlandTests", isDirectory: true)
@@ -337,7 +342,7 @@ enum TestFixtures {
         let storeURL = tmpDir.appendingPathComponent("test_\(_containerIndex).store")
         // Remove leftover stores from previous runs
         try? FileManager.default.removeItem(at: storeURL)
-        let config = ModelConfiguration(url: storeURL)
+        let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: [config])
         let context = container.mainContext
         context.autosaveEnabled = false
@@ -347,19 +352,20 @@ enum TestFixtures {
     // MARK: - Additional Card Factories
 
     /// Create a sample artifact card
+    @MainActor
     static func createSampleArtifact(name: String = "Sword of Dawn", context: ModelContext? = nil) -> Card {
-        let card = Card(
+        createCardViaManager(
             kind: .artifacts,
             name: name,
             subtitle: "Legendary Weapon",
-            detailedText: "A blade of starlight, forged in the First Age."
+            detailedText: "A blade of starlight, forged in the First Age.",
+            context: context
         )
-        if let context { context.insert(card) }
-        return card
     }
 
-    // MARK: - RelationType Factory
+    // MARK: - RelationType Factory (DR-0105: delegates to RelationTypeManager)
 
+    @MainActor
     static func createRelationType(
         code: String = "owns/owned-by",
         forward: String = "owns",
@@ -368,25 +374,47 @@ enum TestFixtures {
         targetKind: Kinds? = nil,
         context: ModelContext
     ) -> RelationType {
-        let rt = RelationType(code: code, forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind)
-        context.insert(rt)
-        return rt
+        let mgr = RelationTypeManager(modelContext: context)
+        return mgr.ensureRelationType(
+            code: code,
+            forwardLabel: forward,
+            inverseLabel: inverse,
+            sourceKind: sourceKind,
+            targetKind: targetKind
+        )
     }
 
-    // MARK: - Board Factory
+    // MARK: - Board Factory (DR-0105: delegates to BoardManager)
 
+    @MainActor
     static func createBoard(name: String = "Test Board", primaryCard: Card? = nil, context: ModelContext) -> Board {
-        let board = Board(name: name, primaryCard: primaryCard)
-        context.insert(board)
-        return board
+        let mgr = BoardManager(modelContext: context)
+        return (try? mgr.createBoard(name: name, primaryCard: primaryCard)) ?? Board(name: name, primaryCard: primaryCard)
     }
 
-    // MARK: - Edge Factory
+    // MARK: - Edge Factory (DR-0105: delegates to RelationshipManager)
 
+    @MainActor
     @discardableResult
     static func createEdge(from source: Card, to target: Card, type: RelationType, context: ModelContext) -> CardEdge {
+        let mgr = RelationshipManager(modelContext: context)
+        if let edge = try? mgr.createRelationship(from: source, to: target, type: type, createReverse: false) {
+            return edge
+        }
+        // Fallback for duplicate-exists case — fetch the existing edge
+        let srcID: UUID? = source.id
+        let dstID: UUID? = target.id
+        let typeCode: String? = type.code
+        let fetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { $0.from?.id == srcID && $0.to?.id == dstID && $0.type?.code == typeCode }
+        )
+        if let existing = try? context.fetch(fetch).first {
+            return existing
+        }
+        // Last resort: raw insert (shouldn't reach here)
         let edge = CardEdge(from: source, to: target, type: type)
         context.insert(edge)
+        try? context.save()
         return edge
     }
 

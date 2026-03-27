@@ -218,12 +218,17 @@ struct SceneProjectRelationDiagnosticsView: View {
         return try? modelContext.fetch(fetch).first
     }
 
+    /// DR-0103: Delegate to RelationTypeManager for canonical type creation
     private func ensureCanonicalType() -> RelationType {
         if let t = canonicalType() { return t }
-        let t = RelationType(code: canonicalCode, forwardLabel: "stories", inverseLabel: "is storied by", sourceKind: .scenes, targetKind: .projects)
-        modelContext.insert(t)
-        try? modelContext.save()
-        return t
+        let mgr = RelationTypeManager(modelContext: modelContext)
+        return mgr.ensureRelationType(
+            code: canonicalCode,
+            forwardLabel: "stories",
+            inverseLabel: "is storied by",
+            sourceKind: .scenes,
+            targetKind: .projects
+        )
     }
 
     @MainActor

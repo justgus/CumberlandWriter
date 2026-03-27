@@ -10,6 +10,7 @@
 //  will be expanded in future visionOS phases.
 //
 
+#if os(visionOS)
 import SwiftUI
 import RealityKit
 import OSLog
@@ -19,7 +20,7 @@ struct ImmersiveView: View {
     var body: some View {
         RealityView { content in
             let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "RealityKit")
-            
+
             // Since Model3D can load "Scene", we know the asset exists
             // For now, create a simple placeholder entity
             // TODO: Figure out the correct way to load USDA scenes in RealityView
@@ -29,7 +30,7 @@ struct ImmersiveView: View {
             )
             sphere.position = [0, 1.5, -2]
             content.add(sphere)
-            
+
             logger.info("Added placeholder sphere - Scene loading to be implemented")
 
             // Put skybox here.  See example in World project available at
@@ -42,3 +43,4 @@ struct ImmersiveView: View {
     ImmersiveView()
         .environment(AppModel())
 }
+#endif
