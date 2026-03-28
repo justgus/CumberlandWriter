@@ -1865,14 +1865,10 @@ struct MapWizardView: View {
                 try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
                 guard !Task.isCancelled else { return }
 
-                await MainActor.run {
-                    #if DEBUG
-                    print("[DEBOUNCE] Drawing changed - triggering save")
-                    #endif
-                    Task {
-                        await autoSaveDraftWork()
-                    }
-                }
+                #if DEBUG
+                print("[DEBOUNCE] Drawing changed - triggering save")
+                #endif
+                await autoSaveDraftWork()
             } catch {
                 // Task was cancelled, ignore
             }

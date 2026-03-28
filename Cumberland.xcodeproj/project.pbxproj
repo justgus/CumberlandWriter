@@ -17,6 +17,54 @@
 		86AC9A4D2F44CD8F0021085E /* BoardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86AC9A4C2F44CD8F0021085E /* BoardEngine */; };
 		86AC9A4F2F44CD9A0021085E /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86AC9A4E2F44CD9A0021085E /* RealityKitContent */; };
 		86AC9A512F44CDA50021085E /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86AC9A502F44CDA50021085E /* ImageProcessing */; };
+		86B2A3F02F7855760077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3EF2F7855760077A962 /* RealityKitContent */; };
+		86B2A3F22F7855B30077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3F12F7855B30077A962 /* RealityKitContent */; };
+		86B2A3F42F7855D40077A962 /* BoardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3F32F7855D40077A962 /* BoardEngine */; };
+		86B2A3F62F7855D90077A962 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3F52F7855D90077A962 /* BrushEngine */; };
+		86B2A3F82F7855DE0077A962 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3F72F7855DE0077A962 /* ImageProcessing */; };
+		86B2A3FA2F7855E30077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3F92F7855E30077A962 /* RealityKitContent */; };
+		86B2A3FC2F7856010077A962 /* BoardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3FB2F7856010077A962 /* BoardEngine */; };
+		86B2A3FE2F7856050077A962 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3FD2F7856050077A962 /* BrushEngine */; };
+		86B2A4002F78560A0077A962 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3FF2F78560A0077A962 /* ImageProcessing */; };
+		86B2A4022F78560F0077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4012F78560F0077A962 /* RealityKitContent */; };
+		86B2A4032F78561A0077A962 /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 863014682F22AFDE00F3953B /* ImagePlayground.framework */; };
+		86B2A4052F7856240077A962 /* BoardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4042F7856240077A962 /* BoardEngine */; };
+		86B2A4072F7856280077A962 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4062F7856280077A962 /* BrushEngine */; };
+		86B2A4092F78562D0077A962 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4082F78562D0077A962 /* ImageProcessing */; };
+		86B2A40B2F7856310077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A40A2F7856310077A962 /* RealityKitContent */; };
+		86B2A40D2F7856390077A962 /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 86B2A40C2F7856390077A962 /* ImagePlayground.framework */; };
+		86B2A40F2F7856410077A962 /* BoardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A40E2F7856410077A962 /* BoardEngine */; };
+		86B2A4112F7856450077A962 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4102F7856450077A962 /* BrushEngine */; };
+		86B2A4132F78564A0077A962 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4122F78564A0077A962 /* ImageProcessing */; };
+		86B2A4152F78564E0077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4142F78564E0077A962 /* RealityKitContent */; };
+		86B2A4162F7856560077A962 /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 86B2A40C2F7856390077A962 /* ImagePlayground.framework */; };
+		86B2A4182F7856680077A962 /* BoardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4172F7856680077A962 /* BoardEngine */; };
+		86B2A41A2F7856700077A962 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4192F7856700077A962 /* BrushEngine */; };
+		86B2A41C2F7856780077A962 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A41B2F7856780077A962 /* ImageProcessing */; };
+		86B2A41E2F7856800077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A41D2F7856800077A962 /* RealityKitContent */; };
+		86B2A4202F78568F0077A962 /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 86B2A41F2F78568F0077A962 /* ImagePlayground.framework */; };
+		86B2A4222F7856970077A962 /* BoardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4212F7856970077A962 /* BoardEngine */; };
+		86B2A4242F78569B0077A962 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4232F78569B0077A962 /* BrushEngine */; };
+		86B2A4262F7856A00077A962 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4252F7856A00077A962 /* ImageProcessing */; };
+		86B2A4282F7856A40077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4272F7856A40077A962 /* RealityKitContent */; };
+		86B2A4292F7856AA0077A962 /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8630146B2F22AFFD00F3953B /* ImagePlayground.framework */; };
+		86B2A42B2F7856B20077A962 /* BoardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A42A2F7856B20077A962 /* BoardEngine */; };
+		86B2A42D2F7856B50077A962 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A42C2F7856B50077A962 /* BrushEngine */; };
+		86B2A42F2F7856B80077A962 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A42E2F7856B80077A962 /* ImageProcessing */; };
+		86B2A4312F7856BB0077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4302F7856BB0077A962 /* RealityKitContent */; };
+		86B2A4322F7856C30077A962 /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8630146B2F22AFFD00F3953B /* ImagePlayground.framework */; };
+		86B2A4342F7856CE0077A962 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4332F7856CE0077A962 /* BrushEngine */; };
+		86B2A4352F7856D80077A962 /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 863014682F22AFDE00F3953B /* ImagePlayground.framework */; };
+		86B2A4372F7856DF0077A962 /* BoardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4362F7856DF0077A962 /* BoardEngine */; };
+		86B2A4392F7856E30077A962 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4382F7856E30077A962 /* BrushEngine */; };
+		86B2A43B2F7856E70077A962 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A43A2F7856E70077A962 /* ImageProcessing */; };
+		86B2A43D2F7856EA0077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A43C2F7856EA0077A962 /* RealityKitContent */; };
+		86B2A43E2F7856F20077A962 /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 863014682F22AFDE00F3953B /* ImagePlayground.framework */; };
+		86B2A4402F7856F80077A962 /* BoardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A43F2F7856F80077A962 /* BoardEngine */; };
+		86B2A4422F7856FC0077A962 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4412F7856FC0077A962 /* BrushEngine */; };
+		86B2A4442F7856FF0077A962 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4432F7856FF0077A962 /* ImageProcessing */; };
+		86B2A4462F7857020077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A4452F7857020077A962 /* RealityKitContent */; };
+		86B2A4472F78570A0077A962 /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 863014682F22AFDE00F3953B /* ImagePlayground.framework */; };
 		B00BE001AAAA000100000001 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = B00BE002AAAA000200000001 /* BrushEngine */; };
 		B00BE001AAAA000100000002 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = B00BE002AAAA000200000002 /* BrushEngine */; };
 		B00BE001AAAA000100000003 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = B00BE002AAAA000200000003 /* BrushEngine */; };
@@ -117,6 +165,8 @@
 		86AC9A202F44CD4E0021085E /* MurderBoard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MurderBoard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		86AC9A302F44CD500021085E /* MurderBoardTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MurderBoardTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		86AC9A3A2F44CD500021085E /* MurderBoardUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MurderBoardUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		86B2A40C2F7856390077A962 /* ImagePlayground.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ImagePlayground.framework; path = System/iOSSupport/System/Library/Frameworks/ImagePlayground.framework; sourceTree = SDKROOT; };
+		86B2A41F2F78568F0077A962 /* ImagePlayground.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ImagePlayground.framework; path = System/Library/Frameworks/ImagePlayground.framework; sourceTree = SDKROOT; };
 		86F035052F0EFBF300D79640 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		A83AD74A1C798FD74B27A499 /* ImageProcessing */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = ImageProcessing; sourceTree = "<group>"; };
 		B00BE003AAAA000300000001 /* BrushEngine */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = BrushEngine; sourceTree = "<group>"; };
@@ -660,6 +710,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				86B2A4262F7856A00077A962 /* ImageProcessing in Frameworks */,
+				86B2A4222F7856970077A962 /* BoardEngine in Frameworks */,
+				86B2A4282F7856A40077A962 /* RealityKitContent in Frameworks */,
+				86B2A4292F7856AA0077A962 /* ImagePlayground.framework in Frameworks */,
+				86B2A4242F78569B0077A962 /* BrushEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -667,6 +722,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				86B2A42F2F7856B80077A962 /* ImageProcessing in Frameworks */,
+				86B2A42B2F7856B20077A962 /* BoardEngine in Frameworks */,
+				86B2A4312F7856BB0077A962 /* RealityKitContent in Frameworks */,
+				86B2A4322F7856C30077A962 /* ImagePlayground.framework in Frameworks */,
+				86B2A42D2F7856B50077A962 /* BrushEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -686,6 +746,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				86B2A41C2F7856780077A962 /* ImageProcessing in Frameworks */,
+				86B2A4182F7856680077A962 /* BoardEngine in Frameworks */,
+				86B2A41E2F7856800077A962 /* RealityKitContent in Frameworks */,
+				86B2A4202F78568F0077A962 /* ImagePlayground.framework in Frameworks */,
+				86B2A41A2F7856700077A962 /* BrushEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -695,6 +760,7 @@
 			files = (
 				155DCD5FA5F07C36618F7AA3 /* ImageProcessing in Frameworks */,
 				B00BE001AAAA000100000002 /* BrushEngine in Frameworks */,
+				86B2A3F22F7855B30077A962 /* RealityKitContent in Frameworks */,
 				C00BE001BBBB000100000002 /* BoardEngine in Frameworks */,
 				8630146A2F22AFEE00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
@@ -704,6 +770,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				86B2A4092F78562D0077A962 /* ImageProcessing in Frameworks */,
+				86B2A4052F7856240077A962 /* BoardEngine in Frameworks */,
+				86B2A40B2F7856310077A962 /* RealityKitContent in Frameworks */,
+				86B2A40D2F7856390077A962 /* ImagePlayground.framework in Frameworks */,
+				86B2A4072F7856280077A962 /* BrushEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -711,6 +782,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				86B2A4132F78564A0077A962 /* ImageProcessing in Frameworks */,
+				86B2A40F2F7856410077A962 /* BoardEngine in Frameworks */,
+				86B2A4152F78564E0077A962 /* RealityKitContent in Frameworks */,
+				86B2A4162F7856560077A962 /* ImagePlayground.framework in Frameworks */,
+				86B2A4112F7856450077A962 /* BrushEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -720,6 +796,7 @@
 			files = (
 				EA05E2F2E5E0370776CB7A3D /* ImageProcessing in Frameworks */,
 				B00BE001AAAA000100000001 /* BrushEngine in Frameworks */,
+				86B2A3F02F7855760077A962 /* RealityKitContent in Frameworks */,
 				C00BE001BBBB000100000001 /* BoardEngine in Frameworks */,
 				863014692F22AFDE00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
@@ -729,7 +806,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				86B2A3F62F7855D90077A962 /* BrushEngine in Frameworks */,
 				8630146D2F22B00F00F3953B /* ImagePlayground.framework in Frameworks */,
+				86B2A3FA2F7855E30077A962 /* RealityKitContent in Frameworks */,
+				86B2A3F42F7855D40077A962 /* BoardEngine in Frameworks */,
+				86B2A3F82F7855DE0077A962 /* ImageProcessing in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -737,6 +818,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				86B2A4002F78560A0077A962 /* ImageProcessing in Frameworks */,
+				86B2A3FC2F7856010077A962 /* BoardEngine in Frameworks */,
+				86B2A4022F78560F0077A962 /* RealityKitContent in Frameworks */,
+				86B2A4032F78561A0077A962 /* ImagePlayground.framework in Frameworks */,
+				86B2A3FE2F7856050077A962 /* BrushEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -745,7 +831,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				86AC9A512F44CDA50021085E /* ImageProcessing in Frameworks */,
+				86B2A4342F7856CE0077A962 /* BrushEngine in Frameworks */,
 				86AC9A4F2F44CD9A0021085E /* RealityKitContent in Frameworks */,
+				86B2A4352F7856D80077A962 /* ImagePlayground.framework in Frameworks */,
 				86AC9A4D2F44CD8F0021085E /* BoardEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -754,6 +842,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				86B2A43B2F7856E70077A962 /* ImageProcessing in Frameworks */,
+				86B2A4372F7856DF0077A962 /* BoardEngine in Frameworks */,
+				86B2A43D2F7856EA0077A962 /* RealityKitContent in Frameworks */,
+				86B2A43E2F7856F20077A962 /* ImagePlayground.framework in Frameworks */,
+				86B2A4392F7856E30077A962 /* BrushEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -761,6 +854,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				86B2A4442F7856FF0077A962 /* ImageProcessing in Frameworks */,
+				86B2A4402F7856F80077A962 /* BoardEngine in Frameworks */,
+				86B2A4462F7857020077A962 /* RealityKitContent in Frameworks */,
+				86B2A4472F78570A0077A962 /* ImagePlayground.framework in Frameworks */,
+				86B2A4422F7856FC0077A962 /* BrushEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -770,6 +868,8 @@
 		863014672F22AFDE00F3953B /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				86B2A41F2F78568F0077A962 /* ImagePlayground.framework */,
+				86B2A40C2F7856390077A962 /* ImagePlayground.framework */,
 				8630146B2F22AFFD00F3953B /* ImagePlayground.framework */,
 				863014682F22AFDE00F3953B /* ImagePlayground.framework */,
 			);
@@ -853,6 +953,10 @@
 			);
 			name = CumberlandVisionOSTests;
 			packageProductDependencies = (
+				86B2A4212F7856970077A962 /* BoardEngine */,
+				86B2A4232F78569B0077A962 /* BrushEngine */,
+				86B2A4252F7856A00077A962 /* ImageProcessing */,
+				86B2A4272F7856A40077A962 /* RealityKitContent */,
 			);
 			productName = CumberlandVisionOSTests;
 			productReference = 861EA1CD2F2014D6003B4897 /* CumberlandVisionOSTests.xctest */;
@@ -877,6 +981,10 @@
 			);
 			name = CumberlandVisionOSUITests;
 			packageProductDependencies = (
+				86B2A42A2F7856B20077A962 /* BoardEngine */,
+				86B2A42C2F7856B50077A962 /* BrushEngine */,
+				86B2A42E2F7856B80077A962 /* ImageProcessing */,
+				86B2A4302F7856BB0077A962 /* RealityKitContent */,
 			);
 			productName = CumberlandVisionOSUITests;
 			productReference = 861EA1DA2F20150A003B4897 /* CumberlandVisionOSUITests.xctest */;
@@ -926,6 +1034,10 @@
 			);
 			name = TestApp;
 			packageProductDependencies = (
+				86B2A4172F7856680077A962 /* BoardEngine */,
+				86B2A4192F7856700077A962 /* BrushEngine */,
+				86B2A41B2F7856780077A962 /* ImageProcessing */,
+				86B2A41D2F7856800077A962 /* RealityKitContent */,
 			);
 			productName = TestApp;
 			productReference = 865B61DA2EB5148E009CDEF4 /* TestApp.app */;
@@ -952,6 +1064,7 @@
 				22F8B49AAA7772786C9108CA /* ImageProcessing */,
 				B00BE002AAAA000200000002 /* BrushEngine */,
 				C00BE002BBBB000200000002 /* BoardEngine */,
+				86B2A3F12F7855B30077A962 /* RealityKitContent */,
 			);
 			productName = "Cumberland IOS";
 			productReference = 8663004C2E9DA49C005F471B /* Cumberland IOS.app */;
@@ -975,6 +1088,10 @@
 			);
 			name = "Cumberland IOSTests";
 			packageProductDependencies = (
+				86B2A4042F7856240077A962 /* BoardEngine */,
+				86B2A4062F7856280077A962 /* BrushEngine */,
+				86B2A4082F78562D0077A962 /* ImageProcessing */,
+				86B2A40A2F7856310077A962 /* RealityKitContent */,
 			);
 			productName = "Cumberland IOSTests";
 			productReference = 8663005C2E9DA49D005F471B /* Cumberland IOSTests.xctest */;
@@ -998,6 +1115,10 @@
 			);
 			name = "Cumberland IOSUITests";
 			packageProductDependencies = (
+				86B2A40E2F7856410077A962 /* BoardEngine */,
+				86B2A4102F7856450077A962 /* BrushEngine */,
+				86B2A4122F78564A0077A962 /* ImageProcessing */,
+				86B2A4142F78564E0077A962 /* RealityKitContent */,
 			);
 			productName = "Cumberland IOSUITests";
 			productReference = 866300662E9DA49D005F471B /* Cumberland IOSUITests.xctest */;
@@ -1023,6 +1144,7 @@
 				01218C1931DE878413D24D98 /* ImageProcessing */,
 				B00BE002AAAA000200000001 /* BrushEngine */,
 				C00BE002BBBB000200000001 /* BoardEngine */,
+				86B2A3EF2F7855760077A962 /* RealityKitContent */,
 			);
 			productName = Cumberland;
 			productReference = 866A3A362E8DC16D006D3723 /* Cumberland.app */;
@@ -1046,6 +1168,10 @@
 			);
 			name = CumberlandTests;
 			packageProductDependencies = (
+				86B2A3F32F7855D40077A962 /* BoardEngine */,
+				86B2A3F52F7855D90077A962 /* BrushEngine */,
+				86B2A3F72F7855DE0077A962 /* ImageProcessing */,
+				86B2A3F92F7855E30077A962 /* RealityKitContent */,
 			);
 			productName = CumberlandTests;
 			productReference = 866A3A472E8DC16F006D3723 /* CumberlandTests.xctest */;
@@ -1069,6 +1195,10 @@
 			);
 			name = CumberlandUITests;
 			packageProductDependencies = (
+				86B2A3FB2F7856010077A962 /* BoardEngine */,
+				86B2A3FD2F7856050077A962 /* BrushEngine */,
+				86B2A3FF2F78560A0077A962 /* ImageProcessing */,
+				86B2A4012F78560F0077A962 /* RealityKitContent */,
 			);
 			productName = CumberlandUITests;
 			productReference = 866A3A512E8DC16F006D3723 /* CumberlandUITests.xctest */;
@@ -1094,6 +1224,7 @@
 				86AC9A4C2F44CD8F0021085E /* BoardEngine */,
 				86AC9A4E2F44CD9A0021085E /* RealityKitContent */,
 				86AC9A502F44CDA50021085E /* ImageProcessing */,
+				86B2A4332F7856CE0077A962 /* BrushEngine */,
 			);
 			productName = MurderBoard;
 			productReference = 86AC9A202F44CD4E0021085E /* MurderBoard.app */;
@@ -1117,6 +1248,10 @@
 			);
 			name = MurderBoardTests;
 			packageProductDependencies = (
+				86B2A4362F7856DF0077A962 /* BoardEngine */,
+				86B2A4382F7856E30077A962 /* BrushEngine */,
+				86B2A43A2F7856E70077A962 /* ImageProcessing */,
+				86B2A43C2F7856EA0077A962 /* RealityKitContent */,
 			);
 			productName = MurderBoardTests;
 			productReference = 86AC9A302F44CD500021085E /* MurderBoardTests.xctest */;
@@ -1140,6 +1275,10 @@
 			);
 			name = MurderBoardUITests;
 			packageProductDependencies = (
+				86B2A43F2F7856F80077A962 /* BoardEngine */,
+				86B2A4412F7856FC0077A962 /* BrushEngine */,
+				86B2A4432F7856FF0077A962 /* ImageProcessing */,
+				86B2A4452F7857020077A962 /* RealityKitContent */,
 			);
 			productName = MurderBoardUITests;
 			productReference = 86AC9A3A2F44CD500021085E /* MurderBoardUITests.xctest */;
@@ -1809,6 +1948,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SDKROOT)/System/iOSSupport/System/Library/Frameworks",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -1832,6 +1975,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SDKROOT)/System/iOSSupport/System/Library/Frameworks",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -1855,6 +2002,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SDKROOT)/System/iOSSupport/System/Library/Frameworks",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -1877,6 +2028,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SDKROOT)/System/iOSSupport/System/Library/Frameworks",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -2630,6 +2785,162 @@
 		86AC9A502F44CDA50021085E /* ImageProcessing */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ImageProcessing;
+		};
+		86B2A3EF2F7855760077A962 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
+		};
+		86B2A3F12F7855B30077A962 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
+		};
+		86B2A3F32F7855D40077A962 /* BoardEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BoardEngine;
+		};
+		86B2A3F52F7855D90077A962 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		86B2A3F72F7855DE0077A962 /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
+		86B2A3F92F7855E30077A962 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
+		};
+		86B2A3FB2F7856010077A962 /* BoardEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BoardEngine;
+		};
+		86B2A3FD2F7856050077A962 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		86B2A3FF2F78560A0077A962 /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
+		86B2A4012F78560F0077A962 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
+		};
+		86B2A4042F7856240077A962 /* BoardEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BoardEngine;
+		};
+		86B2A4062F7856280077A962 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		86B2A4082F78562D0077A962 /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
+		86B2A40A2F7856310077A962 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
+		};
+		86B2A40E2F7856410077A962 /* BoardEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BoardEngine;
+		};
+		86B2A4102F7856450077A962 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		86B2A4122F78564A0077A962 /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
+		86B2A4142F78564E0077A962 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
+		};
+		86B2A4172F7856680077A962 /* BoardEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BoardEngine;
+		};
+		86B2A4192F7856700077A962 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		86B2A41B2F7856780077A962 /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
+		86B2A41D2F7856800077A962 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
+		};
+		86B2A4212F7856970077A962 /* BoardEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BoardEngine;
+		};
+		86B2A4232F78569B0077A962 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		86B2A4252F7856A00077A962 /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
+		86B2A4272F7856A40077A962 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
+		};
+		86B2A42A2F7856B20077A962 /* BoardEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BoardEngine;
+		};
+		86B2A42C2F7856B50077A962 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		86B2A42E2F7856B80077A962 /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
+		86B2A4302F7856BB0077A962 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
+		};
+		86B2A4332F7856CE0077A962 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		86B2A4362F7856DF0077A962 /* BoardEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BoardEngine;
+		};
+		86B2A4382F7856E30077A962 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		86B2A43A2F7856E70077A962 /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
+		86B2A43C2F7856EA0077A962 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
+		};
+		86B2A43F2F7856F80077A962 /* BoardEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BoardEngine;
+		};
+		86B2A4412F7856FC0077A962 /* BrushEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrushEngine;
+		};
+		86B2A4432F7856FF0077A962 /* ImageProcessing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImageProcessing;
+		};
+		86B2A4452F7857020077A962 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
 		};
 		B00BE002AAAA000200000001 /* BrushEngine */ = {
 			isa = XCSwiftPackageProductDependency;
