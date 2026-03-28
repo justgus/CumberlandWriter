@@ -166,6 +166,7 @@ struct AIProviderTests {
     // MARK: - Analysis Task Tests
 
     @Test("Analysis task enum values")
+    @MainActor
     func analysisTaskValues() {
         let tasks: [AnalysisTask] = [
             .entityExtraction,
@@ -214,9 +215,9 @@ struct AIProviderTests {
 
     @Test("Image generation with Apple Intelligence throws feature not supported (until implemented)")
     func imageGenerationPlaceholder() async throws {
-        let provider = AppleIntelligenceProvider()
+        let provider = await AppleIntelligenceProvider()
 
-        guard provider.isAvailable else {
+        guard await provider.isAvailable else {
             // Skip test if provider unavailable
             return
         }
@@ -234,9 +235,9 @@ struct AIProviderTests {
 
     @Test("Text analysis with Apple Intelligence throws feature not supported (until implemented)")
     func textAnalysisPlaceholder() async throws {
-        let provider = AppleIntelligenceProvider()
+        let provider = await AppleIntelligenceProvider()
 
-        guard provider.isAvailable else {
+        guard await provider.isAvailable else {
             // Skip test if provider unavailable
             return
         }
@@ -256,9 +257,9 @@ struct AIProviderTests {
 
     @Test("Image generation with empty prompt throws error")
     func imageGenerationEmptyPrompt() async throws {
-        let provider = AppleIntelligenceProvider()
+        let provider = await AppleIntelligenceProvider()
 
-        guard provider.isAvailable else {
+        guard await provider.isAvailable else {
             return
         }
 
@@ -274,9 +275,9 @@ struct AIProviderTests {
 
     @Test("Text analysis with short text throws error")
     func textAnalysisTooShort() async throws {
-        let provider = AppleIntelligenceProvider()
+        let provider = await AppleIntelligenceProvider()
 
-        guard provider.isAvailable else {
+        guard await provider.isAvailable else {
             return
         }
 

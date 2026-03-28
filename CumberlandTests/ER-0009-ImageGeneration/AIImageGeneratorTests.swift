@@ -58,7 +58,7 @@ struct AIImageGeneratorTests {
         let generator = AIImageGenerator()
 
         do {
-            let (image, data) = try await generator.generateImage(prompt: "A beautiful fantasy castle")
+            let (_, data) = try await generator.generateImage(prompt: "A beautiful fantasy castle")
 
             // Should have generated valid data
             #expect(data.count > 0)
@@ -78,7 +78,7 @@ struct AIImageGeneratorTests {
 
     @Test("Empty prompt throws invalid input error")
     func emptyPromptValidation() async throws {
-        let generator = AIImageGenerator()
+        let generator = await AIImageGenerator()
 
         do {
             _ = try await generator.generateImage(prompt: "")
@@ -92,7 +92,7 @@ struct AIImageGeneratorTests {
 
     @Test("Whitespace-only prompt throws invalid input error")
     func whitespacePromptValidation() async throws {
-        let generator = AIImageGenerator()
+        let generator = await AIImageGenerator()
 
         do {
             _ = try await generator.generateImage(prompt: "   \n\t  ")
@@ -106,7 +106,7 @@ struct AIImageGeneratorTests {
 
     @Test("Valid prompt generates successfully")
     func validPromptValidation() async throws {
-        let generator = AIImageGenerator()
+        let generator = await AIImageGenerator()
 
         do {
             let (_, data) = try await generator.generateImage(prompt: "A beautiful landscape")
@@ -123,7 +123,7 @@ struct AIImageGeneratorTests {
 
     @Test("Uses default provider when none specified")
     func defaultProviderSelection() async throws {
-        let generator = AIImageGenerator()
+        let generator = await AIImageGenerator()
 
         // Should use default provider (Apple Intelligence if available)
         do {
@@ -138,7 +138,7 @@ struct AIImageGeneratorTests {
 
     @Test("Uses specified provider when provided")
     func specifiedProviderSelection() async throws {
-        let generator = AIImageGenerator()
+        let generator = await AIImageGenerator()
 
         do {
             let (_, data) = try await generator.generateImage(
@@ -153,7 +153,7 @@ struct AIImageGeneratorTests {
 
     @Test("Throws error for unknown provider")
     func unknownProviderError() async throws {
-        let generator = AIImageGenerator()
+        let generator = await AIImageGenerator()
 
         do {
             _ = try await generator.generateImage(
@@ -172,7 +172,7 @@ struct AIImageGeneratorTests {
 
     @Test("Handles provider unavailable gracefully")
     func providerUnavailableHandling() async throws {
-        let generator = AIImageGenerator()
+        let generator = await AIImageGenerator()
 
         do {
             _ = try await generator.generateImage(
@@ -258,10 +258,10 @@ struct AIImageGeneratorTests {
 
     @Test("Generated image data is valid on success")
     func imageDataValidation() async throws {
-        let generator = AIImageGenerator()
+        let generator = await AIImageGenerator()
 
         do {
-            let (image, data) = try await generator.generateImage(prompt: "A serene mountain landscape")
+            let (_, data) = try await generator.generateImage(prompt: "A serene mountain landscape")
 
             // Validate the results
             #expect(data.count > 0)
@@ -331,7 +331,7 @@ struct AIImageGeneratorTests {
 
     @Test("Generates metadata with results")
     func metadataGeneration() async throws {
-        let generator = AIImageGenerator()
+        let generator = await AIImageGenerator()
 
         do {
             let (_, data) = try await generator.generateImage(prompt: "A majestic castle on a hill")

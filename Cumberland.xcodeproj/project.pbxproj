@@ -18,7 +18,6 @@
 		86AC9A4F2F44CD9A0021085E /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86AC9A4E2F44CD9A0021085E /* RealityKitContent */; };
 		86AC9A512F44CDA50021085E /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86AC9A502F44CDA50021085E /* ImageProcessing */; };
 		86B2A3F02F7855760077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3EF2F7855760077A962 /* RealityKitContent */; };
-		86B2A3F22F7855B30077A962 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3F12F7855B30077A962 /* RealityKitContent */; };
 		86B2A3F42F7855D40077A962 /* BoardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3F32F7855D40077A962 /* BoardEngine */; };
 		86B2A3F62F7855D90077A962 /* BrushEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3F52F7855D90077A962 /* BrushEngine */; };
 		86B2A3F82F7855DE0077A962 /* ImageProcessing in Frameworks */ = {isa = PBXBuildFile; productRef = 86B2A3F72F7855DE0077A962 /* ImageProcessing */; };
@@ -760,7 +759,6 @@
 			files = (
 				155DCD5FA5F07C36618F7AA3 /* ImageProcessing in Frameworks */,
 				B00BE001AAAA000100000002 /* BrushEngine in Frameworks */,
-				86B2A3F22F7855B30077A962 /* RealityKitContent in Frameworks */,
 				C00BE001BBBB000100000002 /* BoardEngine in Frameworks */,
 				8630146A2F22AFEE00F3953B /* ImagePlayground.framework in Frameworks */,
 			);
@@ -1064,7 +1062,6 @@
 				22F8B49AAA7772786C9108CA /* ImageProcessing */,
 				B00BE002AAAA000200000002 /* BrushEngine */,
 				C00BE002BBBB000200000002 /* BoardEngine */,
-				86B2A3F12F7855B30077A962 /* RealityKitContent */,
 			);
 			productName = "Cumberland IOS";
 			productReference = 8663004C2E9DA49C005F471B /* Cumberland IOS.app */;
@@ -1732,10 +1729,6 @@
 				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Cumberland;
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app allows you to pull photos from the your Photo Library to inspire your writing.";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.caposoft.Cumberland.Cumberland-visionOS";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1767,10 +1760,6 @@
 				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Cumberland;
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app allows you to pull photos from the your Photo Library to inspire your writing.";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.caposoft.Cumberland.Cumberland-visionOS";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1805,10 +1794,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TestApp/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.caposoft.Cumberland.TestApp;
@@ -1841,10 +1826,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TestApp/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.caposoft.Cumberland.TestApp;
@@ -1882,10 +1863,6 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.caposoft.Cumberland.Cumberland-IOS";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1922,10 +1899,6 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.caposoft.Cumberland.Cumberland-IOS";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1948,10 +1921,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SDKROOT)/System/iOSSupport/System/Library/Frameworks",
-				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -1975,10 +1944,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SDKROOT)/System/iOSSupport/System/Library/Frameworks",
-				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -2002,10 +1967,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SDKROOT)/System/iOSSupport/System/Library/Frameworks",
-				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -2028,10 +1989,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QEJ2Z74RY9;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SDKROOT)/System/iOSSupport/System/Library/Frameworks",
-				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -2445,8 +2402,6 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
-				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.caposoft.MurderBoard;
@@ -2503,8 +2458,6 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
-				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.caposoft.MurderBoard;
@@ -2787,10 +2740,6 @@
 			productName = ImageProcessing;
 		};
 		86B2A3EF2F7855760077A962 /* RealityKitContent */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = RealityKitContent;
-		};
-		86B2A3F12F7855B30077A962 /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RealityKitContent;
 		};

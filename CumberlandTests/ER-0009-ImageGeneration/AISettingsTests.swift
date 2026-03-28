@@ -32,7 +32,8 @@ struct AISettingsTests {
     func defaultSettings() {
         let settings = AISettings.shared
 
-        #expect(settings.preferredProvider == "Apple Intelligence")
+        #expect(settings.analysisProvider == "Apple Intelligence")
+        #expect(settings.imageGenerationProvider == "Apple Intelligence")
         #expect(settings.aiEnabled == true)
         #expect(settings.autoGenerateImages == false)
         #expect(settings.autoGenerateMinWords == 50)

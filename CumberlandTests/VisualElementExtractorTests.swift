@@ -61,7 +61,7 @@ struct VisualElementExtractorTests {
 
     // MARK: - Basic Extraction Tests
 
-    @Test
+    @Test @MainActor
     func testCharacterExtraction() async throws {
         let provider = AppleIntelligenceProvider()
         let extractor = VisualElementExtractor(provider: provider)
@@ -101,8 +101,9 @@ struct VisualElementExtractorTests {
         }
 
         // Verify expression inference (from "quick to laugh")
-        #expect(elements.expression != nil, "Should infer expression from personality")
-        if let expression = elements.expression {
+        let expression = elements.expression
+        #expect(expression != nil, "Should infer expression from personality")
+        if let expression {
             #expect(expression.lowercased().contains("friendly") || expression.lowercased().contains("smile"))
         }
 
@@ -111,7 +112,7 @@ struct VisualElementExtractorTests {
         #expect(elements.clothing?.contains("Interplanetary Academy") == nil, "Should filter out education")
     }
 
-    @Test
+    @Test @MainActor
     func testGrandBuildingCameraAngle() async throws {
         let provider = AppleIntelligenceProvider()
         let extractor = VisualElementExtractor(provider: provider)
@@ -127,7 +128,7 @@ struct VisualElementExtractorTests {
         #expect(elements.framing == .wideEstablishing)
     }
 
-    @Test
+    @Test @MainActor
     func testHumbleBuildingCameraAngle() async throws {
         let provider = AppleIntelligenceProvider()
         let extractor = VisualElementExtractor(provider: provider)
@@ -143,7 +144,7 @@ struct VisualElementExtractorTests {
         #expect(elements.framing == .wideEstablishing)
     }
 
-    @Test
+    @Test @MainActor
     func testSceneMoodInference() async throws {
         let provider = AppleIntelligenceProvider()
         let extractor = VisualElementExtractor(provider: provider)
@@ -159,7 +160,7 @@ struct VisualElementExtractorTests {
         #expect(elements.lightingStyle == .dark, "Tense scenes should use dark lighting")
     }
 
-    @Test
+    @Test @MainActor
     func testArtifactPartialExtraction() async throws {
         let provider = AppleIntelligenceProvider()
         let extractor = VisualElementExtractor(provider: provider)
@@ -176,7 +177,7 @@ struct VisualElementExtractorTests {
 
     // MARK: - Validation Tests
 
-    @Test
+    @Test @MainActor
     func testEmptyTextValidation() async throws {
         let provider = AppleIntelligenceProvider()
         let extractor = VisualElementExtractor(provider: provider)
@@ -186,7 +187,7 @@ struct VisualElementExtractorTests {
         }
     }
 
-    @Test
+    @Test @MainActor
     func testShortTextValidation() async throws {
         let provider = AppleIntelligenceProvider()
         let extractor = VisualElementExtractor(provider: provider)
@@ -200,7 +201,7 @@ struct VisualElementExtractorTests {
 
     // MARK: - Provider-Specific Prompt Tests
 
-    @Test
+    @Test @MainActor
     func testAppleIntelligenceConceptGeneration() async throws {
         let provider = AppleIntelligenceProvider()
         let extractor = VisualElementExtractor(provider: provider)
@@ -228,7 +229,7 @@ struct VisualElementExtractorTests {
                 "Concepts should include extracted visual elements")
     }
 
-    @Test
+    @Test @MainActor
     func testOpenAIPromptGeneration() async throws {
         let provider = AppleIntelligenceProvider()
         let extractor = VisualElementExtractor(provider: provider)
@@ -252,7 +253,7 @@ struct VisualElementExtractorTests {
                 "Should include extracted visual elements")
     }
 
-    @Test
+    @Test @MainActor
     func testAnthropicPromptGeneration() async throws {
         let provider = AppleIntelligenceProvider()
         let extractor = VisualElementExtractor(provider: provider)
@@ -272,7 +273,7 @@ struct VisualElementExtractorTests {
 
     // MARK: - Codable Tests
 
-    @Test
+    @Test @MainActor
     func testVisualElementsCodable() throws {
         // Create sample visual elements
         var elements = VisualElements(
