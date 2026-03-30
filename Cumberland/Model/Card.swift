@@ -760,7 +760,7 @@ extension UTType {
 
 // MARK: - Search normalization
 
-private extension Card {
+extension Card {
     func recomputeNormalizedSearchText() {
         let s = [name, subtitle, detailedText, author ?? ""]
             .joined(separator: " ")

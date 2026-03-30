@@ -312,40 +312,41 @@ enum TestFixtures {
 
     // MARK: - Full Schema Container Helper
 
-    /// Creates an in-memory container with ALL AppSchemaV5 models registered.
-    /// Use this when tests need the full object graph (edges, boards, citations, etc.)
+    /// Returns the host app's `ModelContainer` and a fresh `ModelContext`.
     ///
-    /// Each call creates a unique store file in a temp directory so that multiple
-    /// containers can coexist in the same test-host process without triggering
-    /// SwiftData `loadIssueModelContainer` errors.
-    @MainActor private static var _containerIndex = 0
-
+    /// **DR-0102 (2026-03-29):** CumberlandTests is a *hosted* test bundle —
+    /// Cumberland.app launches first and creates the process-wide
+    /// `ModelContainer`. Creating a *second* container in the same process
+    /// (even with an identical schema) causes SwiftData to hit an internal
+    /// precondition failure (`EXC_BREAKPOINT` on `context.insert()`).
+    ///
+    /// The fix: reuse the host app's container via
+    /// `CumberlandApp.sharedContainer` and hand each test a new
+    /// `ModelContext` so tests don't pollute each other.
     @MainActor
     static func makeFullSchemaContainer() throws -> (ModelContainer, ModelContext) {
-        _containerIndex += 1
-        let schema = Schema([
-            Card.self,
-            RelationType.self,
-            CardEdge.self,
-            Source.self,
-            Citation.self,
-            StoryStructure.self,
-            StructureElement.self,
-            Board.self,
-            BoardNode.self,
-            ImageVersion.self,
-            CalendarSystem.self
-        ])
-        let tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("CumberlandTests", isDirectory: true)
-        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
-        let storeURL = tmpDir.appendingPathComponent("test_\(_containerIndex).store")
-        // Remove leftover stores from previous runs
-        try? FileManager.default.removeItem(at: storeURL)
-        let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
-        let container = try ModelContainer(for: schema, configurations: [config])
-        let context = container.mainContext
+        guard let container = CumberlandApp.sharedContainer else {
+            fatalError("CumberlandApp.sharedContainer is nil — tests must run inside the hosted app.")
+        }
+        let context = ModelContext(container)
         context.autosaveEnabled = false
+
+        // Wipe all data so each test starts with a clean store.
+        // Delete in dependency order: edges first, then nodes, then top-level entities.
+        try context.delete(model: CardEdge.self)
+        try context.delete(model: BoardNode.self)
+        try context.delete(model: Citation.self)
+        try context.delete(model: StructureElement.self)
+        try context.delete(model: StoryStructure.self)
+        try context.delete(model: Board.self)
+        try context.delete(model: ImageVersion.self)
+        try context.delete(model: Source.self)
+        try context.delete(model: RelationType.self)
+        try context.delete(model: Card.self)
+        try context.delete(model: CalendarSystem.self)
+        try context.delete(model: AppSettings.self)
+        try context.save()
+
         return (container, context)
     }
 

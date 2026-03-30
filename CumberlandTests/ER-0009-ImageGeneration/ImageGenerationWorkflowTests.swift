@@ -4,8 +4,7 @@
 //
 //  Swift Testing suite for ER-0009: AI Image Generation.
 //  End-to-end workflow tests covering image generation request, result
-//  persistence to Card, and ImageVersion creation. Currently disabled
-//  (#if false) pending type fixes.
+//  persistence to Card, and ImageVersion creation.
 //
 
 import Testing
@@ -13,25 +12,20 @@ import Foundation
 import SwiftData
 @testable import Cumberland
 
+/// Local test-only metadata type for verifying attribution data shape.
+/// Not part of production code — production uses ImageMetadataWriter.
+private struct AIImageMetadata {
+    let prompt: String
+    let provider: String
+    let modelVersion: String
+    let timestamp: Date
+    let software: String
+}
+
 /// Tests for end-to-end image generation workflows
 /// Part of ER-0009: AI Image Generation
-/// TEMPORARILY DISABLED - Needs type fixes
-#if false
 @Suite("Image Generation Workflow Tests", .serialized)
 struct ImageGenerationWorkflowTests {
-
-    // MARK: - Test Helpers
-
-    @MainActor
-    func makeInMemoryContainer() throws -> (ModelContainer, ModelContext) {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(
-            for: Card.self,
-            configurations: config
-        )
-        let context = ModelContext(container)
-        return (container, context)
-    }
 
     // MARK: - Prompt Generation Tests
 
@@ -149,7 +143,7 @@ struct ImageGenerationWorkflowTests {
     @Test("Store generated image on card")
     @MainActor
     func storeGeneratedImage() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
         let card = Card(
             kind: .characters,
@@ -299,7 +293,7 @@ struct ImageGenerationWorkflowTests {
     @Test("Complete generation workflow simulation")
     @MainActor
     func completeWorkflowSimulation() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
         // 1. Create card with description
         let card = Card(
@@ -333,4 +327,3 @@ struct ImageGenerationWorkflowTests {
         #expect(card.originalImageData?.count == 6)
     }
 }
-#endif

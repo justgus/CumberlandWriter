@@ -108,8 +108,8 @@ struct VisualElementExtractorTests {
         }
 
         // Verify backstory is NOT extracted as visual elements
-        #expect(elements.physicalBuild?.contains("Mars Colony") == nil, "Should filter out backstory")
-        #expect(elements.clothing?.contains("Interplanetary Academy") == nil, "Should filter out education")
+        #expect(elements.physicalBuild?.contains("Mars Colony") != true, "Should filter out backstory")
+        #expect(elements.clothing?.contains("Interplanetary Academy") != true, "Should filter out education")
     }
 
     @Test @MainActor

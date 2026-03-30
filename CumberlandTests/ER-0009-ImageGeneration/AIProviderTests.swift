@@ -233,8 +233,8 @@ struct AIProviderTests {
         }
     }
 
-    @Test("Text analysis with Apple Intelligence throws feature not supported (until implemented)")
-    func textAnalysisPlaceholder() async throws {
+    @Test("Text analysis with Apple Intelligence succeeds for entity extraction")
+    func textAnalysisEntityExtraction() async throws {
         let provider = await AppleIntelligenceProvider()
 
         guard await provider.isAvailable else {
@@ -242,15 +242,10 @@ struct AIProviderTests {
             return
         }
 
-        // Currently throws feature not supported (Phase 5 placeholder)
-        do {
-            _ = try await provider.analyzeText("Test text with at least twenty five words to meet the minimum requirement for analysis", for: .entityExtraction)
-            Issue.record("Expected feature not supported error")
-        } catch AIProviderError.featureNotSupported {
-            // Expected
-        } catch {
-            Issue.record("Unexpected error: \(error)")
-        }
+        // Entity extraction is implemented — should return a valid result
+        let result = try await provider.analyzeText("Test text with enough words to meet the minimum requirement for analysis. The brave knight ventured forth into the dark forest seeking the ancient artifact that would save the kingdom from ruin.", for: .entityExtraction)
+        // Verify we got a result back (entities may or may not be populated depending on NL framework)
+        _ = result // Success — analyzeText returned without throwing
     }
 
     // MARK: - Error Cases Tests

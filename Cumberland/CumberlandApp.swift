@@ -35,6 +35,13 @@ struct CumberlandApp: App {
     // ER-0037: Theme manager for theming system
     @StateObject private var themeManager = ThemeManager()
 
+    // MARK: - Shared Container (test access)
+
+    /// The process-wide ModelContainer, set during app init.
+    /// Tests running in the hosted test bundle can use this instead of creating
+    /// their own container (which would cause SwiftData schema conflicts).
+    @MainActor static private(set) var sharedContainer: ModelContainer?
+
     // Build the app's SwiftData container using your schema.
     // If opening the on-disk store fails, we fall back to local on-disk, then in-memory.
     private static func makeContainer() -> ModelContainer {
@@ -158,7 +165,11 @@ struct CumberlandApp: App {
         }
     }
 
-    @State private var modelContainer: ModelContainer = makeContainer()
+    @State private var modelContainer: ModelContainer = {
+        let container = makeContainer()
+        sharedContainer = container
+        return container
+    }()
 
     // Map persisted raw value to ColorScheme for app-wide application
     private var appPreferredColorScheme: ColorScheme? {

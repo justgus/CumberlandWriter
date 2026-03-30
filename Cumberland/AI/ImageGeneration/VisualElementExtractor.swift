@@ -425,7 +425,8 @@ class VisualElementExtractor {
 
         case .artifacts:
             // Check if only partial object described
-            if lowercasedText.contains("hilt") && !lowercasedText.contains("blade") {
+            let hasStandaloneBlade = lowercasedText.range(of: "\\bblade\\b", options: .regularExpression) != nil
+            if lowercasedText.contains("hilt") && !hasStandaloneBlade {
                 elements.showPartial = "hilt only"
                 elements.framing = .closeUp
             }

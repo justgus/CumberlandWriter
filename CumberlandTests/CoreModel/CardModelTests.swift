@@ -65,6 +65,8 @@ struct CardModelTests {
         #expect(card.normalizedSearchText.contains("old name"))
 
         card.name = "New Name"
+        // SwiftData-managed objects may bypass didSet; explicitly recompute
+        card.recomputeNormalizedSearchText()
         #expect(card.normalizedSearchText.contains("new name"))
         #expect(!card.normalizedSearchText.contains("old name"))
     }

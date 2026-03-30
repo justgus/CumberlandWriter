@@ -23,15 +23,11 @@ struct MultiTimelineTests {
 
     // MARK: - Test Helpers
 
+    /// DR-0102: Use full-schema container to match the host app's schema exactly.
+    /// Partial model lists cause EXC_BREAKPOINT in hosted test bundles.
     @MainActor
     func makeInMemoryContainer() throws -> (ModelContainer, ModelContext) {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(
-            for: Card.self, CalendarSystem.self, CardEdge.self, RelationType.self,
-            configurations: config
-        )
-        let context = ModelContext(container)
-        return (container, context)
+        try TestFixtures.makeFullSchemaContainer()
     }
 
     /// Shared helper: create the "appears-in/features" RelationType via manager

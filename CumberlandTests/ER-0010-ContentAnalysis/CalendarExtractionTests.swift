@@ -4,8 +4,7 @@
 //
 //  Swift Testing suite for ER-0010: AI Content Analysis (Calendar Extraction).
 //  Verifies CalendarSystemExtractor parsing of fictional calendar descriptions
-//  into CalendarSystem models with correct TimeDivision arrays. Currently
-//  disabled (#if false) pending CalendarSystem vs CalendarStructure type fixes.
+//  into CalendarSystem models with correct TimeDivision arrays.
 //
 
 import Testing
@@ -15,23 +14,8 @@ import SwiftData
 
 /// Tests for calendar system extraction from narrative text
 /// Part of ER-0010: AI Content Analysis (Calendar Extraction)
-/// TEMPORARILY DISABLED - Needs fixes for CalendarSystem vs CalendarStructure
-#if false
 @Suite("Calendar Extraction Tests", .serialized)
 struct CalendarExtractionTests {
-
-    // MARK: - Test Helpers
-
-    @MainActor
-    func makeInMemoryContainer() throws -> (ModelContainer, ModelContext) {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(
-            for: Card.self, CalendarSystem.self,
-            configurations: config
-        )
-        let context = ModelContext(container)
-        return (container, context)
-    }
 
     // MARK: - CalendarStructure Type Tests
 
@@ -152,7 +136,7 @@ struct CalendarExtractionTests {
     @Test("Convert CalendarStructure to CalendarSystem model")
     @MainActor
     func convertToCalendarSystem() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
         let calendarData = CalendarStructure(
             name: "Test Calendar",
@@ -291,7 +275,7 @@ struct CalendarExtractionTests {
     @Test("Extract calendar and associate with timeline")
     @MainActor
     func extractAndAssociateCalendar() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
         // Simulate extracted calendar
         let calendarData = CalendarStructure(
@@ -324,4 +308,3 @@ struct CalendarExtractionTests {
         #expect(timeline.calendarSystem?.name == "Story Calendar")
     }
 }
-#endif
