@@ -456,20 +456,10 @@ Tests in `CumberlandTests/`:
 - `StoryStructureTests.swift` - Structure assignment tests
 - Currently limited test coverage - opportunity for expansion
 
-### Known Testing Issues
+### Testing Status
 
-**Test Import Configuration (As of 2026-01-21)**
+**Test infrastructure is fully operational (as of 2026-03-30).** The previous `@testable import Cumberland` issue has been resolved. All test targets can successfully import the main module.
 
-The test targets currently have a configuration issue where `@testable import Cumberland` fails with "Unable to find module dependency: 'Cumberland'".
-
-**DO NOT attempt to fix this without explicit user direction.** Previous attempts to resolve this issue by:
-- Modifying TEST_HOST and BUNDLE_LOADER settings
-- Editing scheme configurations
-- Changing test target dependencies
-- Adjusting project.pbxproj directly
-
-...have all failed. The root cause appears to be related to multi-platform test target configuration and requires manual intervention in Xcode's GUI.
-
-**Temporary workaround**: Test files for new features have been renamed to `.swift.skip` to prevent compilation until the test infrastructure is properly configured.
-
-If tasked with test-related work, verify with the user first that test targets can successfully import the main module before proceeding.
+- Test files should use the `.swift` extension (NOT `.swift.skip`)
+- `@testable import Cumberland` works without issues
+- Tests can be run via `xcodebuild test -scheme Cumberland-macOS`

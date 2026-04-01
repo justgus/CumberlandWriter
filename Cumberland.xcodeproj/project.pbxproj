@@ -317,15 +317,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				CumberlandTests.swift,
-				"ER-0008-Timeline/CalendarSystemTests.swift.skip",
-				"ER-0008-Timeline/CalendarSystemTests.swift.skip2",
-				"ER-0022-Services/ImageProcessingServiceTests.swift.skip",
-				"ER-0022-Services/ServiceIntegrationTests.swift.skip",
-				ER0021_StandaloneTests.swift.skip,
-				Existing/CitationTests.swift.skip,
-				Existing/SpecHeaderGuardTests.swift.skip,
-				Existing/WipeStoreTests.swift.skip,
-				Integration/CrossERWorkflowTests.swift.skip,
 			);
 			target = 866A3A462E8DC16F006D3723 /* CumberlandTests */;
 		};
