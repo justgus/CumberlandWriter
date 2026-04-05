@@ -184,7 +184,6 @@
 		86544AA52EBE99D00083F9CC /* Exceptions for "Cumberland" folder in "Cumberland_visionOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Assets.xcassets,
 				"Documentation/Alpha-Release-Plan.md",
 				"Documentation/Citation-System-Test-Procedure.md",
 				Documentation/CLOUDKIT_SYNC_FIX.md,
@@ -323,7 +322,6 @@
 		866300952E9DA638005F471B /* Exceptions for "Cumberland" folder in "Cumberland IOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Assets.xcassets,
 				"Documentation/Alpha-Release-Plan.md",
 				"Documentation/Citation-System-Test-Procedure.md",
 				Documentation/CLOUDKIT_SYNC_FIX.md,
@@ -601,6 +599,7 @@
 		86E22BB52F71B9D2006D375A /* Exceptions for "Cumberland IOS" folder in "Cumberland IOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Assets.xcassets,
 				Info.plist,
 			);
 			target = 8663004B2E9DA49C005F471B /* Cumberland IOS */;

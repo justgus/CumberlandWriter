@@ -1,0 +1,23 @@
+{
+  "images" : [
+    {
+      "filename" : "Whimsical-Dark-Tree@1x.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "Whimsical-Dark-Tree@2x.png",
+      "idiom" : "universal",
+      "scale" : "2x"
+    },
+    {
+      "filename" : "Whimsical-Dark-Tree@3x.png",
+      "idiom" : "universal",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
