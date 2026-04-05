@@ -1,2 +1,5 @@
 # Source/intermediate image assets (too large for git)
 resources/
+
+# Xcode user-specific data
+xcuserdata/
