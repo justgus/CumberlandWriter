@@ -1,6 +1,6 @@
 //
 //  InvestigationNode.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  SwiftData model for a node on the investigation board.
 //  Represents a person, place, clue, event, or other entity.

@@ -258,7 +258,7 @@ struct ThemeBackgroundImages {
     /// Tiled texture for the main card list / content area.
     let contentBackground: String?
 
-    /// Tiled texture for the Murderboard workspace canvas.
+    /// Tiled texture for the MurderBoard workspace canvas.
     let murderboardCanvas: String?
 
     /// Tiled texture for the Structure Board.

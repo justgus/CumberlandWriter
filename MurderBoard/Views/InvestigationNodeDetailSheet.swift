@@ -1,6 +1,6 @@
 //
 //  InvestigationNodeDetailSheet.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  Lightweight detail sheet for inspecting a backlog investigation node.
 //  Shows name, subtitle, category, and provides an "Add to Board" action.

@@ -1,6 +1,6 @@
 //
 //  NodeEditorSheet.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  Sheet for creating a new investigation node.
 //

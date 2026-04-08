@@ -13,7 +13,7 @@ This is the main index for all Cumberland Enhancement Requests. ERs track planne
 
 ## Unverified ERs (Active & Proposed)
 
-Currently: **10 proposed ERs**
+Currently: **11 proposed ERs**
 
 | ER | Title | Status |
 |----|-------|--------|
@@ -27,12 +27,13 @@ Currently: **10 proposed ERs**
 | ER-0049 | visionOS Expanded Detail Panel | 🔵 Proposed |
 | ER-0050 | visionOS Cross-Window Drag-and-Drop | 🔵 Proposed |
 | ER-0051 | visionOS Workspace Integration | 🔵 Proposed |
+| ER-0052 | Comprehensive Test Coverage Expansion | 🟡 In Progress |
 
 See: [ER-unverified.md](./ER-unverified.md)
 
 ## Verified ERs (Completed Enhancements)
 
-Currently: **41 verified ERs** | Next available ER: **ER-0052**
+Currently: **41 verified ERs** | Next available ER: **ER-0053**
 
 | Batch | ERs | File | Status |
 |-------|-----|------|--------|
@@ -70,11 +71,11 @@ Currently: **41 verified ERs** | Next available ER: **ER-0052**
 
 ## Statistics
 
-- **Total ERs:** 51
-- **Verified:** 41 (80.4%) ✅
-- **In Progress:** 0 (0.0%) 🟡
-- **Proposed:** 10 (19.6%) 🔵
+- **Total ERs:** 52
+- **Verified:** 41 (78.8%) ✅
+- **In Progress:** 1 (1.9%) 🟡
+- **Proposed:** 10 (19.2%) 🔵
 
 ---
 
-*Last Updated: 2026-03-03*
+*Last Updated: 2026-04-07*

@@ -1,6 +1,6 @@
 //
 //  EdgeLabelSheet.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  Sheet for entering a label when creating an edge.
 //

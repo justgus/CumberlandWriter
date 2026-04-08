@@ -1,6 +1,6 @@
 //
 //  BoardsListView.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  Scrollable list of all InvestigationBoards with CRUD operations.
 //  Supports create, rename, and delete with confirmation. Selection

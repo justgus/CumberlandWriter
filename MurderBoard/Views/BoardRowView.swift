@@ -1,6 +1,6 @@
 //
 //  BoardRowView.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  Row view for a single InvestigationBoard in the boards list.
 //  Displays board name, node count, and primary node name.

@@ -1,6 +1,10 @@
 {
   "builtTestProducts" : [
-
+    {
+      "binaryPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.xctest/Contents/MacOS/BrushEnginePackageTests",
+      "packagePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine",
+      "productName" : "BrushEnginePackageTests"
+    }
   ],
   "copyCommands" : {
 
@@ -76,6 +80,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerPersistenceDelegate.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/BaseLayerPatterns.swift"
         },
         {
@@ -120,6 +128,7 @@
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerImageCache.swift.o",
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/DrawingLayer.swift.o",
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerManager.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerPersistenceDelegate.swift.o",
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns.swift.o",
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ElevationMap.swift.o",
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ProceduralPatternGenerator.swift.o",
@@ -239,6 +248,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerPersistenceDelegate.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns.swift.o"
         },
         {
@@ -277,6 +290,7 @@
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerImageCache.swift",
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/DrawingLayer.swift",
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerManager.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerPersistenceDelegate.swift",
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/BaseLayerPatterns.swift",
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ElevationMap.swift",
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ProceduralPatternGenerator.swift",
@@ -284,6 +298,237 @@
         "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/TerrainPattern.swift"
       ],
       "tempsPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.BrushEnginePackageTests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.build/sources",
+      "importPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules/BrushEngineTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "BrushEnginePackageTests",
+      "moduleOutputPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules/BrushEnginePackageTests.swiftmodule",
+      "objects" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx26.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.build/include/BrushEnginePackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "brushengine"
+      ],
+      "outputFileMapPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules/BrushEnginePackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.BrushEngineTests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/sources",
+      "importPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/BrushEngineCore Tests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/BrushRenderingTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/LayerManagerTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/TerrainPatternTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules/BrushEngine.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "BrushEngineTests",
+      "moduleOutputPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules/BrushEngineTests.swiftmodule",
+      "objects" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushEngineCore Tests.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushRenderingTests.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/LayerManagerTests.swift.o",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/TerrainPatternTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx26.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "brushengine"
+      ],
+      "outputFileMapPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushEngineCore Tests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushRenderingTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/LayerManagerTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/TerrainPatternTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules/BrushEngineTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/BrushEngineCore Tests.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/BrushRenderingTests.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/LayerManagerTests.swift",
+        "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/TerrainPatternTests.swift"
+      ],
+      "tempsPath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build",
       "wholeModuleOptimization" : false
     }
   },
@@ -311,6 +556,7 @@
       "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerImageCache.swift",
       "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/DrawingLayer.swift",
       "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerManager.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerPersistenceDelegate.swift",
       "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/BaseLayerPatterns.swift",
       "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ElevationMap.swift",
       "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ProceduralPatternGenerator.swift",
@@ -375,18 +621,169 @@
       "brushengine",
       "-driver-use-frontend-path",
       "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "BrushEnginePackageTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "BrushEnginePackageTests",
+      "-package-name",
+      "brushengine",
+      "-c",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.derived/runner.swift",
+      "-I",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx26.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.build/include/BrushEnginePackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "brushengine",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "BrushEngineTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "BrushEngineTests",
+      "-package-name",
+      "brushengine",
+      "-c",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/BrushEngineCore Tests.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/BrushRenderingTests.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/LayerManagerTests.swift",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/TerrainPatternTests.swift",
+      "-I",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx26.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "brushengine",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
     ]
   },
   "targetDependencyMap" : {
     "BrushEngine" : [
 
+    ],
+    "BrushEnginePackageTests" : [
+      "BrushEngineTests",
+      "BrushEngine"
+    ],
+    "BrushEngineTests" : [
+      "BrushEngine"
     ]
   },
   "testDiscoveryCommands" : {
 
   },
   "testEntryPointCommands" : {
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.derived/runner.swift" : {
+      "inputs" : [
 
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.derived/runner.swift"
+        }
+      ]
+    }
   },
   "traitConfiguration" : {
     "default" : {
@@ -455,6 +852,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerPersistenceDelegate.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/BaseLayerPatterns.swift"
         },
         {
@@ -475,6 +876,152 @@
         }
       ],
       "outputFilePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/sources"
+    },
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.build/sources"
+    },
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerFill.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerImageCache.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+Patterns.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+PencilKit.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine+macOS.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushEngine.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushRegistry.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BrushSet.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/DrawingLayer.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ElevationMap.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ExteriorMapBrushSet.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/InteriorMapBrushSet.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerPersistenceDelegate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/MapBrush.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/ProceduralPatternGenerator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainMapMetadata.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/TerrainPattern.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushEngineCore Tests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushRenderingTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/LayerManagerTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/TerrainPatternTests.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEnginePackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/BrushEngineCore Tests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/BrushRenderingTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/LayerManagerTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/TerrainPatternTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/sources"
     },
     "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
       "alwaysOutOfDate" : true,

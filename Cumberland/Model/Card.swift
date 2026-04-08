@@ -189,8 +189,14 @@ final class Card: Identifiable {
         self.thumbnailData = thumbnailData
         self.originalImageData = originalImageData
         self.imageFileURL = imageFileURL
-        self.normalizedSearchText = ""
-        recomputeNormalizedSearchText()
+
+        // Compute normalized search text during initialization
+        // to ensure it's populated before the object is fully constructed
+        let searchText = [name, subtitle, detailedText, author ?? ""]
+            .joined(separator: " ")
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .lowercased()
+        self.normalizedSearchText = searchText
     }
 
     // Computed Kind (backed by kindRaw)

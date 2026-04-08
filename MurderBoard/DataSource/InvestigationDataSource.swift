@@ -1,6 +1,6 @@
 //
 //  InvestigationDataSource.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  Bridges InvestigationBoard + ModelContext to BoardEngine's BoardDataSource.
 //

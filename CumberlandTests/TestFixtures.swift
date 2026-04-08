@@ -312,6 +312,10 @@ enum TestFixtures {
 
     // MARK: - Full Schema Container Helper
 
+    /// Global lock to prevent concurrent access to shared container across test suites
+    /// This prevents data races when multiple test suites run in parallel
+    private static let containerLock = NSLock()
+
     /// Returns the host app's `ModelContainer` and a fresh `ModelContext`.
     ///
     /// **DR-0102 (2026-03-29):** CumberlandTests is a *hosted* test bundle —
@@ -323,8 +327,14 @@ enum TestFixtures {
     /// The fix: reuse the host app's container via
     /// `CumberlandApp.sharedContainer` and hand each test a new
     /// `ModelContext` so tests don't pollute each other.
+    ///
+    /// **ER-0052 Fix (2026-04-08):** Added global lock to serialize access
+    /// across test suites, preventing concurrent wipes of shared container.
     @MainActor
     static func makeFullSchemaContainer() throws -> (ModelContainer, ModelContext) {
+        containerLock.lock()
+        defer { containerLock.unlock() }
+
         guard let container = CumberlandApp.sharedContainer else {
             fatalError("CumberlandApp.sharedContainer is nil — tests must run inside the hosted app.")
         }

@@ -11,6 +11,7 @@
 /Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/BaseLayerImageCache.swift
 /Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/DrawingLayer.swift
 /Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerManager.swift
+/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerPersistenceDelegate.swift
 /Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/BaseLayerPatterns.swift
 /Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ElevationMap.swift
 /Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/ProceduralPatternGenerator.swift

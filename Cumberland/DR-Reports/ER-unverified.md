@@ -2,7 +2,172 @@
 
 - Guidelines: [Cumberland/DR-Reports/ER-Guidelines.md]
 
-**Status:** Currently **10 proposed ERs**
+**Status:** Currently **10 proposed ERs, 1 in progress**
+
+---
+
+## ER-0052: Comprehensive Test Coverage Expansion
+
+**Status:** 🟡 In Progress
+**Component:** Testing / Quality Assurance
+**Priority:** High
+**Date Requested:** 2026-04-06
+**Date Started:** 2026-04-07
+
+**Rationale:**
+
+Current test coverage is approximately 35-40% with 416 tests across the codebase. While AI features (127 tests) and core models (63 tests) are well-tested, critical user-facing features and infrastructure components have zero test coverage. This creates extreme risk for data loss, feature failure, and poor user experience.
+
+**Critical Gaps Identified:**
+1. **Drawing System & BrushEngine**: 0% coverage (~11,000+ LOC untested) - EXTREME RISK
+2. **Map Wizard**: 0% coverage - EXTREME RISK
+3. **CloudKit Sync & Migrations**: 0% coverage - EXTREME RISK (data loss potential)
+4. **Search System**: 0% coverage (~15,000 LOC untested) - HIGH RISK
+5. **Data Repositories**: 0% coverage - HIGH RISK
+
+**Current Test Distribution:**
+- CumberlandTests: 346 tests
+- MurderBoardTests: 35 tests
+- Package Tests: 35 tests (ImageProcessing: 17, BoardEngine: 17, BrushEngine: 1 placeholder)
+
+**Desired Outcome:**
+
+Achieve 70%+ test coverage with comprehensive testing across all critical components. Prioritize high-risk areas (drawing, CloudKit, search) while building out infrastructure for UI testing, performance benchmarking, and integration testing.
+
+**Test Goals:**
+- **Unit Tests**: +200 tests (algorithms, utilities, services)
+- **Integration Tests**: +50 tests (workflows, multi-component interactions)
+- **UI Tests**: +30 tests (user workflows, navigation)
+- **Performance Tests**: +20 tests (rendering, search, migrations)
+- **Total New Tests**: ~300 tests
+
+**Phased Approach:**
+
+### Phase 1: Critical Risk Mitigation (Weeks 1-4) - 150 tests
+**Priority**: EXTREME → HIGH risk components
+
+1. **BrushEngine & Drawing System** (50 tests)
+   - TerrainPattern algorithms (procedural generation correctness)
+   - LayerManager (layer operations, compositing)
+   - BrushEngine rendering (stroke generation)
+   - Drawing canvas workflows (import, draw, export)
+   - Performance: rendering benchmarks (<100ms target)
+
+2. **Data Repositories** (30 tests)
+   - CardRepository query predicates
+   - EdgeRepository bidirectional operations
+   - StructureRepository assignments
+   - QueryService integration
+   - Batch operations
+
+3. **CloudKit Sync & Migrations** (40 tests)
+   - Schema migration V1→V5 (each version transition)
+   - External storage (CKAsset) behavior
+   - Conflict resolution scenarios
+   - Cross-device sync validation
+   - Desync detection and recovery
+
+4. **Search Engine** (30 tests)
+   - Text normalization and tokenization
+   - Search result ranking algorithms
+   - Performance with 1000+ cards
+   - Search → Navigate integration
+   - Filter combinations
+
+### Phase 2: Feature Completeness (Weeks 5-7) - 80 tests
+**Priority**: MEDIUM risk components
+
+5. **Map Wizard Integration** (20 tests)
+   - Multi-step workflow (4 import methods)
+   - PencilKit integration
+   - MapKit capture workflow
+   - Draft persistence and recovery
+   - Cross-device draft sync
+
+6. **Structure Board** (15 tests)
+   - Kanban drag-drop operations
+   - Scene organization logic
+   - Multi-lane interactions
+   - Zoom and layout
+
+7. **Image Management** (20 tests)
+   - ImageStore caching
+   - ImageMetadataExtractor
+   - ImageVersionManager
+   - BatchGenerationQueue
+   - Integration with ImageProcessing package
+
+8. **Theming System** (15 tests)
+   - Theme switching and persistence
+   - Backplate management
+   - Dynamic color calculations
+   - File-based theme loading
+
+9. **Service Layer Completion** (10 tests)
+   - EdgeIntegrityMonitor sentinel checks
+   - BoardManager operations
+   - RelationTypeManager CRUD
+
+### Phase 3: UI & Platform Coverage (Weeks 8-10) - 70 tests
+**Priority**: LOW-MEDIUM risk components
+
+10. **UI Automation Tests** (30 tests)
+    - Map Wizard end-to-end
+    - Card editing workflows
+    - Structure Board interactions
+    - Theme switching UI
+    - Navigation flows
+
+11. **Major View Tests** (20 tests)
+    - CardSheetView rendering
+    - CardEditorView validation
+    - CardRelationshipView graph
+    - MainAppView navigation
+
+12. **visionOS Features** (10 tests)
+    - Ornament controls
+    - Multi-window coordination
+    - Platform-specific gestures
+
+13. **Performance Benchmarks** (10 tests)
+    - BrushEngine rendering targets
+    - Search performance baselines
+    - Migration duration limits
+    - Large dataset operations
+
+**Testing Infrastructure Needs:**
+
+1. **Mock CloudKit Container**: For sync testing without network
+2. **Drawing Test Fixtures**: PencilKit mock data and stroke samples
+3. **Performance Benchmarking Framework**: Baseline metrics and regression detection
+4. **UI Test Helpers**: Page objects and common workflows
+5. **Large Dataset Generators**: Stress test data (1000+ cards, complex graphs)
+
+**Success Metrics:**
+
+- ✅ Test coverage increases from 35% → 70%+
+- ✅ Zero critical components with 0% coverage
+- ✅ All high-risk features have integration tests
+- ✅ Performance benchmarks established and monitored
+- ✅ CI/CD pipeline includes full test suite (<10 min run time)
+
+**Effort Estimate:**
+- Phase 1 (Critical): 3-4 weeks
+- Phase 2 (Features): 2-3 weeks
+- Phase 3 (UI/Platform): 2-3 weeks
+- **Total**: 7-10 weeks for comprehensive coverage
+
+**Dependencies:**
+- None (can start immediately)
+
+**Implementation Notes:**
+
+This ER requires entering plan mode to create detailed test specifications for each component. The plan should include:
+- Specific test cases for each component
+- Mock/stub strategies for external dependencies
+- Performance targets and benchmarks
+- Test data requirements
+- CI/CD integration approach
 
 ---
 

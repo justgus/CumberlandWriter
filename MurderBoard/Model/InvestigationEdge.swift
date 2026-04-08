@@ -1,6 +1,6 @@
 //
 //  InvestigationEdge.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  SwiftData model for a connection (edge) between two investigation nodes.
 //

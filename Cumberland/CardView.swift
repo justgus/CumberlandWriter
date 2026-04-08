@@ -19,7 +19,7 @@ struct CardView: View {
     var decorationText: String? = nil
 
     // Control whether AI badge is shown (ER-0009)
-    // Set to false in small card contexts (Murderboard, Relationship graphs)
+    // Set to false in small card contexts (MurderBoard, Relationship graphs)
     var showAIBadge: Bool = true
 
     @State private var thumbnail: Image?

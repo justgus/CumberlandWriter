@@ -106,7 +106,7 @@ All models are in `Cumberland/Model/`:
   - Elements can be assigned to multiple cards (many-to-many)
   - Use `StructureAssignmentManager` for assignments
 
-- **Board** & **BoardNode** - Visual canvas for relationship mapping (Murderboard)
+- **Board** & **BoardNode** - Visual canvas for relationship mapping (MurderBoard)
 
 - **Source** & **Citation** - Research source tracking with automatic attribution
 
@@ -161,7 +161,7 @@ Kanban-style board for organizing scenes within a story structure:
 - Drag & drop between lanes
 - Zoom controls and "Fit to Width" functionality
 
-### 3. Murderboard (`Cumberland/Murderboard/MurderBoardView.swift`)
+### 3. MurderBoard (`Cumberland/MurderBoard/MurderBoardView.swift`)
 
 Visual relationship mapping canvas:
 - Nodes represent cards

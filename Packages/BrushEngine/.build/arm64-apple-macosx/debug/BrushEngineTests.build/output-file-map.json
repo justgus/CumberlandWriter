@@ -1,0 +1,33 @@
+{
+  "": {
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/master.swiftdeps"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/BrushEngineCore Tests.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushEngineCore Tests.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushEngineCore Tests.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushEngineCore Tests~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushEngineCore Tests.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushEngineCore Tests.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/BrushRenderingTests.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushRenderingTests.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushRenderingTests.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushRenderingTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushRenderingTests.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/BrushRenderingTests.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/LayerManagerTests.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/LayerManagerTests.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/LayerManagerTests.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/LayerManagerTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/LayerManagerTests.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/LayerManagerTests.dia"
+  },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Tests/BrushEngineTests/TerrainPatternTests.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/TerrainPatternTests.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/TerrainPatternTests.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/TerrainPatternTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/TerrainPatternTests.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngineTests.build/TerrainPatternTests.dia"
+  }
+}

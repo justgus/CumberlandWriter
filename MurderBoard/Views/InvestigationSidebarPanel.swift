@@ -1,6 +1,6 @@
 //
 //  InvestigationSidebarPanel.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  Collapsible backlog sidebar for the investigation board.
 //  Shows nodes not currently on the board (soft-removed via node.board = nil).

@@ -1,6 +1,6 @@
 //
 //  InvestigationBoardView.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  Root view using BoardEngine's BoardCanvasView with custom node rendering.
 //

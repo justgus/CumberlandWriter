@@ -93,6 +93,13 @@
     "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerManager.swiftdeps",
     "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerManager.dia"
   },
+  "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Layers/LayerPersistenceDelegate.swift": {
+    "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerPersistenceDelegate.d",
+    "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerPersistenceDelegate.swift.o",
+    "swiftmodule": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerPersistenceDelegate~partial.swiftmodule",
+    "swift-dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerPersistenceDelegate.swiftdeps",
+    "diagnostics": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/LayerPersistenceDelegate.dia"
+  },
   "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/Sources/BrushEngine/Patterns/BaseLayerPatterns.swift": {
     "dependencies": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns.d",
     "object": "/Users/justgus/Xcode-Projects/Cumberland/Packages/BrushEngine/.build/arm64-apple-macosx/debug/BrushEngine.build/BaseLayerPatterns.swift.o",

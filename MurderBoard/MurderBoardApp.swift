@@ -1,6 +1,6 @@
 //
-//  MurderboardApp.swift
-//  MurderboardApp
+//  MurderBoardApp.swift
+//  MurderBoardApp
 //
 //  Standalone investigation board app powered by BoardEngine.
 //  Uses SwiftData for persistence and BoardEngine for the
@@ -11,7 +11,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct MurderboardApp: App {
+struct MurderBoardApp: App {
     let container: ModelContainer
 
     init() {
@@ -20,7 +20,7 @@ struct MurderboardApp: App {
             InvestigationNode.self,
             InvestigationEdge.self,
         ])
-        let config = ModelConfiguration("MurderboardStore", isStoredInMemoryOnly: false)
+        let config = ModelConfiguration("MurderBoardStore", isStoredInMemoryOnly: false)
         container = try! ModelContainer(for: schema, configurations: [config])
     }
 

@@ -1,6 +1,6 @@
 //
 //  InvestigationBoard.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  SwiftData model for a standalone investigation board.
 //

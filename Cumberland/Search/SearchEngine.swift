@@ -48,51 +48,47 @@ final class SwiftDataSearchEngine: SearchEngine {
         self.context = context
     }
 
+    @MainActor
     func search(_ query: String, maxResults: Int) async -> [SearchResult] {
-        await withCheckedContinuation { continuation in
-            Task { @MainActor in
-                let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else {
-                    continuation.resume(returning: [])
-                    return
-                }
-
-                // Use normalizedSearchText for broad matching to avoid complex predicates across multiple fields
-                let q = trimmed
-                    .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-                    .lowercased()
-
-                var descriptor = FetchDescriptor<Card>(
-                    predicate: #Predicate { $0.normalizedSearchText.contains(q) },
-                    sortBy: [SortDescriptor(\.name, order: .forward)]
-                )
-                descriptor.fetchLimit = maxResults * 2 // get a few extra to filter by field priority
-
-                let cards = (try? context.fetch(descriptor)) ?? []
-
-                // Rank/label matches by which field contains the query first
-                var results: [SearchResult] = []
-                for c in cards {
-                    if c.name.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
-                        results.append(SearchResult(id: c.id, card: c, matchType: .name, preview: c.name))
-                    } else if !c.subtitle.isEmpty,
-                              c.subtitle.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
-                        results.append(SearchResult(id: c.id, card: c, matchType: .subtitle, preview: c.subtitle))
-                    } else if !c.detailedText.isEmpty,
-                              c.detailedText.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
-                        // Provide a short preview snippet
-                        let snippet = Self.snippet(from: c.detailedText, around: trimmed, maxLen: 160)
-                        results.append(SearchResult(id: c.id, card: c, matchType: .details, preview: snippet))
-                    } else if let author = c.author, !author.isEmpty,
-                              author.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
-                        results.append(SearchResult(id: c.id, card: c, matchType: .author, preview: author))
-                    }
-                    if results.count >= maxResults { break }
-                }
-
-                continuation.resume(returning: results)
-            }
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return []
         }
+
+        // Use normalizedSearchText for broad matching to avoid complex predicates across multiple fields
+        let q = trimmed
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .lowercased()
+
+        var descriptor = FetchDescriptor<Card>(
+            predicate: #Predicate { $0.normalizedSearchText.contains(q) },
+            sortBy: [SortDescriptor(\.name, order: .forward)]
+        )
+        descriptor.fetchLimit = maxResults * 2 // get a few extra to filter by field priority
+
+        let cards = (try? context.fetch(descriptor)) ?? []
+
+        // Rank/label matches by which field contains the query first
+        var results: [SearchResult] = []
+        for c in cards {
+            if c.name.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
+                results.append(SearchResult(id: c.id, card: c, matchType: .name, preview: c.name))
+            } else if !c.subtitle.isEmpty,
+                      c.subtitle.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
+                results.append(SearchResult(id: c.id, card: c, matchType: .subtitle, preview: c.subtitle))
+            } else if !c.detailedText.isEmpty,
+                      c.detailedText.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
+                // Provide a short preview snippet
+                let snippet = Self.snippet(from: c.detailedText, around: trimmed, maxLen: 160)
+                results.append(SearchResult(id: c.id, card: c, matchType: .details, preview: snippet))
+            } else if let author = c.author, !author.isEmpty,
+                      author.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
+                results.append(SearchResult(id: c.id, card: c, matchType: .author, preview: author))
+            }
+            if results.count >= maxResults { break }
+        }
+
+        return results
     }
 
     private static func snippet(from text: String, around query: String, maxLen: Int) -> String {

@@ -1,6 +1,6 @@
 //
 //  InvestigationNodeView.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  Custom node tile provided via @ViewBuilder to BoardCanvasView.
 //  Displays the node name, subtitle, category icon, and accent color.

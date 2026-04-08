@@ -1,6 +1,6 @@
 //
 //  MurderBoardRootView.swift
-//  MurderboardApp
+//  MurderBoardApp
 //
 //  Root navigation view hosting a boards list and board detail.
 //  Uses NavigationSplitView on iPad/macOS/visionOS and NavigationStack
