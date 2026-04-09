@@ -114,7 +114,7 @@ struct CrossERWorkflowTests {
     @Test("Complete worldbuilding workflow")
     @MainActor
     func completeWorkflow() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let (_, _) = try makeInMemoryContainer()
 
         // TODO: Implement end-to-end test
         // 1. Create world card with rich description

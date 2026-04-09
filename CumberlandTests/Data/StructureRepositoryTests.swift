@@ -120,7 +120,7 @@ struct StructureRepositoryTests {
         structure.elements?.append(element)
         context.insert(structure)
 
-        let card = try TestFixtures.createSampleCharacter(name: "Hero", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Hero", context: context)
         try context.save()
 
         try repo.assignCard(card, to: element)
@@ -144,7 +144,7 @@ struct StructureRepositoryTests {
         structure.elements?.append(element)
         context.insert(structure)
 
-        let card = try TestFixtures.createSampleCharacter(name: "Hero", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Hero", context: context)
         try context.save()
 
         try repo.assignCard(card, to: element)
@@ -169,7 +169,7 @@ struct StructureRepositoryTests {
         structure.elements?.append(element2)
         context.insert(structure)
 
-        let card = try TestFixtures.createSampleCharacter(name: "Hero", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Hero", context: context)
         try context.save()
 
         try repo.assignCard(card, to: element1)
@@ -199,8 +199,8 @@ struct StructureRepositoryTests {
         structure.elements?.append(element2)
         context.insert(structure)
 
-        let card1 = try TestFixtures.createSampleCharacter(name: "Hero", context: context)
-        let card2 = try TestFixtures.createSampleCharacter(name: "Villain", context: context)
+        let card1 = TestFixtures.createSampleCharacter(name: "Hero", context: context)
+        let card2 = TestFixtures.createSampleCharacter(name: "Villain", context: context)
         try context.save()
 
         try repo.assignCard(card1, to: element1)

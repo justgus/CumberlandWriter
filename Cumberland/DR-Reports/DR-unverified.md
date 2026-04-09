@@ -4,7 +4,100 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **0 open DRs** | **0 resolved, awaiting verification**
+**Status:** Currently **1 open DRs** | **0 resolved, awaiting verification**
+
+---
+
+## DR-0115: SearchEngineTests — 4 Tests Fail in Suite but Pass Individually (Concurrency/Context Isolation)
+
+**Status:** 🔴 Identified - Not Resolved
+**Component:** Testing / SwiftData
+**Severity:** Medium
+**Date Identified:** 2026-04-09
+**Related ER:** ER-0052 (Phase 1.4 - Search Engine Tests)
+
+**Affected Tests:**
+- `searchNormalizesWhitespace()`
+- `searchNormalizesPunctuation()`
+- `searchRanksByFieldPriority()`
+- `searchCombinesWithMultipleFilters()`
+
+**Current Behavior:**
+
+These 4 tests in `CumberlandTests/Search/SearchEngineTests.swift` consistently FAIL when run as part of the full test suite but PASS when run individually in isolation.
+
+**Test Symptoms:**
+- All 4 tests return 0 search results when expecting 1+ results
+- Cards are created successfully via `CardOperationManager`
+- Search engine executes without errors
+- Normalized search text appears to be empty or not matching
+
+**Root Cause Analysis:**
+
+SwiftData context timing/isolation issue in Swift Testing framework. Despite the test suite being marked with `.serialized`, there appears to be a concurrency or context snapshot problem where:
+
+1. Cards created via `CardOperationManager.createCard()` are inserted and saved to context
+2. The `SwiftDataSearchEngine` queries the same context reference
+3. But the search returns no results, suggesting the saved cards aren't visible to the search query
+
+**Previously Attempted Fixes:**
+- ✅ Added `.serialized` to `@Suite` annotation (already present)
+- ✅ Removed redundant `context.insert()` calls after `CardOperationManager.createCard()`
+- ✅ Added explicit `try context.save()` after card creation
+- ✅ Enhanced Card normalization logic (whitespace + punctuation)
+- ✅ Enhanced SearchEngine query normalization (whitespace + punctuation)
+- ❌ Issue persists
+
+**Key Implementation Details:**
+
+Each test follows this pattern:
+```swift
+@Test("Test name")
+@MainActor
+func testName() async throws {
+    let (_, context) = try TestFixtures.makeFullSchemaContainer()
+    let engine = SwiftDataSearchEngine(context: context)
+
+    let card = try createCard(kind: .characters, name: "Test Name", ...)
+    try context.save()  // Already saved by CardOperationManager, but explicit save added
+
+    let results = await engine.search("test", maxResults: 10)
+    #expect(results.count == 1)  // FAILS: returns 0 in suite, 1 when isolated
+}
+```
+
+Helper method:
+```swift
+private func createCard(..., context: ModelContext) throws -> Card {
+    let mgr = CardOperationManager(modelContext: context)
+    return try mgr.createCard(kind: kind, name: name, ...)  // Inserts + saves internally
+}
+```
+
+**Historical Context:**
+
+User reports: "I distinctly remember you fumbling around with the concurrency fixes yesterday (or earlier) and having the same trouble you are having now and eventually Having to go through a number of hoops before you finally fixed it."
+
+**The fix from that previous session was NOT documented.** This DR is being created to ensure the solution isn't lost this time.
+
+**Files Affected:**
+- `CumberlandTests/Search/SearchEngineTests.swift:416-565` (4 failing tests)
+- `Cumberland/Search/SearchEngine.swift` (enhanced normalization)
+- `Cumberland/Model/Card.swift` (enhanced normalizedSearchText computation)
+
+**Next Steps:**
+
+1. Check for git branches that may contain the previous fix
+2. Investigate SwiftData context isolation patterns in passing vs failing tests
+3. Consider alternative test infrastructure (separate contexts, explicit transactions, etc.)
+4. Document the working solution in ER-0052 once found
+
+**Workaround:**
+
+Tests pass when run individually:
+```bash
+xcodebuild test -scheme Cumberland-macOS -only-testing:CumberlandTests/SearchEngineTests/searchNormalizesWhitespace
+```
 
 ---
 

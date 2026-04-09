@@ -77,8 +77,8 @@ struct SchemaV2toV3MigrationTests {
         let board = Board(name: "Test Board")
         context.insert(board)
 
-        let card1 = try TestFixtures.createSampleCharacter(name: "Alice", context: context)
-        let card2 = try TestFixtures.createSampleCharacter(name: "Bob", context: context)
+        let card1 = TestFixtures.createSampleCharacter(name: "Alice", context: context)
+        let card2 = TestFixtures.createSampleCharacter(name: "Bob", context: context)
 
         let node1 = BoardNode(board: board, card: card1, posX: 100, posY: 100)
         let node2 = BoardNode(board: board, card: card2, posX: 200, posY: 200)
@@ -103,7 +103,7 @@ struct SchemaV2toV3MigrationTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
         let board = Board(name: "Test Board")
-        let card = try TestFixtures.createSampleCharacter(name: "Test", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
         let node = BoardNode(board: board, card: card, posX: 150, posY: 250)
 
         context.insert(board)
@@ -125,7 +125,7 @@ struct SchemaV2toV3MigrationTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
         let board = Board(name: "Test Board")
-        let card = try TestFixtures.createSampleCharacter(name: "Test", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
         let node = BoardNode(board: board, card: card, posX: 100, posY: 100)
         context.insert(board)
         context.insert(node)
@@ -152,7 +152,7 @@ struct SchemaV2toV3MigrationTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
         let board = Board(name: "Test Board")
-        let card = try TestFixtures.createSampleCharacter(name: "Alice", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Alice", context: context)
         let node = BoardNode(board: board, card: card, posX: 0, posY: 0)
         context.insert(board)
         context.insert(node)
@@ -174,7 +174,7 @@ struct SchemaV2toV3MigrationTests {
         let board = Board(name: "Test Board")
         context.insert(board)
 
-        let card = try TestFixtures.createSampleCharacter(name: "Test", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
         let node = BoardNode(board: board, card: card, posX: 0, posY: 0)
         if board.nodes == nil { board.nodes = [] }
         board.nodes?.append(node)
@@ -201,7 +201,7 @@ struct SchemaV2toV3MigrationTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
         let board = Board(name: "Test Board")
-        let card = try TestFixtures.createSampleCharacter(name: "Test", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
         let node = BoardNode(board: board, card: card, posX: 0, posY: 0)
         context.insert(board)
         context.insert(node)

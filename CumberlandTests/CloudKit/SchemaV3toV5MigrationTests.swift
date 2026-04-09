@@ -55,7 +55,7 @@ struct SchemaV3toV5MigrationTests {
     func imageVersionCreation() async throws {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
-        let card = try TestFixtures.createSampleCharacter(name: "Test", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
 
         let version = ImageVersion(
             card: card,
@@ -88,7 +88,7 @@ struct SchemaV3toV5MigrationTests {
     func cardMultipleImageVersions() async throws {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
-        let card = try TestFixtures.createSampleCharacter(name: "Test", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
 
         let v1 = ImageVersion(
             card: card,
@@ -123,7 +123,7 @@ struct SchemaV3toV5MigrationTests {
     func imageVersionTimestamp() async throws {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
-        let card = try TestFixtures.createSampleCharacter(name: "Test", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
 
         let before = Date()
         let version = ImageVersion(
@@ -150,7 +150,7 @@ struct SchemaV3toV5MigrationTests {
     func imageVersionAIMetadata() async throws {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
-        let card = try TestFixtures.createSampleCharacter(name: "Hero", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Hero", context: context)
         let version = ImageVersion(
             card: card,
             imageData: Data([0x01, 0x02]),

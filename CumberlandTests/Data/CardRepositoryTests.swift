@@ -22,9 +22,9 @@ struct CardRepositoryTests {
         let repo = CardRepository(modelContext: context)
 
         // Create test cards in random order
-        let zebra = try TestFixtures.createSampleCharacter(name: "Zebra", context: context)
-        let alpha = try TestFixtures.createSampleCharacter(name: "Alpha", context: context)
-        let mike = try TestFixtures.createSampleCharacter(name: "Mike", context: context)
+        let _ = TestFixtures.createSampleCharacter(name: "Zebra", context: context)
+        let _ = TestFixtures.createSampleCharacter(name: "Alpha", context: context)
+        let _ = TestFixtures.createSampleCharacter(name: "Mike", context: context)
         try context.save()
 
         let cards = repo.fetchAll()
@@ -45,8 +45,8 @@ struct CardRepositoryTests {
         let repo = CardRepository(modelContext: context)
 
         // Create cards of different kinds
-        let character = try TestFixtures.createSampleCharacter(name: "Hero", context: context)
-        let location = try TestFixtures.createSampleLocation(name: "Castle", context: context)
+        let character = TestFixtures.createSampleCharacter(name: "Hero", context: context)
+        let location = TestFixtures.createSampleLocation(name: "Castle", context: context)
         try context.save()
 
         let characters = repo.fetch(byKind: .characters)
@@ -65,8 +65,8 @@ struct CardRepositoryTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let repo = CardRepository(modelContext: context)
 
-        let character = try TestFixtures.createSampleCharacter(name: "Hero", context: context)
-        let location = try TestFixtures.createSampleLocation(name: "Castle", context: context)
+        let character = TestFixtures.createSampleCharacter(name: "Hero", context: context)
+        let location = TestFixtures.createSampleLocation(name: "Castle", context: context)
         try context.save()
 
         let cards = repo.fetch(byKinds: [.characters, .locations])
@@ -84,7 +84,7 @@ struct CardRepositoryTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let repo = CardRepository(modelContext: context)
 
-        let card = try TestFixtures.createSampleCharacter(name: "Target", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Target", context: context)
         try context.save()
 
         let fetched = repo.fetch(byUUID: card.id)
@@ -114,8 +114,8 @@ struct CardRepositoryTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let repo = CardRepository(modelContext: context)
 
-        let _ = try TestFixtures.createSampleCharacter(name: "Aragorn", context: context)
-        let _ = try TestFixtures.createSampleCharacter(name: "Gandalf", context: context)
+        let _ = TestFixtures.createSampleCharacter(name: "Aragorn", context: context)
+        let _ = TestFixtures.createSampleCharacter(name: "Gandalf", context: context)
         try context.save()
 
         let results = repo.search(query: "aragorn")
@@ -130,8 +130,8 @@ struct CardRepositoryTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let repo = CardRepository(modelContext: context)
 
-        let _ = try TestFixtures.createSampleCharacter(name: "Test1", context: context)
-        let _ = try TestFixtures.createSampleCharacter(name: "Test2", context: context)
+        let _ = TestFixtures.createSampleCharacter(name: "Test1", context: context)
+        let _ = TestFixtures.createSampleCharacter(name: "Test2", context: context)
         try context.save()
 
         let results = repo.search(query: "")
@@ -162,7 +162,7 @@ struct CardRepositoryTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let repo = CardRepository(modelContext: context)
 
-        let card = try TestFixtures.createSampleCharacter(name: "ToDelete", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "ToDelete", context: context)
         try context.save()
 
         let cardID = card.id
@@ -182,9 +182,9 @@ struct CardRepositoryTests {
         let repo = CardRepository(modelContext: context)
 
         // Create known quantities
-        let _ = try TestFixtures.createSampleCharacter(name: "Char1", context: context)
-        let _ = try TestFixtures.createSampleCharacter(name: "Char2", context: context)
-        let _ = try TestFixtures.createSampleLocation(name: "Loc1", context: context)
+        let _ = TestFixtures.createSampleCharacter(name: "Char1", context: context)
+        let _ = TestFixtures.createSampleCharacter(name: "Char2", context: context)
+        let _ = TestFixtures.createSampleLocation(name: "Loc1", context: context)
         try context.save()
 
         let totalCount = repo.countAll()

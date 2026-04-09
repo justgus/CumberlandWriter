@@ -116,7 +116,7 @@ struct SchemaV1toV2MigrationTests {
         context.insert(card)
         try context.save()
 
-        let cardID = card.id
+        let _ = card.id
 
         // originalImageData should be nil by default
         #expect(card.originalImageData == nil)

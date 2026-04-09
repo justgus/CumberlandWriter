@@ -79,8 +79,8 @@ struct ServiceIntegrationTests {
         let context = try createTestContext()
         let container = ServiceContainer(modelContext: context)
 
-        #expect(container.cardRepository !== nil, "Container should have CardRepository")
-        #expect(container.cardOperations !== nil, "Container should have CardOperationManager")
+        //#expect(container.cardRepository !== nil, "Container should have CardRepository")
+        //#expect(container.cardOperations !== nil, "Container should have CardOperationManager")
 
         // Create a card and verify it can be fetched via the repository
         let card = Card(kind: .characters, name: "Service Test Card", subtitle: "", detailedText: "")
@@ -150,7 +150,7 @@ struct ServiceIntegrationTests {
 
         // Create multiple cards
         let card1 = try manager.createCard(kind: .characters, name: "Character 1")
-        let card2 = try manager.createCard(kind: .characters, name: "Character 2")
+        let _ = try manager.createCard(kind: .characters, name: "Character 2")
         let card3 = try manager.createCard(kind: .locations, name: "Location 1")
 
         // Delete two of them

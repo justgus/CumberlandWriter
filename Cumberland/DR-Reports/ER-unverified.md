@@ -169,6 +169,32 @@ This ER requires entering plan mode to create detailed test specifications for e
 - Test data requirements
 - CI/CD integration approach
 
+**Phase 2 Status (2026-04-09):**
+- ✅ Map Wizard Integration Tests (20 tests) - COMPLETE
+- ✅ Image Management Tests (15 tests) - COMPLETE
+- ✅ Theming System Tests (10 tests) - COMPLETE
+- ✅ Citation System Tests (15 tests) - COMPLETE
+- ✅ Structure Board Tests (10 tests) - COMPLETE
+- ✅ Service Layer Completion Tests (10 tests) - COMPLETE
+
+**Known Issue - SearchEngineTests Concurrency:**
+4 tests in SearchEngineTests fail when run as part of full suite but pass when run individually:
+- `searchNormalizesWhitespace()`
+- `searchNormalizesPunctuation()`
+- `searchRanksByFieldPriority()`
+- `searchCombinesWithMultipleFilters()`
+
+The suite is marked `.serialized` but tests still exhibit concurrency issues. Root cause appears to be SwiftData context timing/isolation. Tests use `TestFixtures.makeFullSchemaContainer()` which creates fresh in-memory containers, and `CardOperationManager` which handles insert/save automatically.
+
+**Attempted Fixes:**
+- ✅ Added `.serialized` to test suite
+- ✅ Removed redundant `context.insert()` calls (cards already inserted by CardOperationManager)
+- ✅ Added explicit `try context.save()` after card creation
+- ✅ Enhanced search normalization (whitespace + punctuation removal)
+- ❌ Issue persists - tests still fail in suite, pass individually
+
+**Resolution needed:** Investigate SwiftData context isolation in Swift Testing framework
+
 ---
 
 ## ER-0042: visionOS Spatial Murderboard — Foundation & Obsession Wall

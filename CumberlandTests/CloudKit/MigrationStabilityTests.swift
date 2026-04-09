@@ -57,7 +57,7 @@ struct MigrationStabilityTests {
     func cardDataPreserved() async throws {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
-        let card = try TestFixtures.createSampleCharacter(name: "Test", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
         card.subtitle = "Test Subtitle"
         card.detailedText = "Test Details"
         try context.save()
@@ -79,11 +79,11 @@ struct MigrationStabilityTests {
     func relationshipsPreserved() async throws {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
-        let source = try TestFixtures.createSampleCharacter(name: "Alice", context: context)
-        let target = try TestFixtures.createSampleCharacter(name: "Bob", context: context)
-        let relationType = try TestFixtures.createRelationType(code: "knows", context: context)
+        let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
+        let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
+        let relationType = TestFixtures.createRelationType(code: "knows", context: context)
 
-        let edge = try TestFixtures.createEdge(from: source, to: target, type: relationType, context: context)
+        let edge = TestFixtures.createEdge(from: source, to: target, type: relationType, context: context)
         try context.save()
 
         let edgeID = edge.id

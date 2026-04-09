@@ -64,6 +64,7 @@ struct AISettingsTests {
 
         // Reset
         settings.resetToDefaults()
+        UserDefaults.standard.synchronize() // Force UserDefaults to flush
 
         // Values should be back to defaults
         #expect(settings.autoGenerateImages == false)

@@ -192,8 +192,16 @@ final class Card: Identifiable {
 
         // Compute normalized search text during initialization
         // to ensure it's populated before the object is fully constructed
-        let searchText = [name, subtitle, detailedText, author ?? ""]
+        // Step 1: Combine all text fields with spaces
+        let step1 = [name, subtitle, detailedText, author ?? ""]
             .joined(separator: " ")
+        // Step 2: Remove punctuation characters (but keep whitespace)
+        let step2 = step1.filter { !$0.isPunctuation }
+        // Step 3: Normalize whitespace - collapse multiple spaces/newlines into single spaces
+        let step3 = step2.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        let searchText = step3
             .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .lowercased()
         self.normalizedSearchText = searchText
@@ -768,8 +776,16 @@ extension UTType {
 
 extension Card {
     func recomputeNormalizedSearchText() {
-        let s = [name, subtitle, detailedText, author ?? ""]
+        // Step 1: Combine all text fields with spaces
+        let step1 = [name, subtitle, detailedText, author ?? ""]
             .joined(separator: " ")
+        // Step 2: Remove punctuation characters (but keep whitespace)
+        let step2 = step1.filter { !$0.isPunctuation }
+        // Step 3: Normalize whitespace - collapse multiple spaces/newlines into single spaces
+        let step3 = step2.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        let s = step3
             .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .lowercased()
         normalizedSearchText = s

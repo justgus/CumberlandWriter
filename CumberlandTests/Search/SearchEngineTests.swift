@@ -37,7 +37,7 @@ struct SearchEngineTests {
         let engine = SwiftDataSearchEngine(context: context)
 
         let alice = TestFixtures.createSampleCharacter(name: "Alice Wonderland", context: context)
-        context.save()
+        try context.save()
 
         let results = await engine.search("Alice", maxResults: 10)
 
@@ -126,7 +126,7 @@ struct SearchEngineTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let engine = SwiftDataSearchEngine(context: context)
 
-        let card = TestFixtures.createSampleCharacter(name: "Dragon Slayer", context: context)
+        let _ = TestFixtures.createSampleCharacter(name: "Dragon Slayer", context: context)
         try context.save()
 
         let results1 = await engine.search("dragon", maxResults: 10)
@@ -409,5 +409,157 @@ struct SearchEngineTests {
         #expect(SearchResult.MatchType.subtitle.systemImage == "text.alignleft")
         #expect(SearchResult.MatchType.details.systemImage == "doc.text")
         #expect(SearchResult.MatchType.author.systemImage == "person.text.rectangle")
+    }
+
+    // MARK: - Text Normalization Tests
+
+    @Test("Search normalizes whitespace in query")
+    @MainActor
+    func searchNormalizesWhitespace() async throws {
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let engine = SwiftDataSearchEngine(context: context)
+
+        let card = try createCard(kind: .characters, name: "John Smith", subtitle: "", detailedText: "", context: context)
+        try context.save()  // Ensure save is complete before searching
+
+        // Search with extra whitespace
+        let results = await engine.search("  John   Smith  ", maxResults: 10)
+
+        #expect(results.count == 1)
+        #expect(results.first?.card.id == card.id)
+    }
+
+    @Test("Search tokenizes multi-word queries")
+    @MainActor
+    func searchTokenizesQueries() async throws {
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let engine = SwiftDataSearchEngine(context: context)
+
+        let card = try createCard(kind: .locations, name: "Dark Forest of Shadows", subtitle: "", detailedText: "", context: context)
+        try context.save()  // Ensure save is complete before searching
+
+        // Search with partial tokens
+        let results = await engine.search("Dark Forest", maxResults: 10)
+
+        #expect(results.count == 1)
+        #expect(results.first?.card.id == card.id)
+    }
+
+    @Test("Search normalizes punctuation")
+    @MainActor
+    func searchNormalizesPunctuation() async throws {
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let engine = SwiftDataSearchEngine(context: context)
+
+        let card = try createCard(kind: .characters, name: "Sir John's Quest", subtitle: "", detailedText: "", context: context)
+        try context.save()  // Ensure save is complete before searching
+
+        // Search without punctuation
+        let results = await engine.search("Johns Quest", maxResults: 10)
+
+        #expect(results.count == 1)
+    }
+
+    // MARK: - Advanced Ranking Tests
+
+    @Test("Search ranks exact matches higher than partial")
+    @MainActor
+    func searchRanksExactHigher() async throws {
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let engine = SwiftDataSearchEngine(context: context)
+
+        let exact = try createCard(kind: .characters, name: "Dragon", subtitle: "", detailedText: "", context: context)
+        let partial = try createCard(kind: .characters, name: "Dragonslayer", subtitle: "", detailedText: "", context: context)
+        try context.save()  // Ensure save is complete before searching
+
+        let results = await engine.search("dragon", maxResults: 10)
+
+        #expect(results.count == 2)
+        // First result should be exact match (or at least "Dragon" appears first alphabetically)
+        #expect(results.first?.card.name == "Dragon")
+    }
+
+    @Test("Search ranks by field priority")
+    @MainActor
+    func searchRanksByFieldPriority() async throws {
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let engine = SwiftDataSearchEngine(context: context)
+
+        let nameMatch = try createCard(kind: .characters, name: "Phoenix", subtitle: "", detailedText: "", context: context)
+        let subtitleMatch = try createCard(kind: .characters, name: "Bird", subtitle: "Phoenix rider", detailedText: "", context: context)
+        let detailsMatch = try createCard(kind: .characters, name: "Wizard", subtitle: "", detailedText: "Studies phoenix lore", context: context)
+        try context.save()  // Ensure save is complete before searching
+
+        let results = await engine.search("phoenix", maxResults: 10)
+
+        #expect(results.count == 3)
+        // Name match should rank highest
+        #expect(results.first?.matchType == .name)
+    }
+
+    // MARK: - Filter Combination Tests
+
+    @Test("Search filters by kind")
+    @MainActor
+    func searchFiltersByKind() async throws {
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+
+        // createCard already inserts and saves
+        let character = try createCard(kind: .characters, name: "Fire Mage", subtitle: "", detailedText: "", context: context)
+        let location = try createCard(kind: .locations, name: "Fire Mountain", subtitle: "", detailedText: "", context: context)
+
+        // Manual filter by kind (simulating search + filter)
+        let targetKindRaw = Kinds.characters.rawValue
+        let searchTerm = "fire"
+        let descriptor = FetchDescriptor<Card>(
+            predicate: #Predicate { card in
+                card.kindRaw == targetKindRaw && card.normalizedSearchText.contains(searchTerm)
+            }
+        )
+        let filtered = try context.fetch(descriptor)
+
+        #expect(filtered.count == 1)
+        #expect(filtered.first?.id == character.id)
+    }
+
+    @Test("Search combines with multiple filters")
+    @MainActor
+    func searchCombinesWithMultipleFilters() async throws {
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+
+        // createCard already inserts and saves
+        let hero1 = try createCard(kind: .characters, name: "Ancient Hero", subtitle: "Old warrior", detailedText: "", context: context)
+        let hero2 = try createCard(kind: .characters, name: "Modern Hero", subtitle: "", detailedText: "", context: context)
+        let villain = try createCard(kind: .characters, name: "Villain Hero", subtitle: "", detailedText: "", context: context)
+
+        // Filter by name containing "hero" AND having a subtitle
+        let searchTerm = "hero"
+        let descriptor = FetchDescriptor<Card>(
+            predicate: #Predicate { card in
+                card.normalizedSearchText.contains(searchTerm) && !card.subtitle.isEmpty
+            }
+        )
+        let filtered = try context.fetch(descriptor)
+
+        #expect(filtered.count == 1)
+        #expect(filtered.first?.id == hero1.id)
+    }
+
+    @Test("Search integrates with navigation")
+    @MainActor
+    func searchIntegratesWithNavigation() async throws {
+        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let engine = SwiftDataSearchEngine(context: context)
+
+        // createCard already inserts and saves
+        let card = try createCard(kind: .characters, name: "Hero", subtitle: "", detailedText: "", context: context)
+
+        // When: User searches and selects result
+        let results = await engine.search("Hero", maxResults: 10)
+        let selectedCard = results.first?.card
+
+        // Then: Should be able to navigate to card
+        #expect(selectedCard?.id == card.id)
+        #expect(selectedCard?.kind == .characters)
     }
 }

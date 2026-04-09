@@ -148,7 +148,7 @@ struct ExternalStorageTests {
     func imageVersionExternalStorage() async throws {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
-        let card = try TestFixtures.createSampleCharacter(name: "Test", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
 
         let version = ImageVersion(
             card: card,

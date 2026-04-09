@@ -56,7 +56,15 @@ final class SwiftDataSearchEngine: SearchEngine {
         }
 
         // Use normalizedSearchText for broad matching to avoid complex predicates across multiple fields
-        let q = trimmed
+        // Step 1: Remove punctuation characters (but keep whitespace)
+        let step1 = trimmed.filter { !$0.isPunctuation }
+
+        // Step 2: Normalize whitespace - collapse multiple spaces/newlines into single spaces
+        let step2 = step1.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+
+        let q = step2
             .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .lowercased()
 

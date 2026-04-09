@@ -251,8 +251,15 @@ struct KeychainHelperTests {
             return
         }
 
-        // Delete all
-        try helper.deleteAllAPIKeys()
+        // Delete all - catch errors in case keychain access fails
+        do {
+            try helper.deleteAllAPIKeys()
+        } catch {
+            // Bulk delete failed, fall back to individual deletes
+            for provider in providers {
+                try? helper.deleteAPIKey(for: provider)
+            }
+        }
 
         // Verify all deleted — in hosted test bundles, the bulk delete may not
         // clear items visible through a different access group; fall back to

@@ -22,11 +22,11 @@ struct DesyncRecoveryTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let monitor = EdgeIntegrityMonitor()
 
-        let source = try TestFixtures.createSampleCharacter(name: "Alice", context: context)
-        let target = try TestFixtures.createSampleCharacter(name: "Bob", context: context)
-        let relationType = try TestFixtures.createRelationType(code: "knows", context: context)
+        let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
+        let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
+        let relationType = TestFixtures.createRelationType(code: "knows", context: context)
 
-        let edge = try TestFixtures.createEdge(from: source, to: target, type: relationType, context: context)
+        let _ = TestFixtures.createEdge(from: source, to: target, type: relationType, context: context)
         try context.save()
 
         // Manually create desync by modifying cached count without updating array
@@ -51,11 +51,11 @@ struct DesyncRecoveryTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let monitor = EdgeIntegrityMonitor()
 
-        let source = try TestFixtures.createSampleCharacter(name: "Alice", context: context)
-        let target = try TestFixtures.createSampleCharacter(name: "Bob", context: context)
-        let relationType = try TestFixtures.createRelationType(code: "knows", context: context)
+        let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
+        let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
+        let relationType = TestFixtures.createRelationType(code: "knows", context: context)
 
-        let edge = try TestFixtures.createEdge(from: source, to: target, type: relationType, context: context)
+        let _ = TestFixtures.createEdge(from: source, to: target, type: relationType, context: context)
         try context.save()
 
         // Ensure counts are correct
@@ -79,7 +79,7 @@ struct DesyncRecoveryTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let monitor = EdgeIntegrityMonitor()
 
-        let card = try TestFixtures.createSampleCharacter(name: "Test", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
         try context.save()
 
         // New card with no edges should have cached counts of 0
@@ -105,13 +105,13 @@ struct DesyncRecoveryTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let monitor = EdgeIntegrityMonitor()
 
-        let source = try TestFixtures.createSampleCharacter(name: "Alice", context: context)
-        let target1 = try TestFixtures.createSampleCharacter(name: "Bob", context: context)
-        let target2 = try TestFixtures.createSampleCharacter(name: "Charlie", context: context)
-        let relationType = try TestFixtures.createRelationType(code: "knows", context: context)
+        let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
+        let target1 = TestFixtures.createSampleCharacter(name: "Bob", context: context)
+        let target2 = TestFixtures.createSampleCharacter(name: "Charlie", context: context)
+        let relationType = TestFixtures.createRelationType(code: "knows", context: context)
 
-        let edge1 = try TestFixtures.createEdge(from: source, to: target1, type: relationType, context: context)
-        let edge2 = try TestFixtures.createEdge(from: source, to: target2, type: relationType, context: context)
+        let _ = TestFixtures.createEdge(from: source, to: target1, type: relationType, context: context)
+        let _ = TestFixtures.createEdge(from: source, to: target2, type: relationType, context: context)
         try context.save()
 
         // Create desync
@@ -134,7 +134,7 @@ struct DesyncRecoveryTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let monitor = EdgeIntegrityMonitor()
 
-        let card = try TestFixtures.createSampleCharacter(name: "Isolated", context: context)
+        let card = TestFixtures.createSampleCharacter(name: "Isolated", context: context)
         try context.save()
 
         // Create fake desync
@@ -160,11 +160,11 @@ struct DesyncRecoveryTests {
     func recalculateCounts() async throws {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
-        let source = try TestFixtures.createSampleCharacter(name: "Alice", context: context)
-        let target = try TestFixtures.createSampleCharacter(name: "Bob", context: context)
-        let relationType = try TestFixtures.createRelationType(code: "knows", context: context)
+        let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
+        let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
+        let relationType = TestFixtures.createRelationType(code: "knows", context: context)
 
-        let edge = try TestFixtures.createEdge(from: source, to: target, type: relationType, context: context)
+        let _ = TestFixtures.createEdge(from: source, to: target, type: relationType, context: context)
         try context.save()
 
         // Corrupt the counts
@@ -187,8 +187,8 @@ struct DesyncRecoveryTests {
     func incrementCounts() async throws {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
-        let source = try TestFixtures.createSampleCharacter(name: "Alice", context: context)
-        let target = try TestFixtures.createSampleCharacter(name: "Bob", context: context)
+        let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
+        let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
         try context.save()
 
         source.cachedOutgoingEdgeCount = 5
@@ -205,8 +205,8 @@ struct DesyncRecoveryTests {
     func decrementCounts() async throws {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
-        let source = try TestFixtures.createSampleCharacter(name: "Alice", context: context)
-        let target = try TestFixtures.createSampleCharacter(name: "Bob", context: context)
+        let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
+        let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
         try context.save()
 
         source.cachedOutgoingEdgeCount = 5
@@ -223,8 +223,8 @@ struct DesyncRecoveryTests {
     func decrementCountsFloor() async throws {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
 
-        let source = try TestFixtures.createSampleCharacter(name: "Alice", context: context)
-        let target = try TestFixtures.createSampleCharacter(name: "Bob", context: context)
+        let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
+        let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
         try context.save()
 
         source.cachedOutgoingEdgeCount = 0
@@ -245,11 +245,11 @@ struct DesyncRecoveryTests {
         let (_, context) = try TestFixtures.makeFullSchemaContainer()
         let monitor = EdgeIntegrityMonitor()
 
-        let source = try TestFixtures.createSampleCharacter(name: "Alice", context: context)
-        let target = try TestFixtures.createSampleCharacter(name: "Bob", context: context)
-        let relationType = try TestFixtures.createRelationType(code: "knows", context: context)
+        let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
+        let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
+        let relationType = TestFixtures.createRelationType(code: "knows", context: context)
 
-        let edge = try TestFixtures.createEdge(from: source, to: target, type: relationType, context: context)
+        let _ = TestFixtures.createEdge(from: source, to: target, type: relationType, context: context)
         try context.save()
 
         // 1. Corrupt the count (simulate desync)
