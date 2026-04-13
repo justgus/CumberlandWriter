@@ -68,13 +68,23 @@ final class SwiftDataSearchEngine: SearchEngine {
             .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .lowercased()
 
-        var descriptor = FetchDescriptor<Card>(
-            predicate: #Predicate { $0.normalizedSearchText.contains(q) },
+        // Tokenize the query for individual word matching
+        let tokens = q.components(separatedBy: " ").filter { !$0.isEmpty }
+
+        // For token-based search, fetch all cards and filter in memory
+        // (SwiftData predicates don't easily support "all tokens must be present" logic)
+        let descriptor = FetchDescriptor<Card>(
             sortBy: [SortDescriptor(\.name, order: .forward)]
         )
-        descriptor.fetchLimit = maxResults * 2 // get a few extra to filter by field priority
 
-        let cards = (try? context.fetch(descriptor)) ?? []
+        let allCards = (try? context.fetch(descriptor)) ?? []
+
+        // Filter cards to only those containing ALL tokens (order doesn't matter)
+        let cards = allCards.filter { card in
+            tokens.allSatisfy { token in
+                card.normalizedSearchText.contains(token)
+            }
+        }
 
         // Rank/label matches by which field contains the query first
         var results: [SearchResult] = []

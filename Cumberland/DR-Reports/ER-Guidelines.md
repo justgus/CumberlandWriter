@@ -121,9 +121,27 @@ Proposed → In Progress → Implemented → Verified
 - ✅ Change ER priority levels
 - ✅ Move ERs between batches
 
-## File Organization and Batch Management
+## File Organization and Workflow Management
 
-### Batch File Policy
+### Active Work Files (New Structure - 2026-04-13)
+
+**ERs are organized into THREE active work files based on status:**
+
+- **ER-proposed.md** - 🔵 Proposed enhancements awaiting approval/scheduling
+- **ER-inprogress.md** - 🟡 ERs actively being implemented (In Progress + Implemented - Not Verified)
+- **ER-complete-unverified.md** - 🟡 Implemented but awaiting user verification
+
+**Rationale:** This structure mirrors Agile workflow boards (Backlog → In Progress → Done) and makes it easy to see what's being worked on vs. what's planned. It also reduces file size for easier processing by Claude Code.
+
+### Backlog Management (Optional)
+
+For long-term or lower-priority ERs (e.g., visionOS expansion features):
+
+- **ER-backlog.md** - Low-priority enhancements not actively scheduled
+
+**Backlog ERs** are similar to Agile product backlog items—documented for future consideration but not currently in active development. Move ERs from backlog to proposed when ready to prioritize.
+
+### Verified Enhancements (Archive)
 
 **Verified ERs are organized into batch files with flexible sizing:**
 
@@ -146,22 +164,28 @@ When a batch file becomes large (~1000-1500 lines or ~5-10 ERs):
 ### Quick Reference Index
 
 **ER-Documentation.md serves as a lean index with three sections:**
-1. **Unverified ERs** - Table of active/proposed ERs (naturally bounded)
-2. **Verified ERs** - Table of batch files (one row per batch, grows slowly)
-3. **Statistics** - Current counts only (no history log)
+1. **Proposed ERs** - Table of proposed enhancements (from ER-proposed.md)
+2. **In Progress ERs** - Table of active work (from ER-inprogress.md)
+3. **Complete Unverified ERs** - Table of implemented but unverified (from ER-complete-unverified.md)
+4. **Verified ERs** - Table of batch files (one row per batch, grows slowly)
+5. **Statistics** - Current counts only (no history log)
 
 **MUST be updated whenever:**
-- A new ER is created (add to Unverified table)
-- An ER status changes (update status emoji in table)
-- An ER is verified (remove from Unverified table, add batch row if new file)
+- A new ER is created (add to Proposed table)
+- An ER status changes to In Progress (move from Proposed to In Progress table)
+- An ER is implemented (move from In Progress to Complete Unverified table)
+- An ER is verified (remove from Complete Unverified table, add batch row if new file)
 - Statistics counts change
 
-**CRITICAL:** Do NOT add activity logs, summaries, or per-ER detail tables to ER-Documentation.md. Details belong in ER-unverified.md (for active work) or the verified batch files (for completed work). The index must stay compact.
+**CRITICAL:** Do NOT add activity logs, summaries, or per-ER detail tables to ER-Documentation.md. Details belong in the active work files (ER-proposed.md, ER-inprogress.md, ER-complete-unverified.md) or the verified batch files. The index must stay compact.
 
 ## File Naming Convention
 
 - **ER-Documentation.md** - Quick reference index (all ERs, always up-to-date)
-- **ER-unverified.md** - Proposed, in-progress, and implemented-but-unverified enhancements
+- **ER-proposed.md** - 🔵 Proposed enhancements (awaiting scheduling)
+- **ER-inprogress.md** - 🟡 Active development (In Progress + Implemented - Not Verified)
+- **ER-complete-unverified.md** - 🟡 Implemented but not yet verified by user
+- **ER-backlog.md** - Low-priority enhancements (optional, for long-term planning)
 - **ER-verified-XXXX.md** - Verified enhancements in sequential batches
 - **ER-Guidelines.md** - This file (documentation standards)
 - **DR-Documentation.md** - Discrepancy Reports index (see DR-GUIDELINES.md)
@@ -197,29 +221,41 @@ When a batch file becomes large (~1000-1500 lines or ~5-10 ERs):
 **Use this checklist for EVERY ER operation:**
 
 ### When Creating a New ER:
-- [ ] ER added to ER-unverified.md
-- [ ] ER added to Unverified table in ER-Documentation.md
-- [ ] Unverified count updated
+- [ ] ER added to ER-proposed.md
+- [ ] ER added to Proposed table in ER-Documentation.md
+- [ ] Proposed count updated
 - [ ] "Next available ER" incremented
 - [ ] Statistics updated
 - [ ] "Last Updated" date updated
 
-### When Implementing an ER:
-- [ ] Status changed to 🟡 In Progress in ER-unverified.md
-- [ ] Status emoji updated in Unverified table
+### When Starting Implementation (Proposed → In Progress):
+- [ ] ER moved from ER-proposed.md to ER-inprogress.md
+- [ ] Status changed to 🟡 In Progress
+- [ ] ER moved from Proposed table to In Progress table in ER-Documentation.md
+- [ ] Proposed count decremented, In Progress count incremented
 - [ ] Statistics updated
 - [ ] "Last Updated" date updated
 
 ### When Marking ER as Implemented - Not Verified:
-- [ ] Status changed to 🟡 Implemented - Not Verified in ER-unverified.md
-- [ ] Status emoji updated in Unverified table
+- [ ] Status changed to 🟡 Implemented - Not Verified in ER-inprogress.md (stays in same file)
+- [ ] Status emoji updated in In Progress table
 - [ ] Statistics updated
 - [ ] "Last Updated" date updated
 
-### When Verifying an ER:
-- [ ] ER moved from ER-unverified.md to appropriate batch file
-- [ ] ER removed from Unverified table in ER-Documentation.md
+### When User Verifies an ER:
+- [ ] ER moved from ER-inprogress.md to appropriate ER-verified-XXXX.md batch file
+- [ ] Status changed to ✅ Implemented - Verified
+- [ ] ER removed from In Progress table in ER-Documentation.md
 - [ ] Batch row added to Verified table (if new batch file)
+- [ ] In Progress count decremented, Verified count incremented
+- [ ] Statistics updated
+- [ ] "Last Updated" date updated
+
+### When Moving ER to Backlog (Optional):
+- [ ] ER moved from ER-proposed.md to ER-backlog.md
+- [ ] ER removed from Proposed table in ER-Documentation.md
+- [ ] Note added to ER explaining backlog reason
+- [ ] Proposed count decremented
 - [ ] Statistics updated
 - [ ] "Last Updated" date updated
 

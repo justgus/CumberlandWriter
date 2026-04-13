@@ -42,14 +42,13 @@ struct CumberlandApp: App {
     /// their own container (which would cause SwiftData schema conflicts).
     @MainActor static private(set) var sharedContainer: ModelContainer?
 
-    // Build the app's SwiftData container using your schema.
-    // If opening the on-disk store fails, we fall back to local on-disk, then in-memory.
+    // ER-0058 Phase 2: Refactored container creation using DataBackend
+    // Supports test overrides, user preferences, and safe fallback (first launch only)
     private static func makeContainer() -> ModelContainer {
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cumberland", category: "SwiftData")
 
         // Build a concrete Schema from the latest versioned schema's models.
         // Latest is V5 (includes Board/BoardNode and AI image metadata).
-        // CloudKit handles schema migrations automatically for optional properties and new models.
         let schema = Schema(AppSchemaV5.models)
 
         // TEMPORARY: Nuclear option for development - delete ALL SwiftData stores
@@ -57,27 +56,27 @@ struct CumberlandApp: App {
         // Set to true to force deletion of all SwiftData stores on next launch
         if false { // Set to true once if migration issues arise
             let fm = FileManager.default
-            
+
             guard let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
                 logger.error("Could not find Application Support directory")
                 fatalError("Could not find Application Support directory")
             }
-            
+
             logger.warning("🔍 Searching for SwiftData stores in: \(appSupport.path)")
-            
+
             // Delete ALL .store files and related files in Application Support
             var deletedCount = 0
-            
+
             if let enumerator = fm.enumerator(at: appSupport, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
                 for case let fileURL as URL in enumerator {
                     let filename = fileURL.lastPathComponent
-                    
+
                     // Delete any .store, .store-wal, .store-shm files, or directories that might contain stores
-                    if filename.hasSuffix(".store") || 
-                       filename.hasSuffix(".store-wal") || 
+                    if filename.hasSuffix(".store") ||
+                       filename.hasSuffix(".store-wal") ||
                        filename.hasSuffix(".store-shm") ||
                        filename.contains("iCloud.CumberlandCloud") {
-                        
+
                         do {
                             // Check if it's a directory
                             var isDirectory: ObjCBool = false
@@ -100,7 +99,7 @@ struct CumberlandApp: App {
                     }
                 }
             }
-            
+
             // Also try to delete the app-specific bundle ID directory entirely
             if let bundleID = Bundle.main.bundleIdentifier {
                 let appDir = appSupport.appendingPathComponent(bundleID)
@@ -114,7 +113,7 @@ struct CumberlandApp: App {
                     }
                 }
             }
-            
+
             if deletedCount > 0 {
                 logger.warning("⚠️ DELETED \(deletedCount) SwiftData store file(s)/directory(ies). Starting completely fresh.")
             } else {
@@ -123,46 +122,88 @@ struct CumberlandApp: App {
         }
         #endif
 
-        // Use the latest schema. CloudKit handles migrations itself.
-        // CloudKit enabled after Development Environment reset
-        // 1) Try CloudKit-backed configuration first.
-        do {
-            let cloudConfig = ModelConfiguration("iCloud.CumberlandCloud")
-            let container = try ModelContainer(
-                for: schema,
-                configurations: [cloudConfig]
-            )
-            logger.info("SwiftData ModelContainer initialized with CloudKit.")
-            return container
-        } catch {
-            logger.error("CloudKit ModelContainer initialization failed: \(String(describing: error))")
+        // ER-0058 Phase 2: Use DataBackend for container creation
+
+        // TESTING BYPASS: Check for override (works on all platforms)
+        // Supports environment variables (macOS/simulators) and launch arguments (all platforms)
+        if let overrideMode = DataBackend.detectStorageModeOverride() {
+            logger.info("🧪 Test override detected: \(overrideMode.displayName)")
+            do {
+                let container = try DataBackend.makeContainer(mode: overrideMode, schema: schema)
+                logger.info("✅ Test container created with override mode: \(overrideMode.displayName)")
+                return container
+            } catch {
+                // This should never fail for in-memory, but log and fall through to fallback
+                logger.error("❌ Test override container failed: \(error)")
+                fatalError("Test override container creation failed: \(error)")
+            }
         }
 
-        // 2) Fall back to a local on-disk store (no CloudKit).
-        do {
-            let localConfig = ModelConfiguration() // default on-disk location
-            let container = try ModelContainer(
-                for: schema,
-                configurations: [localConfig]
-            )
-            logger.warning("Using local on-disk SwiftData store (CloudKit unavailable).")
-            return container
-        } catch {
-            logger.error("Local on-disk ModelContainer initialization failed: \(String(describing: error))")
+        // Check if user has a storage preference (AFTER first launch)
+        if let userPreferenceRaw = UserDefaults.standard.string(forKey: "storageMode"),
+           let userMode = StorageMode.fromString(userPreferenceRaw) {
+            // User has chosen a mode - use it exclusively (NO FALLBACK)
+            logger.info("📌 User preference found: \(userMode.displayName)")
+            do {
+                let container = try DataBackend.makeContainerWithUserPreference(mode: userMode, schema: schema)
+                logger.info("✅ Container created with user preference: \(userMode.displayName)")
+                return container
+            } catch {
+                // CRITICAL: Do NOT silently fall back - show error to user
+                logger.error("❌ CRITICAL: Failed to create container with user preference \(userMode.displayName): \(error)")
+                logger.error("   This indicates a serious issue (no iCloud account, disk corruption, etc.)")
+
+                // TODO (Phase 4): Replace fatalError with proper error UI
+                // For now, fatal error to prevent data loss from silent fallback
+                fatalError("""
+                    Failed to create container with your preferred storage mode (\(userMode.displayName)).
+
+                    Error: \(error)
+
+                    Please check:
+                    - If using CloudKit: Are you signed into iCloud?
+                    - If using Local: Is disk space available?
+
+                    The app cannot continue to prevent data loss from switching storage modes.
+                    """)
+            }
         }
 
-        // 3) Last resort: in-memory store so the app remains usable during development.
-        do {
-            let memoryConfig = ModelConfiguration(isStoredInMemoryOnly: true)
-            let container = try ModelContainer(
-                for: schema,
-                configurations: [memoryConfig]
-            )
-            logger.warning("Using in-memory SwiftData store as a fallback.")
-            return container
-        } catch {
-            fatalError("SwiftData in-memory fallback failed to initialize: \(error)")
+        // FIRST LAUNCH: No preference set - use fallback chain with auto-detection
+        logger.info("🚀 First launch detected - using automatic storage mode selection")
+        let container = DataBackend.makeContainerWithFallback(schema: schema)
+
+        // After successful fallback, save the mode that worked for next launch
+        let selectedMode = detectCurrentMode(from: container)
+        UserDefaults.standard.set(selectedMode.rawValue, forKey: "storageMode")
+        logger.info("💾 Saved storage mode preference: \(selectedMode.displayName)")
+
+        return container
+    }
+
+    /// Detect which storage mode a container is using
+    /// - Parameter container: The ModelContainer to inspect
+    /// - Returns: The detected StorageMode
+    private static func detectCurrentMode(from container: ModelContainer) -> StorageMode {
+        // Check container configurations to determine which mode is active
+        guard let config = container.configurations.first else {
+            // Should never happen, but default to local as safest option
+            return .local
         }
+
+        // Check if in-memory
+        if config.isStoredInMemoryOnly {
+            return .inMemory
+        }
+
+        // Check if CloudKit by examining the configuration URL for iCloud identifier
+        let url = config.url
+        if url.absoluteString.contains("iCloud.CumberlandCloud") {
+            return .cloudKit("iCloud.CumberlandCloud")
+        }
+
+        // Default to local if not in-memory and not CloudKit
+        return .local
     }
 
     @State private var modelContainer: ModelContainer = {

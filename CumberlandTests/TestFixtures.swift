@@ -310,13 +310,89 @@ enum TestFixtures {
     }
     """
 
-    // MARK: - Full Schema Container Helper
+    // MARK: - Container Helpers (ER-0058 Phase 3)
+
+    /// ER-0058 Phase 3: Create an isolated in-memory container for a test
+    ///
+    /// **Recommended for new tests** - Each test gets its own isolated container,
+    /// eliminating data contamination and concurrency issues.
+    ///
+    /// **Benefits:**
+    /// - ✅ True test isolation - no shared state between tests
+    /// - ✅ No data wipes needed - each container starts empty
+    /// - ✅ Faster execution - no locking, no cleanup overhead
+    /// - ✅ Safer - production data never touched
+    /// - ✅ Concurrent-safe - tests can run in parallel
+    ///
+    /// **Usage:**
+    /// ```swift
+    /// @Test func myTest() async throws {
+    ///     let (container, context) = try TestFixtures.makeIsolatedContainer()
+    ///     // Your test code here - fresh, isolated environment
+    /// }
+    /// ```
+    ///
+    /// - Returns: A tuple of (ModelContainer, ModelContext) with isolated in-memory storage
+    /// - Throws: SwiftData initialization errors (should never happen for in-memory)
+    @MainActor
+    static func makeIsolatedContainer() throws -> (ModelContainer, ModelContext) {
+        let schema = Schema(AppSchemaV5.models)
+        let container = try DataBackend.makeContainer(mode: .inMemory, schema: schema)
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        return (container, context)
+    }
+
+    /// ER-0058 Phase 3: Create an isolated container with pre-seeded data
+    ///
+    /// Useful for tests that need common baseline data (RelationTypes, CalendarSystems, etc.)
+    ///
+    /// **Usage:**
+    /// ```swift
+    /// @Test func myTest() async throws {
+    ///     let (container, context) = try TestFixtures.makeIsolatedContainer(seed: .relationTypes)
+    ///     // Container now has standard RelationTypes pre-loaded
+    /// }
+    /// ```
+    ///
+    /// - Parameter seed: Type of seed data to pre-load
+    /// - Returns: A tuple of (ModelContainer, ModelContext) with seeded data
+    /// - Throws: SwiftData initialization errors
+    @MainActor
+    static func makeIsolatedContainer(seed: SeedType) throws -> (ModelContainer, ModelContext) {
+        let (container, context) = try makeIsolatedContainer()
+
+        // Seed the requested data
+        switch seed {
+        case .relationTypes:
+            seedRelationTypes(in: context)
+        case .calendarSystems:
+            seedCalendarSystems(in: context)
+        case .all:
+            seedRelationTypes(in: context)
+            seedCalendarSystems(in: context)
+        }
+
+        try context.save()
+        return (container, context)
+    }
+
+    /// Types of seed data available for pre-loading
+    enum SeedType {
+        case relationTypes  // Standard RelationTypes from CumberlandApp.relationTypeSeeds
+        case calendarSystems // Gregorian calendar
+        case all            // All seed data
+    }
+
+    // MARK: - Legacy Shared Container Helper (ER-0052)
 
     /// Global lock to prevent concurrent access to shared container across test suites
     /// This prevents data races when multiple test suites run in parallel
     private static let containerLock = NSLock()
 
     /// Returns the host app's `ModelContainer` and a fresh `ModelContext`.
+    ///
+    /// **⚠️ LEGACY METHOD - Use `makeIsolatedContainer()` for new tests instead!**
     ///
     /// **DR-0102 (2026-03-29):** CumberlandTests is a *hosted* test bundle —
     /// Cumberland.app launches first and creates the process-wide
@@ -330,6 +406,9 @@ enum TestFixtures {
     ///
     /// **ER-0052 Fix (2026-04-08):** Added global lock to serialize access
     /// across test suites, preventing concurrent wipes of shared container.
+    ///
+    /// **ER-0058 Note:** This method is retained for backward compatibility
+    /// with existing tests. New tests should use `makeIsolatedContainer()` instead.
     @MainActor
     static func makeFullSchemaContainer() throws -> (ModelContainer, ModelContext) {
         containerLock.lock()
@@ -358,6 +437,47 @@ enum TestFixtures {
         try context.save()
 
         return (container, context)
+    }
+
+    // MARK: - Seed Data Helpers (ER-0058 Phase 3)
+
+    /// Seed standard RelationTypes into a context
+    @MainActor
+    private static func seedRelationTypes(in context: ModelContext) {
+        let mgr = RelationTypeManager(modelContext: context)
+        // Seed a subset of common relation types for testing
+        let commonSeeds = [
+            ("owns/owned-by", "owns", "owned by", Kinds.characters, Kinds.artifacts),
+            ("appears-in/is-appeared-by", "appears in", "is appeared by", Kinds.characters, Kinds.scenes),
+            ("part-of/has-scene", "part of", "has scene", Kinds.scenes, Kinds.chapters),
+            ("uses/used-by", "uses", "used by", nil, nil)
+        ]
+
+        for (code, forward, inverse, source, target) in commonSeeds {
+            mgr.ensureRelationType(
+                code: code,
+                forwardLabel: forward,
+                inverseLabel: inverse,
+                sourceKind: source,
+                targetKind: target
+            )
+        }
+    }
+
+    /// Seed Gregorian calendar into a context
+    @MainActor
+    private static func seedCalendarSystems(in context: ModelContext) {
+        let gregorian = gregorianCalendar
+        let calendarCard = Card(
+            kind: .calendars,
+            name: "Gregorian",
+            subtitle: "Standard calendar",
+            detailedText: "Gregorian calendar system"
+        )
+        calendarCard.calendarSystemRef = gregorian
+
+        context.insert(gregorian)
+        context.insert(calendarCard)
     }
 
     // MARK: - Additional Card Factories

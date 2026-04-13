@@ -1,205 +1,16 @@
-# Enhancement Requests (ER) — Unverified
+# Enhancement Requests (ER) — Backlog
 
 - Guidelines: [Cumberland/DR-Reports/ER-Guidelines.md]
 
-**Status:** Currently **10 proposed ERs, 1 in progress**
+**Purpose:** This file contains lower-priority enhancement requests that are documented for future consideration but not currently scheduled for active development. Think of this as the Agile product backlog—features we want to build someday, but not right now.
 
----
-
-## ER-0052: Comprehensive Test Coverage Expansion
-
-**Status:** 🟡 In Progress
-**Component:** Testing / Quality Assurance
-**Priority:** High
-**Date Requested:** 2026-04-06
-**Date Started:** 2026-04-07
-
-**Rationale:**
-
-Current test coverage is approximately 35-40% with 416 tests across the codebase. While AI features (127 tests) and core models (63 tests) are well-tested, critical user-facing features and infrastructure components have zero test coverage. This creates extreme risk for data loss, feature failure, and poor user experience.
-
-**Critical Gaps Identified:**
-1. **Drawing System & BrushEngine**: 0% coverage (~11,000+ LOC untested) - EXTREME RISK
-2. **Map Wizard**: 0% coverage - EXTREME RISK
-3. **CloudKit Sync & Migrations**: 0% coverage - EXTREME RISK (data loss potential)
-4. **Search System**: 0% coverage (~15,000 LOC untested) - HIGH RISK
-5. **Data Repositories**: 0% coverage - HIGH RISK
-
-**Current Test Distribution:**
-- CumberlandTests: 346 tests
-- MurderBoardTests: 35 tests
-- Package Tests: 35 tests (ImageProcessing: 17, BoardEngine: 17, BrushEngine: 1 placeholder)
-
-**Desired Outcome:**
-
-Achieve 70%+ test coverage with comprehensive testing across all critical components. Prioritize high-risk areas (drawing, CloudKit, search) while building out infrastructure for UI testing, performance benchmarking, and integration testing.
-
-**Test Goals:**
-- **Unit Tests**: +200 tests (algorithms, utilities, services)
-- **Integration Tests**: +50 tests (workflows, multi-component interactions)
-- **UI Tests**: +30 tests (user workflows, navigation)
-- **Performance Tests**: +20 tests (rendering, search, migrations)
-- **Total New Tests**: ~300 tests
-
-**Phased Approach:**
-
-### Phase 1: Critical Risk Mitigation (Weeks 1-4) - 150 tests
-**Priority**: EXTREME → HIGH risk components
-
-1. **BrushEngine & Drawing System** (50 tests)
-   - TerrainPattern algorithms (procedural generation correctness)
-   - LayerManager (layer operations, compositing)
-   - BrushEngine rendering (stroke generation)
-   - Drawing canvas workflows (import, draw, export)
-   - Performance: rendering benchmarks (<100ms target)
-
-2. **Data Repositories** (30 tests)
-   - CardRepository query predicates
-   - EdgeRepository bidirectional operations
-   - StructureRepository assignments
-   - QueryService integration
-   - Batch operations
-
-3. **CloudKit Sync & Migrations** (40 tests)
-   - Schema migration V1→V5 (each version transition)
-   - External storage (CKAsset) behavior
-   - Conflict resolution scenarios
-   - Cross-device sync validation
-   - Desync detection and recovery
-
-4. **Search Engine** (30 tests)
-   - Text normalization and tokenization
-   - Search result ranking algorithms
-   - Performance with 1000+ cards
-   - Search → Navigate integration
-   - Filter combinations
-
-### Phase 2: Feature Completeness (Weeks 5-7) - 80 tests
-**Priority**: MEDIUM risk components
-
-5. **Map Wizard Integration** (20 tests)
-   - Multi-step workflow (4 import methods)
-   - PencilKit integration
-   - MapKit capture workflow
-   - Draft persistence and recovery
-   - Cross-device draft sync
-
-6. **Structure Board** (15 tests)
-   - Kanban drag-drop operations
-   - Scene organization logic
-   - Multi-lane interactions
-   - Zoom and layout
-
-7. **Image Management** (20 tests)
-   - ImageStore caching
-   - ImageMetadataExtractor
-   - ImageVersionManager
-   - BatchGenerationQueue
-   - Integration with ImageProcessing package
-
-8. **Theming System** (15 tests)
-   - Theme switching and persistence
-   - Backplate management
-   - Dynamic color calculations
-   - File-based theme loading
-
-9. **Service Layer Completion** (10 tests)
-   - EdgeIntegrityMonitor sentinel checks
-   - BoardManager operations
-   - RelationTypeManager CRUD
-
-### Phase 3: UI & Platform Coverage (Weeks 8-10) - 70 tests
-**Priority**: LOW-MEDIUM risk components
-
-10. **UI Automation Tests** (30 tests)
-    - Map Wizard end-to-end
-    - Card editing workflows
-    - Structure Board interactions
-    - Theme switching UI
-    - Navigation flows
-
-11. **Major View Tests** (20 tests)
-    - CardSheetView rendering
-    - CardEditorView validation
-    - CardRelationshipView graph
-    - MainAppView navigation
-
-12. **visionOS Features** (10 tests)
-    - Ornament controls
-    - Multi-window coordination
-    - Platform-specific gestures
-
-13. **Performance Benchmarks** (10 tests)
-    - BrushEngine rendering targets
-    - Search performance baselines
-    - Migration duration limits
-    - Large dataset operations
-
-**Testing Infrastructure Needs:**
-
-1. **Mock CloudKit Container**: For sync testing without network
-2. **Drawing Test Fixtures**: PencilKit mock data and stroke samples
-3. **Performance Benchmarking Framework**: Baseline metrics and regression detection
-4. **UI Test Helpers**: Page objects and common workflows
-5. **Large Dataset Generators**: Stress test data (1000+ cards, complex graphs)
-
-**Success Metrics:**
-
-- ✅ Test coverage increases from 35% → 70%+
-- ✅ Zero critical components with 0% coverage
-- ✅ All high-risk features have integration tests
-- ✅ Performance benchmarks established and monitored
-- ✅ CI/CD pipeline includes full test suite (<10 min run time)
-
-**Effort Estimate:**
-- Phase 1 (Critical): 3-4 weeks
-- Phase 2 (Features): 2-3 weeks
-- Phase 3 (UI/Platform): 2-3 weeks
-- **Total**: 7-10 weeks for comprehensive coverage
-
-**Dependencies:**
-- None (can start immediately)
-
-**Implementation Notes:**
-
-This ER requires entering plan mode to create detailed test specifications for each component. The plan should include:
-- Specific test cases for each component
-- Mock/stub strategies for external dependencies
-- Performance targets and benchmarks
-- Test data requirements
-- CI/CD integration approach
-
-**Phase 2 Status (2026-04-09):**
-- ✅ Map Wizard Integration Tests (20 tests) - COMPLETE
-- ✅ Image Management Tests (15 tests) - COMPLETE
-- ✅ Theming System Tests (10 tests) - COMPLETE
-- ✅ Citation System Tests (15 tests) - COMPLETE
-- ✅ Structure Board Tests (10 tests) - COMPLETE
-- ✅ Service Layer Completion Tests (10 tests) - COMPLETE
-
-**Known Issue - SearchEngineTests Concurrency:**
-4 tests in SearchEngineTests fail when run as part of full suite but pass when run individually:
-- `searchNormalizesWhitespace()`
-- `searchNormalizesPunctuation()`
-- `searchRanksByFieldPriority()`
-- `searchCombinesWithMultipleFilters()`
-
-The suite is marked `.serialized` but tests still exhibit concurrency issues. Root cause appears to be SwiftData context timing/isolation. Tests use `TestFixtures.makeFullSchemaContainer()` which creates fresh in-memory containers, and `CardOperationManager` which handles insert/save automatically.
-
-**Attempted Fixes:**
-- ✅ Added `.serialized` to test suite
-- ✅ Removed redundant `context.insert()` calls (cards already inserted by CardOperationManager)
-- ✅ Added explicit `try context.save()` after card creation
-- ✅ Enhanced search normalization (whitespace + punctuation removal)
-- ❌ Issue persists - tests still fail in suite, pass individually
-
-**Resolution needed:** Investigate SwiftData context isolation in Swift Testing framework
+**Status:** Currently **10 backlog ERs**
 
 ---
 
 ## ER-0042: visionOS Spatial Murderboard — Foundation & Obsession Wall
 
-**Status:** 🔵 Proposed
+**Status:** 🔵 Backlog
 **Component:** visionOS / BoardEngine / RealityKit
 **Priority:** Medium
 **Date Requested:** 2026-02-22
@@ -303,7 +114,7 @@ On visionOS, the Murderboard can be rendered as an "Obsession Wall" — cards an
 
 ## ER-0043: visionOS Spatial Murderboard — Bulletin Board
 
-**Status:** 🔵 Proposed
+**Status:** 🔵 Backlog
 **Component:** visionOS / BoardEngine / RealityKit
 **Priority:** Medium
 **Date Requested:** 2026-02-23
@@ -400,7 +211,7 @@ On visionOS, the Murderboard can be rendered as a free-standing physical bulleti
 
 ## ER-0044: visionOS Spatial Murderboard — Spatial Cloud
 
-**Status:** 🔵 Proposed
+**Status:** 🔵 Backlog
 **Component:** visionOS / BoardEngine / RealityKit
 **Priority:** Medium
 **Date Requested:** 2026-02-23
@@ -494,7 +305,7 @@ On visionOS, users can open the Murderboard as a 3D spatial experience where:
 
 ## ER-0045: visionOS Spatial Murderboard — Multi-Mode Orchestration
 
-**Status:** 🔵 Proposed
+**Status:** 🔵 Backlog
 **Component:** visionOS / BoardEngine / State Management
 **Priority:** Medium
 **Date Requested:** 2026-02-23
@@ -613,7 +424,7 @@ All three spatial rendering modes can be active simultaneously:
 
 ## ER-0046: visionOS Multi-Window Architecture
 
-**Status:** 🔵 Proposed
+**Status:** 🔵 Backlog
 **Component:** visionOS / Window Management / State Restoration
 **Priority:** Medium
 **Date Requested:** 2026-02-23
@@ -703,7 +514,7 @@ Cumberland on visionOS supports multiple named window types (satellite windows) 
 
 ## ER-0047: visionOS Card Matrix
 
-**Status:** 🔵 Proposed
+**Status:** 🔵 Backlog
 **Component:** visionOS / Navigation / UI
 **Priority:** Medium
 **Date Requested:** 2026-02-23
@@ -800,481 +611,50 @@ On visionOS, the primary workspace window displays a Card Matrix — a wide, 2D-
 
 ## ER-0048: visionOS Filter Cube
 
-**Status:** 🔵 Proposed
+**Status:** 🔵 Backlog
 **Component:** visionOS / Navigation / UI
 **Priority:** Medium
 **Date Requested:** 2026-02-23
 **Depends On:** ER-0047 (Card Matrix)
 
-**Rationale:**
-The Card Matrix can contain hundreds of cards across many columns. A traditional flat filter bar wastes valuable spatial real estate and doesn't leverage visionOS's 3D interaction capabilities. The Filter Cube is a compact, rotatable 3D control that packs six filter axes into a single interactive object — a distinctly spatial UI element that couldn't exist on a flat screen.
-
-**Current Behavior:**
-After ER-0047, the Card Matrix displays all cards grouped by Kind with no filtering or alternative grouping options.
-
-**Desired Behavior:**
-A small 3D cube floats in the corner of the Card Matrix. The user rotates it (pinch+drag or trackpad scroll) to expose different faces, each controlling a different filter axis. All filters are active simultaneously — rotating to a face lets you adjust that filter without resetting the others.
-
-**Requirements:**
-
-1. **Cube Geometry & Interaction:**
-   - A rendered 3D cube (~8-10cm visual size) positioned in the top-leading corner of the matrix
-   - Pinch+drag gesture to rotate the cube to any face
-   - Trackpad two-finger scroll/rotate gesture as alternative
-   - Smooth rotation animation with snap-to-face when released near a face
-   - The active (front-facing) face's controls are interactive
-   - Non-front faces are visible but not interactive (prevents accidental taps)
-
-2. **Face 1 — Search (Front, default):**
-   - Text input field for search query
-   - As the user types, cards whose name/subtitle/detailedText don't match are hidden
-   - Columns that become empty after filtering collapse
-   - Clear button to reset search
-   - Physical keyboard input (primary) and system keyboard (fallback)
-
-3. **Face 2 — Kind Filter (Right):**
-   - Grid of Kind icons with toggle checkboxes
-   - Each Kind can be shown or hidden independently
-   - Default: all Kinds shown
-   - When grouped by Kind (Face 3), this directly shows/hides columns
-   - When grouped by another axis, this filters cards within each column
-
-4. **Face 3 — Grouping Axis (Top):**
-   - Selector for what defines the matrix columns:
-     - **By Kind** (default) — one column per Kind
-     - **By Project** — one column per Project card; cards related to that project appear in the column (a card may appear in multiple columns)
-     - **By World** — one column per World card; same logic as Project
-     - **By Citation Source** — one column per Source entity; cards cited from that source appear in the column
-     - **By Relation Type** — one column per RelationType; cards participating in that relation type appear in the column
-   - Switching grouping axis re-renders the matrix columns with smooth animation
-   - Cards may appear in multiple columns when grouped by Project/World/Source/RelationType
-
-5. **Face 4 — Sort Order (Left):**
-   - Sort options for card ordering within columns:
-     - Alphabetical by name (default)
-     - Date created (newest first / oldest first)
-     - Date modified (newest first / oldest first)
-   - Applies within each column independently
-
-6. **Face 5 — Display Options (Back):**
-   - Card size toggle: compact (default) / standard
-   - Show/hide thumbnails toggle
-   - Column density: comfortable / tight spacing
-
-7. **Face 6 — Saved Filters (Bottom):**
-   - Save the current combination of all filter settings as a named preset
-   - Load a saved preset to restore all filter settings at once
-   - Preset examples: "My Characters," "Act 2 Research," "World A Locations"
-   - Presets persisted via `@AppStorage`
-
-8. **Active Filter Indicators:**
-   - Cube edges or corners glow/illuminate when the adjacent face has a non-default filter active
-   - At a glance, the user can see how many faces have active filters without rotating
-   - Example: search active + Kind filter active = front edge and right edge glow
-
-**Design Approach:**
-- Render the cube using `RealityView` with a `ModelEntity` box, or as a SwiftUI 3D-transformed view stack
-- Each face is a SwiftUI view rendered as a texture on the cube face (or as a `View` overlay aligned to each face via 3D transforms)
-- Rotation state tracked as a quaternion or euler angles; snap-to-face uses nearest-face detection
-- Filter state stored in a `@Observable` `MatrixFilterState` object shared with the Card Matrix
-- The matrix reacts to filter state changes reactively (SwiftData queries re-filtered, grouping re-computed)
-- For non-RealityKit approach: six SwiftUI views arranged in 3D space using `.rotation3DEffect()` and `.offset()`, with gesture-driven rotation — simpler than full RealityKit but still visually effective
-
-**Components Affected:**
-- New: `visionOS/FilterCubeView.swift` — 3D cube rendering + rotation gestures
-- New: `visionOS/FilterCubeFaces/` — individual face views (SearchFace, KindFace, GroupingFace, SortFace, DisplayFace, PresetsFace)
-- New: `visionOS/MatrixFilterState.swift` — shared filter state model (@Observable)
-- Modified: `visionOS/CardMatrixView.swift` — read filter state, apply grouping/filtering/sorting
-- Modified: `visionOS/CardMatrixColumnView.swift` — respond to display options changes
-
-**Test Steps:**
-
-*Cube Interaction:*
-1. Matrix visible with Filter Cube in top-leading corner
-2. Pinch+drag on cube — rotates smoothly to reveal different faces
-3. Release near a face — snaps to that face
-4. Trackpad two-finger scroll rotates the cube
-5. Active filter indicators glow on edges with non-default filters
-
-*Search (Front):*
-6. Type in search field — cards filter in real-time, empty columns collapse
-7. Clear search — all cards restored
-
-*Kind Filter (Right):*
-8. Rotate to right face — Kind toggles visible
-9. Uncheck "Scenes" — Scenes column hides (when grouped by Kind)
-10. Re-check "Scenes" — column reappears
-
-*Grouping (Top):*
-11. Rotate to top face — grouping selector visible
-12. Switch to "By Project" — columns change to one per Project, cards redistributed
-13. Cards related to multiple projects appear in multiple columns
-14. Switch to "By Relation Type" — columns change to one per RelationType
-15. Switch back to "By Kind" — default layout restored
-
-*Sort (Left):*
-16. Rotate to left face — sort options visible
-17. Switch to "Date Modified" — cards reorder within columns
-
-*Display Options (Back):*
-18. Rotate to back face — display toggles visible
-19. Toggle card size to standard — cards in matrix resize
-
-*Saved Presets (Bottom):*
-20. Set up a complex filter (search + kind filter + grouping)
-21. Rotate to bottom face — save as "My Preset"
-22. Clear all filters — matrix resets to default
-23. Load "My Preset" — all filters restored simultaneously
-
-*Composability:*
-24. Active search + Kind filter + "By World" grouping — all three compose correctly
-25. Only matching cards of selected Kinds appear in World columns
-
-**Notes:**
-- The cube is a novel UI element — invest in discoverability (first-launch tooltip, idle animation)
-- If RealityKit cube proves too complex, the SwiftUI `.rotation3DEffect()` approach is a viable fallback with similar visual effect
-- Grouping by Relation Type requires querying all CardEdges — cache the grouped result and invalidate on edge changes
-- Saved presets should have a reasonable limit (e.g., 20) to avoid bloat
-- The cube should not occlude matrix content — allow the user to reposition it within the matrix header area
-- Future enhancement: add a 7th "face" (impossible on a cube, but a separate floating orb or panel) for advanced boolean filter expressions
-- Related: ER-0047 (Card Matrix), ER-0049 (Detail Panel), ER-0051 (Integration)
+_(See ER-proposed.md for full details - this is a complex feature with 6 interactive faces controlling search, kind filtering, grouping, sorting, display options, and saved filter presets)_
 
 ---
 
 ## ER-0049: visionOS Expanded Detail Panel
 
-**Status:** 🔵 Proposed
+**Status:** 🔵 Backlog
 **Component:** visionOS / Card Editing / UI
 **Priority:** Medium
 **Date Requested:** 2026-02-23
 **Depends On:** ER-0047 (Card Matrix)
 
-**Rationale:**
-On macOS and iOS, card details are presented in a tabbed interface because screen space is limited. On visionOS, the expansive display area makes tabs an unnecessary constraint — all card information can be shown simultaneously in a single panel. The Expanded Detail Panel "pops out" of the Card Matrix when a card is selected, presenting all card editing capabilities in a spatial layout that eliminates tab-switching.
-
-**Current Behavior:**
-On visionOS, card details are shown in the same tabbed `CardSheetView` / `CardEditorWindowView` used on macOS/iOS. Tabs include Details, Relationships, Citations, Timeline, Structure, and optional contextual views. The user must switch between tabs to access different information.
-
-**Desired Behavior:**
-When a card is selected in the Card Matrix, an Expanded Detail Panel slides out from the right edge of the workspace window, showing all card information simultaneously in a stacked layout. The workspace window animates wider to accommodate the panel.
-
-**Requirements:**
-
-1. **Panel Pop-Out Animation:**
-   - On card selection in the matrix, the workspace window animates wider (rightward expansion)
-   - The detail panel slides in from the right edge with a smooth spring animation
-   - On deselection (tap elsewhere, dismiss gesture, or escape key), the panel slides out and the window contracts
-   - The matrix content remains visible and scrollable alongside the panel
-
-2. **Left Stack — Core Card Data (always visible):**
-   - **Card Detail section:** Name (editable), subtitle (editable), Kind badge, thumbnail image (tappable to view/replace), detailed text (editable, scrollable), author field
-   - **Relationships section:** Compact relationship graph view (from `CardRelationshipView`) without the redundant card header; shows connected cards and edge labels; tap to navigate
-   - **Citations section:** Citation list (from Citation viewer/editor); add/remove citations; source attribution display
-
-3. **Right Panel — Contextual View (conditional):**
-   - Shows the "big" view relevant to the card's context, if applicable:
-     - **Murderboard** — if the card is a node on a board, show that board view
-     - **Timeline** — if the card has timeline data, show the timeline view
-     - **Multi-Timeline** — comparative timeline view across related cards
-     - **Map** — if the card is a map, show the map view
-     - **Structure Board** — if viewing structure assignments, show the structure board
-   - The contextual view is selected via a small mode picker at the top of the right panel
-   - If no contextual view is applicable, the right panel is hidden and the left stack takes the full width
-
-4. **Editing:**
-   - All fields in the left stack are directly editable (no "edit mode" toggle)
-   - Changes write through to SwiftData immediately (consistent with existing auto-save behavior)
-   - Keyboard focus management: tab between fields, escape to deselect card
-
-5. **Responsive Layout:**
-   - The detail panel has a preferred width (~500-600pt) but adapts if the user resizes the window
-   - The left stack and right panel split approximately 40/60 when a contextual view is active
-   - If only the left stack is visible, it expands to fill the panel width
-
-**Design Approach:**
-- `CardDetailPanelView` as a new visionOS-specific view containing the stacked layout
-- The workspace view uses a `GeometryReader` + `withAnimation` to expand/contract the window width
-- Alternatively, use `.inspector()` modifier (available on visionOS) for the sliding panel behavior
-- The left stack is a `ScrollView` containing `CardDetailSection`, `CompactRelationshipSection`, `CitationSection` — extracted from existing views with the header removed
-- The right panel hosts the contextual view in a `TabView` with a `.page` style or a custom mode picker
-- The panel reads the selected card from the matrix's `@State` selection binding
-
-**Components Affected:**
-- New: `visionOS/CardDetailPanelView.swift` — expanded detail panel layout
-- New: `visionOS/CompactRelationshipSection.swift` — relationship graph without redundant header
-- New: `visionOS/CompactCitationSection.swift` — citation list adapted for panel layout
-- New: `visionOS/ContextualViewPicker.swift` — mode picker for right panel contextual views
-- Modified: `visionOS/CardMatrixView.swift` — integrate panel pop-out on card selection
-- Extracted from: `CardEditorView.swift`, `CardRelationshipView.swift`, `CitationListView.swift` — reuse logic, adapt layout
-
-**Test Steps:**
-1. Select a card in the matrix — detail panel slides out from right edge, workspace window expands
-2. Card name, subtitle, image, detailed text visible and editable in left stack
-3. Relationship graph visible below card detail — shows connected cards and edge labels
-4. Citation list visible below relationships — add/remove citations functional
-5. Right panel shows contextual view (e.g., Murderboard if card is on a board)
-6. Switch contextual view mode — Timeline, Map, etc. swap in the right panel
-7. Edit card name — change reflected immediately in the matrix CardView
-8. Tap a related card in the relationship graph — selected card changes, panel updates
-9. Deselect card (tap matrix background) — panel slides out, window contracts
-10. Press Escape key — same dismiss behavior
-11. Card with no contextual views — right panel hidden, left stack takes full width
-12. Verify macOS/iOS tabbed editing is unchanged
-
-**Notes:**
-- Reuse as much existing view logic as possible — extract sections from `CardEditorView` and `CardRelationshipView` rather than rewriting
-- The relationship section should support "tap to navigate" — selecting a related card in the graph selects that card in the matrix and updates the panel
-- The `.inspector()` modifier is the most SwiftUI-native way to achieve the sliding panel effect on visionOS
-- Consider keyboard shortcuts: Cmd+1/2/3 to switch contextual view modes, Cmd+W to dismiss panel
-- The panel should not block matrix scrolling — both should be independently scrollable
-- Related: ER-0047 (Card Matrix), ER-0050 (Drag-and-Drop), ER-0051 (Integration)
+_(See ER-proposed.md for full details - slides out from Card Matrix on selection, showing all card info simultaneously in stacked layout)_
 
 ---
 
 ## ER-0050: visionOS Cross-Window Drag-and-Drop
 
-**Status:** 🔵 Proposed
+**Status:** 🔵 Backlog
 **Component:** visionOS / Interaction / Data Transfer
 **Priority:** Medium
 **Date Requested:** 2026-02-23
 **Depends On:** ER-0046 (multi-window), ER-0047 (Card Matrix)
 
-**Rationale:**
-The Card Matrix serves as the universal card source for all spatial views. For this to work, users need to drag cards from the matrix into satellite windows — Murderboards, Timelines, Maps. This ER implements cross-window drag-and-drop using the `Transferable` protocol, along with focus-aware card disabling in the matrix to prevent duplicate placement.
-
-**Current Behavior:**
-No drag-and-drop exists between Cumberland windows on any platform. Cards are added to Murderboards, Timelines, and Maps through in-view controls (backlog panels, add buttons).
-
-**Desired Behavior:**
-On visionOS, users can drag a compact CardView from the Card Matrix and drop it onto a satellite window (Murderboard, Timeline, Map). The receiving view interprets the drop contextually. Cards already placed in the focused satellite view are visually disabled in the matrix.
-
-**Requirements:**
-
-1. **Card as Transferable:**
-   - `Card` conforms to `Transferable` with a custom `TransferRepresentation`
-   - Transfer payload: card's `PersistentIdentifier` or UUID (lightweight, no full object serialization)
-   - `CardView` in the matrix uses `.draggable()` modifier to initiate drag
-
-2. **Drop Targets:**
-   - **Murderboard satellite:** `.dropDestination(for:)` on the board canvas
-     - Drop creates a new `BoardNode` at the drop position for the dropped card
-     - If card is already a node on this board, drop is rejected
-   - **Timeline satellite:** `.dropDestination(for:)` on the timeline view
-     - Drop creates a timeline entry at the temporal position corresponding to the drop location
-     - If card already has a timeline position, drop updates it
-   - **Map satellite:** `.dropDestination(for:)` on the map view
-     - Drop pins the card at the geographic coordinate corresponding to the drop location
-     - This is a new capability — cards gain a map placement concept
-
-3. **Focus-Aware Card Disabling:**
-   - When a satellite window gains focus, it publishes its content identity to the `WindowFocusManager` (ER-0046)
-   - The matrix reads the focused window's content and queries which cards are already placed in that view:
-     - Murderboard focus → cards that are `BoardNode`s on that board are disabled
-     - Timeline focus → cards with timeline positions are disabled
-     - Map focus → cards pinned to the map are disabled
-   - Disabled cards: dimmed appearance (reduced opacity), drag disabled, small overlay icon indicating placement
-   - When no satellite has focus (or matrix has focus), all cards are enabled
-
-4. **Drop Feedback:**
-   - Drag preview: miniature card thumbnail follows the gesture
-   - Valid drop target: highlight/glow on the receiving area
-   - Invalid drop: standard rejection animation (card snaps back)
-
-5. **File Drop Support:**
-   - Images and markdown files can be dropped from the visionOS Files app onto the matrix or detail panel
-   - Image drop on a card → sets the card's image
-   - Markdown drop on a card → populates the card's detailed text
-   - Image/file drop on an empty area → creates a new card with that image/text
-
-**Design Approach:**
-- Extend `Card` with `Transferable` conformance using `CodableRepresentation` (Card UUID as payload)
-- `.draggable(card)` on `CardView` in the matrix
-- `.dropDestination(for: Card.self)` on each satellite view's canvas
-- Drop handlers resolve the Card UUID via SwiftData `ModelContext` and perform the appropriate action
-- `WindowFocusManager` (ER-0046) extended with a `placedCardIDs: Set<UUID>` published by the focused satellite
-- The matrix view reads `placedCardIDs` to determine disabled state
-- File drops use `UTType.image` and `UTType.plainText` transfer types alongside card transfers
-
-**Components Affected:**
-- Modified: `Model/Card.swift` — add `Transferable` conformance
-- Modified: `visionOS/CardMatrixView.swift` — `.draggable()` on CardViews, disabled state based on focus
-- Modified: `CardView.swift` — dimmed/disabled visual state
-- Modified: `visionOS/SatelliteMurderboardView.swift` — `.dropDestination()` for card drops
-- Modified: `visionOS/SatelliteTimelineView.swift` — `.dropDestination()` for card drops
-- Modified: `visionOS/SatelliteMapView.swift` — `.dropDestination()` for card drops
-- Modified: `visionOS/WindowFocusManager.swift` — add `placedCardIDs` tracking
-
-**Test Steps:**
-
-*Drag from Matrix:*
-1. Drag a CardView from the matrix — miniature preview follows gesture
-2. Hover over Murderboard satellite — board area highlights as valid drop target
-3. Drop card on Murderboard — new BoardNode created at drop position
-4. Card appears on the board with correct thumbnail and edges
-
-*Focus-Aware Disabling:*
-5. Click on Murderboard satellite to give it focus
-6. Matrix dimms cards that are already nodes on that board
-7. Dimmed cards show small overlay icon (e.g., board pin icon)
-8. Attempt to drag a dimmed card — drag is disabled
-9. Click on the matrix — all cards re-enabled (no satellite focused)
-
-*Drop on Timeline:*
-10. Drag a card from matrix onto Timeline satellite — timeline entry created at temporal position
-
-*Drop on Map:*
-11. Drag a card from matrix onto Map satellite — card pinned at geographic coordinate
-
-*File Drop:*
-12. Drag an image from Files app onto a selected card in the matrix — card's image updates
-13. Drag a markdown file onto the matrix — new card created with file's text content
-
-*Rejection:*
-14. Drag a card already on a Murderboard onto the same Murderboard — drop rejected, card snaps back
-
-**Notes:**
-- `Transferable` conformance should be lightweight (UUID only) to keep drag performance smooth
-- The map drop target (Req. 2c) implies cards need a location concept — this may require a schema change (optional latitude/longitude on Card or a new `CardMapPlacement` model)
-- Cross-window drag on visionOS uses hand gesture tracking — generous drop target areas help accuracy
-- Trackpad-initiated drag is more precise — the system handles the mapping from trackpad to spatial drag
-- File drop support is secondary to card drag-and-drop but uses the same infrastructure
-- Related: ER-0046 (windows), ER-0047 (matrix), ER-0049 (detail panel), ER-0051 (integration)
+_(See ER-proposed.md for full details - drag cards from matrix to satellite windows using Transferable protocol)_
 
 ---
 
 ## ER-0051: visionOS Workspace Integration
 
-**Status:** 🔵 Proposed
+**Status:** 🔵 Backlog
 **Component:** visionOS / UX / Architecture
 **Priority:** Medium
 **Date Requested:** 2026-02-23
 **Depends On:** ER-0046, ER-0047, ER-0048, ER-0049, ER-0050
 
-**Rationale:**
-ER-0046 through ER-0050 build individual components of the visionOS workspace: multi-window architecture, Card Matrix, Filter Cube, Expanded Detail Panel, and cross-window drag-and-drop. This ER integrates them into a cohesive experience — ensuring the pieces work together seamlessly and the matrix fully replaces per-view backlogs as the universal card source.
-
-**Current Behavior:**
-After ER-0046 through ER-0050, all individual components exist but may not be fully coordinated. Each satellite view type (Murderboard, Timeline, Map) may still have its own backlog panel. The transition from macOS-style sidebar navigation to matrix-based spatial navigation may have rough edges.
-
-**Desired Behavior:**
-A polished, integrated visionOS workspace where:
-
-- The Card Matrix is the single entry point and universal card source
-- The Filter Cube provides all filtering/grouping controls
-- Card selection pops out the Expanded Detail Panel seamlessly
-- Satellite windows receive cards via drag-and-drop from the matrix
-- Per-view backlogs are removed (the matrix replaces them)
-- The entire workspace restores across sessions
-- All interactions feel native to visionOS (no residual macOS/iOS patterns)
-
-**Requirements:**
-
-1. **Backlog Removal:**
-   - Remove the backlog sidebar/panel from `MurderBoardView` on visionOS (the matrix is the backlog)
-   - Remove backlog panels from Timeline and Map views on visionOS
-   - macOS/iOS retain their existing backlogs (no change)
-   - The Murderboard's "Add from backlog" flow is replaced by "drag from matrix"
-
-2. **End-to-End Workflow Verification:**
-   - Author launches app → sees Card Matrix
-   - Creates a new card via "+" in column header → card appears in matrix
-   - Selects card → detail panel pops out, edits card details
-   - Opens Murderboard satellite ("Open in new window" from detail panel or ornament)
-   - Drags cards from matrix onto Murderboard → nodes appear
-   - Opens Timeline satellite → drags cards to timeline
-   - Matrix disables cards appropriately as satellite focus changes
-   - Author arranges windows in space
-   - Quits and relaunches → all windows, content, and positions restored
-   - Filter Cube preserves filter state across sessions
-
-3. **Navigation Consistency:**
-   - Tapping a related card in the detail panel's relationship graph selects that card in the matrix
-   - Double-tapping a node in a Murderboard satellite selects that card in the matrix
-   - "Navigate to card" from any satellite window scrolls the matrix to and selects that card
-   - Back navigation: deselect returns to matrix-only view
-
-4. **Performance Optimization:**
-   - Profile the integrated workspace with 200+ cards, 3 satellite windows, and active filters
-   - Ensure matrix scrolling stays at 90fps (visionOS target frame rate)
-   - Lazy rendering verified: only visible cards instantiate views
-   - Satellite windows update independently (editing on Murderboard doesn't cause matrix to re-render unless card data changes)
-
-5. **Accessibility:**
-   - VoiceOver navigation through the matrix (column-by-column, card-by-card)
-   - Filter Cube accessible via VoiceOver rotor (rotate to face, interact with controls)
-   - Satellite windows independently navigable
-   - Drag-and-drop has VoiceOver alternatives (context menu → "Add to Murderboard...")
-
-**Design Approach:**
-- Integration layer: review all visionOS views for residual macOS/iOS navigation patterns and replace with matrix-based equivalents
-- Remove `#if os(visionOS)` backlog code from Murderboard, Timeline, Map views
-- Add cross-view navigation delegates: when a satellite view wants to "navigate to card," it posts a notification or writes to a shared observable that the matrix reads
-- Performance: use Instruments to profile the integrated workspace; optimize `@Query` predicates, reduce unnecessary view updates
-- Accessibility audit: test full workflow with VoiceOver enabled; add alternative actions where gestures are inaccessible
-
-**Components Affected:**
-- Modified: `Murderboard/MurderBoardView.swift` — remove backlog on visionOS, add "navigate to matrix" gesture
-- Modified: Timeline views — remove backlog on visionOS
-- Modified: Map views — remove backlog on visionOS
-- Modified: `visionOS/CardMatrixView.swift` — add cross-view navigation listener, scroll-to-card capability
-- Modified: `visionOS/CardDetailPanelView.swift` — "Open in new window" controls for satellite views
-- Modified: `visionOS/FilterCubeView.swift` — persist filter state for session restore
-- New: `visionOS/WorkspaceNavigationManager.swift` — cross-view navigation coordination
-
-**Test Steps:**
-
-*End-to-End:*
-1. Launch on visionOS — Card Matrix appears
-2. Create a card → appears in matrix
-3. Select card → detail panel pops out
-4. Edit card name in detail panel → matrix CardView updates
-5. Tap "Open Murderboard" → satellite window opens
-6. Drag card from matrix to Murderboard → node appears
-7. Give Murderboard focus → dragged card disabled in matrix
-8. Open Timeline satellite → drag another card to timeline
-9. Give Timeline focus → timeline card disabled, Murderboard cards re-enabled in matrix
-10. Arrange all windows spatially
-11. Force-quit → relaunch → all windows, content, positions restored
-12. Filter Cube filter state restored
-
-*Cross-View Navigation:*
-13. Double-tap a Murderboard node → matrix scrolls to and selects that card
-14. Tap a related card in detail panel → matrix selects that card, detail panel updates
-15. "Navigate to card" from any satellite → matrix scrolls to card
-
-*Performance:*
-16. Load 200+ cards → matrix scrolls smoothly at 90fps
-17. 3 satellite windows open simultaneously → no frame drops
-18. Apply complex filter (search + kind + grouping) → matrix updates within 200ms
-
-*Accessibility:*
-19. VoiceOver: navigate matrix columns and cards
-20. VoiceOver: "Add to Murderboard" via context menu (alternative to drag)
-21. VoiceOver: navigate Filter Cube faces
-
-**Notes:**
-- This ER is the "polish and integrate" pass — it depends on all five preceding ERs being functional
-- The biggest risk is cross-view navigation performance — posting notifications across windows can be laggy if not done carefully
-- Consider a brief "welcome to spatial workspace" onboarding overlay on first visionOS launch
-- The workspace paradigm is significantly different from macOS/iOS — consider a "spatial workspace guide" in Settings/Help
-- This ER completes the visionOS workspace redesign; future visionOS ERs (spatial Murderboard ER-0042-0045) build on top of it
-- Related: ER-0042 through ER-0050 (all visionOS ERs)
+_(See ER-backlog.md for full details - integrates all workspace components into cohesive experience with backlog removal and cross-window coordination)_
 
 ---
 
-## Recently Verified
-
-- **ER-0037:** Theming System — Multi-Color Themes, Background Images & User-Defined Themes — ✅ Verified 2026-03-03 -> [ER-verified-0037.md](./ER-verified-0037.md)
-- **ER-0039:** Cross-Platform Feasibility — Windows — ✅ Verified 2026-02-24 -> [ER-verified-0039.md](./ER-verified-0039.md)
-- **ER-0040:** Cross-Platform Feasibility — Linux — ✅ Verified 2026-02-24 -> [ER-verified-0040.md](./ER-verified-0040.md)
-- **ER-0041:** Cross-Platform Feasibility — Android — ✅ Verified 2026-02-24 -> [ER-verified-0041.md](./ER-verified-0041.md)
-- **ER-0038:** Localization Infrastructure — ✅ Verified 2026-02-23 -> [ER-verified-0038.md](./ER-verified-0038.md)
-- **ER-0036:** Edge Count Sentinel — Live Desync Detection and Recovery — ✅ Verified 2026-02-22 -> [ER-verified-0036.md](./ER-verified-0036.md)
-- **ER-0035:** Relationship Diagnostic Tools and Safety Guards — ✅ Verified 2026-02-21 -> [ER-verified-0035.md](./ER-verified-0035.md)
-- **ER-0032:** Add Search and Multi-Filter to Backlog Sidebar — ✅ Verified 2026-02-20 -> [ER-verified-0032.md](./ER-verified-0032.md)
-- **ER-0031:** Enhance Existing Backlog Sidebar — ✅ Verified 2026-02-19 -> [ER-verified-0031.md](./ER-verified-0031.md)
-- **ER-0033:** Wire Gesture Callbacks in MurderBoard App — ✅ Verified 2026-02-19 -> [ER-verified-0033.md](./ER-verified-0033.md)
-
----
-
-*Last Updated: 2026-03-03*
+*Last Updated: 2026-04-13*
