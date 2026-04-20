@@ -5,7 +5,7 @@
 **Purpose:** This file contains enhancement requests that are in progress and whose implementation is not yet complete. These are features we are actively implementing.
 
 *
-**Status:** Currently **11 proposed ERs, 0 in progress**
+**Status:** Currently **0 in progress ERs**
 
 ---
 

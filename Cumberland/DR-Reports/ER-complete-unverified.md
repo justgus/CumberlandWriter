@@ -4,7 +4,7 @@
 
 **Purpose:** This file contains enhancement requests that have been completed and are awaiting verification. These are features we have most recently implemented and require testing/verification.
 
-**Status:** Currently **0 proposed ERs**
+**Status:** Currently **0 complete unverified ERs**
 
 ---
 
