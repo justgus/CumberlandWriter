@@ -727,8 +727,11 @@ struct MainAppView: View {
                 } else {
                     switch selectedDetailTab {
                     case .details:
-                        // Route calendar cards to their specialized detail editor
-                        if card.kind == .calendars {
+                        // Route project cards to the new ProjectDetailView (Manuscript + Dashboard)
+                        if card.kind == .projects {
+                            ProjectDetailView(project: card)
+                        } else if card.kind == .calendars {
+                            // Route calendar cards to their specialized detail editor
                             CalendarDetailEditor(card: card)
                                 .navigationTitle(card.name)
                         } else if card.kind == .sources {
