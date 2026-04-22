@@ -238,4 +238,144 @@ final class EdgeRepository {
         let allEdges = (try? modelContext.fetch(fetch)) ?? []
         return Array(allEdges.prefix(limit))
     }
+
+    // MARK: - Project Writer Helpers
+
+    /// Create an edge linking a scene to a project with manuscript order
+    /// - Parameters:
+    ///   - scene: The scene card
+    ///   - project: The project card
+    ///   - sortIndex: The manuscript order position (optional, defaults to end)
+    ///   - chapterID: Optional chapter UUID this scene belongs to in this project (currently unused - for future implementation)
+    /// - Throws: SwiftData errors
+    func linkSceneToProject(
+        scene: Card,
+        project: Card,
+        sortIndex: Double? = nil,
+        chapterID: UUID? = nil
+    ) throws {
+        // Get the "belongs-to/contains-scene" relationship type
+        let typeCode = "belongs-to/contains-scene"
+        let typeFetch = FetchDescriptor<RelationType>(
+            predicate: #Predicate { $0.code == typeCode }
+        )
+        guard let relationType = try modelContext.fetch(typeFetch).first else {
+            throw EdgeRepositoryError.relationTypeNotFound(typeCode)
+        }
+
+        // Calculate sortIndex if not provided
+        let finalSortIndex: Double
+        if let providedIndex = sortIndex {
+            finalSortIndex = providedIndex
+        } else {
+            // Get max sortIndex for scenes in this project
+            let projectID: UUID? = project.id
+            let sceneKind: String = Kinds.scenes.rawValue
+            let relationCode: String? = typeCode
+
+            let existingFetch = FetchDescriptor<CardEdge>(
+                predicate: #Predicate { edge in
+                    edge.to?.id == projectID &&
+                    edge.from?.kindRaw == sceneKind &&
+                    edge.type?.code == relationCode
+                },
+                sortBy: [SortDescriptor(\.sortIndex, order: .reverse)]
+            )
+
+            let existing = (try? modelContext.fetch(existingFetch)) ?? []
+            let maxIndex = existing.first?.sortIndex ?? 0.0
+            finalSortIndex = maxIndex + 1.0
+        }
+
+        // Create the edge
+        let edge = CardEdge(from: scene, to: project, type: relationType)
+        edge.sortIndex = finalSortIndex
+        // Note: chapterID field doesn't exist on CardEdge yet - scene-to-chapter
+        // association is tracked via separate "part-of/has-scene" edges
+
+        try insert(edge)
+    }
+
+    /// Create an edge linking a chapter to a project with order
+    /// - Parameters:
+    ///   - chapter: The chapter card
+    ///   - project: The project card
+    ///   - sortIndex: The chapter order position (optional, defaults to end)
+    /// - Throws: SwiftData errors
+    func linkChapterToProject(
+        chapter: Card,
+        project: Card,
+        sortIndex: Double? = nil
+    ) throws {
+        // Get the "part-of/has-chapter" relationship type
+        let typeCode = "part-of/has-chapter"
+        let typeFetch = FetchDescriptor<RelationType>(
+            predicate: #Predicate { $0.code == typeCode }
+        )
+        guard let relationType = try modelContext.fetch(typeFetch).first else {
+            throw EdgeRepositoryError.relationTypeNotFound(typeCode)
+        }
+
+        // Calculate sortIndex if not provided
+        let finalSortIndex: Double
+        if let providedIndex = sortIndex {
+            finalSortIndex = providedIndex
+        } else {
+            // Get max sortIndex for chapters in this project
+            let projectID: UUID? = project.id
+            let chapterKind: String = Kinds.chapters.rawValue
+            let relationCode: String? = typeCode
+
+            let existingFetch = FetchDescriptor<CardEdge>(
+                predicate: #Predicate { edge in
+                    edge.to?.id == projectID &&
+                    edge.from?.kindRaw == chapterKind &&
+                    edge.type?.code == relationCode
+                },
+                sortBy: [SortDescriptor(\.sortIndex, order: .reverse)]
+            )
+
+            let existing = (try? modelContext.fetch(existingFetch)) ?? []
+            let maxIndex = existing.first?.sortIndex ?? 0.0
+            finalSortIndex = maxIndex + 1.0
+        }
+
+        // Create the edge
+        let edge = CardEdge(from: chapter, to: project, type: relationType)
+        edge.sortIndex = finalSortIndex
+
+        try insert(edge)
+    }
+
+    /// Create an edge linking a scene to a chapter
+    /// - Parameters:
+    ///   - scene: The scene card
+    ///   - chapter: The chapter card
+    /// - Throws: SwiftData errors
+    func linkSceneToChapter(scene: Card, chapter: Card) throws {
+        // Get the "part-of/has-scene" relationship type
+        let typeCode = "part-of/has-scene"
+        let typeFetch = FetchDescriptor<RelationType>(
+            predicate: #Predicate { $0.code == typeCode }
+        )
+        guard let relationType = try modelContext.fetch(typeFetch).first else {
+            throw EdgeRepositoryError.relationTypeNotFound(typeCode)
+        }
+
+        // Create the edge
+        let edge = CardEdge(from: scene, to: chapter, type: relationType)
+        try insert(edge)
+    }
+}
+
+/// Errors that can occur in EdgeRepository operations
+enum EdgeRepositoryError: Error {
+    case relationTypeNotFound(String)
+
+    var localizedDescription: String {
+        switch self {
+        case .relationTypeNotFound(let code):
+            return "Relationship type '\(code)' not found. Make sure it's seeded in CumberlandApp."
+        }
+    }
 }

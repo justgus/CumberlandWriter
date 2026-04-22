@@ -30,28 +30,42 @@ struct ManuscriptWritingSurfaceView: View {
     @State private var activeChapterID: UUID?
     @State private var activeSceneID: UUID?
 
-    // Manuscript text (placeholder - will be built from scenes)
+    // Manuscript text and assembly result
     @State private var manuscriptText: String = ""
+    @State private var manuscriptResult: ManuscriptAssembler.ManuscriptResult?
 
-    // Context gutter items for active scene
-    @State private var contextGutterItems: [Card] = []
+    // Scene context with potential and confirmed cards
+    @State private var sceneContext = SceneContext()
+
+    // Entity detection service
+    @State private var entityDetectionService: EntityDetectionService?
+
+    // Text parsing task for debouncing
+    @State private var textParseTask: Task<Void, Never>?
+
+    // Card detail sheet
+    @State private var selectedCardForDetail: Card?
+
+    // Chapter creation prompt
+    @State private var pendingChapter: Card?
+
+    // Potential card menu
+    @State private var selectedPotentialCard: PotentialCard?
+    @State private var showPotentialCardMenu = false
+
+    // Quick action sheets
+    @State private var showScenesPanel = false
+    @State private var showStructurePanel = false
+    @State private var showContextPanel = false
+    @State private var showNotesPanel = false
+    @State private var showFocusMode = false
 
     private var chapters: [Card] {
-        allCards.filter { card in
-            card.kind == .chapters &&
-            // TODO: Filter by cards linked to this project
-            true
-        }
-        .sorted { $0.name < $1.name }
+        project.chaptersInProject(modelContext: modelContext)
     }
 
     private var scenes: [Card] {
-        allCards.filter { card in
-            card.kind == .scenes &&
-            // TODO: Filter by cards linked to this project and active chapter
-            true
-        }
-        .sorted { $0.name < $1.name }
+        project.scenesInProject(modelContext: modelContext)
     }
 
     var body: some View {
@@ -82,7 +96,174 @@ struct ManuscriptWritingSurfaceView: View {
         }
         .onAppear {
             loadManuscriptContent()
+            initializeEntityDetection()
         }
+        .onChange(of: manuscriptText) { oldValue, newValue in
+            handleTextChange(newValue)
+        }
+        .sheet(item: $selectedCardForDetail) { card in
+            CardSheetView(card: card)
+        }
+        .confirmationDialog(
+            "Create first scene?",
+            isPresented: Binding(
+                get: { pendingChapter != nil },
+                set: { if !$0 { pendingChapter = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Yes, create scene") {
+                handleChapterPromptResponse(createScene: true)
+            }
+            Button("No, just chapter") {
+                handleChapterPromptResponse(createScene: false)
+            }
+        } message: {
+            Text("Would you like to create an opening scene for this chapter?")
+        }
+        .sheet(isPresented: $showPotentialCardMenu) {
+            if let potential = selectedPotentialCard {
+                potentialCardMenuSheet(for: potential)
+            }
+        }
+        .sheet(isPresented: $showScenesPanel) {
+            scenesPanel
+        }
+        .sheet(isPresented: $showStructurePanel) {
+            structurePanel
+        }
+        .sheet(isPresented: $showContextPanel) {
+            contextPanel
+        }
+        .sheet(isPresented: $showNotesPanel) {
+            notesPanel
+        }
+    }
+
+    // MARK: - Quick Action Panels
+
+    private var scenesPanel: some View {
+        VStack {
+            Text("Scenes")
+                .font(.headline)
+                .padding()
+
+            List(scenes) { scene in
+                HStack {
+                    Text(scene.name)
+                    Spacer()
+                    if scene.id == activeSceneID {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.blue)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    activeSceneID = scene.id
+                    sceneContext.activeSceneID = scene.id
+                    showScenesPanel = false
+                }
+            }
+        }
+        .frame(width: 400, height: 500)
+    }
+
+    private var structurePanel: some View {
+        StructureSelectionSheet(project: project)
+            .frame(width: 800, height: 600)
+            .onDisappear {
+                // Reload manuscript when structure changes
+                loadManuscriptContent()
+            }
+    }
+
+    private var contextPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Scene Context")
+                .font(.headline)
+                .padding()
+
+            Text("Confirmed Cards")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+
+            List(sceneContext.confirmedCards) { card in
+                HStack {
+                    Circle()
+                        .fill(colorForKind(card.kind))
+                        .frame(width: 8, height: 8)
+                    Text(card.name)
+                    Spacer()
+                    Text(card.kind.rawValue)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(width: 400, height: 500)
+    }
+
+    private var notesPanel: some View {
+        VStack {
+            Text("Scene Notes")
+                .font(.headline)
+                .padding()
+
+            Text("Notes functionality coming soon...")
+                .foregroundStyle(.secondary)
+
+            Spacer()
+        }
+        .frame(width: 400, height: 500)
+    }
+
+    @MainActor
+    private func potentialCardMenuSheet(for potential: PotentialCard) -> some View {
+        VStack(spacing: 20) {
+            Text("Confirm Card")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Name: \(potential.name)")
+                Text("Type: \(potential.kind.rawValue)")
+                Text("Confidence: \(Int(potential.confidence * 100))%")
+            }
+            .font(.subheadline)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
+
+            VStack(spacing: 12) {
+                Button {
+                    Task {
+                        await confirmPotentialCard(potential, asNewCard: true)
+                        showPotentialCardMenu = false
+                    }
+                } label: {
+                    Label("Create New \(potential.kind.rawValue)", systemImage: "plus.circle.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    dismissPotentialCard(potential)
+                    showPotentialCardMenu = false
+                } label: {
+                    Label("Dismiss", systemImage: "xmark.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
+                Button("Cancel") {
+                    showPotentialCardMenu = false
+                }
+                .buttonStyle(.borderless)
+            }
+        }
+        .padding()
+        .frame(width: 400)
     }
 
     // MARK: - Chapter Tab Strip
@@ -150,43 +331,97 @@ struct ManuscriptWritingSurfaceView: View {
     }
 
     private func scenesInChapter(_ chapter: Card) -> [Card] {
-        // TODO: Filter scenes by chapter relationship
-        scenes
+        let repository = CardRepository(modelContext: modelContext)
+        return repository.fetchScenesInChapter(chapterID: chapter.id, projectID: project.id)
     }
 
     // MARK: - Manuscript Canvas
 
     private var manuscriptCanvas: some View {
-        ScrollView(.vertical) {
-            VStack(spacing: 0) {
-                // Current scene chip (floating indicator)
-                if let activeScene = scenes.first(where: { $0.id == activeSceneID }) {
-                    HStack {
-                        Text("Scene \(sceneNumber(activeScene)) • \(activeScene.name)")
-                            .font(.caption)
-                            .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .background(themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground())
-                            )
-                        Spacer()
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                VStack(spacing: 0) {
+                    // Current scene chip (floating indicator)
+                    if let activeScene = scenes.first(where: { $0.id == activeSceneID }) {
+                        HStack {
+                            Text("Scene \(sceneNumber(activeScene)) • \(activeScene.name)")
+                                .font(.caption)
+                                .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Capsule()
+                                        .background(themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground())
+                                )
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                }
 
-                // Continuous manuscript text
-                TextEditor(text: $manuscriptText)
-                    .font(.system(size: 16, design: .serif))
-                    .scrollContentBackground(.hidden)
-                    .padding(.horizontal, 60)
-                    .padding(.vertical, 20)
-                    .frame(maxWidth: 800) // Readable line length
+                    // Continuous manuscript text with scene markers
+                    if let result = manuscriptResult, !result.scenes.isEmpty {
+                        ForEach(result.scenes, id: \.id) { sceneInfo in
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(manuscriptText)
+                                    .font(.system(size: 16, design: .serif))
+                                    .frame(maxWidth: 800)
+                            }
+                            .id(sceneInfo.id)
+                        }
+                    } else if scenes.isEmpty && chapters.isEmpty {
+                        // Empty state - no content yet
+                        VStack(spacing: 16) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 48))
+                                .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
+
+                            Text("No Scenes Yet")
+                                .font(.title2)
+                                .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
+
+                            Text("Create a chapter and scene to start writing")
+                                .font(.body)
+                                .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+                                .multilineTextAlignment(.center)
+
+                            HStack(spacing: 12) {
+                                Button {
+                                    createNewChapter()
+                                } label: {
+                                    Label("Add Chapter", systemImage: "book.closed")
+                                }
+                                .buttonStyle(.borderedProminent)
+
+                                Button {
+                                    createNewScene()
+                                } label: {
+                                    Label("Add Scene", systemImage: "rectangle.stack")
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                        .frame(maxWidth: 600)
+                        .padding(.top, 100)
+                    } else {
+                        TextEditor(text: $manuscriptText)
+                            .font(.system(size: 16, design: .serif))
+                            .scrollContentBackground(.hidden)
+                            .padding(.horizontal, 60)
+                            .padding(.vertical, 20)
+                            .frame(maxWidth: 800)
+                    }
+                }
+                .onChange(of: activeSceneID) { oldValue, newValue in
+                    if let sceneID = newValue {
+                        withAnimation {
+                            proxy.scrollTo(sceneID, anchor: .top)
+                        }
+                    }
+                }
             }
+            .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
         }
-        .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
     }
 
     private func sceneNumber(_ scene: Card) -> Int {
@@ -202,8 +437,27 @@ struct ManuscriptWritingSurfaceView: View {
                 .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
                 .padding(.top, 12)
 
-            ForEach(contextGutterItems) { item in
-                contextGutterCircle(for: item)
+            // Location card (potential or confirmed) - always shown first
+            if let confirmedLocation = sceneContext.confirmedLocation {
+                confirmedCardCircle(for: confirmedLocation)
+            } else if let locationPotential = sceneContext.locationCard {
+                potentialCardCircle(for: locationPotential)
+            }
+
+            // Divider if we have a location card
+            if sceneContext.confirmedLocation != nil || sceneContext.locationCard != nil {
+                Divider()
+                    .padding(.vertical, 4)
+            }
+
+            // Potential cards (sorted by confidence)
+            ForEach(sceneContext.sortedPotentialCards.filter { $0.kind != .locations }) { potential in
+                potentialCardCircle(for: potential)
+            }
+
+            // Confirmed cards (excluding location which is shown at top)
+            ForEach(sceneContext.confirmedCards.filter { $0.kind != .locations }) { card in
+                confirmedCardCircle(for: card)
             }
 
             Spacer()
@@ -216,50 +470,95 @@ struct ManuscriptWritingSurfaceView: View {
         )
     }
 
-    private func contextGutterCircle(for item: Card) -> some View {
-        ZStack {
-            Circle()
-                .background(themeManager.currentTheme.colors.surfaceTertiary.platformResolved.asBackground())
-                .frame(width: 48, height: 48)
+    /// Potential card circle (greyed out initials or icon, dashed border)
+    private func potentialCardCircle(for potential: PotentialCard) -> some View {
+        Button {
+            handlePotentialCardTap(potential)
+        } label: {
+            ZStack {
+                // Background circle
+                Circle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 48, height: 48)
 
-            Circle()
-                .strokeBorder(colorForKind(item.kind), lineWidth: 3)
-                .frame(width: 48, height: 48)
+                // Thick colored ring (greyed out)
+                Circle()
+                    .strokeBorder(potential.indicatorColor.opacity(0.4), lineWidth: 3)
+                    .frame(width: 48, height: 48)
 
-            // Thumbnail or icon
-            if let thumbnailData = item.thumbnailData {
-                #if os(macOS)
-                if let nsImage = NSImage(data: thumbnailData) {
-                    Image(nsImage: nsImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 44, height: 44)
-                        .clipShape(Circle())
-                } else {
-                    Image(systemName: item.kind.systemImage)
+                // Initials or icon (greyed out)
+                if potential.name.isEmpty || potential.name.lowercased() == "it" || potential.name.lowercased() == "that" {
+                    // No name - show icon for kind
+                    Image(systemName: potential.kind.systemImage)
                         .font(.system(size: 18))
-                        .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
-                }
-                #else
-                if let uiImage = UIImage(data: thumbnailData) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 44, height: 44)
-                        .clipShape(Circle())
+                        .foregroundStyle(Color.gray.opacity(0.5))
                 } else {
-                    Image(systemName: item.kind.systemImage)
-                        .font(.system(size: 18))
-                        .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+                    // Has name - show initials
+                    Text(initials(from: potential.name))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Color.gray.opacity(0.5))
                 }
-                #endif
-            } else {
-                Image(systemName: item.kind.systemImage)
-                    .font(.system(size: 18))
-                    .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
             }
         }
-        .help(item.name)
+        .buttonStyle(.plain)
+        .help("\(potential.name) (potential \(potential.kind.rawValue))")
+    }
+
+    /// Confirmed card circle (thumbnail or initials, thick colored border)
+    private func confirmedCardCircle(for card: Card) -> some View {
+        Button {
+            handleConfirmedCardTap(card)
+        } label: {
+            ZStack {
+                // Background circle
+                Circle()
+                    .fill(Color.white.opacity(0.9))
+                    .frame(width: 48, height: 48)
+
+                // Thick colored ring (kind-specific color, full opacity)
+                Circle()
+                    .strokeBorder(colorForKind(card.kind), lineWidth: 3)
+                    .frame(width: 48, height: 48)
+
+                // Thumbnail or initials
+                if let thumbnailData = card.thumbnailData {
+                    #if os(macOS)
+                    if let nsImage = NSImage(data: thumbnailData) {
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 42, height: 42)
+                            .clipShape(Circle())
+                    } else {
+                        // No valid thumbnail - show initials
+                        Text(initials(from: card.name))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(colorForKind(card.kind))
+                    }
+                    #else
+                    if let uiImage = UIImage(data: thumbnailData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 42, height: 42)
+                            .clipShape(Circle())
+                    } else {
+                        // No valid thumbnail - show initials
+                        Text(initials(from: card.name))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(colorForKind(card.kind))
+                    }
+                    #endif
+                } else {
+                    // No thumbnail - show initials
+                    Text(initials(from: card.name))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(colorForKind(card.kind))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .help(card.name)
     }
 
     private func colorForKind(_ kind: Kinds) -> Color {
@@ -268,7 +567,31 @@ struct ManuscriptWritingSurfaceView: View {
         case .artifacts: return .orange
         case .vehicles: return .green
         case .locations: return .purple
+        case .buildings: return .brown
+        case .chronicles: return .cyan
         default: return .gray
+        }
+    }
+
+    /// Extract initials from a name (e.g., "John Smith" -> "JS")
+    private func initials(from name: String) -> String {
+        let words = name.split(separator: " ").map(String.init)
+
+        if words.isEmpty {
+            return "?"
+        } else if words.count == 1 {
+            // Single word - take first two characters
+            let word = words[0]
+            if word.count >= 2 {
+                return String(word.prefix(2)).uppercased()
+            } else {
+                return word.uppercased()
+            }
+        } else {
+            // Multiple words - take first letter of first two words
+            let first = words[0].prefix(1)
+            let second = words[1].prefix(1)
+            return (String(first) + String(second)).uppercased()
         }
     }
 
@@ -311,7 +634,6 @@ struct ManuscriptWritingSurfaceView: View {
         return Button {
             withAnimation {
                 activeSceneID = scene.id
-                // TODO: Scroll to this scene in manuscript
             }
         } label: {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
@@ -326,11 +648,11 @@ struct ManuscriptWritingSurfaceView: View {
 
     private var quickActionTray: some View {
         HStack(spacing: 16) {
-            quickActionButton(title: "Scenes", icon: "rectangle.stack")
-            quickActionButton(title: "Structure", icon: "list.number")
-            quickActionButton(title: "Context", icon: "person.2")
-            quickActionButton(title: "Notes", icon: "note.text")
-            quickActionButton(title: "Focus", icon: "eye")
+            quickActionButton(title: "Scenes", icon: "rectangle.stack", action: { showScenesPanel = true })
+            quickActionButton(title: "Structure", icon: "list.number", action: { showStructurePanel = true })
+            quickActionButton(title: "Context", icon: "person.2", action: { showContextPanel = true })
+            quickActionButton(title: "Notes", icon: "note.text", action: { showNotesPanel = true })
+            quickActionButton(title: "Focus", icon: "eye", action: { showFocusMode.toggle() })
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -340,10 +662,8 @@ struct ManuscriptWritingSurfaceView: View {
         )
     }
 
-    private func quickActionButton(title: String, icon: String) -> some View {
-        Button {
-            // TODO: Implement quick actions
-        } label: {
+    private func quickActionButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 18))
@@ -358,48 +678,116 @@ struct ManuscriptWritingSurfaceView: View {
     // MARK: - Actions
 
     private func createNewChapter() {
-        let newChapter = Card(kind: .chapters, name: "New Chapter", subtitle: "", detailedText: "")
-        modelContext.insert(newChapter)
+        let cardRepo = CardRepository(modelContext: modelContext)
+        let edgeRepo = EdgeRepository(modelContext: modelContext)
 
-        // Create first scene in chapter
-        let firstScene = Card(kind: .scenes, name: "Opening", subtitle: "", detailedText: "")
-        modelContext.insert(firstScene)
+        // Create new chapter
+        guard let newChapter = try? cardRepo.createCard(kind: .chapters, name: "New Chapter") else {
+            return
+        }
 
-        // TODO: Link chapter to project
-        // TODO: Link scene to chapter
-        // TODO: Set scene order
+        // Link chapter to project
+        try? edgeRepo.linkChapterToProject(chapter: newChapter, project: project)
 
-        try? modelContext.save()
-
-        // Set as active
+        // Set as active chapter
         activeChapterID = newChapter.id
+
+        // Store chapter and prompt user
+        pendingChapter = newChapter
+    }
+
+    private func handleChapterPromptResponse(createScene: Bool) {
+        guard let chapter = pendingChapter else { return }
+
+        if createScene {
+            createFirstSceneForChapter(chapter)
+        }
+
+        pendingChapter = nil
+    }
+
+    private func createFirstSceneForChapter(_ chapter: Card) {
+        let cardRepo = CardRepository(modelContext: modelContext)
+        let edgeRepo = EdgeRepository(modelContext: modelContext)
+
+        // Create first scene
+        guard let firstScene = try? cardRepo.createCard(kind: .scenes, name: "Opening") else {
+            return
+        }
+
+        // Link scene to chapter and project
+        try? edgeRepo.linkSceneToChapter(scene: firstScene, chapter: chapter)
+        try? edgeRepo.linkSceneToProject(scene: firstScene, project: project, chapterID: chapter.id)
+
+        // Clear scene context for new scene
+        sceneContext.clearForNewScene()
+
+        // Auto-create Location potential card
+        let locationPotential = PotentialCard(
+            kind: .locations,
+            name: "Scene Location",
+            confidence: 1.0,
+            sceneID: firstScene.id,
+            detectionSource: .manual
+        )
+        sceneContext.addPotentialCard(locationPotential)
+
+        // Set as active scene
         activeSceneID = firstScene.id
+        sceneContext.activeSceneID = firstScene.id
     }
 
     private func createNewScene() {
-        let newScene = Card(kind: .scenes, name: "New Scene", subtitle: "", detailedText: "")
-        modelContext.insert(newScene)
+        let cardRepo = CardRepository(modelContext: modelContext)
+        let edgeRepo = EdgeRepository(modelContext: modelContext)
 
-        // TODO: Link scene to active chapter
-        // TODO: Insert into scene order
+        // Create new scene
+        guard let newScene = try? cardRepo.createCard(kind: .scenes, name: "New Scene") else {
+            return
+        }
 
-        try? modelContext.save()
+        // Link scene to active chapter and project
+        if let activeChapterID {
+            // Link to active chapter
+            if let activeChapter = chapters.first(where: { $0.id == activeChapterID }) {
+                try? edgeRepo.linkSceneToChapter(scene: newScene, chapter: activeChapter)
+                try? edgeRepo.linkSceneToProject(scene: newScene, project: project, chapterID: activeChapterID)
+            }
+        } else {
+            // No active chapter - create orphaned scene
+            try? edgeRepo.linkSceneToProject(scene: newScene, project: project)
+        }
+
+        // Clear scene context for new scene
+        sceneContext.clearForNewScene()
+
+        // Auto-create Location potential card
+        let locationPotential = PotentialCard(
+            kind: .locations,
+            name: "Scene Location",
+            confidence: 1.0,
+            sceneID: newScene.id,
+            detectionSource: .manual
+        )
+        sceneContext.addPotentialCard(locationPotential)
 
         // Set as active
         activeSceneID = newScene.id
+        sceneContext.activeSceneID = newScene.id
     }
 
     private func loadManuscriptContent() {
-        // TODO: Build continuous manuscript text from scenes
-        // For now, placeholder
-        if scenes.isEmpty {
-            manuscriptText = "Start writing your story here...\n\nCreate chapters and scenes using the controls above."
-        } else {
-            manuscriptText = scenes.map { scene in
-                let title = scene.name.isEmpty ? "Untitled Scene" : scene.name
-                return "# \(title)\n\n\(scene.detailedText)\n\n"
-            }.joined()
-        }
+        // Use ManuscriptAssembler to build the manuscript
+        let result = ManuscriptAssembler.assembleManuscript(
+            for: project,
+            in: modelContext,
+            options: .default
+        )
+
+        manuscriptResult = result
+        manuscriptText = result.text.isEmpty
+            ? "Start writing your story here...\n\nCreate chapters and scenes using the controls above."
+            : result.text
 
         // Set first chapter and scene as active
         if activeChapterID == nil, let firstChapter = chapters.first {
@@ -407,7 +795,105 @@ struct ManuscriptWritingSurfaceView: View {
         }
         if activeSceneID == nil, let firstScene = scenes.first {
             activeSceneID = firstScene.id
+            sceneContext.activeSceneID = firstScene.id
         }
+    }
+
+    // MARK: - Entity Detection
+
+    private func initializeEntityDetection() {
+        entityDetectionService = EntityDetectionService(modelContext: modelContext)
+    }
+
+    private func handleTextChange(_ newText: String) {
+        // Cancel previous parsing task
+        textParseTask?.cancel()
+
+        // Debounce: wait 500ms after typing stops
+        textParseTask = Task {
+            do {
+                try await Task.sleep(for: .milliseconds(500))
+                await updatePotentialCards(from: newText)
+            } catch {
+                // Task was cancelled, ignore
+            }
+        }
+    }
+
+    private func updatePotentialCards(from text: String) async {
+        guard let activeSceneID, let service = entityDetectionService else { return }
+
+        // Parse text in background
+        let detected = await service.detectEntities(in: text, sceneID: activeSceneID)
+
+        // Update scene context (non-interrupting)
+        await MainActor.run {
+            // Merge with existing potential cards, preserving dismissed state
+            for detectedCard in detected {
+                if !sceneContext.potentialCards.contains(where: { $0.id == detectedCard.id }) {
+                    sceneContext.addPotentialCard(detectedCard)
+                }
+            }
+        }
+    }
+
+    // MARK: - Card Interaction Handlers
+
+    private func handlePotentialCardTap(_ potential: PotentialCard) {
+        selectedPotentialCard = potential
+        showPotentialCardMenu = true
+    }
+
+    @MainActor
+    private func confirmPotentialCard(_ potential: PotentialCard, asNewCard: Bool) async {
+        let cardRepo = CardRepository(modelContext: modelContext)
+        let edgeRepo = EdgeRepository(modelContext: modelContext)
+
+        if asNewCard {
+            // Create new card
+            if let newCard = try? cardRepo.createCard(
+                kind: potential.kind,
+                name: potential.name
+            ) {
+                // Add to confirmed cards
+                sceneContext.confirmPotential(potential, asCard: newCard)
+
+                // Link to active scene if exists
+                if let activeSceneID,
+                   let activeScene = scenes.first(where: { $0.id == activeSceneID }) {
+                    // Create appropriate relationship based on kind
+                    let relationTypeCode = relationTypeForKind(potential.kind)
+                    if let relationType = try? await fetchRelationType(code: relationTypeCode) {
+                        let edge = CardEdge(from: activeScene, to: newCard, type: relationType)
+                        try? edgeRepo.insert(edge)
+                    }
+                }
+            }
+        }
+    }
+
+    private func dismissPotentialCard(_ potential: PotentialCard) {
+        sceneContext.dismissPotential(potential)
+    }
+
+    private func relationTypeForKind(_ kind: Kinds) -> String {
+        switch kind {
+        case .characters: return "features/appears-in"
+        case .locations: return "set-in/setting-of"
+        case .artifacts: return "features/appears-in"
+        default: return "related-to/related-to"
+        }
+    }
+
+    private func fetchRelationType(code: String) async throws -> RelationType? {
+        let fetch = FetchDescriptor<RelationType>(
+            predicate: #Predicate { $0.code == code }
+        )
+        return try modelContext.fetch(fetch).first
+    }
+
+    private func handleConfirmedCardTap(_ card: Card) {
+        selectedCardForDetail = card
     }
 }
 

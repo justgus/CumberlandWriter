@@ -249,15 +249,61 @@ extension StoryStructure {
     
     static func createFromTemplate(_ template: (name: String, elements: [String]), for projectID: UUID? = nil) -> StoryStructure {
         let structure = StoryStructure(name: template.name, projectID: projectID)
-        
+
         for (index, elementName) in template.elements.enumerated() {
             let element = StructureElement(name: elementName, orderIndex: index)
             element.storyStructure = structure            // ensure inverse
             if structure.elements == nil { structure.elements = [] }
             structure.elements?.append(element)
         }
-        
+
         return structure
+    }
+
+    /// Returns the narrative arc for this structure
+    ///
+    /// Each story structure has an inherent dramatic tension or complexity curve.
+    /// This arc is used for:
+    /// 1. Dashboard visualization (sparkline with variable line thickness)
+    /// 2. Scene mapping algorithm when switching between structures
+    ///
+    /// For custom structures without predefined arcs, returns LinearArc (straight line).
+    var narrativeArc: NarrativeArc {
+        switch name {
+        // Narrative Structures
+        case "Three-Act Structure":
+            return ThreeActArc()
+        case "Beginning-Middle-End":
+            return BeginningMiddleEndArc()
+        case "Five-Act Structure":
+            return FiveActArc()
+        case "Four-Part Structure":
+            return FourPartArc()
+        case "Hero's Journey (Formal)":
+            return HerosJourneyFormalArc()
+        case "Hero's Journey (Simplified)":
+            return HerosJourneySimplifiedArc()
+        case "Save the Cat":
+            return SaveTheCatArc()
+        case "Novel":
+            return NovelArc()
+        case "Short Story":
+            return ShortStoryArc()
+
+        // Non-Narrative Structures (Complexity-Based)
+        case "Academic Paper":
+            return AcademicPaperArc()
+        case "Term Paper":
+            return TermPaperArc()
+        case "Technical Document":
+            return TechnicalDocumentArc()
+        case "White Paper":
+            return WhitePaperArc()
+
+        // Fallback for custom structures
+        default:
+            return LinearArc()
+        }
     }
 }
 

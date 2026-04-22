@@ -29,25 +29,9 @@ struct ProjectDashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var themeManager: ThemeManager
 
-    // Query for project-related cards
-    @Query private var allCards: [Card]
-
     @State private var dashboardModel: ProjectDashboardModel?
-
-    private var chapters: [Card] {
-        allCards.filter { $0.kind == .chapters }
-            .sorted { $0.name < $1.name }
-    }
-
-    private var scenes: [Card] {
-        allCards.filter { $0.kind == .scenes }
-            .sorted { $0.name < $1.name }
-    }
-
-    private var characters: [Card] {
-        allCards.filter { $0.kind == .characters }
-            .sorted { $0.name < $1.name }
-    }
+    @State private var dashboardService: ProjectDashboardService?
+    @State private var showingStructureSelector = false
 
     var body: some View {
         ScrollView(.vertical) {
@@ -88,6 +72,13 @@ struct ProjectDashboardView: View {
             }
         }
         .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
+        .sheet(isPresented: $showingStructureSelector) {
+            StructureSelectionSheet(project: project)
+                .onDisappear {
+                    // Reload dashboard when structure changes
+                    loadDashboardModel()
+                }
+        }
         .onAppear {
             loadDashboardModel()
         }
@@ -101,17 +92,21 @@ struct ProjectDashboardView: View {
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
 
-            HStack(spacing: 16) {
-                Label("\(chapters.count) chapters", systemImage: "book.closed")
-                Label("\(scenes.count) scenes", systemImage: "rectangle.stack")
-                Label("\(characters.count) characters", systemImage: "person.2")
+            if let model = dashboardModel {
+                HStack(spacing: 16) {
+                    Label("\(model.statusGlyph.chapterRing.spans.count) chapters", systemImage: "book.closed")
+                    Label("\(model.statusGlyph.sceneRing.spans.count) scenes", systemImage: "rectangle.stack")
+                    Label("\(model.castShelf.characters.count) characters", systemImage: "person.2")
+                }
+                .font(.caption)
+                .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
             }
-            .font(.caption)
-            .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
 
             HStack(spacing: 8) {
                 phaseBadge("Drafting")
-                stateBadge("Active")
+                if let model = dashboardModel, !model.issuesShelf.issues.isEmpty {
+                    stateBadge("\(model.issuesShelf.issues.count) issue\(model.issuesShelf.issues.count == 1 ? "" : "s")")
+                }
             }
         }
     }
@@ -144,80 +139,332 @@ struct ProjectDashboardView: View {
 
     private var structureBand: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Story Structure")
-                .font(.caption)
-                .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
+            HStack {
+                Text("Story Structure")
+                    .font(.caption)
+                    .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
 
-            // Horizontal contour showing structural beats and content density
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    // Baseline
-                    Rectangle()
-                        .fill(themeManager.currentTheme.colors.border)
-                        .frame(height: 2)
+                Spacer()
 
-                    // Structure beats (placeholder - should come from StoryStructure)
-                    HStack(spacing: 0) {
-                        ForEach(0..<5) { index in
-                            structureBeatNode(
-                                label: "Beat \(index + 1)",
-                                position: CGFloat(index) / 4.0,
-                                isMaterialized: index < 3,
-                                width: geometry.size.width
-                            )
+                Button {
+                    showingStructureSelector = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "text.book.closed")
+                            .font(.caption)
+                        Text("Change")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(themeManager.currentTheme.colors.accentPrimary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if let model = dashboardModel {
+                if model.structureBand.beats.isEmpty {
+                    // No structure defined
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            // Baseline
+                            Rectangle()
+                                .fill(themeManager.currentTheme.colors.border)
+                                .frame(height: 2)
+
+                            Text("No structure defined")
+                                .font(.caption2)
+                                .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
+                                .frame(maxWidth: .infinity, alignment: .center)
                         }
                     }
+                    .frame(height: 60)
+                } else if let arc = model.structureBand.narrativeArc,
+                          let arcSegmentData = model.structureBand.arcSegments {
+                    // NEW: Tufte-style narrative arc visualization
+                    narrativeArcView(
+                        arc: arc,
+                        arcSegmentData: arcSegmentData,
+                        beats: model.structureBand.beats,
+                        activePosition: model.structureBand.activePositionFraction
+                    )
+                } else {
+                    // LEGACY: Horizontal contour showing structural beats and content density
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            // Baseline
+                            Rectangle()
+                                .fill(themeManager.currentTheme.colors.border)
+                                .frame(height: 2)
+
+                            // Contour segments (density visualization)
+                            ForEach(Array(model.structureBand.contourSegments.enumerated()), id: \.offset) { _, segment in
+                                contourSegmentView(segment: segment, width: geometry.size.width)
+                            }
+
+                            // Structure beats
+                            ForEach(model.structureBand.beats, id: \.beatID) { beat in
+                                structureBeatNodeView(
+                                    beat: beat,
+                                    width: geometry.size.width
+                                )
+                            }
+
+                            // Active position marker
+                            if model.structureBand.activePositionFraction > 0 {
+                                activePositionMarker(
+                                    position: model.structureBand.activePositionFraction,
+                                    width: geometry.size.width
+                                )
+                            }
+                        }
+                    }
+                    .frame(height: 60)
                 }
+            } else {
+                ProgressView()
+                    .frame(height: 60)
             }
-            .frame(height: 60)
         }
     }
 
-    private func structureBeatNode(label: String, position: CGFloat, isMaterialized: Bool, width: CGFloat) -> some View {
-        let xPosition = width * position
+    private func narrativeArcView(
+        arc: NarrativeArc,
+        arcSegmentData: [ArcSegmentData],
+        beats: [StructureBeat],
+        activePosition: Double
+    ) -> some View {
+        // Convert ArcSegmentData to ArcSegment (for NarrativeArcVisualization)
+        let arcSegments = arcSegmentData.map { segmentData in
+            ArcSegment(
+                startPosition: segmentData.startPosition,
+                endPosition: segmentData.endPosition,
+                startTension: arc.tension(at: segmentData.startPosition),
+                endTension: arc.tension(at: segmentData.endPosition),
+                sceneCount: segmentData.sceneCount,
+                beatLabel: segmentData.beatLabel,
+                beatID: segmentData.beatID
+            )
+        }
+
+        return VStack(spacing: 0) {
+            NarrativeArcVisualization(
+                arc: arc,
+                segments: arcSegments,
+                activePositionFraction: activePosition > 0 ? activePosition : nil,
+                height: 80
+            )
+
+            // Beat labels below
+            GeometryReader { geometry in
+                ForEach(beats, id: \.beatID) { beat in
+                    Text(beat.label)
+                        .font(.caption2)
+                        .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
+                        .lineLimit(1)
+                        .frame(width: 60)
+                        .offset(
+                            x: (geometry.size.width * beat.normalizedPosition) - 30,
+                            y: 0
+                        )
+                }
+            }
+            .frame(height: 20)
+        }
+        .frame(height: 100)
+    }
+
+    private func contourSegmentView(segment: ContourSegment, width: CGFloat) -> some View {
+        let xStart = width * segment.startFraction
+        let xEnd = width * segment.endFraction
+        let segmentWidth = xEnd - xStart
+
+        let color: Color = {
+            switch segment.state {
+            case .formed:
+                return themeManager.currentTheme.colors.accentPrimary
+            case .thin:
+                return themeManager.currentTheme.colors.textSecondary.opacity(0.4)
+            case .broken:
+                return Color.clear
+            }
+        }()
+
+        let lineHeight = 2.0 * segment.visualWeight
+
+        return Rectangle()
+            .fill(color)
+            .frame(width: segmentWidth, height: lineHeight)
+            .offset(x: xStart, y: 0)
+    }
+
+    private func structureBeatNodeView(beat: StructureBeat, width: CGFloat) -> some View {
+        let xPosition = width * beat.normalizedPosition
 
         return ZStack {
             // Node circle
             Circle()
-                .fill(isMaterialized ? themeManager.currentTheme.colors.accentPrimary : Color.clear)
-                .strokeBorder(themeManager.currentTheme.colors.accentPrimary, lineWidth: isMaterialized ? 2 : 1)
+                .fill(beat.isMaterialized ? themeManager.currentTheme.colors.accentPrimary : Color.clear)
+                .strokeBorder(
+                    themeManager.currentTheme.colors.accentPrimary,
+                    lineWidth: beat.isDefined ? 2 : 1
+                )
                 .frame(width: 16, height: 16)
 
             // Label below
-            Text(label)
+            Text(beat.label)
                 .font(.caption2)
                 .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
                 .offset(y: 24)
+
+            // Scene count badge (if materialized)
+            if beat.isMaterialized && beat.attachedSceneCount > 0 {
+                Text("\(beat.attachedSceneCount)")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 12, height: 12)
+                    .background(Circle().fill(themeManager.currentTheme.colors.accentPrimary))
+                    .offset(x: 8, y: -8)
+            }
         }
         .offset(x: xPosition)
+    }
+
+    private func activePositionMarker(position: Double, width: CGFloat) -> some View {
+        let xPosition = width * position
+
+        return Rectangle()
+            .fill(themeManager.currentTheme.colors.accentPrimary)
+            .frame(width: 2, height: 16)
+            .offset(x: xPosition, y: -7)
     }
 
     // MARK: - Project Status Glyph
 
     private var projectStatusGlyph: some View {
         ZStack {
-            // Outer ring - Timeline/Story events
+            if let model = dashboardModel {
+                // Outer ring - Timeline/Story events
+                timelineRingView(model.statusGlyph.timelineRing)
+                    .frame(width: 240, height: 240)
+
+                // Middle ring - Chapter formation
+                chapterRingView(model.statusGlyph.chapterRing)
+                    .frame(width: 180, height: 180)
+
+                // Inner ring - Scene realization
+                sceneRingView(model.statusGlyph.sceneRing)
+                    .frame(width: 120, height: 120)
+
+                // Center labels
+                centerLabels(model.statusGlyph)
+            } else {
+                // Loading state
+                ProgressView()
+            }
+        }
+        .padding(20)
+    }
+
+    private func timelineRingView(_ ring: TimelineRing) -> some View {
+        ZStack {
+            // Base circle
             Circle()
                 .stroke(themeManager.currentTheme.colors.border.opacity(0.3), lineWidth: 2)
-                .frame(width: 240, height: 240)
 
-            // Middle ring - Chapter formation
-            Circle()
-                .trim(from: 0, to: 0.75) // 75% complete
-                .stroke(themeManager.currentTheme.colors.accentPrimary.opacity(0.6), lineWidth: 16)
-                .frame(width: 180, height: 180)
-                .rotationEffect(.degrees(-90))
+            // Event nodes
+            ForEach(ring.events, id: \.eventID) { event in
+                eventNode(event)
+            }
+        }
+    }
 
-            // Inner ring - Scene realization
-            Circle()
-                .trim(from: 0, to: 0.6) // 60% complete
-                .stroke(themeManager.currentTheme.colors.accentPrimary, lineWidth: 16)
-                .frame(width: 120, height: 120)
-                .rotationEffect(.degrees(-90))
+    private func eventNode(_ event: TimelineEventNode) -> some View {
+        Circle()
+            .fill(event.isActive
+                ? themeManager.currentTheme.colors.accentPrimary
+                : themeManager.currentTheme.colors.textSecondary.opacity(0.5))
+            .frame(width: event.isMajor ? 8 : 4, height: event.isMajor ? 8 : 4)
+            .offset(x: 120 * cos(event.normalizedAngle), y: 120 * sin(event.normalizedAngle))
+    }
 
-            // Center labels
-            VStack(spacing: 4) {
-                Text("60%")
+    private func chapterRingView(_ ring: ChapterRing) -> some View {
+        ZStack {
+            ForEach(ring.spans, id: \.chapterID) { span in
+                spanArc(
+                    startAngle: span.startAngle,
+                    endAngle: span.endAngle,
+                    state: span.state,
+                    lineWidth: 16,
+                    opacity: 0.6
+                )
+            }
+        }
+    }
+
+    private func sceneRingView(_ ring: SceneRing) -> some View {
+        ZStack {
+            ForEach(ring.spans, id: \.sceneID) { span in
+                spanArc(
+                    startAngle: span.startAngle,
+                    endAngle: span.endAngle,
+                    state: span.state,
+                    lineWidth: 16,
+                    opacity: 1.0,
+                    isOrphan: span.isOrphanSpill
+                )
+            }
+        }
+    }
+
+    private func spanArc(
+        startAngle: Double,
+        endAngle: Double,
+        state: GlyphSpanState,
+        lineWidth: CGFloat,
+        opacity: Double,
+        isOrphan: Bool = false
+    ) -> some View {
+        let totalAngle = Double.pi * 2.0
+        let from = startAngle / totalAngle
+        let to = endAngle / totalAngle
+
+        let color: Color = {
+            if isOrphan {
+                return .orange
+            }
+            switch state {
+            case .formed:
+                return themeManager.currentTheme.colors.accentPrimary
+            case .thinDefined:
+                return themeManager.currentTheme.colors.textSecondary.opacity(0.4)
+            case .missing:
+                return Color.clear
+            }
+        }()
+
+        return Circle()
+            .trim(from: from, to: to)
+            .stroke(color.opacity(opacity), lineWidth: lineWidth)
+            .rotationEffect(.radians(-Double.pi / 2)) // Start at top
+    }
+
+    private func centerLabels(_ statusGlyph: StatusGlyphModel) -> some View {
+        let sceneSpans = statusGlyph.sceneRing.spans
+        let formedCount = sceneSpans.filter { $0.state == .formed }.count
+        let totalCount = sceneSpans.count
+
+        return VStack(spacing: 4) {
+            if totalCount == 0 {
+                // Empty state
+                Text("Empty")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+                Text("No content yet")
+                    .font(.caption2)
+                    .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
+            } else {
+                // Normal state with percentage
+                let percentage = Int((Double(formedCount) / Double(totalCount)) * 100)
+                Text("\(percentage)%")
                     .font(.system(size: 24, weight: .bold))
                     .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
                 Text("Complete")
@@ -225,7 +472,6 @@ struct ProjectDashboardView: View {
                     .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
             }
         }
-        .padding(20)
     }
 
     // MARK: - Return Strip
@@ -236,35 +482,51 @@ struct ProjectDashboardView: View {
                 .font(.caption)
                 .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
 
-            HStack(spacing: 12) {
-                // Last node
-                returnNode(title: "Last", subtitle: "Chapter 2, Scene 5", isActive: false)
-                    .frame(width: 140)
+            if let model = dashboardModel {
+                HStack(spacing: 12) {
+                    // Last node
+                    if let lastNode = model.returnStrip.lastNode {
+                        returnNodeView(node: lastNode, label: "Last", isActive: false)
+                            .frame(width: 140)
+                    }
 
-                // Resume node (primary)
-                returnNode(title: "Resume", subtitle: "Chapter 3, Scene 1", isActive: true)
-                    .frame(width: 180)
+                    // Resume node (primary)
+                    returnNodeView(node: model.returnStrip.resumeNode, label: "Resume", isActive: true)
+                        .frame(width: 180)
 
-                // Next node
-                returnNode(title: "Next", subtitle: "Chapter 3, Scene 2", isActive: false)
-                    .frame(width: 140)
+                    // Next node
+                    if let nextNode = model.returnStrip.nextNode {
+                        returnNodeView(node: nextNode, label: "Next", isActive: false)
+                            .frame(width: 140)
+                    }
+                }
+            } else {
+                ProgressView()
             }
         }
     }
 
-    private func returnNode(title: String, subtitle: String, isActive: Bool) -> some View {
+    private func returnNodeView(node: ReturnNode, label: String, isActive: Bool) -> some View {
         Button {
-            // TODO: Jump to this scene
+            // TODO: Jump to this scene/chapter
+            // Navigate to node.targetID based on node.targetType
         } label: {
             VStack(alignment: .leading, spacing: 6) {
-                Text(title)
+                Text(label)
                     .font(.caption2)
                     .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
 
-                Text(subtitle)
+                Text(node.title)
                     .font(isActive ? .callout.weight(.semibold) : .callout)
                     .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
-                    .lineLimit(2)
+                    .lineLimit(1)
+
+                if !node.subtitle.isEmpty {
+                    Text(node.subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+                        .lineLimit(1)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
@@ -297,22 +559,32 @@ struct ProjectDashboardView: View {
                 .font(.caption)
                 .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 12) {
-                ForEach(characters.prefix(8)) { character in
-                    castPortrait(for: character)
+            if let model = dashboardModel {
+                if model.castShelf.characters.isEmpty {
+                    Text("No characters")
+                        .font(.caption)
+                        .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+                        .padding(.vertical, 8)
+                } else {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 12) {
+                        ForEach(model.castShelf.characters.prefix(8), id: \.characterID) { character in
+                            castPortraitView(character: character)
+                        }
+                    }
                 }
+            } else {
+                ProgressView()
             }
         }
     }
 
-    private func castPortrait(for character: Card) -> some View {
+    private func castPortraitView(character: CastCharacter) -> some View {
         Button {
-            // TODO: Open character card
+            // TODO: Open character card (character.characterID)
         } label: {
             VStack(spacing: 6) {
                 ZStack {
-                    Circle()
-                        .background(themeManager.currentTheme.colors.surfaceTertiary.platformResolved.asBackground())
+                    themeManager.currentTheme.colors.surfaceTertiary.platformResolved.asBackground(cornerRadius: 28)
                         .frame(width: 56, height: 56)
 
                     if let thumbnailData = character.thumbnailData {
@@ -348,7 +620,7 @@ struct ProjectDashboardView: View {
                     }
                 }
 
-                Text(character.name)
+                Text(character.displayLabel)
                     .font(.caption2)
                     .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
                     .lineLimit(1)
@@ -365,25 +637,38 @@ struct ProjectDashboardView: View {
                 .font(.caption)
                 .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
 
-            VStack(alignment: .leading, spacing: 8) {
-                issueRow(icon: "exclamationmark.triangle", text: "Orphan scenes ×3", severity: .warning)
-                issueRow(icon: "link.badge.plus", text: "Unresolved citations ×1", severity: .info)
-                issueRow(icon: "arrow.triangle.branch", text: "Continuity gap in Ch. 2", severity: .error)
+            if let model = dashboardModel {
+                if model.issuesShelf.issues.isEmpty {
+                    Text("No issues")
+                        .font(.caption)
+                        .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+                        .padding(.vertical, 8)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(model.issuesShelf.issues) { issue in
+                            issueRowView(issue: issue)
+                        }
+                    }
+                }
+            } else {
+                ProgressView()
             }
         }
     }
 
-    private func issueRow(icon: String, text: String, severity: IssueSeverity) -> some View {
+    private func issueRowView(issue: ProjectIssue) -> some View {
         Button {
-            // TODO: Open issue detail pane
+            // TODO: Open issue detail pane or jump to affected cards
+            // issue.linkedTargets contains affected card IDs
+            // issue.resolutionActions contains action labels
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: icon)
+                Image(systemName: issueIcon(issue.issueType))
                     .font(.caption)
-                    .foregroundStyle(severityColor(severity))
+                    .foregroundStyle(severityColor(issue.severity))
                     .frame(width: 20)
 
-                Text(text)
+                Text(issue.displayText)
                     .font(.caption)
                     .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
 
@@ -396,15 +681,23 @@ struct ProjectDashboardView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .background(themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground().opacity(0.5))
+                themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground(cornerRadius: 6).opacity(0.5)
             )
         }
         .buttonStyle(.plain)
     }
 
-    private enum IssueSeverity {
-        case error, warning, info
+    private func issueIcon(_ issueType: IssueType) -> String {
+        switch issueType {
+        case .orphanedScenes, .orphanedChapters:
+            return "exclamationmark.triangle"
+        case .continuityGap:
+            return "arrow.triangle.branch"
+        case .unresolvedCitation:
+            return "link.badge.plus"
+        case .unassignedCard:
+            return "questionmark.circle"
+        }
     }
 
     private func severityColor(_ severity: IssueSeverity) -> Color {
@@ -423,17 +716,29 @@ struct ProjectDashboardView: View {
                 .font(.caption)
                 .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
 
-            VStack(alignment: .leading, spacing: 8) {
-                threadTag(name: "Lantern mystery")
-                threadTag(name: "Mira / Ari")
-                threadTag(name: "Archive revelation")
+            if let model = dashboardModel {
+                if model.threadShelf.threads.isEmpty {
+                    Text("No threads defined")
+                        .font(.caption)
+                        .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+                        .padding(.vertical, 8)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(model.threadShelf.threads) { thread in
+                            threadTagView(thread: thread)
+                        }
+                    }
+                }
+            } else {
+                ProgressView()
             }
         }
     }
 
-    private func threadTag(name: String) -> some View {
+    private func threadTagView(thread: NarrativeThread) -> some View {
         Button {
-            // TODO: Focus thread
+            // TODO: Focus thread - highlight linked scenes/events
+            // thread.linkedSceneIDs, thread.linkedEventIDs, thread.linkedCardIDs
         } label: {
             HStack(spacing: 6) {
                 // Small thread glyph
@@ -441,19 +746,21 @@ struct ProjectDashboardView: View {
                     .font(.caption2)
                     .foregroundStyle(themeManager.currentTheme.colors.accentPrimary)
 
-                Text(name)
+                Text(thread.label)
                     .font(.caption)
                     .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
-                Capsule()
-                    .background(themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground())
+                themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground(cornerRadius: 100)
             )
             .overlay(
                 Capsule()
-                    .strokeBorder(themeManager.currentTheme.colors.accentPrimary.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(
+                        themeManager.currentTheme.colors.accentPrimary.opacity(thread.weight),
+                        lineWidth: 1
+                    )
             )
         }
         .buttonStyle(.plain)
@@ -462,160 +769,16 @@ struct ProjectDashboardView: View {
     // MARK: - Data Loading
 
     private func loadDashboardModel() {
-        // TODO: Build comprehensive dashboard model from project data
-        // For now, using placeholder data shown in the UI
+        // Initialize service
+        dashboardService = ProjectDashboardService(modelContext: modelContext)
+
+        // Build dashboard model
+        dashboardModel = dashboardService?.buildDashboardModel(for: project)
     }
 }
 
 // MARK: - Dashboard Model
-
-struct ProjectDashboardModel {
-    var projectID: UUID
-    var title: String
-    var phase: String
-    var chapterCount: Int
-    var sceneCount: Int
-    var timelineCount: Int
-
-    // Sub-models for each region
-    var currentContext: CurrentContext?
-    var structureBand: StructureBandModel?
-    var statusGlyph: StatusGlyphModel?
-    var returnStrip: ReturnStripModel?
-    var castShelf: CastShelfModel?
-    var issuesShelf: IssuesShelfModel?
-    var threadShelf: ThreadShelfModel?
-}
-
-struct CurrentContext {
-    var activeChapterID: UUID?
-    var activeSceneID: UUID?
-    var activeEventID: UUID?
-    var sceneContents: [UUID] // Card IDs
-    var orphanCounts: [(String, Int)]
-}
-
-struct StructureBandModel {
-    var beats: [StructureBeat]
-    var contourSegments: [ContourSegment]
-    var activePositionFraction: Double
-    var continuityBreaks: [(after: UUID, before: UUID)]
-}
-
-struct StructureBeat {
-    var beatID: UUID
-    var label: String
-    var normalizedPosition: Double
-    var isDefined: Bool
-    var isMaterialized: Bool
-    var attachedSceneCount: Int
-}
-
-struct ContourSegment {
-    var startFraction: Double
-    var endFraction: Double
-    var visualWeight: Double
-    var state: ContourState
-}
-
-enum ContourState {
-    case formed, thin, broken
-}
-
-struct StatusGlyphModel {
-    var timelineRing: TimelineRing
-    var chapterRing: ChapterRing
-    var sceneRing: SceneRing
-    var activeLocus: ActiveLocus?
-}
-
-struct TimelineRing {
-    var events: [TimelineEventNode]
-}
-
-struct TimelineEventNode {
-    var eventID: UUID
-    var normalizedAngle: Double
-    var isActive: Bool
-    var isMajor: Bool
-}
-
-struct ChapterRing {
-    var spans: [ChapterSpan]
-}
-
-struct ChapterSpan {
-    var chapterID: UUID
-    var startAngle: Double
-    var endAngle: Double
-    var state: GlyphSpanState
-}
-
-struct SceneRing {
-    var spans: [SceneSpan]
-}
-
-struct SceneSpan {
-    var sceneID: UUID
-    var startAngle: Double
-    var endAngle: Double
-    var state: GlyphSpanState
-    var isOrphanSpill: Bool
-}
-
-enum GlyphSpanState {
-    case formed, thinDefined, missing
-}
-
-struct ActiveLocus {
-    var eventID: UUID?
-    var chapterID: UUID?
-    var sceneID: UUID?
-}
-
-struct ReturnStripModel {
-    var lastNode: ReturnNode?
-    var resumeNode: ReturnNode?
-    var nextNode: ReturnNode?
-}
-
-struct ReturnNode {
-    var targetID: UUID
-    var targetType: String
-    var title: String
-    var subtitle: String
-    var excerpt: String
-    var contextTokens: [String]
-}
-
-struct CastShelfModel {
-    var characters: [UUID] // Character card IDs
-}
-
-struct IssuesShelfModel {
-    var issues: [ProjectIssue]
-}
-
-struct ProjectIssue {
-    var issueID: UUID
-    var issueType: String
-    var displayText: String
-    var severity: String
-    var linkedTargets: [UUID]
-}
-
-struct ThreadShelfModel {
-    var threads: [NarrativeThread]
-}
-
-struct NarrativeThread {
-    var threadID: UUID
-    var label: String
-    var linkedSceneIDs: [UUID]
-    var linkedEventIDs: [UUID]
-    var linkedCardIDs: [UUID]
-    var weight: Double
-}
+// Models now defined in Cumberland/Data/ProjectDashboardModels.swift
 
 // MARK: - Preview
 

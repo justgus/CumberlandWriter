@@ -132,6 +132,29 @@ final class CardRepository {
 
     // MARK: - Insert/Update/Delete Operations
 
+    /// Create a new card and insert it into the context
+    /// - Parameters:
+    ///   - kind: The card kind
+    ///   - name: The card name
+    ///   - subtitle: The card subtitle
+    ///   - detailedText: The detailed text
+    /// - Returns: The newly created card
+    /// - Throws: SwiftData errors
+    @discardableResult
+    func createCard(
+        kind: Kinds,
+        name: String,
+        subtitle: String = "",
+        detailedText: String = ""
+    ) throws -> Card {
+        let card = Card(kind: kind, name: name, subtitle: subtitle, detailedText: detailedText)
+        modelContext.insert(card)
+        try modelContext.save()
+        return card
+    }
+
+    // MARK: - Legacy Insert Operations
+
     /// Insert a new card into the context
     /// - Parameter card: The card to insert
     /// - Throws: SwiftData errors
@@ -237,5 +260,117 @@ final class CardRepository {
         // This would need to be added to the model first
         // For now, return all cards sorted by name
         return Array(fetchAll().prefix(limit))
+    }
+
+    // MARK: - Project Writer Queries
+
+    /// Fetch scenes associated with a project via "belongs-to/contains-scene" edges,
+    /// ordered by sortIndex (manuscript order).
+    ///
+    /// - Parameter project: The project card
+    /// - Returns: Array of scene cards in manuscript order
+    func fetchScenesInProject(_ project: Card) -> [Card] {
+        guard project.kind == .projects else { return [] }
+
+        let projectID: UUID? = project.id
+        let sceneKind: String = Kinds.scenes.rawValue
+        let relationCode: String? = "belongs-to/contains-scene"
+
+        let fetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { edge in
+                edge.to?.id == projectID &&
+                edge.from?.kindRaw == sceneKind &&
+                edge.type?.code == relationCode
+            },
+            sortBy: [SortDescriptor(\.sortIndex, order: .forward)]
+        )
+
+        let edges = (try? modelContext.fetch(fetch)) ?? []
+        return edges.compactMap { $0.from }
+    }
+
+    /// Fetch chapters associated with a project via "part-of/has-chapter" edges,
+    /// ordered by sortIndex (chapter order).
+    ///
+    /// - Parameter project: The project card
+    /// - Returns: Array of chapter cards in order
+    func fetchChaptersInProject(_ project: Card) -> [Card] {
+        guard project.kind == .projects else { return [] }
+
+        let projectID: UUID? = project.id
+        let chapterKind: String = Kinds.chapters.rawValue
+        let relationCode: String? = "part-of/has-chapter"
+
+        let fetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { edge in
+                edge.to?.id == projectID &&
+                edge.from?.kindRaw == chapterKind &&
+                edge.type?.code == relationCode
+            },
+            sortBy: [SortDescriptor(\.sortIndex, order: .forward)]
+        )
+
+        let edges = (try? modelContext.fetch(fetch)) ?? []
+        return edges.compactMap { $0.from }
+    }
+
+    /// Fetch scenes in a specific chapter within a project context.
+    /// Uses the existing "part-of/has-scene" edges to determine chapter membership.
+    ///
+    /// - Parameters:
+    ///   - chapterID: The UUID of the chapter to filter by
+    ///   - projectID: The UUID of the project context
+    /// - Returns: Array of scene cards in manuscript order within the chapter
+    func fetchScenesInChapter(chapterID: UUID, projectID: UUID) -> [Card] {
+        // Get scenes that belong to this project
+        let projectIDOpt: UUID? = projectID
+        let sceneKind: String = Kinds.scenes.rawValue
+        let relationCode: String? = "belongs-to/contains-scene"
+
+        let fetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { edge in
+                edge.to?.id == projectIDOpt &&
+                edge.from?.kindRaw == sceneKind &&
+                edge.type?.code == relationCode
+            },
+            sortBy: [SortDescriptor(\.sortIndex, order: .forward)]
+        )
+
+        let projectSceneEdges = (try? modelContext.fetch(fetch)) ?? []
+
+        // Get scenes that belong to this chapter
+        let chapterIDOpt: UUID? = chapterID
+        let chapterSceneFetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { edge in
+                edge.to?.id == chapterIDOpt &&
+                edge.type?.code == "part-of/has-scene"
+            }
+        )
+        let chapterSceneEdges = (try? modelContext.fetch(chapterSceneFetch)) ?? []
+        let sceneIDsInChapter = Set(chapterSceneEdges.compactMap { $0.from?.id })
+
+        // Return scenes that are both in the project and in the chapter
+        return projectSceneEdges.compactMap { $0.from }.filter { sceneIDsInChapter.contains($0.id) }
+    }
+
+    /// Fetch scenes in a project that are not assigned to any chapter (orphaned scenes).
+    ///
+    /// - Parameter project: The project card
+    /// - Returns: Array of orphaned scene cards in manuscript order
+    func fetchOrphanedScenesInProject(_ project: Card) -> [Card] {
+        guard project.kind == .projects else { return [] }
+
+        let allScenes = fetchScenesInProject(project)
+
+        // Get all scenes that belong to any chapter via "part-of/has-scene"
+        let chapterSceneFetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { edge in
+                edge.type?.code == "part-of/has-scene"
+            }
+        )
+        let chapterSceneEdges = (try? modelContext.fetch(chapterSceneFetch)) ?? []
+        let sceneIDsInChapters = Set(chapterSceneEdges.compactMap { $0.from?.id })
+
+        return allScenes.filter { !sceneIDsInChapters.contains($0.id) }
     }
 }

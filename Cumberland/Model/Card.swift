@@ -727,6 +727,64 @@ extension Card {
     }
 }
 
+// MARK: - Project Writer Helpers
+
+extension Card {
+    /// Returns scenes associated with this project via "belongs-to/contains-scene" edges,
+    /// ordered by sortIndex (manuscript order).
+    ///
+    /// Delegates to CardRepository for actual query execution.
+    ///
+    /// - Parameter modelContext: The model context to perform queries
+    /// - Returns: Array of scene cards in manuscript order
+    @MainActor
+    func scenesInProject(modelContext: ModelContext) -> [Card] {
+        let repository = CardRepository(modelContext: modelContext)
+        return repository.fetchScenesInProject(self)
+    }
+
+    /// Returns chapters associated with this project via "part-of/has-chapter" edges,
+    /// ordered by sortIndex (chapter order).
+    ///
+    /// Delegates to CardRepository for actual query execution.
+    ///
+    /// - Parameter modelContext: The model context to perform queries
+    /// - Returns: Array of chapter cards in order
+    @MainActor
+    func chaptersInProject(modelContext: ModelContext) -> [Card] {
+        let repository = CardRepository(modelContext: modelContext)
+        return repository.fetchChaptersInProject(self)
+    }
+
+    /// Returns scenes in a specific chapter within this project context.
+    /// Uses the existing "part-of/has-scene" edges to determine chapter membership.
+    ///
+    /// Delegates to CardRepository for actual query execution.
+    ///
+    /// - Parameters:
+    ///   - chapterID: The UUID of the chapter to filter by
+    ///   - projectID: The UUID of the project context
+    ///   - modelContext: The model context to perform queries
+    /// - Returns: Array of scene cards in manuscript order within the chapter
+    @MainActor
+    static func scenesInChapter(chapterID: UUID, projectID: UUID, modelContext: ModelContext) -> [Card] {
+        let repository = CardRepository(modelContext: modelContext)
+        return repository.fetchScenesInChapter(chapterID: chapterID, projectID: projectID)
+    }
+
+    /// Returns scenes in this project that are not assigned to any chapter (orphaned scenes).
+    ///
+    /// Delegates to CardRepository for actual query execution.
+    ///
+    /// - Parameter modelContext: The model context to perform queries
+    /// - Returns: Array of orphaned scene cards in manuscript order
+    @MainActor
+    func orphanedScenesInProject(modelContext: ModelContext) -> [Card] {
+        let repository = CardRepository(modelContext: modelContext)
+        return repository.fetchOrphanedScenesInProject(self)
+    }
+}
+
 // Make CardTransferData itself Transferable instead of Card
 extension CardTransferData: Transferable {
     static var transferRepresentation: some TransferRepresentation {

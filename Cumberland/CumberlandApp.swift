@@ -650,6 +650,9 @@ extension CumberlandApp {
             // Scenes ↔ Projects (direct story linkage) (REQUIRED by StructureBoardView)
             .init(code: "stories/is-storied-by", forward: "stories", inverse: "is storied by", source: .scenes, target: .projects),
 
+            // Scenes ↔ Projects (manuscript membership) (REQUIRED by ProjectWriter system)
+            .init(code: "belongs-to/contains-scene", forward: "belongs to", inverse: "contains scene", source: .scenes, target: .projects),
+
             // MARK: - Project Relations
 
             // Projects ↔ Worlds (setting)
@@ -662,6 +665,9 @@ extension CumberlandApp {
 
             // Chapters ↔ Projects (compose)
             .init(code: "part-of/has-member", forward: "part of", inverse: "has member", source: .chapters, target: .projects),
+
+            // Chapters ↔ Projects (manuscript membership) (REQUIRED by ProjectWriter system)
+            .init(code: "part-of/has-chapter", forward: "part of", inverse: "has chapter", source: .chapters, target: .projects),
 
             // MARK: - World Relations
 
