@@ -373,4 +373,26 @@ final class CardRepository {
 
         return allScenes.filter { !sceneIDsInChapters.contains($0.id) }
     }
+
+    /// Find the project that owns a scene
+    ///
+    /// - Parameter scene: The scene card
+    /// - Returns: The project card that owns this scene, or nil if not found
+    func fetchProjectForScene(_ scene: Card) -> Card? {
+        guard scene.kind == .scenes else { return nil }
+
+        let sceneIDOpt: UUID? = scene.id
+        let descriptor = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { edge in
+                edge.from?.id == sceneIDOpt &&
+                edge.type?.code == "belongs-to/contains-scene"
+            }
+        )
+
+        guard let edge = try? modelContext.fetch(descriptor).first else {
+            return nil
+        }
+
+        return edge.to
+    }
 }

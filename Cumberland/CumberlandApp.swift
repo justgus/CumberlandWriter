@@ -427,6 +427,46 @@ struct CumberlandApp: App {
         .defaultSize(width: 560, height: 640)
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
+
+        // Timeline view window for Phase 6: Timeline Integration
+        // Manuscript → Timeline navigation
+        WindowGroup(for: AppModel.TimelineViewRequest.self) { $request in
+            if let request {
+                let context = modelContainer.mainContext
+                if let timeline = try? context.fetch(FetchDescriptor<Card>(
+                    predicate: #Predicate { $0.id == request.timelineID }
+                )).first {
+                    TimelineChartView(timeline: timeline)
+                        .modelContainer(modelContainer)
+                        .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
+                        .themeEnvironment(themeManager)
+                        .preferredColorScheme(appPreferredColorScheme)
+                }
+            }
+        }
+        .defaultSize(width: 900, height: 700)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+
+        // Manuscript view window for Phase 6: Timeline Integration
+        // Timeline → Manuscript navigation
+        WindowGroup(for: AppModel.ManuscriptViewRequest.self) { $request in
+            if let request {
+                let context = modelContainer.mainContext
+                if let project = try? context.fetch(FetchDescriptor<Card>(
+                    predicate: #Predicate { $0.id == request.projectID }
+                )).first {
+                    ManuscriptWritingSurfaceView(project: project)
+                        .modelContainer(modelContainer)
+                        .serviceContainer(serviceContainer ?? ServiceContainer(modelContext: modelContainer.mainContext))
+                        .themeEnvironment(themeManager)
+                        .preferredColorScheme(appPreferredColorScheme)
+                }
+            }
+        }
+        .defaultSize(width: 1000, height: 800)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
         #endif
 
         // Developer diagnostic windows (DEBUG only, some use in-memory samples, some live)

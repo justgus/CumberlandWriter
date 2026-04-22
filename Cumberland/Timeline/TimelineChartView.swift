@@ -116,6 +116,9 @@ struct TimelineChartView: View {
     @State private var selectedChapterIDs: Set<UUID> = []
     @State private var participationChapters: [UUID: [UUID]] = [:] // chapter.id -> [scene.id]
 
+    // Phase 6: Out-of-order scene detection
+    @State private var outOfOrderScenes: Set<UUID> = []
+
     // Which secondary lanes to render
     @State private var laneMode: LaneMode = .characters
 
@@ -425,6 +428,25 @@ struct TimelineChartView: View {
                     .help("Drag to reorder scenes in this timeline")
                     .disabled(scenes.count < 2)
                 }
+
+                // Phase 6: Timeline → Manuscript navigation
+                Menu {
+                    ForEach(scenes, id: \.id) { sceneRow in
+                        Button {
+                            jumpToManuscriptScene(scene: sceneRow.scene)
+                        } label: {
+                            HStack {
+                                Image(systemName: Kinds.scenes.systemImage)
+                                Text(sceneRow.scene.name.isEmpty ? "Untitled Scene" : sceneRow.scene.name)
+                            }
+                        }
+                    }
+                } label: {
+                    Label("Jump to Manuscript…", systemImage: "doc.text")
+                        .lineLimit(1)
+                }
+                .help("Open manuscript view for a scene")
+                .disabled(scenes.isEmpty)
             }
             .frame(height: headerHeight)
             .padding(.horizontal, 2)
@@ -550,7 +572,7 @@ struct TimelineChartView: View {
 
         // Precompute items for the "All" lane as 1-unit ranged bars [order, order+1)
         let allLaneItems: [AllLaneItem] = scenes.map { row in
-            AllLaneItem(id: row.id, start: row.order, end: row.order + 1, sceneName: row.scene.name)
+            AllLaneItem(id: row.id, sceneID: row.scene.id, start: row.order, end: row.order + 1, sceneName: row.scene.name)
         }
 
         // Precompute items for secondary lanes as merged contiguous runs
@@ -845,6 +867,7 @@ struct TimelineChartView: View {
             let end = row.temporalEnd ?? start.addingTimeInterval(3600) // Default 1-hour duration
             return TemporalSceneItem(
                 id: row.id,
+                sceneID: row.scene.id,
                 start: start,
                 end: end,
                 sceneName: row.scene.name,
@@ -868,6 +891,7 @@ struct TimelineChartView: View {
                     let end = row.temporalEnd ?? start.addingTimeInterval(3600)
                     laneTemporalItems.append(TemporalSceneItem(
                         id: UUID(), // Unique ID for each item
+                        sceneID: row.scene.id,
                         start: start,
                         end: end,
                         sceneName: row.scene.name,
@@ -911,21 +935,30 @@ struct TimelineChartView: View {
             Chart {
                 // All Scenes lane
                 ForEach(allLaneTemporalItems) { item in
+                    let isOutOfOrder = outOfOrderScenes.contains(item.sceneID)
                     BarMark(
                         xStart: .value("Start", item.start),
                         xEnd: .value("End", item.end),
                         y: .value("Lane", allKey)
                     )
-                    .foregroundStyle(sceneColor)
+                    .foregroundStyle(isOutOfOrder ? sceneColor.opacity(0.5) : sceneColor)
                     .cornerRadius(2)
                     .shadow(color: shadowColor, radius: 1, x: 0, y: 1)
                     .annotation(position: .overlay, alignment: .center) {
                         if labelVisibility {
                             LabelOverlay(text: item.sceneName, fontSize: 9)
                         }
+                        if isOutOfOrder {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.orange)
+                                .offset(y: -8)
+                        }
                     }
                     .accessibilityLabel(item.sceneName)
-                    .accessibilityValue("Temporal position: \(dateFormatter.string(from: item.start))")
+                    .accessibilityValue(isOutOfOrder
+                        ? "Out of manuscript order - Temporal position: \(dateFormatter.string(from: item.start))"
+                        : "Temporal position: \(dateFormatter.string(from: item.start))")
                 }
 
                 // Character/Chapter lanes
@@ -1001,6 +1034,7 @@ struct TimelineChartView: View {
     // Temporal scene item for chart rendering
     private struct TemporalSceneItem: Identifiable {
         let id: UUID
+        let sceneID: UUID  // Phase 6: Track scene ID for out-of-order detection
         let start: Date
         let end: Date
         let sceneName: String
@@ -1021,21 +1055,30 @@ struct TimelineChartView: View {
 
         // All Scenes lane (1-unit ranged bars)
         ForEach(allLaneItems) { item in
+            let isOutOfOrder = outOfOrderScenes.contains(item.sceneID)
             BarMark(
                 xStart: .value("Start", item.start),
                 xEnd: .value("End", item.end),
                 y: .value("Lane", allLaneKey)
             )
-            .foregroundStyle(sceneColor) // avoid extra opacity to keep color strong
+            .foregroundStyle(isOutOfOrder ? sceneColor.opacity(0.5) : sceneColor)
             .cornerRadius(2)
             .shadow(color: shadowColor, radius: 1, x: 0, y: 1)
             .annotation(position: .overlay, alignment: .center) {
                 if showLabels {
                     LabelOverlay(text: item.sceneName, fontSize: 9)
                 }
+                if isOutOfOrder {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.orange)
+                        .offset(y: -8)
+                }
             }
             .accessibilityLabel(item.sceneName)
-            .accessibilityValue("All lane, position \(item.start)")
+            .accessibilityValue(isOutOfOrder
+                ? "Out of manuscript order - All lane, position \(item.start)"
+                : "All lane, position \(item.start)")
         }
 
         // Secondary lanes (merged contiguous runs as ranged bars)
@@ -1078,6 +1121,7 @@ struct TimelineChartView: View {
     // Flattened chart data for type-checker friendliness
     private struct AllLaneItem: Identifiable {
         let id: UUID
+        let sceneID: UUID  // Phase 6: Track scene ID for out-of-order detection
         let start: Int
         let end: Int // end-exclusive
         let sceneName: String
@@ -1232,6 +1276,30 @@ struct TimelineChartView: View {
         }
     }
 
+    // MARK: - Navigation
+
+    /// Jump to manuscript view for a scene
+    /// Phase 6: Timeline Integration - Timeline → Manuscript navigation
+    private func jumpToManuscriptScene(scene: Card) {
+        let repository = CardRepository(modelContext: modelContext)
+        guard let project = repository.fetchProjectForScene(scene) else {
+            print("No project found for scene \(scene.id)")
+            return
+        }
+
+        #if os(macOS) || os(visionOS)
+        // Open manuscript window with focus on this scene
+        let request = AppModel.ManuscriptViewRequest(
+            projectID: project.id,
+            focusSceneID: scene.id
+        )
+        openWindow(value: request)
+        #else
+        // iOS: Would use NavigationLink push here
+        print("iOS manuscript navigation not yet implemented")
+        #endif
+    }
+
     // MARK: - Data loading
 
     @MainActor
@@ -1304,6 +1372,20 @@ struct TimelineChartView: View {
         }
 
         scenes = rows
+
+        // Phase 6: Detect out-of-order scenes
+        outOfOrderScenes = []
+        if !rows.isEmpty {
+            let navigationService = TimelineNavigationService(modelContext: modelContext)
+            // Find project by looking up the first scene's project
+            if let firstScene = rows.first?.scene {
+                let repository = CardRepository(modelContext: modelContext)
+                if let project = repository.fetchProjectForScene(firstScene) {
+                    let discrepancies = navigationService.detectOutOfOrderScenes(project: project, timeline: timeline)
+                    outOfOrderScenes = Set(discrepancies.map { $0.sceneID })
+                }
+            }
+        }
 
         // 3) Fetch Characters → Scene participation edges; filter to our scenes
         guard !rows.isEmpty else {

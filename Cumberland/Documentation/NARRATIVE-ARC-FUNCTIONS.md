@@ -1100,11 +1100,87 @@ All 13 predefined Cumberland structures now have narrative arc definitions:
   - "Structure" Quick Action button integration
   - Auto-reloads manuscript content on structure change
 
-### Phase 5: Custom Arcs (Future)
-- [ ] Design visual arc editor
-- [ ] Implement Catmull-Rom spline interpolation
-- [ ] Add custom arc data storage to StoryStructure model
-- [ ] Create UI for editing custom arcs
+### Phase 5: Custom Arcs ✅ COMPLETED (2026-04-22)
+
+**Implementation Status**: All features complete and functional
+
+#### Core Model (CustomArc.swift:260 lines)
+- [x] `ArcControlPoint` struct with position, tension, and label
+  - Position and tension clamped to 0.0-1.0 range
+  - Codable for JSON persistence
+- [x] `CustomArc` struct implementing `NarrativeArc` protocol
+  - Automatic control point sorting by position
+  - Boundary points enforced at 0.0 and 1.0
+  - Catmull-Rom spline interpolation mathematics
+  - Default arc factory method with 5 control points
+
+#### Catmull-Rom Interpolation (`CustomArc.swift:122-150`)
+- [x] `catmullRomInterpolate()` method
+  - Smooth C1 continuous curves between control points
+  - Uses basis matrix coefficients for interpolation
+  - Tension values pass through control points
+- [x] Numerical derivative for slope calculation
+  - Central difference method with epsilon 0.001
+- [x] `sparklinePoints()` generates 100+ resolution samples
+
+#### Control Point Manipulation (`CustomArc.swift:178-217`)
+- [x] `addControlPoint()` - maintains sorted order
+- [x] `removeControlPoint()` - protects boundary points
+- [x] `updateControlPoint()` - modifies position/tension/label
+- [x] `closestControlPoint()` - finds nearest point for selection
+
+#### Visual Arc Editor (`CustomArcEditorView.swift:418 lines`)
+- [x] Interactive canvas with grid lines and axes
+- [x] Real-time arc curve rendering via Canvas
+- [x] Draggable control point handles
+  - Boundary points locked to 0.0/1.0 horizontally
+  - Interior points free to move
+- [x] Control points list with inline editing
+  - Name editing via TextField
+  - Position and tension display
+  - Delete button (protected for boundaries)
+- [x] Instructions panel with usage tips
+
+#### Custom Structure Creation Workflow (`CustomStructureCreationSheet.swift:662 lines`)
+- [x] Multi-step wizard interface
+  - Step 1: Name & Description
+  - Step 2: Define Structure Beats
+  - Step 3: Design Narrative Arc (embedded CustomArcEditorView)
+  - Step 4: Review & Create
+- [x] Progress indicator showing current step
+- [x] Template starter options (Three-Act, Five-Act, Blank)
+- [x] Beat definition with name and description
+- [x] Arc preview in review step
+- [x] Integration with StoryStructure model
+
+#### StoryStructure Extensions (`StoryStructure.swift`)
+- [x] `customArcData: Data?` property for JSON storage
+- [x] `customArc` computed property for encoding/decoding
+- [x] `isCustom` flag to identify user-created structures
+- [x] Updated `narrativeArc` to prefer custom arcs when available
+
+#### UI Integration
+- [x] "Create Custom" button in StructureSelectionSheet
+  - Sheet presentation of CustomStructureCreationSheet
+  - Auto-refresh on dismissal
+- [x] Custom structures appear in structure selector list
+  - Checkmark indicator for current structure
+  - Preview shows custom arc visualization
+
+#### Test Coverage (`CustomArcTests.swift:26 tests`)
+- [x] Control point initialization and sorting
+- [x] Boundary point enforcement
+- [x] Position and tension clamping
+- [x] Default arc validation
+- [x] Tension interpolation accuracy
+- [x] Smooth curve generation (no discontinuities)
+- [x] Slope calculation (positive/negative/flat)
+- [x] Sparkline point generation
+- [x] Catmull-Rom interpolation quality
+- [x] Control point manipulation (add/remove/update)
+- [x] Boundary protection logic
+- [x] Codable serialization/deserialization
+- [x] Edge cases (single point, many points, flat arc)
 
 ---
 

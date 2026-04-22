@@ -21,6 +21,7 @@ struct ManuscriptWritingSurfaceView: View {
     let project: Card
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var themeManager: ThemeManager
 
     // Query for chapters and scenes related to this project
@@ -652,6 +653,8 @@ struct ManuscriptWritingSurfaceView: View {
             quickActionButton(title: "Structure", icon: "list.number", action: { showStructurePanel = true })
             quickActionButton(title: "Context", icon: "person.2", action: { showContextPanel = true })
             quickActionButton(title: "Notes", icon: "note.text", action: { showNotesPanel = true })
+            quickActionButton(title: "Timeline", icon: "calendar", action: { jumpToTimeline() })
+                .disabled(activeSceneID == nil)
             quickActionButton(title: "Focus", icon: "eye", action: { showFocusMode.toggle() })
         }
         .padding(.horizontal, 20)
@@ -676,6 +679,35 @@ struct ManuscriptWritingSurfaceView: View {
     }
 
     // MARK: - Actions
+
+    /// Jump to timeline view for the active scene
+    /// Phase 6: Timeline Integration - Manuscript → Timeline navigation
+    private func jumpToTimeline() {
+        guard let sceneID = activeSceneID else { return }
+
+        let navigationService = TimelineNavigationService(modelContext: modelContext)
+        guard let timeline = navigationService.findPrimaryTimelineForScene(
+            sceneID: sceneID,
+            projectID: project.id
+        ) else {
+            // TODO: Show alert or toast that no timeline was found
+            print("No timeline found for scene \(sceneID)")
+            return
+        }
+
+        #if os(macOS) || os(visionOS)
+        // Open timeline window with focus on this scene
+        let request = AppModel.TimelineViewRequest(
+            timelineID: timeline.id,
+            focusSceneID: sceneID
+        )
+        openWindow(value: request)
+        #else
+        // iOS: Would use NavigationLink push here (requires NavigationStack setup)
+        // For now, just log
+        print("iOS timeline navigation not yet implemented")
+        #endif
+    }
 
     private func createNewChapter() {
         let cardRepo = CardRepository(modelContext: modelContext)

@@ -23,6 +23,7 @@ struct StructureSelectionSheet: View {
     @State private var mappingPreview: MappingPreview?
     @State private var isProcessing = false
     @State private var showingConfirmation = false
+    @State private var showingCustomCreation = false
 
     var body: some View {
         NavigationStack {
@@ -47,6 +48,17 @@ struct StructureSelectionSheet: View {
                     }
                 }
 
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingCustomCreation = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Create Custom")
+                        }
+                    }
+                }
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Apply") {
                         showingConfirmation = true
@@ -68,6 +80,12 @@ struct StructureSelectionSheet: View {
             }
             .onAppear {
                 loadCurrentStructure()
+            }
+            .sheet(isPresented: $showingCustomCreation) {
+                CustomStructureCreationSheet(project: project)
+                    .onDisappear {
+                        loadCurrentStructure()
+                    }
             }
         }
     }

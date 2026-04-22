@@ -691,10 +691,13 @@ private func updatePotentialCards() async {
 - ✅ `ProjectWriter/PotentialCard.swift` - Model and SceneContext
 - ✅ `ProjectWriter/EntityDetectionService.swift` - Background text parsing
 
-**Story Structure System** (Phase 5):
+**Story Structure System** (Phase 5 & 7):
 - ✅ `Model/NarrativeArc.swift` - Protocol and 13 arc implementations
-- ✅ `Model/StoryStructure.swift` - Extended with `narrativeArc` computed property
+- ✅ `Model/CustomArc.swift` - User-defined arcs with Catmull-Rom splines
+- ✅ `Model/StoryStructure.swift` - Extended with `narrativeArc` and `customArc` properties
 - ✅ `ProjectWriter/NarrativeArcVisualization.swift` - Tufte-style arc renderer
+- ✅ `ProjectWriter/CustomArcEditorView.swift` - Interactive arc editor with draggable controls
+- ✅ `ProjectWriter/CustomStructureCreationSheet.swift` - Multi-step custom structure wizard
 
 **Integration**:
 - ✅ `MainAppView.swift` - Routes project cards to ProjectDetailView
@@ -702,6 +705,7 @@ private func updatePotentialCards() async {
 **Test Coverage**:
 - ✅ `CumberlandTests/Model/NarrativeArcTests.swift` - 17 test cases for all arc functions
 - ✅ `CumberlandTests/Data/StructureMappingTests.swift` - 8 test cases for mapping algorithms
+- ✅ `CumberlandTests/Model/CustomArcTests.swift` - 26 test cases for custom arc system
 
 ### Architecture Compliance ✅
 
@@ -743,7 +747,7 @@ private func updatePotentialCards() async {
 - Cast Shelf, Issues Shelf, Thread Shelf
 - Dense, instrument-style information display
 
-**Phase 5: Story Structure Integration** ✅ COMPLETED
+**Phase 5: Story Structure Integration** ✅ COMPLETED (2026-04-21)
 - ✅ Narrative arc functions for all 13 predefined structures
 - ✅ Tufte-style arc visualization in Dashboard
 - ✅ Arc-based scene mapping algorithm (70% tension + 30% slope)
@@ -752,18 +756,26 @@ private func updatePotentialCards() async {
 - ✅ Comprehensive test coverage (25 test cases)
 - See: `NARRATIVE-ARC-FUNCTIONS.md` and `STORY-STRUCTURE-INTEGRATION-DESIGN.md`
 
+**Phase 7: Custom Story Structures** ✅ COMPLETED (2026-04-22)
+- ✅ CustomArc model with Catmull-Rom spline interpolation
+- ✅ Visual arc editor with draggable control points
+- ✅ Multi-step custom structure creation wizard
+  - Name & description input
+  - Beat definition (add/edit/remove)
+  - Interactive arc design
+  - Preview and confirmation
+- ✅ StoryStructure extended with `customArcData` persistence
+- ✅ Integration with structure selection UI ("Create Custom" button)
+- ✅ Control point manipulation with boundary protection
+- ✅ Comprehensive test coverage (26 test cases for CustomArc)
+- See: `NARRATIVE-ARC-FUNCTIONS.md` Phase 5 section
+
 ### Pending Work
 
 **Phase 6: Timeline Integration** (Future):
 - Jump from manuscript to timeline and vice versa
 - Highlight out-of-order scenes
 - Temporal position vs. manuscript position visualization
-
-**Phase 7: Custom Story Structures** (Future):
-- Visual arc editor with draggable control points
-- Catmull-Rom spline interpolation for smooth curves
-- Custom arc data storage in StoryStructure model
-- UI for creating and editing custom structures
 
 **Polish & Enhancement**:
 - Scene reordering UI (drag-and-drop in Scene Map)

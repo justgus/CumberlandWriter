@@ -57,5 +57,33 @@ class AppModel {
         }
     }
     var pendingTemporalEditorRequest: TemporalEditorRequest?
+
+    /// Request to open a timeline view window
+    /// Phase 6: Timeline Integration - Manuscript → Timeline navigation
+    struct TimelineViewRequest: Identifiable, Hashable, Codable {
+        let id: UUID
+        let timelineID: UUID
+        let focusSceneID: UUID?
+
+        init(timelineID: UUID, focusSceneID: UUID? = nil) {
+            self.id = UUID()
+            self.timelineID = timelineID
+            self.focusSceneID = focusSceneID
+        }
+    }
+
+    /// Request to open a manuscript view window
+    /// Phase 6: Timeline Integration - Timeline → Manuscript navigation
+    struct ManuscriptViewRequest: Identifiable, Hashable, Codable {
+        let id: UUID
+        let projectID: UUID
+        let focusSceneID: UUID?
+
+        init(projectID: UUID, focusSceneID: UUID? = nil) {
+            self.id = UUID()
+            self.projectID = projectID
+            self.focusSceneID = focusSceneID
+        }
+    }
     #endif
 }

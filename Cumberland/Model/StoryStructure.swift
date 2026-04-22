@@ -19,21 +19,46 @@ import SwiftUI
 final class StoryStructure {
     // CloudKit: provide default
     var id: UUID = UUID()
-    
+
     // Basic info
     var name: String = "" // e.g., "Three-Act Structure", "Hero's Journey", "Beginning-Middle-End"
     var projectID: UUID? // Optional: link to a specific project
-    
+
     // The actual structure elements (CloudKit: relationship must be optional)
     @Relationship(deleteRule: .cascade, inverse: \StructureElement.storyStructure)
     var elements: [StructureElement]? = []
-    
+
+    // Custom arc data (for user-created structures)
+    // Stored as JSON-encoded CustomArc
+    var customArcData: Data?
+
     var createdAt: Date = Date()
     var modifiedAt: Date = Date()
-    
+
     init(name: String, projectID: UUID? = nil) {
         self.name = name
         self.projectID = projectID
+    }
+
+    /// Computed property to access the custom arc (if present)
+    var customArc: CustomArc? {
+        get {
+            guard let data = customArcData else { return nil }
+            return try? JSONDecoder().decode(CustomArc.self, from: data)
+        }
+        set {
+            if let arc = newValue {
+                customArcData = try? JSONEncoder().encode(arc)
+            } else {
+                customArcData = nil
+            }
+            modifiedAt = Date()
+        }
+    }
+
+    /// Whether this is a custom (user-created) structure
+    var isCustom: Bool {
+        return customArcData != nil
     }
 }
 
@@ -267,8 +292,16 @@ extension StoryStructure {
     /// 1. Dashboard visualization (sparkline with variable line thickness)
     /// 2. Scene mapping algorithm when switching between structures
     ///
-    /// For custom structures without predefined arcs, returns LinearArc (straight line).
+    /// For custom structures, returns the user-defined CustomArc if available.
+    /// For predefined structures, returns the associated arc type.
+    /// Fallback: LinearArc (straight line).
     var narrativeArc: NarrativeArc {
+        // If this is a custom structure with custom arc data, use that
+        if let customArc = customArc {
+            return customArc
+        }
+
+        // Otherwise use predefined arcs based on name
         switch name {
         // Narrative Structures
         case "Three-Act Structure":
@@ -300,7 +333,7 @@ extension StoryStructure {
         case "White Paper":
             return WhitePaperArc()
 
-        // Fallback for custom structures
+        // Fallback for unrecognized structures
         default:
             return LinearArc()
         }
