@@ -11,7 +11,7 @@ struct CitationManagerTests {
 
     @MainActor
     private func makeManager() throws -> (CitationManager, ModelContext) {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let mgr = CitationManager(modelContext: ctx)
         return (mgr, ctx)
     }

@@ -14,7 +14,7 @@ struct BoardModelTests {
     @Test("clampState clamps zoom to max")
     @MainActor
     func clampStateMaxZoom() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let board = TestFixtures.createBoard(name: "Test", context: ctx)
         board.zoomScale = 5.0
         board.clampState()
@@ -24,7 +24,7 @@ struct BoardModelTests {
     @Test("clampState clamps zoom to min")
     @MainActor
     func clampStateMinZoom() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let board = TestFixtures.createBoard(name: "Test", context: ctx)
         board.zoomScale = 0.001
         board.clampState()
@@ -34,7 +34,7 @@ struct BoardModelTests {
     @Test("clampState clamps panX and panY")
     @MainActor
     func clampStatePan() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let board = TestFixtures.createBoard(name: "Test", context: ctx)
         board.panX = 2_000_000
         board.panY = -2_000_000
@@ -48,7 +48,7 @@ struct BoardModelTests {
     @Test("node creates when missing and createIfMissing is true")
     @MainActor
     func nodeCreatesWhenMissing() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let card = TestFixtures.createSampleCharacter(name: "Hero", context: ctx)
         let board = TestFixtures.createBoard(name: "Board", context: ctx)
         try ctx.save()
@@ -62,7 +62,7 @@ struct BoardModelTests {
     @Test("node returns nil when missing and createIfMissing is false")
     @MainActor
     func nodeReturnsNilWhenMissing() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let card = TestFixtures.createSampleCharacter(name: "Hero", context: ctx)
         let board = TestFixtures.createBoard(name: "Board", context: ctx)
         try ctx.save()
@@ -76,7 +76,7 @@ struct BoardModelTests {
     @Test("fetchOrCreatePrimaryBoard creates new board")
     @MainActor
     func fetchOrCreateCreatesNew() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let card = TestFixtures.createSampleCharacter(name: "Primary", context: ctx)
         try ctx.save()
 
@@ -88,7 +88,7 @@ struct BoardModelTests {
     @Test("fetchOrCreatePrimaryBoard returns existing on repeat call")
     @MainActor
     func fetchOrCreateReturnsExisting() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let card = TestFixtures.createSampleCharacter(name: "Primary", context: ctx)
         try ctx.save()
 
@@ -102,7 +102,7 @@ struct BoardModelTests {
     @Test("effectiveSizeCategory uses override when set, falls back to card")
     @MainActor
     func effectiveSizeCategoryOverrideAndFallback() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let card = TestFixtures.createSampleCharacter(context: ctx)
         card.sizeCategory = .compact
         let board = TestFixtures.createBoard(context: ctx)

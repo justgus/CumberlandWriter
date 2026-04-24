@@ -143,7 +143,7 @@ struct ImageGenerationWorkflowTests {
     @Test("Store generated image on card")
     @MainActor
     func storeGeneratedImage() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(
             kind: .characters,
@@ -293,7 +293,7 @@ struct ImageGenerationWorkflowTests {
     @Test("Complete generation workflow simulation")
     @MainActor
     func completeWorkflowSimulation() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         // 1. Create card with description
         let card = Card(

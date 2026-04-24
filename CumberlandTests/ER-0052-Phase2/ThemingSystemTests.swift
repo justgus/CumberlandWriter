@@ -18,7 +18,7 @@ import SwiftUI
 // MARK: - Test Suite
 
 /// Test suite for Theming System validation
-@Suite("Theming System Tests", .tags(.phase2, .themingSystem))
+@Suite("Theming System Tests", .serialized, .tags(.phase2, .themingSystem))
 @MainActor
 struct ThemingSystemTests {
 

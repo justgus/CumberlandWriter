@@ -19,7 +19,7 @@ struct ExternalStorageTests {
     @Test("Small data stored inline")
     @MainActor
     func smallDataInline() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .characters, name: "Test", subtitle: "", detailedText: "")
 
@@ -42,7 +42,7 @@ struct ExternalStorageTests {
     @Test("Large data uses external storage")
     @MainActor
     func largeDataExternal() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .locations, name: "Map", subtitle: "", detailedText: "")
 
@@ -66,7 +66,7 @@ struct ExternalStorageTests {
     @Test("External data can be updated")
     @MainActor
     func externalDataUpdate() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .locations, name: "Map", subtitle: "", detailedText: "")
 
@@ -94,7 +94,7 @@ struct ExternalStorageTests {
     @Test("External data can be deleted")
     @MainActor
     func externalDataDeletion() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .locations, name: "Map", subtitle: "", detailedText: "")
         let largeData = Data(repeating: 0x42, count: 2 * 1024 * 1024)
@@ -119,7 +119,7 @@ struct ExternalStorageTests {
     @Test("Multiple cards with external storage")
     @MainActor
     func multipleCardsExternalStorage() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card1 = Card(kind: .locations, name: "Map1", subtitle: "", detailedText: "")
         let card2 = Card(kind: .locations, name: "Map2", subtitle: "", detailedText: "")
@@ -146,7 +146,7 @@ struct ExternalStorageTests {
     @Test("ImageVersion stores data externally")
     @MainActor
     func imageVersionExternalStorage() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
 
@@ -175,7 +175,7 @@ struct ExternalStorageTests {
     @Test("Draft map work data uses external storage")
     @MainActor
     func draftMapWorkExternalStorage() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .locations, name: "Map", subtitle: "", detailedText: "")
 
@@ -200,7 +200,7 @@ struct ExternalStorageTests {
     @Test("Large data save is performant")
     @MainActor
     func largeDataSavePerformant() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .locations, name: "Map", subtitle: "", detailedText: "")
         let largeData = Data(repeating: 0x42, count: 10 * 1024 * 1024) // 10MB
@@ -219,7 +219,7 @@ struct ExternalStorageTests {
     @Test("Large data fetch is performant")
     @MainActor
     func largeDataFetchPerformant() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .locations, name: "Map", subtitle: "", detailedText: "")
         let largeData = Data(repeating: 0x42, count: 10 * 1024 * 1024) // 10MB

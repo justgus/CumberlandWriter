@@ -9,6 +9,7 @@
 import Testing
 @testable import Cumberland
 
+@MainActor
 struct NarrativeArcTests {
 
     // MARK: - Protocol Conformance Tests
@@ -101,7 +102,7 @@ struct NarrativeArcTests {
         // Midpoint should be notable peak around 50%
         let tensionAt45 = arc.tension(at: 0.45)
         let tensionAt50 = arc.tension(at: 0.55) // In midpoint range 0.53-0.6
-        let tensionAt60 = arc.tension(at: 0.6)
+        let _ = arc.tension(at: 0.6)
 
         #expect(tensionAt50 > tensionAt45)
         #expect(tensionAt50 >= 0.75) // Should be elevated

@@ -19,7 +19,7 @@ import SwiftUI
 // MARK: - Test Container
 
 /// Test suite for Structure Board Kanban scene organization
-@Suite("Structure Board Tests", .tags(.phase2, .structureBoard))
+@Suite("Structure Board Tests", .serialized, .tags(.phase2, .structureBoard))
 struct StructureBoardTests {
 
     // MARK: - Test Infrastructure
@@ -45,7 +45,8 @@ struct StructureBoardTests {
 
         let configuration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: true
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
         )
 
         self.container = try ModelContainer(for: schema, configurations: [configuration])

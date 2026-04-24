@@ -71,12 +71,20 @@ struct KeychainHelperTests {
     @Test("Update existing API key")
     func updateExistingKey() throws {
         let helper = KeychainHelper.shared
-        let provider = "openai"
+        let provider = "openai-update-test"  // Use unique provider to avoid interference
+
+        // Clean slate - ensure no previous key exists
+        try? helper.deleteAPIKey(for: provider)
+
         let oldKey = "sk-old-12345"
         let newKey = "sk-new-67890"
 
         // Save initial key
         try helper.saveAPIKey(oldKey, for: provider)
+
+        // Verify initial key was saved
+        let initialRetrieved = try helper.retrieveAPIKey(for: provider)
+        #expect(initialRetrieved == oldKey, "Initial key should be saved successfully")
 
         // Update
         try helper.saveAPIKey(newKey, for: provider)

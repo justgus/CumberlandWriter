@@ -82,7 +82,7 @@ struct SchemaV1toV2MigrationTests {
     @Test("Card can store external image data")
     @MainActor
     func cardExternalImageData() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .characters, name: "Test", subtitle: "", detailedText: "")
 
@@ -110,7 +110,7 @@ struct SchemaV1toV2MigrationTests {
     @Test("Card external image data is optional")
     @MainActor
     func cardExternalImageDataOptional() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .characters, name: "Test", subtitle: "", detailedText: "")
         context.insert(card)
@@ -127,7 +127,7 @@ struct SchemaV1toV2MigrationTests {
     @Test("Large image data uses external storage")
     @MainActor
     func largeImageDataExternalStorage() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .locations, name: "Map", subtitle: "", detailedText: "")
 
@@ -152,7 +152,7 @@ struct SchemaV1toV2MigrationTests {
     @Test("Original image data can be cleared")
     @MainActor
     func originalImageDataCanBeCleared() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .characters, name: "Test", subtitle: "", detailedText: "")
         let imageData = Data([0x00, 0x01, 0x02, 0x03])
@@ -179,7 +179,7 @@ struct SchemaV1toV2MigrationTests {
     @Test("Card can store thumbnail data")
     @MainActor
     func cardThumbnailData() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .characters, name: "Test", subtitle: "", detailedText: "")
         let thumbnailData = Data([0x00, 0x01, 0x02])
@@ -201,7 +201,7 @@ struct SchemaV1toV2MigrationTests {
     @Test("Thumbnail data is independent of original image data")
     @MainActor
     func thumbnailIndependent() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .characters, name: "Test", subtitle: "", detailedText: "")
         card.originalImageData = Data([0x01, 0x02, 0x03])

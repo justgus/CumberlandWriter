@@ -12,7 +12,7 @@ struct CumberlandBoardAdapterTests {
 
     @MainActor
     private func makeContext() throws -> ModelContext {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         return ctx
     }
 

@@ -136,7 +136,7 @@ struct CalendarExtractionTests {
     @Test("Convert CalendarStructure to CalendarSystem model")
     @MainActor
     func convertToCalendarSystem() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let calendarData = CalendarStructure(
             name: "Test Calendar",
@@ -275,7 +275,7 @@ struct CalendarExtractionTests {
     @Test("Extract calendar and associate with timeline")
     @MainActor
     func extractAndAssociateCalendar() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         // Simulate extracted calendar
         let calendarData = CalendarStructure(

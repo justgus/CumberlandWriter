@@ -19,7 +19,7 @@ import SwiftUI
 // MARK: - Test Container
 
 /// Test suite for Map Wizard multi-step workflow validation
-@Suite("Map Wizard Integration Tests", .tags(.phase2, .mapWizard))
+@Suite("Map Wizard Integration Tests", .serialized, .tags(.phase2, .mapWizard))
 struct MapWizardIntegrationTests {
 
     // MARK: - Test Infrastructure
@@ -45,7 +45,8 @@ struct MapWizardIntegrationTests {
 
         let configuration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: true
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
         )
 
         self.container = try ModelContainer(for: schema, configurations: [configuration])

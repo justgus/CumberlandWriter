@@ -19,7 +19,7 @@ struct DesyncRecoveryTests {
     @Test("Detects desync when cached counts don't match array counts")
     @MainActor
     func detectDesync() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let monitor = EdgeIntegrityMonitor()
 
         let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
@@ -48,7 +48,7 @@ struct DesyncRecoveryTests {
     @Test("Returns ok status when counts match")
     @MainActor
     func noDesyncDetected() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let monitor = EdgeIntegrityMonitor()
 
         let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
@@ -76,7 +76,7 @@ struct DesyncRecoveryTests {
     @Test("Skips check when cached counts are zero")
     @MainActor
     func skipsCheckForUninitialized() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let monitor = EdgeIntegrityMonitor()
 
         let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
@@ -102,7 +102,7 @@ struct DesyncRecoveryTests {
     @Test("Recover fetches authoritative edges and corrects counts")
     @MainActor
     func recoverEdges() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let monitor = EdgeIntegrityMonitor()
 
         let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
@@ -131,7 +131,7 @@ struct DesyncRecoveryTests {
     @Test("Recover handles cards with no edges")
     @MainActor
     func recoverNoEdges() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let monitor = EdgeIntegrityMonitor()
 
         let card = TestFixtures.createSampleCharacter(name: "Isolated", context: context)
@@ -158,7 +158,7 @@ struct DesyncRecoveryTests {
     @Test("Recalculate counts uses FetchDescriptor")
     @MainActor
     func recalculateCounts() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
         let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
@@ -185,7 +185,7 @@ struct DesyncRecoveryTests {
     @Test("Increment counts increases cached values")
     @MainActor
     func incrementCounts() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
         let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
@@ -203,7 +203,7 @@ struct DesyncRecoveryTests {
     @Test("Decrement counts decreases cached values")
     @MainActor
     func decrementCounts() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
         let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
@@ -221,7 +221,7 @@ struct DesyncRecoveryTests {
     @Test("Decrement counts never goes below zero")
     @MainActor
     func decrementCountsFloor() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
         let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
@@ -242,7 +242,7 @@ struct DesyncRecoveryTests {
     @Test("Full workflow: detect, recover, verify")
     @MainActor
     func fullWorkflow() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let monitor = EdgeIntegrityMonitor()
 
         let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)

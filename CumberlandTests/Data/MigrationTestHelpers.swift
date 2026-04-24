@@ -66,7 +66,10 @@ struct MigrationTestHelpers {
         func performMigration() async throws -> ModelContainer {
             // Create new container with the new schema
             // SwiftData will attempt automatic migration if possible
-            let config = ModelConfiguration(isStoredInMemoryOnly: false)
+            let config = ModelConfiguration(
+                isStoredInMemoryOnly: false,
+                cloudKitDatabase: .none
+            )
             return try ModelContainer(for: newSchema, configurations: [config])
         }
 

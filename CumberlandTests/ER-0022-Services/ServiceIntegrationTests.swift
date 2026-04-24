@@ -41,14 +41,14 @@ struct ServiceIntegrationTests {
     /// Create a ModelContext for testing using the host app's container
     /// (DR-0102: hosted test bundles cannot create standalone ModelContainers)
     func createTestContext() throws -> ModelContext {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
-        return context
+        try TestFixtures.makeIsolatedContext()
     }
 
     /// Create a test card with specified properties
-    func createTestCard(context: ModelContext, kind: Kinds, name: String) -> Card {
+    func createTestCard(context: ModelContext, kind: Kinds, name: String) throws -> Card {
         let card = Card(kind: kind, name: name, subtitle: "", detailedText: "Test card")
         context.insert(card)
+        try context.save()
         return card
     }
 
@@ -58,7 +58,7 @@ struct ServiceIntegrationTests {
     func testServiceContainerInitialization() throws {
         let context = try createTestContext()
         let container = ServiceContainer(modelContext: context)
-
+        
         // Verify all repositories are initialized by accessing them
         _ = container.cardRepository.fetchAll()
         _ = container.edgeRepository.fetchAll()
@@ -198,8 +198,8 @@ struct ServiceIntegrationTests {
         let manager = RelationshipManager(modelContext: context)
 
         // Create two cards
-        let character = createTestCard(context: context, kind: .characters, name: "Hero")
-        let sword = createTestCard(context: context, kind: .artifacts, name: "Legendary Sword")
+        let character = try createTestCard(context: context, kind: .characters, name: "Hero")
+        let sword = try createTestCard(context: context, kind: .artifacts, name: "Legendary Sword")
 
         // Find or create a relationship type
         let relationType = try getOrCreateRelationType(context: context, code: "owns", forward: "owns", backward: "owned-by")
@@ -228,8 +228,8 @@ struct ServiceIntegrationTests {
         let context = try createTestContext()
         let manager = RelationshipManager(modelContext: context)
 
-        let cardA = createTestCard(context: context, kind: .characters, name: "Character A")
-        let cardB = createTestCard(context: context, kind: .characters, name: "Character B")
+        let cardA = try createTestCard(context: context, kind: .characters, name: "Character A")
+        let cardB = try createTestCard(context: context, kind: .characters, name: "Character B")
         let relationType = try getOrCreateRelationType(context: context, code: "knows", forward: "knows", backward: "known-by")
 
         // Create first relationship
@@ -250,8 +250,8 @@ struct ServiceIntegrationTests {
         let context = try createTestContext()
         let manager = RelationshipManager(modelContext: context)
 
-        let cardA = createTestCard(context: context, kind: .locations, name: "Location A")
-        let cardB = createTestCard(context: context, kind: .buildings, name: "Building B")
+        let cardA = try createTestCard(context: context, kind: .locations, name: "Location A")
+        let cardB = try createTestCard(context: context, kind: .buildings, name: "Building B")
         let relationType = try getOrCreateRelationType(context: context, code: "contains", forward: "contains", backward: "part-of")
 
         // Create relationship
@@ -277,9 +277,9 @@ struct ServiceIntegrationTests {
         let context = try createTestContext()
         let manager = RelationshipManager(modelContext: context)
 
-        let hero = createTestCard(context: context, kind: .characters, name: "Hero")
-        let sword = createTestCard(context: context, kind: .artifacts, name: "Sword")
-        let shield = createTestCard(context: context, kind: .artifacts, name: "Shield")
+        let hero = try createTestCard(context: context, kind: .characters, name: "Hero")
+        let sword = try createTestCard(context: context, kind: .artifacts, name: "Sword")
+        let shield = try createTestCard(context: context, kind: .artifacts, name: "Shield")
         let relationType = try getOrCreateRelationType(context: context, code: "owns", forward: "owns", backward: "owned-by")
 
         // Create two outgoing relationships from hero
@@ -300,9 +300,9 @@ struct ServiceIntegrationTests {
         let repo = CardRepository(modelContext: context)
 
         // Create test cards
-        _ = createTestCard(context: context, kind: .characters, name: "Character 1")
-        _ = createTestCard(context: context, kind: .locations, name: "Location 1")
-        _ = createTestCard(context: context, kind: .artifacts, name: "Artifact 1")
+        _ = try createTestCard(context: context, kind: .characters, name: "Character 1")
+        _ = try createTestCard(context: context, kind: .locations, name: "Location 1")
+        _ = try createTestCard(context: context, kind: .artifacts, name: "Artifact 1")
         try context.save()
 
         let allCards = repo.fetchAll()
@@ -314,9 +314,9 @@ struct ServiceIntegrationTests {
         let context = try createTestContext()
         let repo = CardRepository(modelContext: context)
 
-        _ = createTestCard(context: context, kind: .characters, name: "Character 1")
-        _ = createTestCard(context: context, kind: .characters, name: "Character 2")
-        _ = createTestCard(context: context, kind: .locations, name: "Location 1")
+        _ = try createTestCard(context: context, kind: .characters, name: "Character 1")
+        _ = try createTestCard(context: context, kind: .characters, name: "Character 2")
+        _ = try createTestCard(context: context, kind: .locations, name: "Location 1")
         try context.save()
 
         let characters = repo.fetch(byKind: .characters)
@@ -331,9 +331,9 @@ struct ServiceIntegrationTests {
         let context = try createTestContext()
         let repo = CardRepository(modelContext: context)
 
-        _ = createTestCard(context: context, kind: .characters, name: "Dark Lord Voldemort")
-        _ = createTestCard(context: context, kind: .characters, name: "Harry Potter")
-        _ = createTestCard(context: context, kind: .locations, name: "Dark Forest")
+        _ = try createTestCard(context: context, kind: .characters, name: "Dark Lord Voldemort")
+        _ = try createTestCard(context: context, kind: .characters, name: "Harry Potter")
+        _ = try createTestCard(context: context, kind: .locations, name: "Dark Forest")
         try context.save()
 
         let darkResults = repo.search(query: "dark")
@@ -348,7 +348,7 @@ struct ServiceIntegrationTests {
         let context = try createTestContext()
         let repo = CardRepository(modelContext: context)
 
-        let card = createTestCard(context: context, kind: .vehicles, name: "Starship")
+        let card = try createTestCard(context: context, kind: .vehicles, name: "Starship")
         try context.save()
 
         let uuid = card.id
@@ -366,8 +366,8 @@ struct ServiceIntegrationTests {
         let edgeRepo = EdgeRepository(modelContext: context)
         let manager = RelationshipManager(modelContext: context)
 
-        let hero = createTestCard(context: context, kind: .characters, name: "Hero")
-        let sword = createTestCard(context: context, kind: .artifacts, name: "Sword")
+        let hero = try createTestCard(context: context, kind: .characters, name: "Hero")
+        let sword = try createTestCard(context: context, kind: .artifacts, name: "Sword")
         let relationType = try getOrCreateRelationType(context: context, code: "owns", forward: "owns", backward: "owned-by")
 
         try manager.createRelationship(from: hero, to: sword, type: relationType)
@@ -384,8 +384,8 @@ struct ServiceIntegrationTests {
         let context = try createTestContext()
         let queryService = QueryService(modelContext: context)
 
-        _ = createTestCard(context: context, kind: .characters, name: "Character 1")
-        _ = createTestCard(context: context, kind: .locations, name: "Location 1")
+        _ = try createTestCard(context: context, kind: .characters, name: "Character 1")
+        _ = try createTestCard(context: context, kind: .locations, name: "Location 1")
         try context.save()
 
         let allCards = queryService.getAllCards()

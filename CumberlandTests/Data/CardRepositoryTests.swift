@@ -18,7 +18,7 @@ struct CardRepositoryTests {
     @Test("Fetch all cards returns sorted by name")
     @MainActor
     func fetchAllCardsSorted() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = CardRepository(modelContext: context)
 
         // Create test cards in random order
@@ -41,7 +41,7 @@ struct CardRepositoryTests {
     @Test("Fetch cards by kind filters correctly")
     @MainActor
     func fetchCardsByKind() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = CardRepository(modelContext: context)
 
         // Create cards of different kinds
@@ -62,7 +62,7 @@ struct CardRepositoryTests {
     @Test("Fetch cards by multiple kinds")
     @MainActor
     func fetchCardsByMultipleKinds() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = CardRepository(modelContext: context)
 
         let character = TestFixtures.createSampleCharacter(name: "Hero", context: context)
@@ -81,7 +81,7 @@ struct CardRepositoryTests {
     @Test("Fetch card by UUID finds correct card")
     @MainActor
     func fetchCardByUUID() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = CardRepository(modelContext: context)
 
         let card = TestFixtures.createSampleCharacter(name: "Target", context: context)
@@ -97,7 +97,7 @@ struct CardRepositoryTests {
     @Test("Fetch card by UUID returns nil for non-existent UUID")
     @MainActor
     func fetchCardByNonExistentUUID() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = CardRepository(modelContext: context)
 
         let randomUUID = UUID()
@@ -111,7 +111,7 @@ struct CardRepositoryTests {
     @Test("Search finds cards by name")
     @MainActor
     func searchCardsByName() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = CardRepository(modelContext: context)
 
         let _ = TestFixtures.createSampleCharacter(name: "Aragorn", context: context)
@@ -127,7 +127,7 @@ struct CardRepositoryTests {
     @Test("Search returns all cards for empty query")
     @MainActor
     func searchWithEmptyQuery() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = CardRepository(modelContext: context)
 
         let _ = TestFixtures.createSampleCharacter(name: "Test1", context: context)
@@ -144,7 +144,7 @@ struct CardRepositoryTests {
     @Test("Insert card adds to context")
     @MainActor
     func insertCard() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = CardRepository(modelContext: context)
 
         let card = Card(kind: .characters, name: "New Character", subtitle: "", detailedText: "")
@@ -159,7 +159,7 @@ struct CardRepositoryTests {
     @Test("Delete card removes from context")
     @MainActor
     func deleteCard() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = CardRepository(modelContext: context)
 
         let card = TestFixtures.createSampleCharacter(name: "ToDelete", context: context)
@@ -178,7 +178,7 @@ struct CardRepositoryTests {
     @Test("Count operations return correct values")
     @MainActor
     func countOperations() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = CardRepository(modelContext: context)
 
         // Create known quantities

@@ -33,7 +33,7 @@ struct SearchEngineTests {
     @Test("Search by name returns exact match")
     @MainActor
     func searchByName() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let alice = TestFixtures.createSampleCharacter(name: "Alice Wonderland", context: context)
@@ -49,7 +49,7 @@ struct SearchEngineTests {
     @Test("Search by subtitle returns match")
     @MainActor
     func searchBySubtitle() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let _ = try createCard(kind: .characters, name: "Hero", subtitle: "Brave warrior", detailedText: "", context: context)
@@ -64,7 +64,7 @@ struct SearchEngineTests {
     @Test("Search by detailed text returns match with snippet")
     @MainActor
     func searchByDetailedText() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let _ = try createCard(kind: .locations, name: "Castle", subtitle: "", detailedText: "A magnificent fortress with tall towers", context: context)
@@ -79,7 +79,7 @@ struct SearchEngineTests {
     @Test("Search returns empty for no matches")
     @MainActor
     func searchNoMatches() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let _ = TestFixtures.createSampleCharacter(name: "Alice", context: context)
@@ -93,7 +93,7 @@ struct SearchEngineTests {
     @Test("Search with empty query returns empty")
     @MainActor
     func searchEmptyQuery() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let _ = TestFixtures.createSampleCharacter(name: "Alice", context: context)
@@ -107,7 +107,7 @@ struct SearchEngineTests {
     @Test("Search with whitespace-only query returns empty")
     @MainActor
     func searchWhitespaceQuery() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let _ = TestFixtures.createSampleCharacter(name: "Alice", context: context)
@@ -123,7 +123,7 @@ struct SearchEngineTests {
     @Test("Search is case insensitive")
     @MainActor
     func searchCaseInsensitive() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let _ = TestFixtures.createSampleCharacter(name: "Dragon Slayer", context: context)
@@ -141,7 +141,7 @@ struct SearchEngineTests {
     @Test("Search normalizes diacritics")
     @MainActor
     func searchNormalizesDiacritics() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let card = try createCard(kind: .locations, name: "Café Français", subtitle: "", detailedText: "", context: context)
@@ -159,7 +159,7 @@ struct SearchEngineTests {
     @Test("Name matches rank higher than subtitle")
     @MainActor
     func nameRankingPriority() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let card1 = try createCard(kind: .characters, name: "Dragon Master", subtitle: "", detailedText: "", context: context)
@@ -178,7 +178,7 @@ struct SearchEngineTests {
     @Test("Results sorted alphabetically by name")
     @MainActor
     func resultsSortedByName() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let _ = try createCard(kind: .characters, name: "Zara the Brave", subtitle: "", detailedText: "", context: context)
@@ -199,7 +199,7 @@ struct SearchEngineTests {
     @Test("Respects max results limit")
     @MainActor
     func respectsMaxResults() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         // Create 10 cards with "hero" in the name
@@ -219,7 +219,7 @@ struct SearchEngineTests {
     @Test("Snippet includes query context")
     @MainActor
     func snippetIncludesContext() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let longText = "The ancient kingdom was known for its magnificent library. " +
@@ -238,7 +238,7 @@ struct SearchEngineTests {
     @Test("Snippet handles match at start of text")
     @MainActor
     func snippetStartOfText() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let text = "Castle stands at the peak of the mountain, overlooking the valley below."
@@ -255,7 +255,7 @@ struct SearchEngineTests {
     @Test("Snippet handles match at end of text")
     @MainActor
     func snippetEndOfText() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let text = "The ancient ruins contain many treasures and artifacts from the old kingdom"
@@ -274,7 +274,7 @@ struct SearchEngineTests {
     @Test("Search handles multi-word queries")
     @MainActor
     func multiWordQuery() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let card = try createCard(kind: .characters, name: "Sir Galahad the Pure", subtitle: "", detailedText: "", context: context)
@@ -291,7 +291,7 @@ struct SearchEngineTests {
     @Test("Search finds partial word matches")
     @MainActor
     func partialWordMatch() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let card = try createCard(kind: .characters, name: "Alexander", subtitle: "", detailedText: "", context: context)
@@ -308,7 +308,7 @@ struct SearchEngineTests {
     @Test("Search returns multiple matching cards")
     @MainActor
     func multipleMatches() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let card1 = try createCard(kind: .characters, name: "Fire Mage", subtitle: "", detailedText: "", context: context)
@@ -330,7 +330,7 @@ struct SearchEngineTests {
     @Test("Search by author returns match")
     @MainActor
     func searchByAuthor() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let _ = try createCard(kind: .scenes, name: "Battle Scene", subtitle: "", detailedText: "", author: "John Smith", context: context)
@@ -346,7 +346,7 @@ struct SearchEngineTests {
     @Test("Search handles special characters")
     @MainActor
     func specialCharacters() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let card = try createCard(kind: .characters, name: "O'Brien", subtitle: "", detailedText: "", context: context)
@@ -363,7 +363,7 @@ struct SearchEngineTests {
     @Test("Search is performant with many cards")
     @MainActor
     func searchPerformance() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         // Create 100 cards
@@ -386,7 +386,7 @@ struct SearchEngineTests {
     @Test("SearchResult has correct structure")
     @MainActor
     func searchResultStructure() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let card = TestFixtures.createSampleCharacter(name: "Test Character", context: context)
@@ -434,7 +434,7 @@ struct SearchEngineTests {
     @Test("Search tokenizes multi-word queries")
     @MainActor
     func searchTokenizesQueries() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let card = try createCard(kind: .locations, name: "Dark Forest of Shadows", subtitle: "", detailedText: "", context: context)
@@ -471,7 +471,7 @@ struct SearchEngineTests {
     @Test("Search ranks exact matches higher than partial")
     @MainActor
     func searchRanksExactHigher() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         let _ = try createCard(kind: .characters, name: "Dragon", subtitle: "", detailedText: "", context: context)
@@ -512,7 +512,7 @@ struct SearchEngineTests {
     @Test("Search filters by kind")
     @MainActor
     func searchFiltersByKind() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         // createCard already inserts and saves
         let character = try createCard(kind: .characters, name: "Fire Mage", subtitle: "", detailedText: "", context: context)
@@ -562,7 +562,7 @@ struct SearchEngineTests {
     @Test("Search integrates with navigation")
     @MainActor
     func searchIntegratesWithNavigation() async throws {
-        let (_, context) = try TestFixtures.makeIsolatedContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let engine = SwiftDataSearchEngine(context: context)
 
         // createCard already inserts and saves

@@ -38,7 +38,7 @@ struct SchemaV2toV3MigrationTests {
     @Test("Board can be created and persisted")
     @MainActor
     func boardCreation() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let board = Board(name: "Test Board")
         context.insert(board)
@@ -57,7 +57,7 @@ struct SchemaV2toV3MigrationTests {
     @Test("Board has default viewport")
     @MainActor
     func boardDefaultViewport() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let board = Board(name: "Test Board")
         context.insert(board)
@@ -72,7 +72,7 @@ struct SchemaV2toV3MigrationTests {
     @Test("Board can have multiple nodes")
     @MainActor
     func boardMultipleNodes() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let board = Board(name: "Test Board")
         context.insert(board)
@@ -100,7 +100,7 @@ struct SchemaV2toV3MigrationTests {
     @Test("BoardNode can be created with card reference")
     @MainActor
     func boardNodeCreation() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let board = Board(name: "Test Board")
         let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
@@ -122,7 +122,7 @@ struct SchemaV2toV3MigrationTests {
     @Test("BoardNode position can be updated")
     @MainActor
     func boardNodePositionUpdate() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let board = Board(name: "Test Board")
         let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
@@ -149,7 +149,7 @@ struct SchemaV2toV3MigrationTests {
     @Test("BoardNode maintains relationship with card")
     @MainActor
     func boardNodeCardRelationship() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let board = Board(name: "Test Board")
         let card = TestFixtures.createSampleCharacter(name: "Alice", context: context)
@@ -169,7 +169,7 @@ struct SchemaV2toV3MigrationTests {
     @Test("Deleting board cascades to nodes")
     @MainActor
     func deleteBoardCascadesToNodes() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let board = Board(name: "Test Board")
         context.insert(board)
@@ -198,7 +198,7 @@ struct SchemaV2toV3MigrationTests {
     @Test("Deleting card cascades to nodes")
     @MainActor
     func deleteCardCascadesToNodes() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let board = Board(name: "Test Board")
         let card = TestFixtures.createSampleCharacter(name: "Test", context: context)

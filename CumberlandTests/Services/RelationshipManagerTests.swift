@@ -11,7 +11,7 @@ struct RelationshipManagerTests {
 
     @MainActor
     private func makeManager() throws -> (RelationshipManager, ModelContext) {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let mgr = RelationshipManager(modelContext: ctx)
         return (mgr, ctx)
     }

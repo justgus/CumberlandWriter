@@ -4,7 +4,7 @@ import SwiftData
 
 /// Tests for Calendar System model and validation
 /// Part of ER-0008: Time-Based Timeline System
-@Suite("Calendar System Tests")
+@Suite("Calendar System Tests", .serialized)
 struct CalendarSystemTests {
 
     // MARK: - Test Helpers
@@ -30,7 +30,8 @@ struct CalendarSystemTests {
 
         let config = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: true
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
         )
 
         let container = try ModelContainer(
@@ -46,7 +47,8 @@ struct CalendarSystemTests {
     @Test("Create basic calendar system")
     @MainActor
     func createBasicCalendar() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let (container, context) = try makeInMemoryContainer()
+        _ = container // Keep container alive for test duration
 
         // Create calendar
         let calendar = CalendarSystem(
@@ -70,7 +72,8 @@ struct CalendarSystemTests {
     @Test("Create custom fantasy calendar")
     @MainActor
     func createFantasyCalendar() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let (container, context) = try makeInMemoryContainer()
+        _ = container // Keep container alive for test duration
 
         // Create fantasy calendar
         let calendar = CalendarSystem(
@@ -115,7 +118,8 @@ struct CalendarSystemTests {
     @Test("Associate calendar with timeline")
     @MainActor
     func associateCalendarWithTimeline() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let (container, context) = try makeInMemoryContainer()
+        _ = container // Keep container alive for test duration
 
         // Create calendar
         let calendar = CalendarSystem(

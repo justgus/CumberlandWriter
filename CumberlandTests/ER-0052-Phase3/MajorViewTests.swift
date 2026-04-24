@@ -18,7 +18,7 @@ import SwiftUI
 // MARK: - Test Suite
 
 /// Test suite for major view component validation
-@Suite("Major View Tests", .tags(.phase3, .majorViews))
+@Suite("Major View Tests", .serialized, .tags(.phase3, .majorViews))
 @MainActor
 struct MajorViewTests {
 
@@ -45,7 +45,8 @@ struct MajorViewTests {
 
         let configuration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: true
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
         )
 
         self.container = try ModelContainer(for: schema, configurations: [configuration])

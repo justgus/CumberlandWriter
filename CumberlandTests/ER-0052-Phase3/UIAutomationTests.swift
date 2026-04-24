@@ -19,7 +19,7 @@ import SwiftUI
 // MARK: - Test Suite
 
 /// Test suite for UI automation and workflow validation
-@Suite("UI Automation Tests", .tags(.phase3, .uiAutomation))
+@Suite("UI Automation Tests", .serialized, .tags(.phase3, .uiAutomation))
 @MainActor
 struct UIAutomationTests {
 
@@ -46,7 +46,8 @@ struct UIAutomationTests {
 
         let configuration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: true
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
         )
 
         self.container = try ModelContainer(for: schema, configurations: [configuration])

@@ -5,14 +5,17 @@ import Foundation
 
 /// Integration tests for workflows spanning multiple ERs
 /// Tests interactions between ER-0008, ER-0009, and ER-0010
-@Suite("Cross-ER Workflow Tests")
+@Suite("Cross-ER Workflow Tests", .serialized)
 struct CrossERWorkflowTests {
 
     // MARK: - Test Helpers
 
     @MainActor
     func makeInMemoryContainer() throws -> (ModelContainer, ModelContext) {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
+        )
         let container = try ModelContainer(
             for: Card.self, CalendarSystem.self,
             configurations: config
@@ -26,7 +29,8 @@ struct CrossERWorkflowTests {
     @Test("Extract calendar from description and associate with timeline")
     @MainActor
     func extractCalendarForTimeline() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let (container, context) = try makeInMemoryContainer()
+        _ = container // Keep container alive for test duration
 
         // Create timeline with fantasy calendar description
         let detailedText = """
@@ -65,7 +69,8 @@ struct CrossERWorkflowTests {
     @Test("Analyze description, create cards, generate images")
     @MainActor
     func analyzeAndGenerateImages() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let (container, context) = try makeInMemoryContainer()
+        _ = container // Keep container alive for test duration
 
         // Create scene with rich description
         let detailedText = """

@@ -53,7 +53,7 @@ struct SchemaV3toV5MigrationTests {
     @Test("ImageVersion can be created and persisted")
     @MainActor
     func imageVersionCreation() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
 
@@ -86,7 +86,7 @@ struct SchemaV3toV5MigrationTests {
     @Test("Card can have multiple image versions")
     @MainActor
     func cardMultipleImageVersions() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
 
@@ -121,7 +121,7 @@ struct SchemaV3toV5MigrationTests {
     @Test("ImageVersion stores creation timestamp")
     @MainActor
     func imageVersionTimestamp() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
 
@@ -148,7 +148,7 @@ struct SchemaV3toV5MigrationTests {
     @Test("ImageVersion stores AI generation metadata")
     @MainActor
     func imageVersionAIMetadata() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = TestFixtures.createSampleCharacter(name: "Hero", context: context)
         let version = ImageVersion(
@@ -178,7 +178,7 @@ struct SchemaV3toV5MigrationTests {
     @Test("Optional properties default to nil")
     @MainActor
     func optionalPropertiesDefaultNil() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .locations, name: "Castle", subtitle: "", detailedText: "")
         context.insert(card)
@@ -194,7 +194,7 @@ struct SchemaV3toV5MigrationTests {
     @Test("Optional properties can be set independently")
     @MainActor
     func optionalPropertiesIndependent() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .artifacts, name: "Sword", subtitle: "", detailedText: "")
 

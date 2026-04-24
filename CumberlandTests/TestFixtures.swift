@@ -335,12 +335,12 @@ enum TestFixtures {
     /// - Returns: A tuple of (ModelContainer, ModelContext) with isolated in-memory storage
     /// - Throws: SwiftData initialization errors (should never happen for in-memory)
     @MainActor
-    static func makeIsolatedContainer() throws -> (ModelContainer, ModelContext) {
+    static func makeIsolatedContext() throws -> ModelContext {
         let schema = Schema(AppSchemaV5.models)
         let container = try DataBackend.makeContainer(mode: .inMemory, schema: schema)
         let context = ModelContext(container)
-        context.autosaveEnabled = false
-        return (container, context)
+        context.autosaveEnabled = true
+        return context
     }
 
     /// ER-0058 Phase 3: Create an isolated container with pre-seeded data
@@ -359,8 +359,8 @@ enum TestFixtures {
     /// - Returns: A tuple of (ModelContainer, ModelContext) with seeded data
     /// - Throws: SwiftData initialization errors
     @MainActor
-    static func makeIsolatedContainer(seed: SeedType) throws -> (ModelContainer, ModelContext) {
-        let (container, context) = try makeIsolatedContainer()
+    static func makeIsolatedContext(seed: SeedType) throws -> ModelContext {
+        let context = try makeIsolatedContext()
 
         // Seed the requested data
         switch seed {
@@ -374,7 +374,7 @@ enum TestFixtures {
         }
 
         try context.save()
-        return (container, context)
+        return context
     }
 
     /// Types of seed data available for pre-loading
@@ -390,54 +390,6 @@ enum TestFixtures {
     /// This prevents data races when multiple test suites run in parallel
     private static let containerLock = NSLock()
 
-    /// Returns the host app's `ModelContainer` and a fresh `ModelContext`.
-    ///
-    /// **⚠️ LEGACY METHOD - Use `makeIsolatedContainer()` for new tests instead!**
-    ///
-    /// **DR-0102 (2026-03-29):** CumberlandTests is a *hosted* test bundle —
-    /// Cumberland.app launches first and creates the process-wide
-    /// `ModelContainer`. Creating a *second* container in the same process
-    /// (even with an identical schema) causes SwiftData to hit an internal
-    /// precondition failure (`EXC_BREAKPOINT` on `context.insert()`).
-    ///
-    /// The fix: reuse the host app's container via
-    /// `CumberlandApp.sharedContainer` and hand each test a new
-    /// `ModelContext` so tests don't pollute each other.
-    ///
-    /// **ER-0052 Fix (2026-04-08):** Added global lock to serialize access
-    /// across test suites, preventing concurrent wipes of shared container.
-    ///
-    /// **ER-0058 Note:** This method is retained for backward compatibility
-    /// with existing tests. New tests should use `makeIsolatedContainer()` instead.
-    @MainActor
-    static func makeFullSchemaContainer() throws -> (ModelContainer, ModelContext) {
-        containerLock.lock()
-        defer { containerLock.unlock() }
-
-        guard let container = CumberlandApp.sharedContainer else {
-            fatalError("CumberlandApp.sharedContainer is nil — tests must run inside the hosted app.")
-        }
-        let context = ModelContext(container)
-        context.autosaveEnabled = false
-
-        // Wipe all data so each test starts with a clean store.
-        // Delete in dependency order: edges first, then nodes, then top-level entities.
-        try context.delete(model: CardEdge.self)
-        try context.delete(model: BoardNode.self)
-        try context.delete(model: Citation.self)
-        try context.delete(model: StructureElement.self)
-        try context.delete(model: StoryStructure.self)
-        try context.delete(model: Board.self)
-        try context.delete(model: ImageVersion.self)
-        try context.delete(model: Source.self)
-        try context.delete(model: RelationType.self)
-        try context.delete(model: Card.self)
-        try context.delete(model: CalendarSystem.self)
-        try context.delete(model: AppSettings.self)
-        try context.save()
-
-        return (container, context)
-    }
 
     // MARK: - Seed Data Helpers (ER-0058 Phase 3)
 

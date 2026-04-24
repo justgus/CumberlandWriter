@@ -12,7 +12,7 @@ struct CumberlandBoardDataSourceTests {
 
     @MainActor
     private func makeDataSource() throws -> (CumberlandBoardDataSource, ModelContext) {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let ds = CumberlandBoardDataSource(modelContext: ctx)
         return (ds, ctx)
     }

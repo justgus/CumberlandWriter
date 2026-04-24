@@ -5,7 +5,7 @@
 //  Phase 10 tests for SuggestionFeedback (ER-0010).
 //  Covers model initialization, anonymization checks, and
 //  FeedbackStatistics value types. SwiftData query tests use
-//  TestFixtures.makeFullSchemaContainer() for the host app container.
+//  TestFixtures.makeIsolatedContainer() for the host app container.
 //
 
 import Testing

@@ -19,7 +19,7 @@ import CoreLocation
 // MARK: - Test Container
 
 /// Test suite for Image Management system validation
-@Suite("Image Management Tests", .tags(.phase2, .imageManagement))
+@Suite("Image Management Tests", .serialized, .tags(.phase2, .imageManagement))
 struct ImageManagementTests {
 
     // MARK: - Test Infrastructure
@@ -45,7 +45,8 @@ struct ImageManagementTests {
 
         let configuration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: true
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
         )
 
         self.container = try ModelContainer(for: schema, configurations: [configuration])

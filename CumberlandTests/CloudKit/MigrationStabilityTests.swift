@@ -55,7 +55,7 @@ struct MigrationStabilityTests {
     @Test("Card data preserved across container lifecycle")
     @MainActor
     func cardDataPreserved() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = TestFixtures.createSampleCharacter(name: "Test", context: context)
         card.subtitle = "Test Subtitle"
@@ -77,7 +77,7 @@ struct MigrationStabilityTests {
     @Test("Relationships preserved across save")
     @MainActor
     func relationshipsPreserved() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let source = TestFixtures.createSampleCharacter(name: "Alice", context: context)
         let target = TestFixtures.createSampleCharacter(name: "Bob", context: context)
@@ -103,7 +103,7 @@ struct MigrationStabilityTests {
     @Test("All current models can be instantiated")
     @MainActor
     func allModelsInstantiable() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         // Card
         let card = Card(kind: .characters, name: "Test", subtitle: "", detailedText: "")
@@ -157,7 +157,7 @@ struct MigrationStabilityTests {
     @Test("Optional properties support CloudKit sync")
     @MainActor
     func optionalPropertiesCloudKitCompatible() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .characters, name: "Test", subtitle: "", detailedText: "")
 
@@ -178,7 +178,7 @@ struct MigrationStabilityTests {
     @Test("Relationships use optional arrays for CloudKit")
     @MainActor
     func relationshipsCloudKitCompatible() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let card = Card(kind: .characters, name: "Test", subtitle: "", detailedText: "")
         context.insert(card)
@@ -199,7 +199,7 @@ struct MigrationStabilityTests {
         let start = Date()
 
         // Create container
-        let _ = try TestFixtures.makeFullSchemaContainer()
+        let _ = try TestFixtures.makeIsolatedContext()
 
         let duration = Date().timeIntervalSince(start)
 
@@ -210,7 +210,7 @@ struct MigrationStabilityTests {
     @Test("Batch insert is performant")
     @MainActor
     func batchInsertPerformant() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         let start = Date()
 

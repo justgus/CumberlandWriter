@@ -10,7 +10,7 @@ import SwiftData
 import Foundation
 @testable import Cumberland
 
-@Suite("Story Structure Tests")
+@Suite("Story Structure Tests", .serialized)
 struct StoryStructureTests {
     
     @Test("Creating a new story structure")

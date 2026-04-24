@@ -4,12 +4,15 @@ import SwiftData
 @testable import Cumberland
 import Foundation
 
-@Suite("Citation and Image Attribution Persistence")
+@Suite("Citation and Image Attribution Persistence", .serialized)
 struct CitationTests {
 
     // Helper to create an in-memory container and a context
     private func makeInMemoryContainer() throws -> (ModelContainer, ModelContext) {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
+        )
         let container = try ModelContainer(for: Card.self, Source.self, Citation.self, configurations: config)
         let context = ModelContext(container)
         context.autosaveEnabled = false
@@ -19,7 +22,8 @@ struct CitationTests {
     @Test("Create and fetch image attributions for a card")
     @MainActor
     func createAndFetchImageAttributions() async throws {
-        let (_, ctx) = try makeInMemoryContainer()
+        let (container, ctx) = try makeInMemoryContainer()
+        _ = container // Keep container alive for test duration
 
         // Create a card and a source
         let card = Card(
@@ -59,7 +63,8 @@ struct CitationTests {
     @Test("Edit image attribution and persist changes")
     @MainActor
     func editImageAttribution() async throws {
-        let (_, ctx) = try makeInMemoryContainer()
+        let (container, ctx) = try makeInMemoryContainer()
+        _ = container // Keep container alive for test duration
 
         let card = Card(
             name: "Card B",
@@ -101,7 +106,8 @@ struct CitationTests {
     @Test("Fetch all citations for a card in createdAt order")
     @MainActor
     func fetchAllCitationsOrdered() async throws {
-        let (_, ctx) = try makeInMemoryContainer()
+        let (container, ctx) = try makeInMemoryContainer()
+        _ = container // Keep container alive for test duration
 
         let card = Card(
             name: "Card C",
@@ -142,7 +148,8 @@ struct CitationTests {
     @Test("Citation.kind computed property mirrors kindRaw")
     @MainActor
     func citationKindComputedProperty() async throws {
-        let (_, ctx) = try makeInMemoryContainer()
+        let (container, ctx) = try makeInMemoryContainer()
+        _ = container // Keep container alive for test duration
 
         let card = Card(
             name: "Card D",

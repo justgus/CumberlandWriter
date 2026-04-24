@@ -26,8 +26,8 @@ struct MultiTimelineTests {
     /// DR-0102: Use full-schema container to match the host app's schema exactly.
     /// Partial model lists cause EXC_BREAKPOINT in hosted test bundles.
     @MainActor
-    func makeInMemoryContainer() throws -> (ModelContainer, ModelContext) {
-        try TestFixtures.makeFullSchemaContainer()
+    func makeInMemoryContext() throws -> ModelContext {
+        return try TestFixtures.makeIsolatedContext()
     }
 
     /// Shared helper: create the "appears-in/features" RelationType via manager
@@ -46,7 +46,7 @@ struct MultiTimelineTests {
     @Test("Two timelines share calendar")
     @MainActor
     func twoTimelinesShareCalendar() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let calendar = CalendarSystem(
             name: "Shared Calendar",
@@ -73,7 +73,7 @@ struct MultiTimelineTests {
     @Test("Multiple timelines with different epochs on same calendar")
     @MainActor
     func differentEpochsSameCalendar() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let calendar = CalendarSystem(
             name: "Common Calendar",
@@ -108,7 +108,7 @@ struct MultiTimelineTests {
     @Test("Scenes on different timelines at same time")
     @MainActor
     func parallelScenes() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -153,7 +153,7 @@ struct MultiTimelineTests {
     @Test("Fetch all timelines with same calendar")
     @MainActor
     func fetchTimelinesWithSameCalendar() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let calendar = CalendarSystem(name: "Query Calendar", divisions: [])
         context.insert(calendar)
@@ -185,7 +185,7 @@ struct MultiTimelineTests {
     @Test("Query scenes across multiple timelines")
     @MainActor
     func queryScenesAcrossTimelines() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -222,7 +222,7 @@ struct MultiTimelineTests {
     @Test("Timeline without calendar can still have scenes")
     @MainActor
     func timelineWithoutCalendar() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -244,7 +244,7 @@ struct MultiTimelineTests {
     @Test("Many timelines sharing single calendar")
     @MainActor
     func manyTimelinesOneCalendar() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let calendar = CalendarSystem(name: "Universal Calendar", divisions: [])
         context.insert(calendar)
@@ -273,7 +273,7 @@ struct MultiTimelineTests {
     @Test("Timeline with calendar then calendar deleted")
     @MainActor
     func timelineAfterCalendarDeletion() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let calendar = CalendarSystem(name: "Temporary Calendar", divisions: [])
         context.insert(calendar)
@@ -295,7 +295,7 @@ struct MultiTimelineTests {
     @Test("Same scene appears on multiple timelines")
     @MainActor
     func sceneOnMultipleTimelines() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 

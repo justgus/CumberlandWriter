@@ -11,7 +11,7 @@ struct CardOperationManagerTests {
 
     @MainActor
     private func makeManager() throws -> (CardOperationManager, ModelContext) {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let mgr = CardOperationManager(modelContext: ctx)
         mgr.relationshipManager = RelationshipManager(modelContext: ctx)
         return (mgr, ctx)

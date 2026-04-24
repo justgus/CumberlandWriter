@@ -171,7 +171,7 @@ struct EntityExtractionTests {
     @Test("Detect exact duplicate entity")
     @MainActor
     func detectExactDuplicate() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
 
         // Create existing card via service layer
         let existing = TestFixtures.createSampleCharacter(name: "Aria Moonstone", context: context)

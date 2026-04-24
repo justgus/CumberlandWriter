@@ -18,7 +18,7 @@ import BrushEngine
 // MARK: - Test Suite
 
 /// Test suite for visionOS platform features
-@Suite("visionOS Features Tests", .tags(.phase3, .visionOS))
+@Suite("visionOS Features Tests", .serialized, .tags(.phase3, .visionOS))
 @MainActor
 struct VisionOSFeaturesTests {
 
@@ -45,7 +45,8 @@ struct VisionOSFeaturesTests {
 
         let configuration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: true
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
         )
 
         self.container = try ModelContainer(for: schema, configurations: [configuration])

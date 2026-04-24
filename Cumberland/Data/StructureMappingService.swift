@@ -315,9 +315,14 @@ final class StructureMappingService {
         // Writer will manually assign scenes to new structure
         newStructure.projectID = oldStructure.projectID
 
+        // Count scenes that are staying in the old structure (unmapped)
+        let unmappedCount = oldStructure.elements?.reduce(0) { sum, element in
+            sum + (element.assignedCards?.filter { $0.kind == .scenes }.count ?? 0)
+        } ?? 0
+
         return MappingResult(
             mappedSceneCount: 0,
-            unmappedSceneCount: 0,
+            unmappedSceneCount: unmappedCount,
             warnings: ["Manual mapping required - no scenes automatically moved"],
             mappings: []
         )

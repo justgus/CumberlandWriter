@@ -18,7 +18,7 @@ struct EdgeRepositoryTests {
     @Test("Fetch outgoing edges from a card")
     @MainActor
     func fetchOutgoingEdges() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let edgeRepo = EdgeRepository(modelContext: context)
 
         let source = TestFixtures.createSampleCharacter(name: "Source", context: context)
@@ -41,7 +41,7 @@ struct EdgeRepositoryTests {
     @Test("Fetch incoming edges to a card")
     @MainActor
     func fetchIncomingEdges() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let edgeRepo = EdgeRepository(modelContext: context)
 
         let target = TestFixtures.createSampleCharacter(name: "Target", context: context)
@@ -64,7 +64,7 @@ struct EdgeRepositoryTests {
     @Test("Fetch all edges for a card combines incoming and outgoing")
     @MainActor
     func fetchAllEdgesForCard() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let edgeRepo = EdgeRepository(modelContext: context)
 
         let card = TestFixtures.createSampleCharacter(name: "Center", context: context)
@@ -89,7 +89,7 @@ struct EdgeRepositoryTests {
     @Test("Fetch edges between two cards finds bidirectional edges")
     @MainActor
     func fetchEdgesBetweenCards() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let edgeRepo = EdgeRepository(modelContext: context)
 
         let cardA = TestFixtures.createSampleCharacter(name: "Alice", context: context)
@@ -113,7 +113,7 @@ struct EdgeRepositoryTests {
     @Test("Fetch edges by relation type filters correctly")
     @MainActor
     func fetchEdgesByType() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let edgeRepo = EdgeRepository(modelContext: context)
 
         let card1 = TestFixtures.createSampleCharacter(name: "Card1", context: context)
@@ -136,7 +136,7 @@ struct EdgeRepositoryTests {
     @Test("Fetch outgoing edges of specific type")
     @MainActor
     func fetchOutgoingEdgesOfType() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let edgeRepo = EdgeRepository(modelContext: context)
 
         let source = TestFixtures.createSampleCharacter(name: "Source", context: context)
@@ -161,7 +161,7 @@ struct EdgeRepositoryTests {
     @Test("Edge existence check returns true when edge exists")
     @MainActor
     func edgeExistsTrue() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let edgeRepo = EdgeRepository(modelContext: context)
 
         let source = TestFixtures.createSampleCharacter(name: "Source", context: context)
@@ -179,7 +179,7 @@ struct EdgeRepositoryTests {
     @Test("Edge existence check returns false when edge does not exist")
     @MainActor
     func edgeExistsFalse() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let edgeRepo = EdgeRepository(modelContext: context)
 
         let source = TestFixtures.createSampleCharacter(name: "Source", context: context)
@@ -198,7 +198,7 @@ struct EdgeRepositoryTests {
     @Test("Delete edge removes it from context")
     @MainActor
     func deleteEdge() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let edgeRepo = EdgeRepository(modelContext: context)
 
         let source = TestFixtures.createSampleCharacter(name: "Source", context: context)
@@ -217,7 +217,7 @@ struct EdgeRepositoryTests {
     @Test("Delete all edges for card removes both incoming and outgoing")
     @MainActor
     func deleteAllEdgesForCard() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let edgeRepo = EdgeRepository(modelContext: context)
 
         let center = TestFixtures.createSampleCharacter(name: "Center", context: context)

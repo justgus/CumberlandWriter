@@ -17,7 +17,7 @@ import SwiftUI
 // MARK: - Test Container
 
 /// Test suite for Service Layer validation
-@Suite("Service Layer Tests", .tags(.phase2, .serviceLayer))
+@Suite("Service Layer Tests", .serialized, .tags(.phase2, .serviceLayer))
 @MainActor
 struct ServiceLayerTests {
 
@@ -44,7 +44,8 @@ struct ServiceLayerTests {
 
         let configuration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: true
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
         )
 
         self.container = try ModelContainer(for: schema, configurations: [configuration])

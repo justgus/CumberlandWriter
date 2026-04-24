@@ -26,8 +26,8 @@ struct TemporalPositioningTests {
     /// DR-0102: Use full-schema container to match the host app's schema exactly.
     /// Partial model lists cause EXC_BREAKPOINT in hosted test bundles.
     @MainActor
-    func makeInMemoryContainer() throws -> (ModelContainer, ModelContext) {
-        try TestFixtures.makeFullSchemaContainer()
+    func makeInMemoryContext() throws -> ModelContext {
+        return try TestFixtures.makeIsolatedContext()
     }
 
     /// Shared helper: create the "appears-in/features" RelationType via manager
@@ -48,7 +48,7 @@ struct TemporalPositioningTests {
     @Test("Scene on timeline with temporal position")
     @MainActor
     func sceneWithTemporalPosition() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -70,7 +70,7 @@ struct TemporalPositioningTests {
     @Test("Scene temporal position persists on edge")
     @MainActor
     func temporalPositionPersists() async throws {
-        let (container, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -87,7 +87,7 @@ struct TemporalPositioningTests {
         try context.save()
 
         // Fetch in new context
-        let newContext = ModelContext(container)
+        let newContext = ModelContext(context.container)
         let descriptor = FetchDescriptor<CardEdge>()
         let fetched = try newContext.fetch(descriptor)
 
@@ -101,7 +101,7 @@ struct TemporalPositioningTests {
     @Test("Create timeline-scene relationship with temporal position")
     @MainActor
     func timelineSceneRelationship() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -126,7 +126,7 @@ struct TemporalPositioningTests {
     @Test("Scene on timeline at specific date")
     @MainActor
     func sceneAtSpecificDate() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -161,7 +161,7 @@ struct TemporalPositioningTests {
     @Test("Scene with duration")
     @MainActor
     func sceneWithDuration() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -183,7 +183,7 @@ struct TemporalPositioningTests {
     @Test("Scene with zero duration")
     @MainActor
     func sceneWithZeroDuration() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -207,7 +207,7 @@ struct TemporalPositioningTests {
     @Test("Multiple scenes on same timeline")
     @MainActor
     func multipleScenesOnTimeline() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -235,7 +235,7 @@ struct TemporalPositioningTests {
     @Test("Scenes with overlapping durations")
     @MainActor
     func scenesWithOverlappingDurations() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -270,7 +270,7 @@ struct TemporalPositioningTests {
     @Test("Scene without temporal position on timeline")
     @MainActor
     func sceneWithoutTemporalPosition() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -292,7 +292,7 @@ struct TemporalPositioningTests {
     @Test("Scene on timeline without calendar")
     @MainActor
     func sceneOnTimelineWithoutCalendar() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 
@@ -315,7 +315,7 @@ struct TemporalPositioningTests {
     @Test("Negative duration is allowed")
     @MainActor
     func negativeDuration() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
 
         let relType = makeAppearsInType(context: context)
 

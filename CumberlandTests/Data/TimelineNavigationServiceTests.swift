@@ -17,8 +17,8 @@ struct TimelineNavigationServiceTests {
     // MARK: - Test Helpers
 
     @MainActor
-    func makeInMemoryContainer() throws -> (ModelContainer, ModelContext) {
-        try TestFixtures.makeFullSchemaContainer()
+    func makeInMemoryContext() throws -> ModelContext {
+        return try TestFixtures.makeIsolatedContext()
     }
 
     /// Create a project card
@@ -88,7 +88,7 @@ struct TimelineNavigationServiceTests {
     @Test("Find primary timeline for scene in project")
     @MainActor
     func findPrimaryTimelineForScene() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
         let service = TimelineNavigationService(modelContext: context)
 
         let project = createProject(name: "Test Project", context: context)
@@ -96,10 +96,10 @@ struct TimelineNavigationServiceTests {
         let timeline2 = createTimeline(name: "Timeline B", context: context)
         let scene = TestFixtures.createSampleScene(name: "Scene 1", context: context)
 
-        linkTimelineToProject(timeline: timeline1, project: project, context: context)
-        linkTimelineToProject(timeline: timeline2, project: project, context: context)
-        linkSceneToTimeline(scene: scene, timeline: timeline1, sortIndex: 0, context: context)
-        linkSceneToTimeline(scene: scene, timeline: timeline2, sortIndex: 0, context: context)
+        let _ = linkTimelineToProject(timeline: timeline1, project: project, context: context)
+        let _ = linkTimelineToProject(timeline: timeline2, project: project, context: context)
+        let _ = linkSceneToTimeline(scene: scene, timeline: timeline1, sortIndex: 0, context: context)
+        let _ = linkSceneToTimeline(scene: scene, timeline: timeline2, sortIndex: 0, context: context)
 
         try context.save()
 
@@ -112,15 +112,15 @@ struct TimelineNavigationServiceTests {
     @Test("Find all timelines for a scene")
     @MainActor
     func findAllTimelinesForScene() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
         let service = TimelineNavigationService(modelContext: context)
 
         let timeline1 = createTimeline(name: "Timeline A", context: context)
         let timeline2 = createTimeline(name: "Timeline B", context: context)
         let scene = TestFixtures.createSampleScene(name: "Scene 1", context: context)
 
-        linkSceneToTimeline(scene: scene, timeline: timeline1, sortIndex: 0, context: context)
-        linkSceneToTimeline(scene: scene, timeline: timeline2, sortIndex: 0, context: context)
+        let _ = linkSceneToTimeline(scene: scene, timeline: timeline1, sortIndex: 0, context: context)
+        let _ = linkSceneToTimeline(scene: scene, timeline: timeline2, sortIndex: 0, context: context)
 
         try context.save()
 
@@ -135,7 +135,7 @@ struct TimelineNavigationServiceTests {
     @Test("Find primary timeline filters by project")
     @MainActor
     func findPrimaryTimelineFiltersProject() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
         let service = TimelineNavigationService(modelContext: context)
 
         let project1 = createProject(name: "Project 1", context: context)
@@ -144,10 +144,10 @@ struct TimelineNavigationServiceTests {
         let timeline2 = createTimeline(name: "Timeline in Project 2", context: context)
         let scene = TestFixtures.createSampleScene(name: "Scene 1", context: context)
 
-        linkTimelineToProject(timeline: timeline1, project: project1, context: context)
-        linkTimelineToProject(timeline: timeline2, project: project2, context: context)
-        linkSceneToTimeline(scene: scene, timeline: timeline1, sortIndex: 0, context: context)
-        linkSceneToTimeline(scene: scene, timeline: timeline2, sortIndex: 0, context: context)
+        let _ = linkTimelineToProject(timeline: timeline1, project: project1, context: context)
+        let _ = linkTimelineToProject(timeline: timeline2, project: project2, context: context)
+        let _ = linkSceneToTimeline(scene: scene, timeline: timeline1, sortIndex: 0, context: context)
+        let _ = linkSceneToTimeline(scene: scene, timeline: timeline2, sortIndex: 0, context: context)
 
         try context.save()
 
@@ -163,7 +163,7 @@ struct TimelineNavigationServiceTests {
     @Test("Get scene timeline position with temporal data")
     @MainActor
     func getSceneTimelinePositionTemporal() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
         let service = TimelineNavigationService(modelContext: context)
 
         let timeline = createTimeline(name: "Timeline", context: context)
@@ -172,9 +172,9 @@ struct TimelineNavigationServiceTests {
         let scene3 = TestFixtures.createSampleScene(name: "Scene 3", context: context)
 
         let baseTime = Date(timeIntervalSince1970: 1000000)
-        linkSceneToTimeline(scene: scene1, timeline: timeline, temporalPosition: baseTime, context: context)
-        linkSceneToTimeline(scene: scene2, timeline: timeline, temporalPosition: Date(timeInterval: 3600, since: baseTime), context: context)
-        linkSceneToTimeline(scene: scene3, timeline: timeline, temporalPosition: Date(timeInterval: 7200, since: baseTime), context: context)
+        let _ = linkSceneToTimeline(scene: scene1, timeline: timeline, temporalPosition: baseTime, context: context)
+        let _ = linkSceneToTimeline(scene: scene2, timeline: timeline, temporalPosition: Date(timeInterval: 3600, since: baseTime), context: context)
+        let _ = linkSceneToTimeline(scene: scene3, timeline: timeline, temporalPosition: Date(timeInterval: 7200, since: baseTime), context: context)
 
         try context.save()
 
@@ -189,7 +189,7 @@ struct TimelineNavigationServiceTests {
     @Test("Get scene timeline position with ordinal data")
     @MainActor
     func getSceneTimelinePositionOrdinal() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
         let service = TimelineNavigationService(modelContext: context)
 
         let timeline = createTimeline(name: "Ordinal Timeline", context: context)
@@ -197,9 +197,9 @@ struct TimelineNavigationServiceTests {
         let scene2 = TestFixtures.createSampleScene(name: "Scene 2", context: context)
         let scene3 = TestFixtures.createSampleScene(name: "Scene 3", context: context)
 
-        linkSceneToTimeline(scene: scene1, timeline: timeline, sortIndex: 0, context: context)
-        linkSceneToTimeline(scene: scene2, timeline: timeline, sortIndex: 1, context: context)
-        linkSceneToTimeline(scene: scene3, timeline: timeline, sortIndex: 2, context: context)
+        let _ = linkSceneToTimeline(scene: scene1, timeline: timeline, sortIndex: 0, context: context)
+        let _ = linkSceneToTimeline(scene: scene2, timeline: timeline, sortIndex: 1, context: context)
+        let _ = linkSceneToTimeline(scene: scene3, timeline: timeline, sortIndex: 2, context: context)
 
         try context.save()
 
@@ -216,7 +216,7 @@ struct TimelineNavigationServiceTests {
     @Test("Detect out-of-order scenes with ordinal timeline")
     @MainActor
     func detectOutOfOrderOrdinalTimeline() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
         let service = TimelineNavigationService(modelContext: context)
 
         let project = createProject(name: "Test Project", context: context)
@@ -226,15 +226,15 @@ struct TimelineNavigationServiceTests {
         let scene3 = TestFixtures.createSampleScene(name: "Scene 3", context: context)
 
         // Manuscript order: Scene 1 (0), Scene 2 (1), Scene 3 (2)
-        linkSceneToProject(scene: scene1, project: project, sortIndex: 0, context: context)
-        linkSceneToProject(scene: scene2, project: project, sortIndex: 1, context: context)
-        linkSceneToProject(scene: scene3, project: project, sortIndex: 2, context: context)
+        let _ = linkSceneToProject(scene: scene1, project: project, sortIndex: 0, context: context)
+        let _ = linkSceneToProject(scene: scene2, project: project, sortIndex: 1, context: context)
+        let _ = linkSceneToProject(scene: scene3, project: project, sortIndex: 2, context: context)
 
         // Timeline order: Scene 2 (0), Scene 1 (1), Scene 3 (2)
         // Out of order: Scene 1 and Scene 2 are swapped
-        linkSceneToTimeline(scene: scene2, timeline: timeline, sortIndex: 0, context: context)
-        linkSceneToTimeline(scene: scene1, timeline: timeline, sortIndex: 1, context: context)
-        linkSceneToTimeline(scene: scene3, timeline: timeline, sortIndex: 2, context: context)
+        let _ = linkSceneToTimeline(scene: scene2, timeline: timeline, sortIndex: 0, context: context)
+        let _ = linkSceneToTimeline(scene: scene1, timeline: timeline, sortIndex: 1, context: context)
+        let _ = linkSceneToTimeline(scene: scene3, timeline: timeline, sortIndex: 2, context: context)
 
         try context.save()
 
@@ -260,7 +260,7 @@ struct TimelineNavigationServiceTests {
     @Test("Detect out-of-order scenes with temporal timeline")
     @MainActor
     func detectOutOfOrderTemporalTimeline() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
         let service = TimelineNavigationService(modelContext: context)
 
         let calendar = CalendarSystem(
@@ -276,15 +276,15 @@ struct TimelineNavigationServiceTests {
         let scene3 = TestFixtures.createSampleScene(name: "Scene 3", context: context)
 
         // Manuscript order: Scene 1, Scene 2, Scene 3
-        linkSceneToProject(scene: scene1, project: project, sortIndex: 0, context: context)
-        linkSceneToProject(scene: scene2, project: project, sortIndex: 1, context: context)
-        linkSceneToProject(scene: scene3, project: project, sortIndex: 2, context: context)
+        let _ = linkSceneToProject(scene: scene1, project: project, sortIndex: 0, context: context)
+        let _ = linkSceneToProject(scene: scene2, project: project, sortIndex: 1, context: context)
+        let _ = linkSceneToProject(scene: scene3, project: project, sortIndex: 2, context: context)
 
         // Timeline order (temporal): Scene 3 (earliest), Scene 1 (middle), Scene 2 (latest)
         let baseTime = Date(timeIntervalSince1970: 1000000)
-        linkSceneToTimeline(scene: scene3, timeline: timeline, temporalPosition: baseTime, context: context)
-        linkSceneToTimeline(scene: scene1, timeline: timeline, temporalPosition: Date(timeInterval: 3600, since: baseTime), context: context)
-        linkSceneToTimeline(scene: scene2, timeline: timeline, temporalPosition: Date(timeInterval: 7200, since: baseTime), context: context)
+        let _ = linkSceneToTimeline(scene: scene3, timeline: timeline, temporalPosition: baseTime, context: context)
+        let _ = linkSceneToTimeline(scene: scene1, timeline: timeline, temporalPosition: Date(timeInterval: 3600, since: baseTime), context: context)
+        let _ = linkSceneToTimeline(scene: scene2, timeline: timeline, temporalPosition: Date(timeInterval: 7200, since: baseTime), context: context)
 
         try context.save()
 
@@ -297,7 +297,7 @@ struct TimelineNavigationServiceTests {
     @Test("Detect no false positives when scenes are in order")
     @MainActor
     func detectNoFalsePositivesInOrder() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
         let service = TimelineNavigationService(modelContext: context)
 
         let project = createProject(name: "Test Project", context: context)
@@ -307,14 +307,14 @@ struct TimelineNavigationServiceTests {
         let scene3 = TestFixtures.createSampleScene(name: "Scene 3", context: context)
 
         // Manuscript order: Scene 1 (0), Scene 2 (1), Scene 3 (2)
-        linkSceneToProject(scene: scene1, project: project, sortIndex: 0, context: context)
-        linkSceneToProject(scene: scene2, project: project, sortIndex: 1, context: context)
-        linkSceneToProject(scene: scene3, project: project, sortIndex: 2, context: context)
+        let _ = linkSceneToProject(scene: scene1, project: project, sortIndex: 0, context: context)
+        let _ = linkSceneToProject(scene: scene2, project: project, sortIndex: 1, context: context)
+        let _ = linkSceneToProject(scene: scene3, project: project, sortIndex: 2, context: context)
 
         // Timeline order: Scene 1 (0), Scene 2 (1), Scene 3 (2) - SAME ORDER
-        linkSceneToTimeline(scene: scene1, timeline: timeline, sortIndex: 0, context: context)
-        linkSceneToTimeline(scene: scene2, timeline: timeline, sortIndex: 1, context: context)
-        linkSceneToTimeline(scene: scene3, timeline: timeline, sortIndex: 2, context: context)
+        let _ = linkSceneToTimeline(scene: scene1, timeline: timeline, sortIndex: 0, context: context)
+        let _ = linkSceneToTimeline(scene: scene2, timeline: timeline, sortIndex: 1, context: context)
+        let _ = linkSceneToTimeline(scene: scene3, timeline: timeline, sortIndex: 2, context: context)
 
         try context.save()
 
@@ -326,7 +326,7 @@ struct TimelineNavigationServiceTests {
     @Test("Handle scene on timeline but not in manuscript")
     @MainActor
     func handleSceneOnTimelineNotInManuscript() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
         let service = TimelineNavigationService(modelContext: context)
 
         let project = createProject(name: "Test Project", context: context)
@@ -335,11 +335,11 @@ struct TimelineNavigationServiceTests {
         let scene2 = TestFixtures.createSampleScene(name: "Scene Only in Timeline", context: context)
 
         // Scene 1 in both
-        linkSceneToProject(scene: scene1, project: project, sortIndex: 0, context: context)
-        linkSceneToTimeline(scene: scene1, timeline: timeline, sortIndex: 0, context: context)
+        let _ = linkSceneToProject(scene: scene1, project: project, sortIndex: 0, context: context)
+        let _ = linkSceneToTimeline(scene: scene1, timeline: timeline, sortIndex: 0, context: context)
 
         // Scene 2 only in timeline (orphaned)
-        linkSceneToTimeline(scene: scene2, timeline: timeline, sortIndex: 1, context: context)
+        let _ = linkSceneToTimeline(scene: scene2, timeline: timeline, sortIndex: 1, context: context)
 
         try context.save()
 
@@ -352,7 +352,7 @@ struct TimelineNavigationServiceTests {
     @Test("Detect out-of-order with multiple timelines")
     @MainActor
     func detectOutOfOrderMultipleTimelines() async throws {
-        let (_, context) = try makeInMemoryContainer()
+        let context = try makeInMemoryContext()
         let service = TimelineNavigationService(modelContext: context)
 
         let project = createProject(name: "Test Project", context: context)
@@ -362,16 +362,16 @@ struct TimelineNavigationServiceTests {
         let scene2 = TestFixtures.createSampleScene(name: "Scene 2", context: context)
 
         // Manuscript order: Scene 1, Scene 2
-        linkSceneToProject(scene: scene1, project: project, sortIndex: 0, context: context)
-        linkSceneToProject(scene: scene2, project: project, sortIndex: 1, context: context)
+        let _ = linkSceneToProject(scene: scene1, project: project, sortIndex: 0, context: context)
+        let _ = linkSceneToProject(scene: scene2, project: project, sortIndex: 1, context: context)
 
         // Timeline 1: Scene 2, Scene 1 (out of order)
-        linkSceneToTimeline(scene: scene2, timeline: timeline1, sortIndex: 0, context: context)
-        linkSceneToTimeline(scene: scene1, timeline: timeline1, sortIndex: 1, context: context)
+        let _ = linkSceneToTimeline(scene: scene2, timeline: timeline1, sortIndex: 0, context: context)
+        let _ = linkSceneToTimeline(scene: scene1, timeline: timeline1, sortIndex: 1, context: context)
 
         // Timeline 2: Scene 1, Scene 2 (in order)
-        linkSceneToTimeline(scene: scene1, timeline: timeline2, sortIndex: 0, context: context)
-        linkSceneToTimeline(scene: scene2, timeline: timeline2, sortIndex: 1, context: context)
+        let _ = linkSceneToTimeline(scene: scene1, timeline: timeline2, sortIndex: 0, context: context)
+        let _ = linkSceneToTimeline(scene: scene2, timeline: timeline2, sortIndex: 1, context: context)
 
         try context.save()
 

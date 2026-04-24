@@ -18,7 +18,7 @@ struct StructureRepositoryTests {
     @Test("Fetch all structures returns sorted by name")
     @MainActor
     func fetchAllStructures() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = StructureRepository(modelContext: context)
 
         // Create test structures
@@ -40,7 +40,7 @@ struct StructureRepositoryTests {
     @Test("Fetch structure by UUID finds correct structure")
     @MainActor
     func fetchStructureByUUID() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = StructureRepository(modelContext: context)
 
         let structure = StoryStructure(name: "Five-Act Structure")
@@ -57,7 +57,7 @@ struct StructureRepositoryTests {
     @Test("Fetch structure by name finds correct structure")
     @MainActor
     func fetchStructureByName() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = StructureRepository(modelContext: context)
 
         let structure = StoryStructure(name: "Save the Cat")
@@ -75,7 +75,7 @@ struct StructureRepositoryTests {
     @Test("Insert structure adds to context")
     @MainActor
     func insertStructure() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = StructureRepository(modelContext: context)
 
         let structure = StoryStructure(name: "Custom Structure")
@@ -90,7 +90,7 @@ struct StructureRepositoryTests {
     @Test("Delete structure removes from context")
     @MainActor
     func deleteStructure() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = StructureRepository(modelContext: context)
 
         let structure = StoryStructure(name: "To Delete")
@@ -110,7 +110,7 @@ struct StructureRepositoryTests {
     @Test("Assign card to element creates bidirectional relationship")
     @MainActor
     func assignCardToElement() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = StructureRepository(modelContext: context)
 
         let structure = StoryStructure(name: "Test Structure")
@@ -134,7 +134,7 @@ struct StructureRepositoryTests {
     @Test("Unassign card from element removes relationship")
     @MainActor
     func unassignCardFromElement() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = StructureRepository(modelContext: context)
 
         let structure = StoryStructure(name: "Test Structure")
@@ -156,7 +156,7 @@ struct StructureRepositoryTests {
     @Test("Unassign card from all elements removes all relationships")
     @MainActor
     func unassignCardFromAllElements() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = StructureRepository(modelContext: context)
 
         let structure = StoryStructure(name: "Test Structure")
@@ -186,7 +186,7 @@ struct StructureRepositoryTests {
     @Test("Count operations return correct values")
     @MainActor
     func countOperations() async throws {
-        let (_, context) = try TestFixtures.makeFullSchemaContainer()
+        let context = try TestFixtures.makeIsolatedContext()
         let repo = StructureRepository(modelContext: context)
 
         let structure = StoryStructure(name: "Test Structure")

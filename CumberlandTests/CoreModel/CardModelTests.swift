@@ -58,7 +58,7 @@ struct CardModelTests {
     @Test("normalizedSearchText updates on name change")
     @MainActor
     func normalizedSearchTextUpdatesOnNameChange() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let card = Card(name: "Old Name", subtitle: "", detailedText: "")
         ctx.insert(card)
         try ctx.save()
@@ -133,7 +133,7 @@ struct CardModelTests {
     @Test("cleanupBeforeDeletion removes edges and adjusts cached counts")
     @MainActor
     func cleanupRemovesEdgesAndAdjustsCounts() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
 
         let cardA = TestFixtures.createSampleCharacter(name: "Card A", context: ctx)
         let cardB = TestFixtures.createSampleCharacter(name: "Card B", context: ctx)
@@ -158,7 +158,7 @@ struct CardModelTests {
     @Test("cleanupBeforeDeletion nullifies board primaryCard")
     @MainActor
     func cleanupNullifiesBoardPrimaryCard() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
 
         let card = TestFixtures.createSampleCharacter(name: "Primary", context: ctx)
         let board = TestFixtures.createBoard(name: "Board", primaryCard: card, context: ctx)
@@ -172,7 +172,7 @@ struct CardModelTests {
     @Test("cleanupBeforeDeletion deletes associated boardNodes")
     @MainActor
     func cleanupDeletesBoardNodes() async throws {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
 
         let card = TestFixtures.createSampleCharacter(name: "OnBoard", context: ctx)
         let board = TestFixtures.createBoard(name: "Board", context: ctx)

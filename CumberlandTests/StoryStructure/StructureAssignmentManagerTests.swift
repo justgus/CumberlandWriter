@@ -11,7 +11,7 @@ struct StructureAssignmentManagerTests {
 
     @MainActor
     private func makeManager() throws -> (StructureAssignmentManager, ModelContext) {
-        let (_, ctx) = try TestFixtures.makeFullSchemaContainer()
+        let ctx = try TestFixtures.makeIsolatedContext()
         let mgr = StructureAssignmentManager(modelContext: ctx)
         return (mgr, ctx)
     }

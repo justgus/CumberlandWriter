@@ -19,7 +19,7 @@ import BrushEngine
 // MARK: - Test Suite
 
 /// Test suite for performance benchmarking
-@Suite("Performance Benchmark Tests", .tags(.phase3, .performance))
+@Suite("Performance Benchmark Tests", .serialized, .tags(.phase3, .performance))
 @MainActor
 struct PerformanceBenchmarkTests {
 
@@ -46,7 +46,8 @@ struct PerformanceBenchmarkTests {
 
         let configuration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: true
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
         )
 
         self.container = try ModelContainer(for: schema, configurations: [configuration])
