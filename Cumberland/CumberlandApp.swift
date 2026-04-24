@@ -278,6 +278,19 @@ struct CumberlandApp: App {
                         // Set flag to prevent re-running
                         UserDefaults.standard.set(true, forKey: deduplicationKey)
                     }
+
+                    // DR-xxxx: One-time cleanup of NSSplitView frame bloat in UserDefaults
+                    let splitViewCleanupKey = "didCleanupNSSplitViewFrames_v1"
+                    if !UserDefaults.standard.bool(forKey: splitViewCleanupKey) {
+                        CumberlandApp.cleanupNSSplitViewFrames()
+
+                        #if DEBUG
+                        print("🧹 [App] NSSplitView frame cleanup complete")
+                        #endif
+
+                        // Set flag to prevent re-running
+                        UserDefaults.standard.set(true, forKey: splitViewCleanupKey)
+                    }
                 }
                 // Developer-triggered destructive reset (macOS menu posts a notification)
                 .onReceive(NotificationCenter.default.publisher(for: .eraseAndReseed)) { _ in
@@ -1823,8 +1836,11 @@ private struct WindowStateBridge: NSViewRepresentable {
             self.id = id
             self.defaults = defaults
 
-            // Enable AppKit autosave of frame
-            window.setFrameAutosaveName(autosaveName)
+            // DISABLE AppKit's automatic frame autosave to prevent UserDefaults bloat.
+            // AppKit creates unique keys based on SwiftUI's view hierarchy type names,
+            // which include memory addresses and change on every launch, accumulating
+            // thousands of keys. We manage frame persistence manually via frameKey.
+            window.setFrameAutosaveName("")
 
             // Restore saved state (frame, zoomed, full-screen)
             restoreState(for: window)
@@ -1936,3 +1952,48 @@ private struct WindowStateBridge: NSViewRepresentable {
     }
 }
 #endif
+
+// MARK: - UserDefaults Cleanup
+
+extension CumberlandApp {
+    /// Removes accumulated autosave keys from UserDefaults that were created by AppKit/SwiftUI.
+    ///
+    /// **Problem**: SwiftUI's NavigationSplitView and NSWindow automatic frame persistence
+    /// create unique keys based on the view hierarchy's type names. These type names include
+    /// memory addresses (e.g., `unknown context at $1234567`) that change on every launch,
+    /// causing thousands of orphaned keys to accumulate in UserDefaults.
+    ///
+    /// **Impact**: The accumulated keys bloated UserDefaults to nearly 4MB (>1,979 keys),
+    /// triggering the "Attempting to store >= 4194304 bytes" warning.
+    ///
+    /// **Solution**: Disable automatic persistence and manage manually with stable keys.
+    /// This cleanup runs once after the fix is deployed to remove legacy entries.
+    static func cleanupNSSplitViewFrames() {
+        let defaults = UserDefaults.standard
+        let dict = defaults.dictionaryRepresentation()
+
+        var removedSplitView = 0
+        var removedWindowFrame = 0
+
+        for key in dict.keys {
+            // Remove NSSplitView autosave keys (from NavigationSplitView)
+            if key.contains("NSSplitView Subview Frames") {
+                defaults.removeObject(forKey: key)
+                removedSplitView += 1
+            }
+            // Remove NSWindow Frame autosave keys (from WindowStateBridge)
+            // But preserve our manual keys (Window.mainWindow.*)
+            else if key.hasPrefix("NSWindow Frame") && !key.hasPrefix("Window.") {
+                defaults.removeObject(forKey: key)
+                removedWindowFrame += 1
+            }
+        }
+
+        #if DEBUG
+        let total = removedSplitView + removedWindowFrame
+        if total > 0 {
+            print("🧹 UserDefaults cleanup: removed \(removedSplitView) NSSplitView keys + \(removedWindowFrame) NSWindow Frame keys = \(total) total")
+        }
+        #endif
+    }
+}

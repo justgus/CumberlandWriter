@@ -46,9 +46,12 @@ struct ProjectDetailView: View {
         VStack(spacing: 0) {
             // Top mode/action bar with segmented control
             topModeBar
+                // .border(Color.yellow, width: 2) // DEBUG - Parent of backplate
+                .zIndex(1) // Ensure it doesn't bleed into content below
 
             // Content area switches between manuscript and dashboard
             tabContent
+                .zIndex(0)
         }
         .navigationTitle(project.name.isEmpty ? "Untitled Project" : project.name)
         .task {
@@ -65,17 +68,60 @@ struct ProjectDetailView: View {
 
     // MARK: - Top Mode Bar
 
-    private var topModeBar: some View {
-        HStack(spacing: 16) {
-            // Mode switcher
-            Picker("View Mode", selection: $selectedTab) {
+    private var modeSwitcher: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("View Mode")
+                .font(.caption)
+                .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+
+            HStack(spacing: 0) {
                 ForEach(ProjectTab.allCases) { tab in
-                    Label(tab.rawValue, systemImage: tab.systemImage)
-                        .tag(tab)
+                    modeButton(for: tab)
                 }
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 320)
+            .padding(2)
+            .background(
+                themeManager.currentTheme.colors.surfaceSecondary.platformResolved
+                    .asBackground()
+                    .opacity(0.5)
+            )
+            .cornerRadius(8)
+        }
+        .frame(maxWidth: 280)
+    }
+
+    private func modeButton(for tab: ProjectTab) -> some View {
+        let isSelected = selectedTab == tab
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedTab = tab
+            }
+        } label: {
+            Text(tab.rawValue)
+                .font(.system(size: 13))
+                .foregroundStyle(
+                    isSelected
+                        ? themeManager.currentTheme.colors.textPrimary
+                        : themeManager.currentTheme.colors.textSecondary
+                )
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity)
+                .background {
+                    if isSelected {
+                        themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground()
+                    }
+                }
+                .cornerRadius(6)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var topModeBar: some View {
+        HStack(spacing: 16) {
+            // Mode switcher - custom segmented control for proper theming
+            modeSwitcher
 
             Spacer()
 
@@ -103,10 +149,23 @@ struct ProjectDetailView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.vertical, 24)
         .background(
-            themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground()
+            ZStack {
+                BackplateView(
+                    subject: selectedTab == .manuscript ? .pen : .sextant,
+                    opacity: 0.15,
+                    alignment: .bottom,
+                    widthScale: 0.6,
+                    contentMode: .fill
+                )
+
+                themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground()
+                    .opacity(0.15)
+            }
         )
+        // .border(Color.red, width: 2) // DEBUG - Button panel
+        .clipped() // Prevent bleeding into views below
     }
 
     // MARK: - Tab Content

@@ -32,6 +32,10 @@ struct ProjectDashboardView: View {
     @State private var dashboardModel: ProjectDashboardModel?
     @State private var dashboardService: ProjectDashboardService?
     @State private var showingStructureSelector = false
+    @State private var thumbnailImage: Image?
+    @State private var isEditingName = false
+    @State private var nameDraft = ""
+    @State private var showingCardEditor = false
 
     var body: some View {
         ScrollView(.vertical) {
@@ -79,6 +83,17 @@ struct ProjectDashboardView: View {
                     loadDashboardModel()
                 }
         }
+        .sheet(isPresented: $showingCardEditor) {
+            CardEditorView(mode: .edit(card: project, onComplete: {
+                //
+            }))
+                .onDisappear {
+                    // Reload thumbnail after editing
+                    Task {
+                        thumbnailImage = await project.makeThumbnailImage()
+                    }
+                }
+        }
         .onAppear {
             loadDashboardModel()
         }
@@ -87,27 +102,113 @@ struct ProjectDashboardView: View {
     // MARK: - Project Header
 
     private var projectHeader: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    nameField
+
+                    Button {
+                        showingCardEditor = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 14))
+                            .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Edit Project Details")
+                }
+
+                if let model = dashboardModel {
+                    HStack(spacing: 16) {
+                        Label("\(model.statusGlyph.chapterRing.spans.count) chapters", systemImage: "book.closed")
+                        Label("\(model.statusGlyph.sceneRing.spans.count) scenes", systemImage: "rectangle.stack")
+                        Label("\(model.castShelf.characters.count) characters", systemImage: "person.2")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+                }
+
+                HStack(spacing: 8) {
+                    phaseBadge("Drafting")
+                    if let model = dashboardModel, !model.issuesShelf.issues.isEmpty {
+                        stateBadge("\(model.issuesShelf.issues.count) issue\(model.issuesShelf.issues.count == 1 ? "" : "s")")
+                    }
+                }
+            }
+
+            Spacer()
+
+            projectThumbnail
+        }
+        .padding()
+        .background(
+            themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground()
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var nameField: some View {
+        if isEditingName {
+            TextField("Project Name", text: $nameDraft, onCommit: commitNameEdit)
+                .textFieldStyle(.plain)
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
+        } else {
             Text(project.name.isEmpty ? "Untitled Project" : project.name)
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
-
-            if let model = dashboardModel {
-                HStack(spacing: 16) {
-                    Label("\(model.statusGlyph.chapterRing.spans.count) chapters", systemImage: "book.closed")
-                    Label("\(model.statusGlyph.sceneRing.spans.count) scenes", systemImage: "rectangle.stack")
-                    Label("\(model.castShelf.characters.count) characters", systemImage: "person.2")
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    nameDraft = project.name
+                    isEditingName = true
                 }
-                .font(.caption)
-                .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
-            }
+        }
+    }
 
-            HStack(spacing: 8) {
-                phaseBadge("Drafting")
-                if let model = dashboardModel, !model.issuesShelf.issues.isEmpty {
-                    stateBadge("\(model.issuesShelf.issues.count) issue\(model.issuesShelf.issues.count == 1 ? "" : "s")")
+    private func commitNameEdit() {
+        isEditingName = false
+        if !nameDraft.isEmpty && nameDraft != project.name {
+            project.name = nameDraft
+        }
+    }
+
+    @ViewBuilder
+    private var projectThumbnail: some View {
+        Group {
+            if let thumbnailImage {
+                thumbnailImage
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(.regularMaterial)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(.quaternary, lineWidth: 0.8)
+                    )
+            } else {
+                VStack(spacing: 4) {
+                    Image(systemName: "photo")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.secondary)
                 }
+                .frame(width: 120, height: 120)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(.regularMaterial)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(.quaternary, lineWidth: 0.8)
+                )
             }
+        }
+        .task(id: project.id) {
+            thumbnailImage = await project.makeThumbnailImage()
         }
     }
 
@@ -319,7 +420,7 @@ struct ProjectDashboardView: View {
             if beat.isMaterialized && beat.attachedSceneCount > 0 {
                 Text("\(beat.attachedSceneCount)")
                     .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.white)
                     .frame(width: 12, height: 12)
                     .background(Circle().fill(themeManager.currentTheme.colors.accentPrimary))
                     .offset(x: 8, y: -8)

@@ -218,6 +218,12 @@ struct MapWizardView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity) // This allows the content to expand
+            .background {
+                // Backplate: SHIP at 10-15% opacity (only visible on method selection step)
+                if currentStep == .selectMethod {
+                    BackplateView(subject: .ship, opacity: 0.12)
+                }
+            }
             
             Divider()
             

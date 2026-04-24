@@ -41,41 +41,64 @@ struct NarrativeArcVisualization: View {
     let segments: [ArcSegment]
     let activePositionFraction: Double?
     let height: CGFloat
+    let highlightedSegmentIndex: Int?
+    let onSegmentTap: ((Int) -> Void)?
 
     @EnvironmentObject private var themeManager: ThemeManager
 
     private let minLineWidth: CGFloat = 1.0
     private let maxLineWidth: CGFloat = 8.0
 
+    init(
+        arc: NarrativeArc,
+        segments: [ArcSegment],
+        activePositionFraction: Double? = nil,
+        height: CGFloat,
+        highlightedSegmentIndex: Int? = nil,
+        onSegmentTap: ((Int) -> Void)? = nil
+    ) {
+        self.arc = arc
+        self.segments = segments
+        self.activePositionFraction = activePositionFraction
+        self.height = height
+        self.highlightedSegmentIndex = highlightedSegmentIndex
+        self.onSegmentTap = onSegmentTap
+    }
+
     var body: some View {
         GeometryReader { geometry in
-            Canvas { context, size in
-                // Draw arc segments with variable width
-                for segment in segments {
-                    drawArcSegment(
-                        segment: segment,
-                        in: context,
-                        size: size
-                    )
+            ZStack {
+                // Canvas for arc drawing
+                Canvas { context, size in
+                    // Draw arc segments with variable width
+                    for segment in segments {
+                        drawArcSegment(
+                            segment: segment,
+                            in: context,
+                            size: size
+                        )
+                    }
+
+                    // Draw active position marker
+                    if let activePosition = activePositionFraction {
+                        drawActivePositionMarker(
+                            at: activePosition,
+                            in: context,
+                            size: size
+                        )
+                    }
                 }
 
-                // Draw beat markers
-                for segment in segments where segment.beatLabel != nil {
-                    drawBeatMarker(
-                        at: segment.startPosition,
-                        tension: segment.startTension,
-                        in: context,
-                        size: size
-                    )
-                }
-
-                // Draw active position marker
-                if let activePosition = activePositionFraction {
-                    drawActivePositionMarker(
-                        at: activePosition,
-                        in: context,
-                        size: size
-                    )
+                // Interactive beat markers as overlays
+                ForEach(Array(segments.enumerated()), id: \.element.id) { index, segment in
+                    if segment.beatLabel != nil {
+                        beatMarkerButton(
+                            at: segment.startPosition,
+                            tension: segment.startTension,
+                            index: index,
+                            size: geometry.size
+                        )
+                    }
                 }
             }
             .frame(height: height)
@@ -191,6 +214,44 @@ struct NarrativeArcVisualization: View {
             markerPath,
             with: .color(themeManager.currentTheme.colors.accentPrimary)
         )
+    }
+
+    private func beatMarkerButton(
+        at position: Double,
+        tension: Double,
+        index: Int,
+        size: CGSize
+    ) -> some View {
+        let point = arcPoint(position: position, tension: tension, in: size)
+        let markerSize: CGFloat = highlightedSegmentIndex == index ? 16 : 12
+        let isHighlighted = highlightedSegmentIndex == index
+
+        return Button {
+            onSegmentTap?(index)
+        } label: {
+            Circle()
+                .fill(
+                    isHighlighted
+                        ? themeManager.currentTheme.colors.accentPrimary
+                        : Color.white
+                )
+                .frame(width: markerSize, height: markerSize)
+                .overlay(
+                    Circle()
+                        .strokeBorder(
+                            themeManager.currentTheme.colors.accentPrimary,
+                            lineWidth: isHighlighted ? 3 : 2
+                        )
+                )
+                .shadow(
+                    color: isHighlighted
+                        ? themeManager.currentTheme.colors.accentPrimary.opacity(0.4)
+                        : Color.clear,
+                    radius: 6
+                )
+        }
+        .buttonStyle(.plain)
+        .position(x: point.x, y: point.y)
     }
 
     private func arcPoint(position: Double, tension: Double, in size: CGSize) -> CGPoint {

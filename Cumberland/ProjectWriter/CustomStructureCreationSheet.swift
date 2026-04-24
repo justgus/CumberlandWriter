@@ -88,8 +88,24 @@ struct CustomStructureCreationSheet: View {
                 }
             }
         }
+        .presentationBackground {
+            themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground()
+        }
+        .preferredColorScheme(preferredColorScheme)
         .onAppear {
             updateCanProceed()
+        }
+    }
+
+    // MARK: - Theme Support
+
+    private var preferredColorScheme: ColorScheme? {
+        @AppStorage("AppSettings.colorSchemePreferenceRaw") var colorSchemeRaw: String = "system"
+
+        switch colorSchemeRaw {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil // "system" - follow macOS appearance
         }
     }
 
@@ -108,11 +124,11 @@ struct CustomStructureCreationSheet: View {
                         if step.rawValue < currentStep.rawValue {
                             Image(systemName: "checkmark")
                                 .font(.caption.weight(.bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.white)
                         } else {
                             Text("\(step.rawValue + 1)")
                                 .font(.caption.weight(.semibold))
-                                .foregroundStyle(step == currentStep ? .white : themeManager.currentTheme.colors.textSecondary)
+                                .foregroundStyle(step == currentStep ? Color.white : themeManager.currentTheme.colors.textSecondary)
                         }
                     }
 

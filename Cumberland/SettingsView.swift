@@ -147,45 +147,51 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var detailPane: some View {
-        if settings != nil {
-            switch selection ?? .display {
-            case .display:
-                DisplaySettingsPane(
-                    settings: settingsBinding(for: \.self),
-                    onSave: saveAndSyncUserDefaults
-                )
-                .navigationTitle("Display")
-            case .cards:
-                CardSettingsPane(
-                    settings: settingsBinding(for: \.self),
-                    onSave: save
-                )
-                .navigationTitle("Cards")
-            case .views:
-                ViewsSettingsPane(
-                    settings: settingsBinding(for: \.self),
-                    onSave: save
-                )
-                .navigationTitle("Views")
-            case .relations:
-                RelationTypesManagerView()
-                    .navigationTitle("Relation Types")
-            case .images:
-                ImagesSettingsPane()
-                    .navigationTitle("Images")
-            case .ai:
-                AISettingsPane()
-                    .navigationTitle("AI & Providers")
-            case .author:
-                AuthorSettingsPane(
-                    settings: settingsBinding(for: \.self),
-                    onSave: save
-                )
-                .navigationTitle("Author")
+        Group {
+            if settings != nil {
+                switch selection ?? .display {
+                case .display:
+                    DisplaySettingsPane(
+                        settings: settingsBinding(for: \.self),
+                        onSave: saveAndSyncUserDefaults
+                    )
+                    .navigationTitle("Display")
+                case .cards:
+                    CardSettingsPane(
+                        settings: settingsBinding(for: \.self),
+                        onSave: save
+                    )
+                    .navigationTitle("Cards")
+                case .views:
+                    ViewsSettingsPane(
+                        settings: settingsBinding(for: \.self),
+                        onSave: save
+                    )
+                    .navigationTitle("Views")
+                case .relations:
+                    RelationTypesManagerView()
+                        .navigationTitle("Relation Types")
+                case .images:
+                    ImagesSettingsPane()
+                        .navigationTitle("Images")
+                case .ai:
+                    AISettingsPane()
+                        .navigationTitle("AI & Providers")
+                case .author:
+                    AuthorSettingsPane(
+                        settings: settingsBinding(for: \.self),
+                        onSave: save
+                    )
+                    .navigationTitle("Author")
+                }
+            } else {
+                fallbackLoadingView
+                    .navigationTitle("Settings")
             }
-        } else {
-            fallbackLoadingView
-                .navigationTitle("Settings")
+        }
+        .background {
+            // Backplate: KEY at 8-12% opacity
+            BackplateView(subject: .key, opacity: 0.10)
         }
     }
 

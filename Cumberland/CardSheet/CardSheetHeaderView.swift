@@ -66,8 +66,15 @@ struct CardSheetHeaderView: View {
         let theme = themeManager.currentTheme
         let corner: CGFloat = theme.shapes.panelCornerRadius
         HStack(alignment: .top, spacing: 16) {
-            leftColumn
-            Spacer(minLength: 12)
+            HStack(alignment: .top, spacing: 0) {
+                leftColumn
+                Spacer(minLength: 12)
+            }
+            .background(
+                // Backplate fills left area up to image
+                BackplateView(subject: BackplateEnum().subjectForKind(card.kind), opacity: 0.15, alignment: .trailing, heightScale: 1.0)
+            )
+
             imageSection
         }
         .padding(.vertical, 6)

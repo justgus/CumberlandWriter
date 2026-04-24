@@ -170,6 +170,18 @@ struct MainAppView: View {
         } detail: {
             detailColumn
         }
+        #if os(macOS)
+        // Disable automatic NSSplitView frame persistence to prevent UserDefaults bloat.
+        // We manage column visibility manually via our own @AppStorage properties.
+        .persistentSystemOverlays(.hidden)
+        .onAppear {
+            // Disable the default split view autosave behavior
+            if let window = NSApplication.shared.keyWindow,
+               let splitView = findNSSplitView(in: window.contentView) {
+                splitView.autosaveName = nil
+            }
+        }
+        #endif
         .background {
             themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground()
                 .ignoresSafeArea()
@@ -797,12 +809,8 @@ struct MainAppView: View {
                     }
                 }
             } else {
-                ContentPlaceholderView(
-                    title: isStructureSelected ? "Select a Structure" : "Select a Card",
-                    subtitle: isStructureSelected ? "Choose a structure from the middle column to see its details." : "Choose a card from the middle column to see its details.",
-                    systemImage: isStructureSelected ? "list.number" : "rectangle.and.text.magnifyingglass"
-                )
-                .padding()
+                detailPlaceholder
+                    .padding()
             }
         }
         #if os(visionOS)
@@ -1192,6 +1200,80 @@ struct MainAppView: View {
         .textCase(nil) // Prevent uppercase transformation
     }
 
+    // MARK: - Detail Placeholder (right pane "Select a Card")
+
+    private var detailPlaceholder: some View {
+        // Determine selected kind for backplate
+        let selectedKind: Kinds? = {
+            if case .kind(let k) = sidebarSelection { return k }
+            return nil
+        }()
+
+        let theme = themeManager.currentTheme
+
+        return VStack(spacing: 20) {
+            Image(systemName: isStructureSelected ? "list.number" : "rectangle.and.text.magnifyingglass")
+                .font(.system(size: 48, weight: .light))
+                .foregroundStyle(theme.colors.textSecondary)
+                .accessibilityHidden(true)
+                .padding(10)
+                .background {
+                    theme.colors.surfaceGlass.platformResolved.asBackground()
+                        .clipShape(Circle())
+                }
+                .clipShape(Circle())
+                .padding()
+
+            VStack(spacing: 12) {
+                Text(isStructureSelected ? "Select a Structure" : "Select a Card")
+                    .font(theme.fonts.headline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(theme.colors.textPrimary)
+                    .multilineTextAlignment(.center)
+
+                Text(isStructureSelected ? "Choose a structure from the middle column to see its details." : "Choose a card from the middle column to see its details.")
+                    .font(theme.fonts.body)
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background {
+                theme.colors.surfaceSecondary.platformResolved.asBackground(
+                    cornerRadius: theme.shapes.panelCornerRadius, style: .continuous)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: theme.shapes.panelCornerRadius, style: .continuous))
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .background {
+            ZStack {
+                // Theme surface background
+                theme.colors.surfacePrimary.platformResolved.asBackground()
+
+                // Backplate based on selected kind (right-aligned to show key imagery)
+                if let kind = selectedKind {
+                    BackplateView(subject: BackplateEnum().subjectForKind(kind), opacity: 0.15, alignment: .trailing)
+                }
+
+                // Subtle gradient wash using theme accent
+                LinearGradient(
+                    colors: [
+                        .clear,
+                        theme.colors.accentPrimary.opacity(0.03),
+                        .clear
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
+    }
+
+    // MARK: - Empty State (middle column "No Cards")
+
     private var emptyState: some View {
         // Determine if we are scoped to a specific kind
         let selectedKind: Kinds? = {
@@ -1265,6 +1347,22 @@ struct MainAppView: View {
     }
 
     // MARK: - Helpers
+
+    #if os(macOS)
+    /// Recursively finds the NSSplitView in the view hierarchy to disable autosave
+    private func findNSSplitView(in view: NSView?) -> NSSplitView? {
+        guard let view = view else { return nil }
+        if let splitView = view as? NSSplitView {
+            return splitView
+        }
+        for subview in view.subviews {
+            if let found = findNSSplitView(in: subview) {
+                return found
+            }
+        }
+        return nil
+    }
+    #endif
 
     #if os(visionOS)
     // MARK: - visionOS Ornaments

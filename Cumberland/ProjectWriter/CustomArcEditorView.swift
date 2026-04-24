@@ -182,7 +182,7 @@ struct CustomArcEditorView: View {
             Circle()
                 .fill(isSelected
                     ? themeManager.currentTheme.colors.accentPrimary
-                    : Color.white
+                    : Color.white.opacity(0.9)
                 )
                 .frame(width: handleRadius * 2, height: handleRadius * 2)
                 .overlay(

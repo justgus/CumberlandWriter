@@ -125,48 +125,96 @@ struct ManuscriptWritingSurfaceView: View {
         .sheet(isPresented: $showPotentialCardMenu) {
             if let potential = selectedPotentialCard {
                 potentialCardMenuSheet(for: potential)
+                    .presentationBackground {
+                        themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground()
+                    }
+                    .preferredColorScheme(preferredColorScheme)
             }
         }
         .sheet(isPresented: $showScenesPanel) {
             scenesPanel
+                .presentationBackground {
+                    themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground()
+                }
+                .preferredColorScheme(preferredColorScheme)
         }
         .sheet(isPresented: $showStructurePanel) {
             structurePanel
         }
         .sheet(isPresented: $showContextPanel) {
             contextPanel
+                .presentationBackground {
+                    themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground()
+                }
+                .preferredColorScheme(preferredColorScheme)
         }
         .sheet(isPresented: $showNotesPanel) {
             notesPanel
+                .presentationBackground {
+                    themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground()
+                }
+                .preferredColorScheme(preferredColorScheme)
         }
     }
 
     // MARK: - Quick Action Panels
 
     private var scenesPanel: some View {
-        VStack {
+        VStack(spacing: 0) {
             Text("Scenes")
                 .font(.headline)
+                .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
                 .padding()
 
-            List(scenes) { scene in
-                HStack {
-                    Text(scene.name)
-                    Spacer()
-                    if scene.id == activeSceneID {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.blue)
+            if scenes.isEmpty {
+                // Empty state
+                VStack(spacing: 16) {
+                    Image(systemName: "rectangle.stack")
+                        .font(.system(size: 48))
+                        .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
+
+                    Text("No Scenes Yet")
+                        .font(.title3)
+                        .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
+
+                    Text("Create a scene to start writing")
+                        .font(.body)
+                        .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+
+                    Button {
+                        createNewScene()
+                        showScenesPanel = false
+                    } label: {
+                        Label("Create Scene", systemImage: "plus.circle.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding()
+            } else {
+                List(scenes) { scene in
+                    HStack {
+                        Text(scene.name)
+                            .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
+                        Spacer()
+                        if scene.id == activeSceneID {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(themeManager.currentTheme.colors.accentPrimary)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        activeSceneID = scene.id
+                        sceneContext.activeSceneID = scene.id
+                        showScenesPanel = false
                     }
                 }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    activeSceneID = scene.id
-                    sceneContext.activeSceneID = scene.id
-                    showScenesPanel = false
-                }
+                .listStyle(.inset)
+                .scrollContentBackground(.hidden)
             }
         }
         .frame(width: 400, height: 500)
+        .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
     }
 
     private var structurePanel: some View {
@@ -182,41 +230,61 @@ struct ManuscriptWritingSurfaceView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Scene Context")
                 .font(.headline)
+                .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
                 .padding()
 
             Text("Confirmed Cards")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
                 .padding(.horizontal)
 
-            List(sceneContext.confirmedCards) { card in
-                HStack {
-                    Circle()
-                        .fill(colorForKind(card.kind))
-                        .frame(width: 8, height: 8)
-                    Text(card.name)
-                    Spacer()
-                    Text(card.kind.rawValue)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            if sceneContext.confirmedCards.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "person.2")
+                        .font(.system(size: 40))
+                        .foregroundStyle(themeManager.currentTheme.colors.textTertiary)
+                    Text("No context cards")
+                        .font(.subheadline)
+                        .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding()
+            } else {
+                List(sceneContext.confirmedCards) { card in
+                    HStack {
+                        Circle()
+                            .fill(colorForKind(card.kind))
+                            .frame(width: 8, height: 8)
+                        Text(card.name)
+                            .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
+                        Spacer()
+                        Text(card.kind.rawValue)
+                            .font(.caption)
+                            .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
+                    }
+                }
+                .listStyle(.inset)
+                .scrollContentBackground(.hidden)
             }
         }
         .frame(width: 400, height: 500)
+        .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
     }
 
     private var notesPanel: some View {
         VStack {
             Text("Scene Notes")
                 .font(.headline)
+                .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
                 .padding()
 
             Text("Notes functionality coming soon...")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
 
             Spacer()
         }
         .frame(width: 400, height: 500)
+        .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
     }
 
     @MainActor
@@ -224,6 +292,7 @@ struct ManuscriptWritingSurfaceView: View {
         VStack(spacing: 20) {
             Text("Confirm Card")
                 .font(.headline)
+                .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Name: \(potential.name)")
@@ -231,9 +300,10 @@ struct ManuscriptWritingSurfaceView: View {
                 Text("Confidence: \(Int(potential.confidence * 100))%")
             }
             .font(.subheadline)
+            .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
-            .background(Color.gray.opacity(0.1))
+            .background(themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground())
             .cornerRadius(8)
 
             VStack(spacing: 12) {
@@ -265,6 +335,7 @@ struct ManuscriptWritingSurfaceView: View {
         }
         .padding()
         .frame(width: 400)
+        .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
     }
 
     // MARK: - Chapter Tab Strip
@@ -284,21 +355,25 @@ struct ManuscriptWritingSurfaceView: View {
             Button {
                 createNewChapter()
             } label: {
-                Label("Add Chapter", systemImage: "plus")
-                    .labelStyle(.iconOnly)
-                    .font(.system(size: 14))
-                    .frame(width: 32, height: 28)
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "text.book.closed")
+                        .font(.system(size: 14))
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 10))
+                        .offset(x: 4, y: -4)
+                }
+                .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
+                .frame(width: 32, height: 28)
             }
             .buttonStyle(.bordered)
             .help("Create a new chapter")
             .padding(.trailing, 12)
         }
         .frame(height: 44)
-        .background(
+        .background {
             themeManager.currentTheme.colors.surfaceSecondary.platformResolved
                 .asBackground()
-                .opacity(0.95)
-        )
+        }
     }
 
     private func chapterTab(for chapter: Card) -> some View {
@@ -407,6 +482,7 @@ struct ManuscriptWritingSurfaceView: View {
                     } else {
                         TextEditor(text: $manuscriptText)
                             .font(.system(size: 16, design: .serif))
+                            .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
                             .scrollContentBackground(.hidden)
                             .padding(.horizontal, 60)
                             .padding(.vertical, 20)
@@ -422,6 +498,7 @@ struct ManuscriptWritingSurfaceView: View {
                 }
             }
             .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
+            // .border(Color.teal, width: 2) // DEBUG - Parent of No Scenes Yet
         }
     }
 
@@ -604,9 +681,14 @@ struct ManuscriptWritingSurfaceView: View {
             Button {
                 createNewScene()
             } label: {
-                Label("Add Scene", systemImage: "plus")
-                    .labelStyle(.iconOnly)
-                    .font(.system(size: 14))
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "film")
+                        .font(.system(size: 14))
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 10))
+                        .offset(x: 4, y: -4)
+                }
+                .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
             }
             .buttonStyle(.bordered)
             .help("Create a new scene")
@@ -926,6 +1008,18 @@ struct ManuscriptWritingSurfaceView: View {
 
     private func handleConfirmedCardTap(_ card: Card) {
         selectedCardForDetail = card
+    }
+
+    // MARK: - Theme Support
+
+    private var preferredColorScheme: ColorScheme? {
+        @AppStorage("AppSettings.colorSchemePreferenceRaw") var colorSchemeRaw: String = "system"
+
+        switch colorSchemeRaw {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil // "system" - follow macOS appearance
+        }
     }
 }
 

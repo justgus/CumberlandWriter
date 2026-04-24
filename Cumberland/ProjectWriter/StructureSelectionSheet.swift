@@ -24,6 +24,7 @@ struct StructureSelectionSheet: View {
     @State private var isProcessing = false
     @State private var showingConfirmation = false
     @State private var showingCustomCreation = false
+    @State private var highlightedBeatIndex: Int? = nil
 
     var body: some View {
         NavigationStack {
@@ -40,6 +41,7 @@ struct StructureSelectionSheet: View {
                     emptyPreview
                 }
             }
+            .background(themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground())
             .navigationTitle("Select Story Structure")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -87,6 +89,26 @@ struct StructureSelectionSheet: View {
                         loadCurrentStructure()
                     }
             }
+            .presentationBackground {
+                themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground()
+            }
+        }
+        .preferredColorScheme(preferredColorScheme)
+    }
+
+    // MARK: - Theme Support
+
+    private var preferredColorScheme: ColorScheme? {
+        // Read the app's color scheme preference from AppStorage
+        @AppStorage("AppSettings.colorSchemePreferenceRaw") var colorSchemeRaw: String = "system"
+
+        switch colorSchemeRaw {
+        case "light":
+            return .light
+        case "dark":
+            return .dark
+        default: // "system"
+            return nil // nil = follow system
         }
     }
 
@@ -126,29 +148,49 @@ struct StructureSelectionSheet: View {
             )
         }
         .frame(maxWidth: 300)
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background {
+            ZStack {
+                // Backplate: CODEX at 8-12% opacity
+                BackplateView(subject: .codex, opacity: 0.10)
+
+                // Surface color
+                themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground()
+                    .opacity(0.85)
+            }
+        }
     }
 
     // MARK: - Preview Area
 
     private func previewArea(for template: (name: String, elements: [String])) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Arc visualization
+        VStack(spacing: 0) {
+            // Top section: Arc and beats side-by-side (no scrolling)
+            HStack(alignment: .top, spacing: 24) {
+                // Arc visualization (left side, takes ~40% width)
                 arcVisualization(for: template)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 Divider()
 
-                // Beat list
+                // Beat list (right side, takes ~60% width, but compact)
                 beatList(for: template)
-
-                Divider()
-
-                // Mapping preview
-                if let preview = mappingPreview, preview.sceneCount > 0 {
-                    mappingPreviewSection(preview)
-                }
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(24)
+            .frame(maxHeight: .infinity)
+
+            // Bottom section: Mapping preview (scrollable if needed)
+            if let preview = mappingPreview, preview.sceneCount > 0 {
+                Divider()
+
+                ScrollView {
+                    mappingPreviewSection(preview)
+                        .padding(24)
+                }
+                .frame(maxHeight: 200)
+            }
         }
     }
 
@@ -197,9 +239,16 @@ struct StructureSelectionSheet: View {
                 arc: arc,
                 segments: segments,
                 activePositionFraction: nil,
-                height: 120
+                height: 180,
+                highlightedSegmentIndex: highlightedBeatIndex,
+                onSegmentTap: { index in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        highlightedBeatIndex = (highlightedBeatIndex == index) ? nil : index
+                    }
+                }
             )
-            .frame(height: 120)
+            .frame(height: 180)
+            .padding(.horizontal, 20)
         }
     }
 
@@ -211,32 +260,57 @@ struct StructureSelectionSheet: View {
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 8) {
                 ForEach(Array(template.elements.enumerated()), id: \.offset) { index, beatName in
-                    beatBadge(beatName, index: index + 1)
+                    beatBadge(beatName, displayIndex: index + 1, actualIndex: index)
                 }
             }
         }
     }
 
-    private func beatBadge(_ name: String, index: Int) -> some View {
-        HStack(spacing: 6) {
-            Text("\(index)")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(themeManager.currentTheme.colors.accentPrimary)
-                .frame(width: 20, height: 20)
-                .background(
-                    Circle().fill(themeManager.currentTheme.colors.accentPrimary.opacity(0.2))
-                )
+    private func beatBadge(_ name: String, displayIndex: Int, actualIndex: Int) -> some View {
+        let isHighlighted = highlightedBeatIndex == actualIndex
 
-            Text(name)
-                .font(.caption)
-                .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
-                .lineLimit(1)
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                highlightedBeatIndex = (highlightedBeatIndex == actualIndex) ? nil : actualIndex
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text("\(displayIndex)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(
+                        isHighlighted
+                            ? Color.white
+                            : themeManager.currentTheme.colors.accentPrimary
+                    )
+                    .frame(width: 20, height: 20)
+                    .background(
+                        Circle().fill(
+                            isHighlighted
+                                ? themeManager.currentTheme.colors.accentPrimary
+                                : themeManager.currentTheme.colors.accentPrimary.opacity(0.2)
+                        )
+                    )
+
+                Text(name)
+                    .font(.caption)
+                    .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground())
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(
+                        isHighlighted
+                            ? themeManager.currentTheme.colors.accentPrimary
+                            : Color.clear,
+                        lineWidth: 2
+                    )
+            )
+            .cornerRadius(6)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground(cornerRadius: 6)
-        )
+        .buttonStyle(.plain)
     }
 
     private func mappingPreviewSection(_ preview: MappingPreview) -> some View {
