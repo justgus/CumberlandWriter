@@ -13,7 +13,7 @@ This is the main index for all Cumberland Enhancement Requests. ERs track planne
 
 ## Unverified ERs (Active & Proposed)
 
-Currently: **11 proposed ERs**
+Currently: **15 proposed ERs**
 
 | ER | Title | Status |
 |----|-------|--------|
@@ -28,12 +28,16 @@ Currently: **11 proposed ERs**
 | ER-0050 | visionOS Cross-Window Drag-and-Drop | 🔵 Proposed |
 | ER-0051 | visionOS Workspace Integration | 🔵 Proposed |
 | ER-0052 | Comprehensive Test Coverage Expansion | 🟡 In Progress |
+| ER-0053 | Manuscript Chapter/Scene Deletion Strategy with Content Preservation | 🔵 Proposed |
+| ER-0054 | Project Dashboard View - Instrument Panel for Project Status | 🔵 Proposed |
+| ER-0055 | Manuscript Writing Surface View - Comprehensive Architecture | 🔵 Proposed |
+| ER-0056 | Manuscript Text Editor Component - Custom NSTextView Integration | 🔵 Proposed |
 
-See: [ER-unverified.md](./ER-unverified.md)
+See: [ER-proposed.md](./ER-proposed.md)
 
 ## Verified ERs (Completed Enhancements)
 
-Currently: **41 verified ERs** | Next available ER: **ER-0053**
+Currently: **41 verified ERs** | Next available ER: **ER-0057**
 
 | Batch | ERs | File | Status |
 |-------|-----|------|--------|
@@ -71,11 +75,11 @@ Currently: **41 verified ERs** | Next available ER: **ER-0053**
 
 ## Statistics
 
-- **Total ERs:** 52
-- **Verified:** 41 (78.8%) ✅
-- **In Progress:** 1 (1.9%) 🟡
-- **Proposed:** 10 (19.2%) 🔵
+- **Total ERs:** 56
+- **Verified:** 41 (73.2%) ✅
+- **In Progress:** 1 (1.8%) 🟡
+- **Proposed:** 14 (25.0%) 🔵
 
 ---
 
-*Last Updated: 2026-04-07*
+*Last Updated: 2026-04-26*

@@ -31,24 +31,18 @@ struct ManuscriptWritingSurfaceView: View {
     @State private var activeChapterID: UUID?
     @State private var activeSceneID: UUID?
 
-    // Manuscript text and assembly result
-    @State private var manuscriptText: String = ""
-    @State private var manuscriptResult: ManuscriptAssembler.ManuscriptResult?
-
     // Scene context with potential and confirmed cards
     @State private var sceneContext = SceneContext()
-
-    // Entity detection service
-    @State private var entityDetectionService: EntityDetectionService?
-
-    // Text parsing task for debouncing
-    @State private var textParseTask: Task<Void, Never>?
 
     // Card detail sheet
     @State private var selectedCardForDetail: Card?
 
     // Chapter creation prompt
     @State private var pendingChapter: Card?
+
+    // Chapter editing
+    @State private var editingChapterID: UUID?
+    @State private var editingChapterName: String = ""
 
     // Potential card menu
     @State private var selectedPotentialCard: PotentialCard?
@@ -96,11 +90,7 @@ struct ManuscriptWritingSurfaceView: View {
             }
         }
         .onAppear {
-            loadManuscriptContent()
-            initializeEntityDetection()
-        }
-        .onChange(of: manuscriptText) { oldValue, newValue in
-            handleTextChange(newValue)
+            // Initialize view (widget-based architecture handles its own loading)
         }
         .sheet(item: $selectedCardForDetail) { card in
             CardSheetView(card: card)
@@ -220,10 +210,6 @@ struct ManuscriptWritingSurfaceView: View {
     private var structurePanel: some View {
         StructureSelectionSheet(project: project)
             .frame(width: 800, height: 600)
-            .onDisappear {
-                // Reload manuscript when structure changes
-                loadManuscriptContent()
-            }
     }
 
     private var contextPanel: some View {
@@ -378,28 +364,61 @@ struct ManuscriptWritingSurfaceView: View {
 
     private func chapterTab(for chapter: Card) -> some View {
         let isActive = activeChapterID == chapter.id
+        let isEditing = editingChapterID == chapter.id
 
-        return Button {
-            withAnimation {
-                activeChapterID = chapter.id
-                // Jump to first scene in this chapter
-                if let firstScene = scenesInChapter(chapter).first {
-                    activeSceneID = firstScene.id
-                }
-            }
-        } label: {
-            Text(chapter.name.isEmpty ? "Chapter \(chapterNumber(chapter))" : chapter.name)
-                .font(.system(size: 13, weight: isActive ? .semibold : .regular))
-                .foregroundStyle(isActive ? themeManager.currentTheme.colors.textPrimary : themeManager.currentTheme.colors.textSecondary)
+        return Group {
+            if isEditing {
+                // Editing mode - show text field
+                TextField("Chapter Name", text: $editingChapterName, onCommit: {
+                    saveChapterName(for: chapter)
+                })
+                .font(.system(size: 13, weight: .semibold))
+                .textFieldStyle(.plain)
+                .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background {
-                    if isActive {
-                        themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground(cornerRadius: 6)
+                .background(
+                    themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground(cornerRadius: 6)
+                )
+                .onAppear {
+                    editingChapterName = chapter.name
+                }
+            } else {
+                // Normal mode - show button
+                Button {
+                    withAnimation {
+                        activeChapterID = chapter.id
+                        // Jump to first scene in this chapter
+                        if let firstScene = scenesInChapter(chapter).first {
+                            activeSceneID = firstScene.id
+                        }
+                    }
+                } label: {
+                    Text(chapter.name.isEmpty ? "Chapter \(chapterNumber(chapter))" : chapter.name)
+                        .font(.system(size: 13, weight: isActive ? .semibold : .regular))
+                        .foregroundStyle(isActive ? themeManager.currentTheme.colors.textPrimary : themeManager.currentTheme.colors.textSecondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background {
+                            if isActive {
+                                themeManager.currentTheme.colors.surfacePrimary.platformResolved.asBackground(cornerRadius: 6)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+                .onLongPressGesture {
+                    startEditingChapter(chapter)
+                }
+                .contextMenu {
+                    Button("Rename Chapter") {
+                        startEditingChapter(chapter)
+                    }
+                    Button("Delete Chapter", role: .destructive) {
+                        deleteChapter(chapter)
                     }
                 }
+            }
         }
-        .buttonStyle(.plain)
     }
 
     private func chapterNumber(_ chapter: Card) -> Int {
@@ -411,41 +430,42 @@ struct ManuscriptWritingSurfaceView: View {
         return repository.fetchScenesInChapter(chapterID: chapter.id, projectID: project.id)
     }
 
+    private func startEditingChapter(_ chapter: Card) {
+        editingChapterID = chapter.id
+        editingChapterName = chapter.name
+    }
+
+    private func saveChapterName(for chapter: Card) {
+        let cardRepo = CardRepository(modelContext: modelContext)
+        chapter.name = editingChapterName
+        try? cardRepo.save()
+        editingChapterID = nil
+        editingChapterName = ""
+    }
+
+    private func deleteChapter(_ chapter: Card) {
+        let cardRepo = CardRepository(modelContext: modelContext)
+
+        // Delete chapter using CardRepository (handles cleanup properly)
+        try? cardRepo.deleteCard(chapter)
+
+        // Clear active chapter if it was deleted
+        if activeChapterID == chapter.id {
+            activeChapterID = chapters.first?.id
+        }
+    }
+
     // MARK: - Manuscript Canvas
 
     private var manuscriptCanvas: some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical) {
                 VStack(spacing: 0) {
-                    // Current scene chip (floating indicator)
-                    if let activeScene = scenes.first(where: { $0.id == activeSceneID }) {
-                        HStack {
-                            Text("Scene \(sceneNumber(activeScene)) • \(activeScene.name)")
-                                .font(.caption)
-                                .foregroundStyle(themeManager.currentTheme.colors.textSecondary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Capsule()
-                                        .background(themeManager.currentTheme.colors.surfaceSecondary.platformResolved.asBackground())
-                                )
-                            Spacer()
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 12)
-                    }
+                    // Spacer to clear chapter bar
+                    Color.clear.frame(height: 60)
 
-                    // Continuous manuscript text with scene markers
-                    if let result = manuscriptResult, !result.scenes.isEmpty {
-                        ForEach(result.scenes, id: \.id) { sceneInfo in
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(manuscriptText)
-                                    .font(.system(size: 16, design: .serif))
-                                    .frame(maxWidth: 800)
-                            }
-                            .id(sceneInfo.id)
-                        }
-                    } else if scenes.isEmpty && chapters.isEmpty {
+                    // Widget-based manuscript text editor
+                    if scenes.isEmpty && chapters.isEmpty {
                         // Empty state - no content yet
                         VStack(spacing: 16) {
                             Image(systemName: "doc.text")
@@ -480,14 +500,23 @@ struct ManuscriptWritingSurfaceView: View {
                         .frame(maxWidth: 600)
                         .padding(.top, 100)
                     } else {
-                        TextEditor(text: $manuscriptText)
-                            .font(.system(size: 16, design: .serif))
-                            .foregroundStyle(themeManager.currentTheme.colors.textPrimary)
-                            .scrollContentBackground(.hidden)
-                            .padding(.horizontal, 60)
-                            .padding(.vertical, 20)
-                            .frame(maxWidth: 800)
+                        // New widget-based manuscript editor (ER-0056)
+                        GeometryReader { geometry in
+                            ManuscriptTextEditor(
+                                project: project,
+                                activeChapterID: $activeChapterID,
+                                activeSceneID: $activeSceneID
+                            )
+                            .frame(
+                                minWidth: geometry.size.width,
+                                minHeight: 100  // Minimum height for 1 line of text + padding
+                            )
+                        }
+                        .frame(minHeight: 100)  // Ensure GeometryReader itself has minimum height
                     }
+
+                    // Bottom padding to clear Scene Map Instrument and Quick Actions
+                    Color.clear.frame(height: 120)
                 }
                 .onChange(of: activeSceneID) { oldValue, newValue in
                     if let sceneID = newValue {
@@ -717,6 +746,7 @@ struct ManuscriptWritingSurfaceView: View {
         return Button {
             withAnimation {
                 activeSceneID = scene.id
+                sceneContext.activeSceneID = scene.id
             }
         } label: {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
@@ -795,13 +825,20 @@ struct ManuscriptWritingSurfaceView: View {
         let cardRepo = CardRepository(modelContext: modelContext)
         let edgeRepo = EdgeRepository(modelContext: modelContext)
 
-        // Create new chapter
-        guard let newChapter = try? cardRepo.createCard(kind: .chapters, name: "New Chapter") else {
+        // Calculate next chapter number (1-indexed for user-facing display)
+        let nextChapterNumber = chapters.count + 1
+        let chapterName = "Chapter \(nextChapterNumber)"
+
+        // Create new chapter with proper default name
+        guard let newChapter = try? cardRepo.createCard(kind: .chapters, name: chapterName) else {
             return
         }
 
         // Link chapter to project
         try? edgeRepo.linkChapterToProject(chapter: newChapter, project: project)
+
+        // Save changes immediately so widgets can query the new chapter
+        try? cardRepo.save()
 
         // Set as active chapter
         activeChapterID = newChapter.id
@@ -824,14 +861,21 @@ struct ManuscriptWritingSurfaceView: View {
         let cardRepo = CardRepository(modelContext: modelContext)
         let edgeRepo = EdgeRepository(modelContext: modelContext)
 
-        // Create first scene
-        guard let firstScene = try? cardRepo.createCard(kind: .scenes, name: "Opening") else {
+        // Calculate chapter number for scene naming
+        let chapterNum = chapterNumber(chapter)
+        let sceneName = "Chapter \(chapterNum) Opening"
+
+        // Create first scene with chapter-specific name
+        guard let firstScene = try? cardRepo.createCard(kind: .scenes, name: sceneName) else {
             return
         }
 
         // Link scene to chapter and project
         try? edgeRepo.linkSceneToChapter(scene: firstScene, chapter: chapter)
         try? edgeRepo.linkSceneToProject(scene: firstScene, project: project, chapterID: chapter.id)
+
+        // Save changes immediately so widgets can query the new scene
+        try? cardRepo.save()
 
         // Clear scene context for new scene
         sceneContext.clearForNewScene()
@@ -872,6 +916,9 @@ struct ManuscriptWritingSurfaceView: View {
             try? edgeRepo.linkSceneToProject(scene: newScene, project: project)
         }
 
+        // Save changes immediately so widgets can query the new scene
+        try? cardRepo.save()
+
         // Clear scene context for new scene
         sceneContext.clearForNewScene()
 
@@ -888,67 +935,6 @@ struct ManuscriptWritingSurfaceView: View {
         // Set as active
         activeSceneID = newScene.id
         sceneContext.activeSceneID = newScene.id
-    }
-
-    private func loadManuscriptContent() {
-        // Use ManuscriptAssembler to build the manuscript
-        let result = ManuscriptAssembler.assembleManuscript(
-            for: project,
-            in: modelContext,
-            options: .default
-        )
-
-        manuscriptResult = result
-        manuscriptText = result.text.isEmpty
-            ? "Start writing your story here...\n\nCreate chapters and scenes using the controls above."
-            : result.text
-
-        // Set first chapter and scene as active
-        if activeChapterID == nil, let firstChapter = chapters.first {
-            activeChapterID = firstChapter.id
-        }
-        if activeSceneID == nil, let firstScene = scenes.first {
-            activeSceneID = firstScene.id
-            sceneContext.activeSceneID = firstScene.id
-        }
-    }
-
-    // MARK: - Entity Detection
-
-    private func initializeEntityDetection() {
-        entityDetectionService = EntityDetectionService(modelContext: modelContext)
-    }
-
-    private func handleTextChange(_ newText: String) {
-        // Cancel previous parsing task
-        textParseTask?.cancel()
-
-        // Debounce: wait 500ms after typing stops
-        textParseTask = Task {
-            do {
-                try await Task.sleep(for: .milliseconds(500))
-                await updatePotentialCards(from: newText)
-            } catch {
-                // Task was cancelled, ignore
-            }
-        }
-    }
-
-    private func updatePotentialCards(from text: String) async {
-        guard let activeSceneID, let service = entityDetectionService else { return }
-
-        // Parse text in background
-        let detected = await service.detectEntities(in: text, sceneID: activeSceneID)
-
-        // Update scene context (non-interrupting)
-        await MainActor.run {
-            // Merge with existing potential cards, preserving dismissed state
-            for detectedCard in detected {
-                if !sceneContext.potentialCards.contains(where: { $0.id == detectedCard.id }) {
-                    sceneContext.addPotentialCard(detectedCard)
-                }
-            }
-        }
     }
 
     // MARK: - Card Interaction Handlers
@@ -978,8 +964,7 @@ struct ManuscriptWritingSurfaceView: View {
                     // Create appropriate relationship based on kind
                     let relationTypeCode = relationTypeForKind(potential.kind)
                     if let relationType = try? await fetchRelationType(code: relationTypeCode) {
-                        let edge = CardEdge(from: activeScene, to: newCard, type: relationType)
-                        try? edgeRepo.insert(edge)
+                        try? edgeRepo.createRelationship(from: activeScene, to: newCard, relationType: relationType)
                     }
                 }
             }

@@ -274,6 +274,21 @@ enum RelationshipType: String, Codable {
     case other = "other"
 }
 
+enum RerverseRelationhipType: String, Codable {
+    case owns = "owned-by"
+    case uses = "used-by"
+    case location = "located-at"
+    case memberOf = "has-members"
+    case trainedAt = "trained-by"
+    case bornIn = "origin"
+    case commands = "has-commander"
+    case companion = "has-companion"
+    case enemy = "is-enemy-of"
+    case parent = "child"
+    case child = "parent"
+    case other = "other"
+}
+
 /// Extracted calendar structure from text
 struct CalendarStructure: Codable {
     /// Calendar name (e.g., "Eldarian Calendar")
@@ -297,7 +312,7 @@ struct TimeDivisionData: Codable {
     var name: String
     var pluralName: String
     var length: Int?
-    var isVariable: Bool
+    var isVariable: Bool = false
 
     /// Convert to TimeDivision model
     func toTimeDivision() -> TimeDivision {
@@ -323,5 +338,6 @@ extension AIProviderProtocol {
     var metadata: AIProviderMetadata? { nil }
 
     /// Default implementation: most providers use programmatic API
+    /// TODO examine why this exists
     var usesSheetBasedUI: Bool { false }
 }

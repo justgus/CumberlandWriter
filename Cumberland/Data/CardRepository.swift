@@ -131,6 +131,7 @@ final class CardRepository {
     }
 
     // MARK: - Insert/Update/Delete Operations
+    // MARK: - Insert Operations
 
     /// Create a new card and insert it into the context
     /// - Parameters:
@@ -152,26 +153,113 @@ final class CardRepository {
         try modelContext.save()
         return card
     }
-
-    // MARK: - Legacy Insert Operations
-
-    /// Insert a new card into the context
-    /// - Parameter card: The card to insert
-    /// - Throws: SwiftData errors
-    func insert(_ card: Card) throws {
+    
+    @discardableResult
+    func insertCard(_ card: Card) throws -> Card {
+        insert(card)
+        try modelContext.save()
+        return card
+    }
+    
+    /// INSERT a card INTO the context.  Note this function is Private.  it is used internally only
+    /// - Parameter card: The card to delete
+    private func insert(_ card: Card) {
         modelContext.insert(card)
+    }
+
+    // MARK: - Update Operations
+
+
+    /// Update a card's basic properties
+    /// - Parameters:
+    ///   - card: The card to update
+    ///   - name: New name (nil = no change)
+    ///   - subtitle: New subtitle (nil = no change)
+    ///   - detailedText: New detailed text (nil = no change)
+    /// - Throws: SwiftData errors
+    func updateCard(
+        _ card: Card,
+        name: String? = nil,
+        subtitle: String? = nil,
+        detailedText: String? = nil
+    ) throws {
+        if let name = name {
+            card.name = name
+        }
+        if let subtitle = subtitle {
+            card.subtitle = subtitle
+        }
+        if let detailedText = detailedText {
+            card.detailedText = detailedText
+        }
         try modelContext.save()
     }
 
-    /// Delete a card from the context
+    /// Update a card's kind.  Note changing a card's Kind will remove all previous relationships to other objects.  
+    /// - Parameters:
+    ///   - card: The card to update
+    ///   - kind: New kind
+    /// - Throws: SwiftData errors
+    func updateCardKind(_ card: Card, to kind: Kinds) throws {
+        // Store old kind for logging
+        let oldKind = card.kind
+
+        let edgeRepository = EdgeRepository.init(modelContext: modelContext)
+        try edgeRepository.deleteAllRelationships(for: card)
+        
+        // Update the kind
+        card.kindRaw = kind.rawValue
+
+        try modelContext.save()
+    }
+
+    /// Update a card's image
+    /// - Parameters:
+    ///   - card: The card to update
+    ///   - imageData: New image data (nil to remove image)
+    /// - Throws: SwiftData errors
+    func updateCardImage(_ card: Card, imageData: Data?) throws {
+        if let imageData = imageData {
+            try card.setOriginalImageData(imageData)
+        } else {
+            // Remove image
+            card.originalImageData = nil
+            card.thumbnailData = nil
+            if let url = card.imageFileURL {
+                try? ImageStore.shared.deleteOriginalImage(at: url)
+                card.imageFileURL = nil
+            }
+        }
+        try modelContext.save()
+    }
+    
+    // MARK: - Delete Operations
+    ///Public Delete Card function.  Note delete has been made private as it should not be used externally.
+    /// - Parameter card: The card to delete
+    /// - Throws SwiftDataErrors
+    func deleteCard(_ card: Card) throws {
+        try delete(card)
+        try modelContext.save()
+    }
+
+    /// Delete multiple cards
+    /// - Parameter cards: Array of cards to delete
+    /// - Throws: SwiftData errors
+    func deleteCards(_ cards: [Card]) throws {
+        for card in cards {
+            try delete(card)
+        }
+        try modelContext.save()
+    }
+
+    /// Delete a card from the context.  Note this function is Private.  it is used internally only
     /// - Parameter card: The card to delete
     /// - Throws: SwiftData errors
-    func delete(_ card: Card) throws {
+    private func delete(_ card: Card) throws {
         card.cleanupBeforeDeletion(in: modelContext)
         modelContext.delete(card)
-        try modelContext.save()
     }
-
+    
     /// Save changes to the context
     /// - Throws: SwiftData errors
     func save() throws {
@@ -179,17 +267,6 @@ final class CardRepository {
     }
 
     // MARK: - Batch Operations
-
-    /// Delete multiple cards
-    /// - Parameter cards: Array of cards to delete
-    /// - Throws: SwiftData errors
-    func delete(_ cards: [Card]) throws {
-        for card in cards {
-            card.cleanupBeforeDeletion(in: modelContext)
-            modelContext.delete(card)
-        }
-        try modelContext.save()
-    }
 
     /// Fetch count of cards by kind
     /// - Parameter kind: The card kind
