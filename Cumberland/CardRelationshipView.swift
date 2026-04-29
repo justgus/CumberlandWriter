@@ -314,7 +314,9 @@ struct CardRelationshipView: View {
             cardName: primary.name,
             selectedKind: $selectedNewCardType
         ) { newKind in
-            changeCardType(card: primary, to: newKind, modelContext: modelContext, services: services)
+            // Use CardRepository directly instead of wrapper
+            let cardRepo = CardRepository(modelContext: modelContext)
+            try? cardRepo.updateCardKind(primary, to: newKind)
             isPresentingChangeCardType = false
         } onCancel: {
             isPresentingChangeCardType = false
@@ -366,7 +368,13 @@ struct CardRelationshipView: View {
 
     private func handleRemoveRelationship() {
         guard let card = selectedRelatedCard else { return }
-        removeRelationship(between: card, and: primary, modelContext: modelContext, services: services)
+        // Use EdgeRepository directly instead of wrapper
+        let edgeRepo = EdgeRepository(modelContext: modelContext)
+        if let t = relationTypeFilter {
+            try? edgeRepo.deleteRelationship(from: card, to: primary, relationType: t)
+        } else {
+            try? edgeRepo.deleteAllRelationships(between: card, and: primary)
+        }
         selectedRelatedCard = nil
     }
 
@@ -519,7 +527,9 @@ struct CardRelationshipView: View {
     private func handleRelationTypeCreationCancelled() {
         isPresentingCreateRelationType = false
         if shouldCleanupPendingOnCancel, let card = pendingNewCard {
-            cleanupAndDelete(card, modelContext: modelContext, services: services)
+            // Use CardRepository directly instead of wrapper
+            let cardRepo = CardRepository(modelContext: modelContext)
+            try? cardRepo.deleteCard(card)
         }
         pendingNewCard = nil
         pendingExistingCards = []
@@ -538,7 +548,9 @@ struct CardRelationshipView: View {
             }
         } else {
             if shouldCleanupPendingOnCancel, let card = pendingNewCard {
-                cleanupAndDelete(card, modelContext: modelContext, services: services)
+                // Use CardRepository directly instead of wrapper
+                let cardRepo = CardRepository(modelContext: modelContext)
+                try? cardRepo.deleteCard(card)
             }
         }
         pendingNewCard = nil
@@ -550,14 +562,22 @@ struct CardRelationshipView: View {
     private func handleRetypePicked(_ chosen: RelationType?) {
         isPresentingRetype = false
         guard let chosen, let card = selectedRelatedCard else { return }
-        retypeEdge(from: card, to: primary, newType: chosen, modelContext: modelContext)
+        // Use EdgeRepository directly instead of wrapper
+        let edgeRepo = EdgeRepository(modelContext: modelContext)
+        let outgoing = edgeRepo.fetchOutgoing(from: card)
+        if let currentEdge = outgoing.first(where: { $0.to?.id == primary.id }),
+           let oldType = currentEdge.type {
+            try? edgeRepo.updateRelationType(from: card, to: primary, from: oldType, to: chosen)
+        }
         retypeChoices = []
         retypeSelectedCode = nil
     }
 
     private func handleCreateRelationTypeSheetDismiss(isPresented: Bool) {
         if !isPresented, shouldCleanupPendingOnCancel, let card = pendingNewCard {
-            cleanupAndDelete(card, modelContext: modelContext, services: services)
+            // Use CardRepository directly instead of wrapper
+            let cardRepo = CardRepository(modelContext: modelContext)
+            try? cardRepo.deleteCard(card)
             pendingNewCard = nil
             shouldCleanupPendingOnCancel = false
         }
@@ -568,7 +588,9 @@ struct CardRelationshipView: View {
 
     private func handlePickRelationTypeSheetDismiss(isPresented: Bool) {
         if !isPresented, shouldCleanupPendingOnCancel, let card = pendingNewCard {
-            cleanupAndDelete(card, modelContext: modelContext, services: services)
+            // Use CardRepository directly instead of wrapper
+            let cardRepo = CardRepository(modelContext: modelContext)
+            try? cardRepo.deleteCard(card)
             pendingNewCard = nil
             shouldCleanupPendingOnCancel = false
         }

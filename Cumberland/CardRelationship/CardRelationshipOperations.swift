@@ -22,22 +22,25 @@ extension CardRelationshipView {
     // MARK: - Master Card Queries
 
     /// Fetch all cards that have a relationship pointing to the primary card for a given kind.
+    /// Uses EdgeRepository for centralized edge queries.
     func masterCards(for kind: Kinds, modelContext: ModelContext) -> [Card] {
-        let predicate: Predicate<CardEdge>
-        let primaryIDOpt: UUID? = primary.id
+        let edgeRepo = EdgeRepository(modelContext: modelContext)
+
+        // Fetch all incoming edges to the primary card
+        let allEdges = edgeRepo.fetchIncoming(to: primary)
+
+        // Filter by relationship type if specified
+        let filteredEdges: [CardEdge]
         if let t = relationTypeFilter {
-            let typeCodeOpt: String? = t.code
-            predicate = #Predicate {
-                $0.to?.id == primaryIDOpt && $0.type?.code == typeCodeOpt
-            }
+            filteredEdges = allEdges.filter { $0.type?.code == t.code }
         } else {
-            predicate = #Predicate {
-                $0.to?.id == primaryIDOpt
-            }
+            filteredEdges = allEdges
         }
-        let fetch = FetchDescriptor<CardEdge>(predicate: predicate, sortBy: [SortDescriptor(\.createdAt, order: .forward)])
-        let edges = (try? modelContext.fetch(fetch)) ?? []
-        let cards = edges.compactMap { $0.from }.filter { $0.kind == kind }
+
+        // Extract source cards and filter by kind
+        let cards = filteredEdges.compactMap { $0.from }.filter { $0.kind == kind }
+
+        // Remove duplicates while preserving order
         var seen: Set<UUID> = []
         var ordered: [Card] = []
         for c in cards {
@@ -59,91 +62,47 @@ extension CardRelationshipView {
         return nil
     }
 
-    // MARK: - Relationship Type Helpers (DR-0103: delegate to RelationTypeManager)
+    // MARK: - Relationship Type Helpers (Delegate to RelationTypeManager)
 
     /// Fetch a RelationType by its code.
-    func fetchRelationType(code: String, modelContext: ModelContext) -> RelationType? {
-        let fetch = FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == code })
-        return try? modelContext.fetch(fetch).first
+    /// MUST delegate to RelationTypeManager - no direct database access allowed.
+    func fetchRelationType(code: String, modelContext: ModelContext, services: ServiceContainer? = nil) -> RelationType? {
+        // Use RelationTypeManager - create one if not in services
+        if let mgr = services?.relationTypeManager {
+            return mgr.fetchRelationType(code: code)
+        }
+
+        // Create temporary manager if services not available
+        let mgr = RelationTypeManager(modelContext: modelContext)
+        return mgr.fetchRelationType(code: code)
     }
 
     /// Ensure a RelationType exists, creating it if necessary.
-    /// Delegates to RelationTypeManager when available via services.
+    /// MUST use RelationTypeManager - no direct database access allowed.
+    /// RelationTypeManager.ensureRelationType() automatically creates mirror types.
     @discardableResult
     func ensureRelationType(code: String, forward: String, inverse: String, sourceKind: Kinds? = nil, targetKind: Kinds? = nil, modelContext: ModelContext, services: ServiceContainer? = nil) -> RelationType {
-        if let mgr = services?.relationTypeManager {
-            return mgr.ensureRelationType(code: code, forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind)
-        }
-        // Fallback: direct modelContext operations
-        if let existing = fetchRelationType(code: code, modelContext: modelContext) {
-            ensureMirror(forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind, modelContext: modelContext)
-            return existing
-        }
-        let type = RelationType(code: code, forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind)
-        modelContext.insert(type)
-        ensureMirror(forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind, modelContext: modelContext)
-        try? modelContext.save()
-        return type
+        // Use RelationTypeManager - create one if not in services
+        let mgr = services?.relationTypeManager ?? RelationTypeManager(modelContext: modelContext)
+        return mgr.ensureRelationType(code: code, forwardLabel: forward, inverseLabel: inverse, sourceKind: sourceKind, targetKind: targetKind)
     }
 
     /// Ensure the mirror (inverse) RelationType exists.
-    func ensureMirror(forwardLabel: String, inverseLabel: String, sourceKind: Kinds?, targetKind: Kinds?, modelContext: ModelContext) {
-        let mirrorForward = inverseLabel
-        let mirrorInverse = forwardLabel
-        let mirrorSource = targetKind
-        let mirrorTarget = sourceKind
-
-        let desiredCode = RelationTypeManager.makeCode(forward: mirrorForward, inverse: mirrorInverse)
-        if fetchRelationType(code: desiredCode, modelContext: modelContext) != nil {
-            return
-        }
-
-        var codeToUse = desiredCode
-        var suffix = 1
-        while fetchRelationType(code: codeToUse, modelContext: modelContext) != nil {
-            suffix += 1
-            codeToUse = RelationTypeManager.makeCode(forward: mirrorForward, inverse: mirrorInverse, suffix: suffix)
-        }
-
-        let mirror = RelationType(code: codeToUse, forwardLabel: mirrorForward, inverseLabel: mirrorInverse, sourceKind: mirrorSource, targetKind: mirrorTarget)
-        modelContext.insert(mirror)
+    /// MUST use RelationTypeManager - no direct database access allowed.
+    /// Note: RelationTypeManager.ensureRelationType() already handles mirror creation automatically.
+    func ensureMirror(forwardLabel: String, inverseLabel: String, sourceKind: Kinds?, targetKind: Kinds?, modelContext: ModelContext, services: ServiceContainer? = nil) {
+        // Use RelationTypeManager - create one if not in services
+        let mgr = services?.relationTypeManager ?? RelationTypeManager(modelContext: modelContext)
+        mgr.ensureMirror(forwardLabel: forwardLabel, inverseLabel: inverseLabel, sourceKind: sourceKind, targetKind: targetKind)
     }
 
     /// Get the mirror type for a given RelationType.
-    /// Delegates to RelationTypeManager when available via services.
+    /// MUST use RelationTypeManager - no direct database access allowed.
+    /// Note: For simple reverse code calculation, use EdgeRepository's reverseRelationCode() instead.
     func mirrorType(for type: RelationType, sourceKind: Kinds, targetKind: Kinds, modelContext: ModelContext, services: ServiceContainer? = nil) -> RelationType {
-        if let mgr = services?.relationTypeManager {
-            return mgr.mirrorType(for: type, sourceKind: sourceKind, targetKind: targetKind)
-        }
-        // Fallback: direct modelContext operations
-        let desiredCode = RelationTypeManager.makeCode(forward: type.inverseLabel, inverse: type.forwardLabel)
-        if let existing = fetchRelationType(code: desiredCode, modelContext: modelContext) {
-            return existing
-        }
-
-        ensureMirror(forwardLabel: type.forwardLabel, inverseLabel: type.inverseLabel, sourceKind: sourceKind, targetKind: targetKind, modelContext: modelContext)
-        if let exact = fetchRelationType(code: desiredCode, modelContext: modelContext) {
-            return exact
-        }
-        let all = (try? modelContext.fetch(FetchDescriptor<RelationType>())) ?? []
-        if let match = all.first(where: {
-            ($0.sourceKindRaw == targetKind.rawValue || $0.sourceKindRaw == nil) &&
-            ($0.targetKindRaw == sourceKind.rawValue || $0.targetKindRaw == nil) &&
-            $0.forwardLabel == type.inverseLabel &&
-            $0.inverseLabel == type.forwardLabel
-        }) {
-            return match
-        }
-        var codeToUse = RelationTypeManager.makeCode(forward: type.inverseLabel, inverse: type.forwardLabel)
-        var suffix = 1
-        while fetchRelationType(code: codeToUse, modelContext: modelContext) != nil {
-            suffix += 1
-            codeToUse = RelationTypeManager.makeCode(forward: type.inverseLabel, inverse: type.forwardLabel, suffix: suffix)
-        }
-        let mirror = RelationType(code: codeToUse, forwardLabel: type.inverseLabel, inverseLabel: type.forwardLabel, sourceKind: targetKind, targetKind: sourceKind)
-        modelContext.insert(mirror)
-        try? modelContext.save()
-        return mirror
+        // Use RelationTypeManager - create one if not in services
+        let mgr = services?.relationTypeManager ?? RelationTypeManager(modelContext: modelContext)
+        return mgr.mirrorType(for: type, sourceKind: sourceKind, targetKind: targetKind)
     }
 
     /// Check if a RelationType applies to given source and target kinds.
@@ -154,279 +113,151 @@ extension CardRelationshipView {
     }
 
     /// Get non-cites relation types applicable to source and target kinds.
-    func nonCitesRelationTypes(applicableFrom source: Kinds, to target: Kinds, modelContext: ModelContext) -> [RelationType] {
-        let fetch = FetchDescriptor<RelationType>(sortBy: [SortDescriptor(\.code, order: .forward)])
-        let fetched = (try? modelContext.fetch(fetch)) ?? []
+    /// MUST use RelationTypeManager - no direct database access allowed.
+    func nonCitesRelationTypes(applicableFrom source: Kinds, to target: Kinds, modelContext: ModelContext, services: ServiceContainer? = nil) -> [RelationType] {
+        // Use RelationTypeManager - create one if not in services
+        let mgr = services?.relationTypeManager ?? RelationTypeManager(modelContext: modelContext)
+        let all = mgr.fetchApplicable(from: source, to: target)
 
         if source == .scenes && target == .projects {
-            return fetched.filter { $0.code == Self.canonicalSceneProjectCode }
+            return all.filter { $0.code == Self.canonicalSceneProjectCode }
         }
 
-        return fetched.filter { $0.code != Self.citesCode && relationTypeApplies($0, from: source, to: target) }
+        return all.filter { $0.code != Self.citesCode }
     }
 
     /// Get applicable retype choices for changing relationship type.
-    func applicableRetypeChoices(fromKind: Kinds, toKind: Kinds, modelContext: ModelContext) -> [RelationType] {
+    /// MUST use RelationTypeManager - no direct database access allowed.
+    func applicableRetypeChoices(fromKind: Kinds, toKind: Kinds, modelContext: ModelContext, services: ServiceContainer? = nil) -> [RelationType] {
+        // Use RelationTypeManager - create one if not in services
+        let mgr = services?.relationTypeManager ?? RelationTypeManager(modelContext: modelContext)
+
         if fromKind == .scenes && toKind == .projects {
-            let t = fetchRelationType(code: Self.canonicalSceneProjectCode, modelContext: modelContext)
-                ?? ensureRelationType(code: Self.canonicalSceneProjectCode, forward: "stories", inverse: "is storied by", sourceKind: .scenes, targetKind: .projects, modelContext: modelContext)
+            let t = mgr.ensureRelationType(
+                code: Self.canonicalSceneProjectCode,
+                forwardLabel: "stories",
+                inverseLabel: "is storied by",
+                sourceKind: .scenes,
+                targetKind: .projects
+            )
             return [t]
         }
 
-        _ = fetchRelationType(code: Self.defaultNonSourceCode, modelContext: modelContext)
-            ?? ensureRelationType(code: Self.defaultNonSourceCode, forward: "references", inverse: "referenced by", sourceKind: nil, targetKind: nil, modelContext: modelContext)
+        // Ensure default reference type exists
+        _ = mgr.ensureRelationType(
+            code: Self.defaultNonSourceCode,
+            forwardLabel: "references",
+            inverseLabel: "referenced by",
+            sourceKind: nil,
+            targetKind: nil
+        )
 
-        let fetch = FetchDescriptor<RelationType>(sortBy: [SortDescriptor(\.code, order: .forward)])
-        let all = (try? modelContext.fetch(fetch)) ?? []
-        return all.filter { relationTypeApplies($0, from: fromKind, to: toKind) && ($0.code != Self.citesCode || fromKind == .sources) }
+        let all = mgr.fetchApplicable(from: fromKind, to: toKind)
+        return all.filter { $0.code != Self.citesCode || fromKind == .sources }
     }
 
     // MARK: - Edge Operations
 
     /// Create a CardEdge if it doesn't already exist.
-    /// Delegates to RelationshipManager when available via services.
+    /// Delegates to EdgeRepository for centralized bidirectional edge creation.
     @MainActor
     func createEdgeIfNeeded(from source: Card, to target: Card, type: RelationType, appendToEnd: Bool, modelContext: ModelContext, services: ServiceContainer? = nil) {
-        guard let enforcedType = canonicalizedTypeFor(source: source, target: target, proposed: type, modelContext: modelContext) else {
+        guard let enforcedType = canonicalizedTypeFor(source: source, target: target, proposed: type, modelContext: modelContext, services: services) else {
             return
         }
 
-        let sourceIDOpt: UUID? = source.id
-        let targetIDOpt: UUID? = target.id
-        let typeCodeOpt: String? = enforcedType.code
-        let existsFetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate {
-                $0.from?.id == sourceIDOpt && $0.to?.id == targetIDOpt && $0.type?.code == typeCodeOpt
-            }
-        )
-        if let found = try? modelContext.fetch(existsFetch), found.isEmpty == false {
-            if let existingEdge = found.first {
-                ensureReverseEdge(forwardEdge: existingEdge, appendToEnd: appendToEnd, modelContext: modelContext, services: services)
-            }
+        // Use EdgeRepository for centralized bidirectional edge creation
+        let edgeRepo = EdgeRepository(modelContext: modelContext)
+
+        // Check if edge already exists
+        if edgeRepo.exists(from: source, to: target, ofType: enforcedType) {
             return
         }
 
-        let createdAt: Date
+        // Calculate sortIndex if appendToEnd is true
+        // Use EdgeRepository to fetch existing edges instead of direct query
+        let sortIndex: Double?
         if appendToEnd {
-            let fetchForMax = FetchDescriptor<CardEdge>(
-                predicate: #Predicate {
-                    $0.to?.id == targetIDOpt && $0.type?.code == typeCodeOpt
-                },
-                sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-            )
-            let existing = (try? modelContext.fetch(fetchForMax)) ?? []
-            let last = existing.last?.createdAt ?? Date()
-            createdAt = last.addingTimeInterval(0.001)
+            let existing = edgeRepo.fetchOutgoing(from: source, ofType: enforcedType)
+            let sorted = existing.sorted { $0.sortIndex < $1.sortIndex }
+            let maxSort = sorted.last?.sortIndex ?? 0.0
+            sortIndex = maxSort + 1.0
         } else {
-            createdAt = Date()
+            sortIndex = nil
         }
 
-        let edge = CardEdge(from: source, to: target, type: enforcedType, note: nil, createdAt: createdAt)
-        modelContext.insert(edge)
-        EdgeIntegrityMonitor.incrementCounts(source: source, target: target)
-        try? modelContext.save()
-
-        ensureReverseEdge(forwardEdge: edge, appendToEnd: appendToEnd, modelContext: modelContext, services: services)
+        // Use EdgeRepository to create bidirectional relationship
+        // EdgeRepository handles save() internally
+        try? edgeRepo.createRelationship(
+            from: source,
+            to: target,
+            relationType: enforcedType,
+            sortIndex: sortIndex
+        )
     }
 
     /// Ensure the reverse edge exists for a forward edge.
-    /// Delegates to RelationshipManager when available via services.
+    /// Note: This function is now redundant since EdgeRepository.createRelationship() handles
+    /// bidirectional edge creation automatically. Kept for backwards compatibility but delegates
+    /// to EdgeRepository for proper implementation.
     @MainActor
     func ensureReverseEdge(forwardEdge: CardEdge, appendToEnd: Bool, modelContext: ModelContext, services: ServiceContainer? = nil) {
         guard let src = forwardEdge.from, let dst = forwardEdge.to, let t = forwardEdge.type else { return }
-        let srcID: UUID? = src.id
-        let dstID: UUID? = dst.id
 
+        // Use EdgeRepository to ensure reverse edge exists
+        let edgeRepo = EdgeRepository(modelContext: modelContext)
+
+        // Get the mirror type for the reverse relationship
         let mirror = mirrorType(for: t, sourceKind: src.kind, targetKind: dst.kind, modelContext: modelContext)
-        let mirrorCodeForCheck: String? = mirror.code
-        let existsFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
-            $0.from?.id == dstID && $0.to?.id == srcID && $0.type?.code == mirrorCodeForCheck
-        })
-        if let found = try? modelContext.fetch(existsFetch), found.isEmpty == false {
+
+        // Check if reverse edge already exists
+        if edgeRepo.exists(from: dst, to: src, ofType: mirror) {
             return
         }
 
-        let createdAt: Date
-        if appendToEnd {
-            let mirrorCode: String? = mirror.code
-            let fetchForMax = FetchDescriptor<CardEdge>(
-                predicate: #Predicate {
-                    $0.to?.id == srcID && $0.type?.code == mirrorCode
-                },
-                sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-            )
-            let existing = (try? modelContext.fetch(fetchForMax)) ?? []
-            let last = existing.last?.createdAt ?? (forwardEdge.createdAt)
-            createdAt = last.addingTimeInterval(0.001)
-        } else {
-            createdAt = forwardEdge.createdAt
-        }
-
-        let reverse = CardEdge(from: dst, to: src, type: mirror, note: forwardEdge.note, createdAt: createdAt)
-        modelContext.insert(reverse)
+        // EdgeRepository.createRelationship() will create both forward and reverse edges,
+        // but since the forward edge already exists, we just need to create the reverse edge.
+        // EdgeRepository doesn't have a method to create only a reverse edge (by design),
+        // so this is the one acceptable exception for direct edge creation.
+        // TODO: Consider adding EdgeRepository.createSingleEdge() to eliminate this exception.
+        let reverseEdge = CardEdge(from: dst, to: src, type: mirror, note: forwardEdge.note)
+        modelContext.insert(reverseEdge)  // Exception: EdgeRepository has no single-edge creation API
         EdgeIntegrityMonitor.incrementCounts(source: dst, target: src)
-        try? modelContext.save()
-    }
-
-    /// Retype an existing edge to a new RelationType.
-    @MainActor
-    func retypeEdge(from source: Card, to target: Card, newType: RelationType, modelContext: ModelContext) {
-        guard let enforced = canonicalizedTypeFor(source: source, target: target, proposed: newType, modelContext: modelContext) else { return }
-
-        let sourceIDOpt: UUID? = source.id
-        let targetIDOpt: UUID? = target.id
-        let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from?.id == sourceIDOpt && $0.to?.id == targetIDOpt },
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
-        guard let edge = try? modelContext.fetch(fetch).first else { return }
-
-        if edge.type?.code == enforced.code { return }
-
-        edge.type = enforced
-        try? modelContext.save()
-
-        let reverseFetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from?.id == targetIDOpt && $0.to?.id == sourceIDOpt },
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
-        if let reverseEdge = try? modelContext.fetch(reverseFetch).first {
-            let mirror = mirrorType(for: enforced, sourceKind: source.kind, targetKind: target.kind, modelContext: modelContext)
-            reverseEdge.type = mirror
-            try? modelContext.save()
-        } else {
-            ensureReverseEdge(forwardEdge: edge, appendToEnd: true, modelContext: modelContext)
-        }
-    }
-
-    /// Remove all relationships between two cards.
-    /// Delegates to RelationshipManager when available via services.
-    @MainActor
-    func removeRelationship(between a: Card, and b: Card, modelContext: ModelContext, services: ServiceContainer? = nil) {
-        if let mgr = services?.relationshipManager {
-            try? mgr.removeRelationship(between: a, and: b, typeFilter: relationTypeFilter)
-            return
-        }
-        // Fallback: direct modelContext operations
-        let aID: UUID? = a.id
-        let bID: UUID? = b.id
-
-        if let t = relationTypeFilter {
-            let forwardCode: String? = t.code
-            let fwdFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == aID && $0.to?.id == bID && $0.type?.code == forwardCode })
-            let fwd = (try? modelContext.fetch(fwdFetch)) ?? []
-
-            let mirror = mirrorType(for: t, sourceKind: a.kind, targetKind: b.kind, modelContext: modelContext)
-            let mirrorCode: String? = mirror.code
-            let revFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == bID && $0.to?.id == aID && $0.type?.code == mirrorCode })
-            let rev = (try? modelContext.fetch(revFetch)) ?? []
-
-            #if DEBUG
-            print("[EdgeAudit] CardRelationshipOperations.removeRelationship(fallback, typed): Deleting \(fwd.count) fwd + \(rev.count) rev edge(s) between '\(a.name)' and '\(b.name)' type=\(t.code)")
-            #endif
-
-            for e in fwd {
-                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
-                modelContext.delete(e)
-            }
-            for e in rev {
-                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
-                modelContext.delete(e)
-            }
-        } else {
-            let abFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == aID && $0.to?.id == bID })
-            let baFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == bID && $0.to?.id == aID })
-            let ab = (try? modelContext.fetch(abFetch)) ?? []
-            let ba = (try? modelContext.fetch(baFetch)) ?? []
-
-            #if DEBUG
-            print("[EdgeAudit] CardRelationshipOperations.removeRelationship(fallback, all): Deleting \(ab.count) fwd + \(ba.count) rev edge(s) between '\(a.name)' and '\(b.name)'")
-            #endif
-
-            for e in ab {
-                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
-                modelContext.delete(e)
-            }
-            for e in ba {
-                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
-                modelContext.delete(e)
-            }
-        }
-
-        try? modelContext.save()
-    }
-
-    // MARK: - Card Operations
-
-    /// Cleanup and delete a card.
-    /// Delegates to CardOperationManager when available via services.
-    @MainActor
-    func cleanupAndDelete(_ card: Card, modelContext: ModelContext, services: ServiceContainer? = nil) {
-        if let mgr = services?.cardOperations {
-            try? mgr.deleteCard(card)
-            return
-        }
-        // Fallback: direct modelContext operations
-        card.cleanupBeforeDeletion(in: modelContext)
-        modelContext.delete(card)
-        try? modelContext.save()
-    }
-
-    /// Change a card's type and remove all its relationships.
-    /// Delegates to CardOperationManager when available via services.
-    @MainActor
-    func changeCardType(card: Card, to newKind: Kinds, modelContext: ModelContext, services: ServiceContainer? = nil) {
-        guard newKind != card.kind else { return }
-
-        if let mgr = services?.cardOperations {
-            do { try mgr.changeCardType(card, to: newKind) } catch {}
-            return
-        }
-
-        // Fallback: direct modelContext operations
-        let cardID: UUID? = card.id
-        let fetchFrom = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
-        let fetchTo = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
-
-        let edgesFrom = (try? modelContext.fetch(fetchFrom)) ?? []
-        let edgesTo = (try? modelContext.fetch(fetchTo)) ?? []
 
         #if DEBUG
-        let totalEdges = edgesFrom.count + edgesTo.count
-        print("[EdgeAudit] CardRelationshipOperations.changeCardType(fallback): Card '\(card.name)' (\(card.id)) changing from \(card.kind.rawValue) to \(newKind.rawValue) — deleting \(edgesFrom.count) outgoing + \(edgesTo.count) incoming = \(totalEdges) edge(s)")
+        print("[EdgeAudit] ensureReverseEdge: Created reverse edge '\(dst.name)' → '\(src.name)' type=\(mirror.code)")
         #endif
-
-        for edge in edgesFrom + edgesTo {
-            EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
-            modelContext.delete(edge)
-        }
-
-        card.kindRaw = newKind.rawValue
-        try? modelContext.save()
+        // Note: Caller is responsible for save() if needed
     }
 
     // MARK: - Canonicalization
 
     /// Get the canonical type for a source/target pair, handling special cases.
-    func canonicalizedTypeFor(source: Card, target: Card, proposed: RelationType?, modelContext: ModelContext) -> RelationType? {
+    /// Uses RelationTypeManager for centralized RelationType management.
+    func canonicalizedTypeFor(source: Card, target: Card, proposed: RelationType?, modelContext: ModelContext, services: ServiceContainer? = nil) -> RelationType? {
         if source.kind == .scenes && target.kind == .projects {
             let sceneProjectCode = Self.canonicalSceneProjectCode
-            let fetch = FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == sceneProjectCode })
-            if let canonical = try? modelContext.fetch(fetch).first {
-                return canonical
+
+            // Use RelationTypeManager if available, otherwise use ensureRelationType()
+            if let mgr = services?.relationTypeManager {
+                return mgr.ensureRelationType(
+                    code: sceneProjectCode,
+                    forwardLabel: "stories",
+                    inverseLabel: "is storied by",
+                    sourceKind: .scenes,
+                    targetKind: .projects
+                )
             } else {
-                let t = RelationType(code: sceneProjectCode, forwardLabel: "stories", inverseLabel: "is storied by", sourceKind: .scenes, targetKind: .projects)
-                modelContext.insert(t)
-
-                let mirrorCode = "is-storied-by/stories"
-                let existsMirror = (try? modelContext.fetch(FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == mirrorCode })))?.first
-                if existsMirror == nil {
-                    let mirror = RelationType(code: mirrorCode, forwardLabel: "is storied by", inverseLabel: "stories", sourceKind: .projects, targetKind: .scenes)
-                    modelContext.insert(mirror)
-                }
-
-                try? modelContext.save()
-                return t
+                // Fallback to local ensureRelationType method
+                return ensureRelationType(
+                    code: sceneProjectCode,
+                    forward: "stories",
+                    inverse: "is storied by",
+                    sourceKind: .scenes,
+                    targetKind: .projects,
+                    modelContext: modelContext,
+                    services: services
+                )
             }
         }
 
@@ -439,13 +270,14 @@ extension CardRelationshipView {
     // MARK: - Existing Card Candidates
 
     /// Get cards of a given kind that can be linked to the primary card.
+    /// Uses CardRepository for centralized card queries.
     func availableExistingCandidates(for kind: Kinds, primary: Card, modelContext: ModelContext) -> [Card] {
-        let kindRaw = kind.rawValue
-        let fetch = FetchDescriptor<Card>(predicate: #Predicate {
-            $0.kindRaw == kindRaw
-        })
-        let allOfKind = (try? modelContext.fetch(fetch)) ?? []
+        let cardRepo = CardRepository(modelContext: modelContext)
 
+        // Fetch all cards of the specified kind using CardRepository
+        let allOfKind = cardRepo.fetch(byKind: kind)
+
+        // Filter out the primary card and ensure uniqueness
         let filtered = allOfKind.filter { $0.id != primary.id }
         var seen: Set<UUID> = []
         var unique: [Card] = []
@@ -456,24 +288,27 @@ extension CardRelationshipView {
             }
         }
 
-        return unique.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        return unique.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
     }
 
     /// Get the relationship decoration label for a card.
+    /// Uses EdgeRepository for centralized edge queries.
     func relationDecoration(for card: Card, primary: Card, modelContext: ModelContext) -> String? {
         if let t = relationTypeFilter {
             return t.forwardLabel
         }
-        let cardIDOpt: UUID? = card.id
-        let primaryIDOpt: UUID? = primary.id
-        let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate {
-                $0.from?.id == cardIDOpt && $0.to?.id == primaryIDOpt
-            }
-        )
-        if let edge = try? modelContext.fetch(fetch).first {
+
+        // Use EdgeRepository to fetch outgoing edges from card
+        let edgeRepo = EdgeRepository(modelContext: modelContext)
+        let outgoing = edgeRepo.fetchOutgoing(from: card)
+
+        // Find the edge pointing to the primary card
+        if let edge = outgoing.first(where: { $0.to?.id == primary.id }) {
             return edge.type?.forwardLabel
         }
+
         return nil
     }
 

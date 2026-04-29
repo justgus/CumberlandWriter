@@ -29,107 +29,6 @@ final class CardRepository {
         self.modelContext = modelContext
     }
 
-    // MARK: - Fetch Operations
-
-    /// Fetch all cards, sorted by name
-    /// - Returns: Array of all cards
-    func fetchAll() -> [Card] {
-        let fetch = FetchDescriptor<Card>(sortBy: [SortDescriptor(\.name)])
-        return (try? modelContext.fetch(fetch)) ?? []
-    }
-
-    /// Fetch cards filtered by kind
-    /// - Parameter kind: The card kind to filter by
-    /// - Returns: Array of cards matching the kind
-    func fetch(byKind kind: Kinds) -> [Card] {
-        let kindRaw = kind.rawValue
-        let fetch = FetchDescriptor<Card>(
-            predicate: #Predicate { $0.kindRaw == kindRaw },
-            sortBy: [SortDescriptor(\.name)]
-        )
-        return (try? modelContext.fetch(fetch)) ?? []
-    }
-
-    /// Fetch a single card by its persistent identifier
-    /// - Parameter id: The persistent identifier
-    /// - Returns: The card, or nil if not found
-    func fetch(byID id: PersistentIdentifier) -> Card? {
-        return modelContext.model(for: id) as? Card
-    }
-
-    /// Fetch a card by UUID
-    /// - Parameter uuid: The card's UUID
-    /// - Returns: The card, or nil if not found
-    func fetch(byUUID uuid: UUID) -> Card? {
-        let fetch = FetchDescriptor<Card>(
-            predicate: #Predicate { $0.id == uuid }
-        )
-        return try? modelContext.fetch(fetch).first
-    }
-
-    /// Search cards by text query (searches name, subtitle, and detailed text)
-    /// - Parameter query: The search query
-    /// - Returns: Array of matching cards
-    func search(query: String) -> [Card] {
-        guard !query.isEmpty else { return fetchAll() }
-
-        let lowercaseQuery = query.lowercased()
-
-        // Use normalized search text for efficient searching
-        let fetch = FetchDescriptor<Card>(
-            predicate: #Predicate { card in
-                card.normalizedSearchText.contains(lowercaseQuery)
-            },
-            sortBy: [SortDescriptor(\.name)]
-        )
-
-        return (try? modelContext.fetch(fetch)) ?? []
-    }
-
-    /// Fetch cards with images (originalImageData is not nil)
-    /// - Returns: Array of cards with images
-    func fetchCardsWithImages() -> [Card] {
-        let fetch = FetchDescriptor<Card>(
-            predicate: #Predicate { $0.originalImageData != nil },
-            sortBy: [SortDescriptor(\.name)]
-        )
-        return (try? modelContext.fetch(fetch)) ?? []
-    }
-
-    /// Fetch cards by multiple kinds
-    /// - Parameter kinds: Array of kinds to filter by
-    /// - Returns: Array of cards matching any of the kinds
-    func fetch(byKinds kinds: [Kinds]) -> [Card] {
-        let kindRawValues = kinds.map { $0.rawValue }
-        let fetch = FetchDescriptor<Card>(
-            predicate: #Predicate { card in
-                kindRawValues.contains(card.kindRaw)
-            },
-            sortBy: [SortDescriptor(\.name)]
-        )
-        return (try? modelContext.fetch(fetch)) ?? []
-    }
-
-    /// Fetch cards assigned to a specific structure element
-    /// - Parameter element: The structure element
-    /// - Returns: Array of cards assigned to this element
-    func fetch(assignedTo element: StructureElement) -> [Card] {
-        // Return cards from the element's relationship directly
-        return element.assignedCards ?? []
-    }
-
-    /// Fetch cards not assigned to any structure (backlog cards)
-    /// - Returns: Array of unassigned cards
-    func fetchUnassignedCards() -> [Card] {
-        let fetch = FetchDescriptor<Card>(
-            predicate: #Predicate { card in
-                card.structureElements?.isEmpty ?? true
-            },
-            sortBy: [SortDescriptor(\.name)]
-        )
-        return (try? modelContext.fetch(fetch)) ?? []
-    }
-
     // MARK: - Insert/Update/Delete Operations
     // MARK: - Insert Operations
 
@@ -279,6 +178,107 @@ final class CardRepository {
     /// - Returns: Total count
     func countAll() -> Int {
         return fetchAll().count
+    }
+
+    // MARK: - Fetch Operations
+
+    /// Fetch all cards, sorted by name
+    /// - Returns: Array of all cards
+    func fetchAll() -> [Card] {
+        let fetch = FetchDescriptor<Card>(sortBy: [SortDescriptor(\.name)])
+        return (try? modelContext.fetch(fetch)) ?? []
+    }
+
+    /// Fetch cards filtered by kind
+    /// - Parameter kind: The card kind to filter by
+    /// - Returns: Array of cards matching the kind
+    func fetch(byKind kind: Kinds) -> [Card] {
+        let kindRaw = kind.rawValue
+        let fetch = FetchDescriptor<Card>(
+            predicate: #Predicate { $0.kindRaw == kindRaw },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        return (try? modelContext.fetch(fetch)) ?? []
+    }
+
+    /// Fetch a single card by its persistent identifier
+    /// - Parameter id: The persistent identifier
+    /// - Returns: The card, or nil if not found
+    func fetch(byID id: PersistentIdentifier) -> Card? {
+        return modelContext.model(for: id) as? Card
+    }
+
+    /// Fetch a card by UUID
+    /// - Parameter uuid: The card's UUID
+    /// - Returns: The card, or nil if not found
+    func fetch(byUUID uuid: UUID) -> Card? {
+        let fetch = FetchDescriptor<Card>(
+            predicate: #Predicate { $0.id == uuid }
+        )
+        return try? modelContext.fetch(fetch).first
+    }
+
+    /// Search cards by text query (searches name, subtitle, and detailed text)
+    /// - Parameter query: The search query
+    /// - Returns: Array of matching cards
+    func search(query: String) -> [Card] {
+        guard !query.isEmpty else { return fetchAll() }
+
+        let lowercaseQuery = query.lowercased()
+
+        // Use normalized search text for efficient searching
+        let fetch = FetchDescriptor<Card>(
+            predicate: #Predicate { card in
+                card.normalizedSearchText.contains(lowercaseQuery)
+            },
+            sortBy: [SortDescriptor(\.name)]
+        )
+
+        return (try? modelContext.fetch(fetch)) ?? []
+    }
+
+    /// Fetch cards with images (originalImageData is not nil)
+    /// - Returns: Array of cards with images
+    func fetchCardsWithImages() -> [Card] {
+        let fetch = FetchDescriptor<Card>(
+            predicate: #Predicate { $0.originalImageData != nil },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        return (try? modelContext.fetch(fetch)) ?? []
+    }
+
+    /// Fetch cards by multiple kinds
+    /// - Parameter kinds: Array of kinds to filter by
+    /// - Returns: Array of cards matching any of the kinds
+    func fetch(byKinds kinds: [Kinds]) -> [Card] {
+        let kindRawValues = kinds.map { $0.rawValue }
+        let fetch = FetchDescriptor<Card>(
+            predicate: #Predicate { card in
+                kindRawValues.contains(card.kindRaw)
+            },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        return (try? modelContext.fetch(fetch)) ?? []
+    }
+
+    /// Fetch cards assigned to a specific structure element
+    /// - Parameter element: The structure element
+    /// - Returns: Array of cards assigned to this element
+    func fetch(assignedTo element: StructureElement) -> [Card] {
+        // Return cards from the element's relationship directly
+        return element.assignedCards ?? []
+    }
+
+    /// Fetch cards not assigned to any structure (backlog cards)
+    /// - Returns: Array of unassigned cards
+    func fetchUnassignedCards() -> [Card] {
+        let fetch = FetchDescriptor<Card>(
+            predicate: #Predicate { card in
+                card.structureElements?.isEmpty ?? true
+            },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        return (try? modelContext.fetch(fetch)) ?? []
     }
 
     // MARK: - Specialized Queries

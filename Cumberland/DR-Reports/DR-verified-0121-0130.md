@@ -1,0 +1,233 @@
+# Discrepancy Reports (DR) - Verified Batch 0121-0130
+
+This file contains verified discrepancy reports that have been confirmed resolved by the user.
+
+**Batch Range:** DR-0121 through DR-0130
+**Verification Date:** 2026-04-29
+
+---
+
+## ✅ DR-0121: ER-0022 Phase 2 Incomplete - CardRepository Missing Update Methods
+
+**Reported:** 2026-04-27
+**Verified:** 2026-04-29
+**Component:** Data/CardRepository.swift
+**Severity:** Critical - Incomplete ER-0022 Phase 2 deliverable
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+CardRepository was created in ER-0022 Phase 2 but only implemented Read and Create operations. Update and advanced operations were never implemented, violating the CRUD principle and ER-0022's goal of centralizing data operations.
+
+**Missing Methods:**
+- `updateCard()` - Update basic properties (name, subtitle, detailedText)
+- `updateCardKind()` - Change card type
+- `updateCardImage()` - Update or remove image data
+
+**Impact:**
+- Views directly modify Card properties and call modelContext.save()
+- No centralized validation or business logic for updates
+- Inconsistent update patterns throughout codebase
+- Violates ER-0022's single-responsibility principle
+
+**Resolution:**
+Fixed compilation errors in `updateCardKind()` method (Cumberland/Data/CardRepository.swift:186-216):
+- Removed references to undefined `services` variable
+- Fixed all references to undefined `newKind` variable (changed to use `kind` parameter)
+- Removed duplicate `kindRaw` assignment
+- Removed duplicate `save()` call
+- Simplified method to directly perform edge cleanup and kind update
+
+All three update methods are now properly implemented:
+- `updateCard()` - lines 163-179
+- `updateCardKind()` - lines 186-216
+- `updateCardImage()` - lines 223-236
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0122: ER-0022 Phase 2 Incomplete - EdgeRepository Missing createRelationship()
+
+**Reported:** 2026-04-27
+**Verified:** 2026-04-29
+**Component:** Data/EdgeRepository.swift
+**Severity:** Critical - Data integrity failure
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+EdgeRepository was created in ER-0022 Phase 2 but never implemented centralized bidirectional edge creation. The helper methods (linkSceneToChapter, linkSceneToProject, linkChapterToProject) only create forward edges, not reverse edges, breaking bidirectional relationship integrity.
+
+**Missing Method:**
+- `createRelationship(from:to:relationType:sortIndex:)` - Centralized bidirectional edge creation
+
+**Impact:**
+- Bidirectional relationships are broken (Scene→Chapter exists but Chapter→Scene does not)
+- Every edge creation site must manually create reverse edges (but doesn't)
+- Data integrity violations throughout database
+- Relationship queries fail in reverse direction
+
+**Root Cause:**
+ER-0022 Phase 2 failed to analyze RelationType's bidirectional design and implement proper edge creation.
+
+**Resolution:**
+Method already exists in EdgeRepository.swift at lines 147-197. Implementation includes:
+- **Duplicate detection**: Checks if relationship already exists before creating (prevents duplicate edges)
+- Throws `EdgeRepositoryError.relationshipAlreadyExists` if duplicate detected
+- Creates forward edge from source to target
+- Automatically parses bidirectional RelationType code (e.g., "part-of/has-scene")
+- Creates reverse edge using reversed code (e.g., "has-scene/part-of")
+- Updates EdgeIntegrityMonitor counts for both edges
+- Includes debug logging for edge creation tracking and duplicate detection
+- All helper methods (linkSceneToChapter, linkSceneToProject, linkChapterToProject) have been updated to use this centralized method
+
+**Enhancement Added (2026-04-28):**
+Added duplicate relationship detection to prevent creating relationships that already exist between two cards.
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0123: ER-0022 Phase 2 Incomplete - EdgeRepository Missing deleteRelationship()
+
+**Reported:** 2026-04-27
+**Verified:** 2026-04-29
+**Component:** Data/EdgeRepository.swift
+**Severity:** Critical - Data integrity failure
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+EdgeRepository.delete() only deletes single edges, not bidirectional relationships. When an edge is deleted, its reverse edge remains orphaned in the database.
+
+**Missing Method:**
+- `deleteRelationship(from:to:relationType:)` - Centralized bidirectional edge deletion
+
+**Impact:**
+- Orphaned reverse edges accumulate in database
+- Relationship counts become inaccurate
+- Memory leaks from orphaned edge objects
+- Data integrity violations
+
+**Resolution:**
+Method already exists in EdgeRepository.swift at lines 220-256. Implementation includes:
+- Finds and deletes forward edge (source → target)
+- Automatically calculates reverse RelationType code
+- Finds and deletes reverse edge (target → source)
+- Updates EdgeIntegrityMonitor counts for both edges
+- Includes debug logging for edge deletion tracking
+- Single method call ensures both edges are deleted atomically
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0124: ER-0022 Phase 2 Incomplete - EdgeRepository Missing updateRelationType()
+
+**Reported:** 2026-04-27
+**Verified:** 2026-04-29
+**Component:** Data/EdgeRepository.swift
+**Severity:** High - Missing core CRUD operation
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+No centralized method to change a relationship's type. Views must manually delete old edges and create new ones, risking orphaned edges.
+
+**Missing Method:**
+- `updateRelationType(from:to:from:to:)` - Change relationship type atomically
+
+**Impact:**
+- Relationship type changes are error-prone
+- Risk of orphaned edges during type changes
+- No atomic operation guarantee
+
+**Resolution:**
+Method already exists in EdgeRepository.swift at lines 265-275. Implementation:
+- Atomically deletes old relationship (both forward and reverse edges)
+- Creates new relationship with new type (both forward and reverse edges)
+- Ensures no orphaned edges remain
+- All operations wrapped in single method for atomicity
+- Proper error handling via throws
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0125: ER-0022 Phase 2 Incomplete - EdgeRepository Missing moveRelationship()
+
+**Reported:** 2026-04-27
+**Verified:** 2026-04-29
+**Component:** Data/EdgeRepository.swift
+**Severity:** High - Missing core operation
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+No centralized method to move a relationship from one target to another (e.g., moving a scene from Chapter 1 to Chapter 2).
+
+**Missing Method:**
+- `moveRelationship(from:oldTarget:newTarget:relationType:)` - Move relationship to different target
+
+**Impact:**
+- Scene/chapter reorganization is error-prone
+- Manual edge deletion/creation required in views
+- Risk of orphaned edges
+
+**Resolution:**
+Method already exists in EdgeRepository.swift at lines 284-294. Implementation:
+- Atomically deletes old relationship (source → oldTarget with reverse)
+- Creates new relationship (source → newTarget with reverse)
+- Preserves relationship type during the move
+- Ensures no orphaned edges from old relationship
+- Perfect for reorganizing scenes between chapters or other hierarchical moves
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0126: ER-0022 Phase 2 Incomplete - EdgeRepository Missing Reorder Methods
+
+**Reported:** 2026-04-27
+**Verified:** 2026-04-29
+**Component:** Data/EdgeRepository.swift
+**Severity:** Medium - Missing core operation
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+No centralized methods to update edge sortIndex for reordering (e.g., reordering scenes in manuscript).
+
+**Missing Methods:**
+- `updateSortIndex(_:to:)` - Update single edge sort index
+- `updateSortIndices(_:)` - Bulk update sort indices
+
+**Impact:**
+- Views directly modify edge.sortIndex and call save()
+- No centralized reordering logic
+- Inconsistent ordering patterns
+
+**Resolution:**
+Both methods exist and have been properly implemented in EdgeRepository.swift:
+
+**updateSortIndex(_:to:)** at lines 316-398:
+- Finds all edges from the same source card with the same relationship type (the "list")
+- Determines if moving up or down in the list
+- When moving UP (to lower index): Shifts edges between target and current position down by 1
+- When moving DOWN (to higher index): Shifts edges between current and target position up by 1
+- Only adjusts edges between the old and new positions (efficient)
+- Updates the moved edge to its new sortIndex
+- Validates bounds and handles edge cases (nil source/type, invalid indices)
+- Includes comprehensive debug logging
+
+**updateSortIndices(_:)** at lines 400-408:
+- Calls updateSortIndex() for each edge individually
+- Each call properly adjusts surrounding edges
+- Note in documentation about ordering for best results
+
+**Enhancement Added (2026-04-28):**
+Completely rewrote updateSortIndex() to properly handle list reordering by adjusting all affected edges' sortIndices when one edge changes position.
+
+**Additional Fix:**
+- ManuscriptWritingSurfaceView.swift:968 - Changed from direct CardEdge creation + insert() to using createRelationship() for bidirectional relationship creation
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-04-29*

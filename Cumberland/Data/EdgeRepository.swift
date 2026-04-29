@@ -132,6 +132,7 @@ final class EdgeRepository {
     }
 
     // MARK: - Insert/Update/Delete Operations
+    // MARK: - Insert Operations
 
     /// **CENTRALIZED EDGE CREATION** - Creates a bidirectional relationship between two cards
     /// This is the ONLY method that should be used to create edges. It automatically creates
@@ -209,16 +210,7 @@ final class EdgeRepository {
         try modelContext.save()
     }
 
-    /// Helper to reverse a bidirectional relation code
-    /// e.g., "part-of/has-scene" → "has-scene/part-of"
-    private func reverseRelationCode(_ code: String) -> String {
-        let parts = code.split(separator: "/").map(String.init)
-        guard parts.count == 2 else {
-            // Symmetric relationship (e.g., "related-to/related-to")
-            return code
-        }
-        return "\(parts[1])/\(parts[0])"
-    }
+    // MARK: - Delete Operations
 
     /// **CENTRALIZED EDGE DELETION** - Deletes a bidirectional relationship
     /// Automatically finds and deletes both the forward and reverse edges
@@ -266,6 +258,8 @@ final class EdgeRepository {
         try modelContext.save()
     }
 
+    // MARK: - Update Operations
+    
     /// Update the RelationType of an existing relationship (changes both forward and reverse edges)
     /// - Parameters:
     ///   - source: The source card
@@ -283,6 +277,17 @@ final class EdgeRepository {
         try deleteRelationship(from: source, to: target, relationType: oldRelationType)
         // Create new relationship
         try createRelationship(from: source, to: target, relationType: newRelationType)
+    }
+
+    /// Helper to reverse a bidirectional relation code
+    /// e.g., "part-of/has-scene" → "has-scene/part-of"
+    private func reverseRelationCode(_ code: String) -> String {
+        let parts = code.split(separator: "/").map(String.init)
+        guard parts.count == 2 else {
+            // Symmetric relationship (e.g., "related-to/related-to")
+            return code
+        }
+        return "\(parts[1])/\(parts[0])"
     }
 
     /// Move a relationship from one target to another (e.g., moving scene from Chapter 1 to Chapter 2)
