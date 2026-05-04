@@ -929,102 +929,32 @@ extension MurderBoardView {
                 return
             }
 
-            // Use RelationshipManager if available
-            if let mgr = services?.relationshipManager {
-                // Find the RelationType by code
-                if let relationType = allRelationTypes.first(where: { $0.code == typeCode }) {
-                    do {
-                        try mgr.removeRelationship(between: sourceCard, and: targetCard, typeFilter: relationType)
-                    } catch {
-                        #if DEBUG
-                        print("[MB] Edge deletion via RelationshipManager failed: \(error)")
-                        #endif
-                    }
-                } else {
-                    // No type match — remove all edges between these two cards with matching code
-                    do {
-                        try mgr.removeRelationship(between: sourceCard, and: targetCard)
-                    } catch {
-                        #if DEBUG
-                        print("[MB] Edge deletion (no type filter) failed: \(error)")
-                        #endif
-                    }
-                }
-            } else {
-                // Fallback: direct modelContext deletion
-                deleteEdgePairDirectly(sourceCard: sourceCard, targetCard: targetCard, typeCode: typeCode)
+            // Use EdgeRepository from ServiceContainer for proper dependency injection
+            guard let edgeRepo = services?.edgeRepository else {
+                #if DEBUG
+                print("[MB] Edge deletion failed: EdgeRepository not available in ServiceContainer")
+                #endif
+                return
             }
-        }
-    }
 
-    /// Direct modelContext deletion of both forward and reverse edges
-    private func deleteEdgePairDirectly(sourceCard: Card, targetCard: Card, typeCode: String) {
-        let srcID: UUID? = sourceCard.id
-        let tgtID: UUID? = targetCard.id
-        let code: String? = typeCode
-
-        // Forward edges: source -> target with this type code
-        let fwdFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
-            $0.from?.id == srcID && $0.to?.id == tgtID && $0.type?.code == code
-        })
-        let fwd = (try? modelContext.fetch(fwdFetch)) ?? []
-
-        #if DEBUG
-        print("[EdgeAudit] deleteEdgePairDirectly: '\(sourceCard.name)' → '\(targetCard.name)' type=\(typeCode) — \(fwd.count) fwd edge(s)")
-        #endif
-
-        for e in fwd {
-            EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
-            modelContext.delete(e)
-        }
-
-        // Reverse edges: target -> source — need to find the mirror type code
-        // The mirror code swaps forward/inverse labels: "a/b" becomes "b/a"
-        let parts = typeCode.split(separator: "/")
-        let mirrorCode: String?
-        if parts.count == 2 {
-            mirrorCode = "\(parts[1])/\(parts[0])"
-        } else {
-            mirrorCode = typeCode
-        }
-
-        let revFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
-            $0.from?.id == tgtID && $0.to?.id == srcID && $0.type?.code == mirrorCode
-        })
-        let rev = (try? modelContext.fetch(revFetch)) ?? []
-
-        #if DEBUG
-        print("[EdgeAudit] deleteEdgePairDirectly: mirror=\(mirrorCode ?? "nil") — \(rev.count) rev edge(s)")
-        #endif
-
-        for e in rev {
-            EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
-            modelContext.delete(e)
-        }
-
-        // Also check for reverse edges with the same code (self-symmetric types like "sibling-of/sibling-of")
-        if mirrorCode != typeCode {
-            let revSameFetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
-                $0.from?.id == tgtID && $0.to?.id == srcID && $0.type?.code == code
-            })
-            let revSame = (try? modelContext.fetch(revSameFetch)) ?? []
-            #if DEBUG
-            if !revSame.isEmpty {
-                print("[EdgeAudit] deleteEdgePairDirectly: \(revSame.count) symmetric rev edge(s) with same code")
+            // Find the RelationType by code
+            guard let relationType = allRelationTypes.first(where: { $0.code == typeCode }) else {
+                #if DEBUG
+                print("[MB] Edge deletion failed: RelationType '\(typeCode)' not found")
+                #endif
+                return
             }
-            #endif
-            for e in revSame {
-                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
-                modelContext.delete(e)
-            }
-        }
 
-        do {
-            try modelContext.save()
-        } catch {
-            #if DEBUG
-            print("[EdgeAudit] deleteEdgePairDirectly: save failed: \(error)")
-            #endif
+            do {
+                try edgeRepo.deleteRelationship(from: sourceCard, to: targetCard, relationType: relationType)
+                #if DEBUG
+                print("[MB] Edge deleted successfully via EdgeRepository")
+                #endif
+            } catch {
+                #if DEBUG
+                print("[MB] Edge deletion via EdgeRepository failed: \(error)")
+                #endif
+            }
         }
     }
 
@@ -1139,53 +1069,27 @@ extension MurderBoardView {
             return
         }
 
-        if let mgr = services?.relationshipManager {
-            do {
-                try mgr.createRelationship(from: sourceCard, to: targetCard, type: type, createReverse: true)
-            } catch RelationshipError.alreadyExists {
-                #if DEBUG
-                print("[MB] Both edges already exist, skipping creation")
-                #endif
-            } catch {
-                #if DEBUG
-                print("[MB] Edge creation via RelationshipManager failed: \(error)")
-                #endif
-            }
+        // Use EdgeRepository from ServiceContainer for proper dependency injection
+        guard let edgeRepo = services?.edgeRepository else {
+            #if DEBUG
+            print("[MB] Edge creation failed: EdgeRepository not available in ServiceContainer")
+            #endif
             pendingEdgeCreation = nil
             return
-        }
-
-        // Fallback: direct modelContext operations
-        let forwardExists = sourceCard.outgoingEdges?.contains { edge in
-            edge.to?.id == targetID && edge.type?.code == type.code
-        } ?? false
-
-        let reverseExists = targetCard.outgoingEdges?.contains { edge in
-            edge.to?.id == sourceID && edge.type?.code == type.code
-        } ?? false
-
-        if forwardExists && reverseExists {
-            pendingEdgeCreation = nil
-            return
-        }
-
-        if !forwardExists {
-            let forwardEdge = CardEdge(from: sourceCard, to: targetCard, type: type)
-            modelContext.insert(forwardEdge)
-            EdgeIntegrityMonitor.incrementCounts(source: sourceCard, target: targetCard)
-        }
-
-        if !reverseExists {
-            let reverseEdge = CardEdge(from: targetCard, to: sourceCard, type: type)
-            modelContext.insert(reverseEdge)
-            EdgeIntegrityMonitor.incrementCounts(source: targetCard, target: sourceCard)
         }
 
         do {
-            try modelContext.save()
+            try edgeRepo.createRelationship(from: sourceCard, to: targetCard, relationType: type)
+            #if DEBUG
+            print("[MB] Edge created successfully via EdgeRepository")
+            #endif
+        } catch EdgeRepositoryError.relationTypeNotFound(let code) {
+            #if DEBUG
+            print("[MB] Edge creation failed: Reverse relation type '\(code)' not found")
+            #endif
         } catch {
             #if DEBUG
-            print("[MB] Edge creation save failed: \(error)")
+            print("[MB] Edge creation failed: \(error)")
             #endif
         }
 
@@ -1202,36 +1106,48 @@ extension MurderBoardView {
     let ctx = container.mainContext
     ctx.autosaveEnabled = false
 
-    let mira = Card(kind: .characters, name: "Mira", subtitle: "Explorer", detailedText: "")
-    let jonas = Card(kind: .characters, name: "Historian", subtitle: "Historian", detailedText: "")
-    let aster = Card(kind: .characters, name: "Mechanic", subtitle: "Mechanic", detailedText: "")
-    let eden = Card(kind: .worlds, name: "Eden-3", subtitle: "Frontier World", detailedText: "")
-    let opening = Card(kind: .scenes, name: "Opening Scene", subtitle: "Crash Site", detailedText: "")
-    let artifact = Card(kind: .artifacts, name: "Ancient Artifact", subtitle: "Unknown origin", detailedText: "")
+    // Use CardRepository for card creation (preview context has autosave disabled)
+    let cardRepo = CardRepository(modelContext: ctx)
 
-    ctx.insert(mira)
-    ctx.insert(jonas)
-    ctx.insert(aster)
-    ctx.insert(eden)
-    ctx.insert(opening)
-    ctx.insert(artifact)
+    // Note: CardRepository.createCard() calls save(), but with autosaveEnabled = false,
+    // this is effectively a no-op. The manual ctx.save() at the end commits everything.
+    let mira = try! cardRepo.createCard(kind: .characters, name: "Mira", subtitle: "Explorer", detailedText: "")
+    let jonas = try! cardRepo.createCard(kind: .characters, name: "Historian", subtitle: "Historian", detailedText: "")
+    let aster = try! cardRepo.createCard(kind: .characters, name: "Mechanic", subtitle: "Mechanic", detailedText: "")
+    let eden = try! cardRepo.createCard(kind: .worlds, name: "Eden-3", subtitle: "Frontier World", detailedText: "")
+    let opening = try! cardRepo.createCard(kind: .scenes, name: "Opening Scene", subtitle: "Crash Site", detailedText: "")
+    let artifact = try! cardRepo.createCard(kind: .artifacts, name: "Ancient Artifact", subtitle: "Unknown origin", detailedText: "")
 
+    // Create only the forward relation types - EdgeRepository will automatically
+    // find/create the reverse types based on the bidirectional code
     let appearsIn = RelationType(code: "appears-in/is-appeared-by",
                                  forwardLabel: "appears in",
                                  inverseLabel: "is appeared by",
                                  sourceKind: .characters,
                                  targetKind: .scenes)
+    let isAppearedBy = RelationType(code: "is-appeared-by/appears-in",
+                                    forwardLabel: "is appeared by",
+                                    inverseLabel: "appears in",
+                                    sourceKind: .scenes,
+                                    targetKind: .characters)
     let references = RelationType(code: "references/referenced-by",
                                   forwardLabel: "references",
                                   inverseLabel: "referenced by")
+    let referencedBy = RelationType(code: "referenced-by/references",
+                                    forwardLabel: "referenced by",
+                                    inverseLabel: "references")
     ctx.insert(appearsIn)
+    ctx.insert(isAppearedBy)
     ctx.insert(references)
+    ctx.insert(referencedBy)
 
-    ctx.insert(CardEdge(from: mira, to: opening, type: appearsIn))
-    ctx.insert(CardEdge(from: jonas, to: opening, type: appearsIn))
-    ctx.insert(CardEdge(from: aster, to: opening, type: appearsIn))
-    ctx.insert(CardEdge(from: mira, to: artifact, type: references))
-    ctx.insert(CardEdge(from: jonas, to: eden, type: references))
+    // EdgeRepository.createRelationship automatically creates both forward and reverse edges
+    let edgeRepo = EdgeRepository(modelContext: ctx)
+    try? edgeRepo.createRelationship(from: mira, to: opening, relationType: appearsIn)
+    try? edgeRepo.createRelationship(from: jonas, to: opening, relationType: appearsIn)
+    try? edgeRepo.createRelationship(from: aster, to: opening, relationType: appearsIn)
+    try? edgeRepo.createRelationship(from: mira, to: artifact, relationType: references)
+    try? edgeRepo.createRelationship(from: jonas, to: eden, relationType: references)
 
     let board = Board.fetchOrCreatePrimaryBoard(for: mira, in: ctx)
     board.zoomScale = 1.0

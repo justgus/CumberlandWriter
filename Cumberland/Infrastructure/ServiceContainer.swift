@@ -53,6 +53,9 @@ final class ServiceContainer {
     /// Repository for StoryStructure data access
     let structureRepository: StructureRepository
 
+    /// Repository for Board and BoardNode data access (DR-0203)
+    let boardRepository: BoardRepository
+
     /// Service for common query patterns
     let queryService: QueryService
 
@@ -90,17 +93,18 @@ final class ServiceContainer {
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
 
-        // Initialize repositories
+        // Initialize repositories (Data Access Layer)
         self.cardRepository = CardRepository(modelContext: modelContext)
         self.edgeRepository = EdgeRepository(modelContext: modelContext)
         self.structureRepository = StructureRepository(modelContext: modelContext)
+        self.boardRepository = BoardRepository(modelContext: modelContext)
         self.queryService = QueryService(modelContext: modelContext)
 
-        // Initialize services (they use repositories internally or the context)
+        // Initialize services (Business Logic Layer - uses repositories internally)
         self.cardOperations = CardOperationManager(modelContext: modelContext)
         self.relationshipManager = RelationshipManager(modelContext: modelContext)
         self.relationTypeManager = RelationTypeManager(modelContext: modelContext)
-        self.boardManager = BoardManager(modelContext: modelContext)
+        self.boardManager = BoardManager(modelContext: modelContext) // Uses boardRepository internally
         self.edgeIntegrityMonitor = EdgeIntegrityMonitor()
 
         // Wire cross-references (ER-0036)

@@ -21,7 +21,10 @@ final class CumberlandBoardDataSource: @MainActor BoardDataSource {
 
     // Underlying SwiftData models
     private(set) var board: Board?
-    private let modelContext: ModelContext
+
+    // Service managers for repository operations (ER-0022 Phase 2)
+    private let boardManager: BoardManager
+    private let edgeRepository: EdgeRepository
 
     // All cards query result (injected by the view)
     var allCards: [Card] = []
@@ -76,15 +79,15 @@ final class CumberlandBoardDataSource: @MainActor BoardDataSource {
     // MARK: - Init
 
     init(modelContext: ModelContext) {
-        self.modelContext = modelContext
+        self.boardManager = BoardManager(modelContext: modelContext)
+        self.edgeRepository = EdgeRepository(modelContext: modelContext)
     }
 
     // MARK: - Board Loading
 
-    /// DR-0104: Delegate to BoardManager for board loading
+    /// DR-0104: Use BoardManager for board loading
     func loadBoard(for primary: Card) {
-        let mgr = BoardManager(modelContext: modelContext)
-        let b = mgr.fetchOrCreatePrimaryBoard(for: primary)
+        let b = boardManager.fetchOrCreatePrimaryBoard(for: primary)
         b.clampState()
         self.board = b
     }
@@ -98,14 +101,12 @@ final class CumberlandBoardDataSource: @MainActor BoardDataSource {
         let cardIDSet = Set(cards.map { $0.id })
 
         for card in cards where nodeIDs.contains(card.id) {
-            // ER-0036: Desync-aware edge query
-            // If cached count says edges exist but array is empty, fetch via FetchDescriptor
+            // ER-0036: Desync-aware edge query via EdgeRepository
+            // If cached count says edges exist but array is empty, fetch via EdgeRepository
             let arrayEdges = card.outgoingEdges ?? []
             let edges: [CardEdge]
             if arrayEdges.isEmpty && card.cachedOutgoingEdgeCount > 0 {
-                let cardID: UUID? = card.id
-                let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
-                edges = (try? modelContext.fetch(fetch)) ?? []
+                edges = edgeRepository.fetchOutgoing(from: card)
             } else {
                 edges = arrayEdges
             }
@@ -121,18 +122,16 @@ final class CumberlandBoardDataSource: @MainActor BoardDataSource {
 
     func moveNode(_ nodeID: UUID, to position: CGPoint) {
         guard let boardNode = findBoardNode(for: nodeID) else { return }
-        boardNode.posX = position.x
-        boardNode.posY = position.y
+        boardManager.updateNodePosition(boardNode, x: position.x, y: position.y)
     }
 
     func commitNodeMove(_ nodeID: UUID) {
-        try? modelContext.save()
+        try? boardManager.save()
     }
 
     func removeNode(_ nodeID: UUID) {
         guard let boardNode = findBoardNode(for: nodeID) else { return }
-        modelContext.delete(boardNode)
-        try? modelContext.save()
+        try? boardManager.removeNode(boardNode)
     }
 
     // MARK: - Pin Management (ER-0031)
@@ -142,16 +141,14 @@ final class CumberlandBoardDataSource: @MainActor BoardDataSource {
     @discardableResult
     func togglePin(for cardID: UUID) -> Bool? {
         guard let boardNode = findBoardNode(for: cardID) else { return nil }
-        boardNode.pinned.toggle()
-        try? modelContext.save()
+        try? boardManager.togglePin(for: boardNode)
         return boardNode.pinned
     }
 
     /// Set the pinned state explicitly for a given card ID.
     func setPin(for cardID: UUID, pinned: Bool) {
         guard let boardNode = findBoardNode(for: cardID) else { return }
-        boardNode.pinned = pinned
-        try? modelContext.save()
+        try? boardManager.setPin(for: boardNode, pinned: pinned)
     }
 
     func addNodes(_ nodeIDs: [UUID], at position: CGPoint) {
@@ -169,28 +166,19 @@ final class CumberlandBoardDataSource: @MainActor BoardDataSource {
             let x = position.x + cos(angle) * radius
             let y = position.y + sin(angle) * radius
 
-            _ = board.node(
-                for: card,
-                in: modelContext,
-                createIfMissing: true,
-                defaultPosition: (x, y)
-            )
+            _ = boardManager.addNode(to: board, card: card, position: (x, y))
         }
-
-        try? modelContext.save()
     }
 
     func persistTransform() {
         guard let b = board else { return }
-        b.zoomScale = b.zoomScale.clamped(to: BoardConfiguration.cumberland.minZoom...BoardConfiguration.cumberland.maxZoom)
-        b.panX = b.panX.clamped(to: BoardConfiguration.cumberland.minPan...BoardConfiguration.cumberland.maxPan)
-        b.panY = b.panY.clamped(to: BoardConfiguration.cumberland.minPan...BoardConfiguration.cumberland.maxPan)
-        b.clampState()
-        try? modelContext.save()
+        boardManager.updateBoardTransform(b, zoomScale: b.zoomScale, panX: b.panX, panY: b.panY)
+        try? boardManager.save()
     }
 
     func setBacklogFilter(_ filter: String?) {
-        board?.backlogKindRaw = filter
+        guard let b = board else { return }
+        boardManager.updateBacklogFilter(b, filter: filter)
     }
 
     // MARK: - Helpers

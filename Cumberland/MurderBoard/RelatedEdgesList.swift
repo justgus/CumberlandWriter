@@ -16,6 +16,7 @@ struct RelatedEdgesList: View {
 
     @Environment(\.modelContext) private var modelContext
     @State private var edges: [CardEdge] = []
+    @State private var edgeRepository: EdgeRepository?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -46,22 +47,35 @@ struct RelatedEdgesList: View {
             }
         }
         .task(id: card.id) {
+            // Initialize repository if needed
+            if edgeRepository == nil {
+                edgeRepository = EdgeRepository(modelContext: modelContext)
+            }
             reload()
         }
-        .onAppear { reload() }
+        .onAppear {
+            // Initialize repository if needed
+            if edgeRepository == nil {
+                edgeRepository = EdgeRepository(modelContext: modelContext)
+            }
+            reload()
+        }
         .accessibilityElement(children: .contain)
     }
 
     @MainActor
     private func reload() {
-        let fromID = card.id
-        let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from?.id == fromID },
-            sortBy: [
-                SortDescriptor(\.type?.code, order: .forward),
-                SortDescriptor(\.to?.name, order: .forward)
-            ]
-        )
-        edges = (try? modelContext.fetch(fetch)) ?? []
+        guard let repo = edgeRepository else { return }
+        // Use EdgeRepository to fetch outgoing edges
+        edges = repo.fetchOutgoing(from: card)
+        // Note: EdgeRepository doesn't have sorted fetch, so we sort in-memory
+        edges.sort { lhs, rhs in
+            let lhsCode = lhs.type?.code ?? ""
+            let rhsCode = rhs.type?.code ?? ""
+            if lhsCode != rhsCode {
+                return lhsCode < rhsCode
+            }
+            return (lhs.to?.name ?? "") < (rhs.to?.name ?? "")
+        }
     }
 }

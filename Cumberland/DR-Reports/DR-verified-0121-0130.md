@@ -231,3 +231,57 @@ Completely rewrote updateSortIndex() to properly handle list reordering by adjus
 ---
 
 *Last Updated: 2026-04-29*
+## ✅ DR-0127: ER-0022 Phase 2 Incomplete - CardRelationshipOperations Not Migrated
+
+**Reported:** 2026-04-27
+**Verified:** 2026-04-29
+**Updated:** 2026-04-29 (3-Phase Comprehensive Migration)
+**Component:** CardRelationship/CardRelationshipOperations.swift
+**Severity:** Critical - Complete bypass of repository pattern
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+CardRelationshipOperations.swift completely bypassed the ER-0022 repository pattern with direct CardEdge/RelationType creation, direct modelContext queries, and no use of repositories.
+
+**Original Problems:**
+- 2 direct CardEdge() instantiations
+- 7 direct modelContext.delete() calls
+- 6+ direct modelContext.fetch() queries
+- 4+ direct modelContext.insert() calls
+- 5+ redundant modelContext.save() calls
+- All fallback paths contained direct database access
+
+**Resolution (3-Phase Migration):**
+
+**Phase 1: Repository Integration (16 methods)**
+- Migrated masterCards(), createEdgeIfNeeded(), relationDecoration() to EdgeRepository
+- Migrated cleanupAndDelete(), changeCardType(), availableExistingCandidates() to CardRepository
+- Migrated 6 RelationType methods to RelationTypeManager delegation
+- Removed 2 CardEdge instantiations, 7 modelContext.delete() calls, 5+ direct queries
+
+**Phase 2: Zero Tolerance Database Call Elimination (7 methods)**
+- Removed ALL FetchDescriptor fallback code
+- Removed ALL modelContext.insert()/save() fallback code
+- Changed pattern from "try services, fallback to database" to "use services OR create manager"
+- Code reduction: ensureRelationType (15→4 lines), ensureMirror (25→4 lines), mirrorType (35→4 lines)
+
+**Phase 3: Wrapper Method Elimination (4 methods + 7 call sites)**
+- Removed retypeEdge(), removeRelationship(), cleanupAndDelete(), changeCardType() wrapper methods
+- Updated CardRelationshipView to use EdgeRepository/CardRepository directly
+- Removed 57 lines of unnecessary indirection
+
+**Final Achievement:**
+- ✅ ZERO FetchDescriptor instances (except 1 documented exception)
+- ✅ ZERO modelContext.fetch/insert/save/delete calls (except 1 exception)
+- ✅ ZERO redundant wrapper methods
+- ✅ 100% repository pattern compliance
+- ✅ 23 methods migrated/simplified/removed
+- ✅ 150+ lines of anti-pattern code eliminated
+
+**Exception:** ensureReverseEdge() line 223 contains ONE modelContext.insert() with TODO (EdgeRepository has no single-edge API, called by SuggestionEngine awaiting migration)
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-04-29*

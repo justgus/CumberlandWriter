@@ -4,402 +4,98 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **87 open DRs**
+**Status:** Currently **86 open DRs**
 
 ---
 
-## 🟡 DR-0127: ER-0022 Phase 2 Incomplete - CardRelationshipOperations Not Migrated
+## 🟡 DR-0128: ER-0022 Phase 2 Incomplete - MurderBoardView Not Migrated
 
 **Reported:** 2026-04-27
-**Updated:** 2026-04-29 (Comprehensive Cleanup)
-**Component:** CardRelationship/CardRelationshipOperations.swift
-**Severity:** Critical - Bypasses repository pattern completely
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-CardRelationshipOperations.swift completely bypassed the repository pattern, creating CardEdge and RelationType instances directly, querying modelContext directly, and performing operations without using repositories. This file was never migrated as part of ER-0022 Phase 2.
-
-**Original Problems:**
-- Direct `CardEdge()` instantiation (2 locations)
-- Direct `modelContext.fetch()` queries throughout (6+ methods)
-- Direct `modelContext.delete()` calls (7 locations)
-- Direct `modelContext.insert()` and `modelContext.save()` calls for RelationType
-- Redundant `modelContext.save()` calls after repository operations
-- Card and edge operations bypassing repositories entirely
-
-**Impact:**
-- Complete violation of ER-0022 repository pattern
-- No centralized edge/card/relationType management
-- Data integrity risks from manual operations
-- Inconsistent with rest of codebase
-
----
-
-## **COMPREHENSIVE MIGRATION** - Complete Repository Integration
-
-### Phase 1: EdgeRepository Integration (5 methods)
-
-**1. masterCards()** - Query Migration
-   - ✅ Now uses `EdgeRepository.fetchIncoming()`
-   - ❌ Removed direct `modelContext.fetch()` query
-   - Centralized edge queries via repository
-
-**2. createEdgeIfNeeded()** - Creation Migration
-   - ✅ Now uses `EdgeRepository.createRelationship()` for bidirectional creation
-   - ❌ Removed direct `CardEdge()` instantiation
-   - ❌ Removed redundant `modelContext.save()` (repository handles it)
-   - EdgeRepository creates both forward and reverse edges automatically
-   - Proper duplicate detection via repository
-
-**3. ensureReverseEdge()** - Helper Migration
-   - ✅ Uses EdgeRepository for existence checks
-   - ❌ Removed redundant `modelContext.save()` (caller handles it)
-   - Still creates reverse edge manually (EdgeRepository doesn't have single-edge API)
-   - Added note that caller is responsible for save()
-
-**4. removeRelationship()** - Deletion Migration (Simplified to Thin Wrapper)
-   - ✅ Delegates to RelationshipManager (preferred) or EdgeRepository (fallback)
-   - ✅ Uses `EdgeRepository.deleteAllRelationships()` for bulk deletion
-   - ❌ Removed all direct `modelContext.delete()` calls (4 locations)
-   - ❌ Removed redundant `modelContext.save()` (repository handles it)
-   - ❌ Removed manual EdgeIntegrityMonitor calls (repository handles it)
-   - Now a thin 6-line wrapper method
-
-**5. relationDecoration()** - Query Migration
-   - ✅ Now uses `EdgeRepository.fetchOutgoing()`
-   - ❌ Removed direct `modelContext.fetch()` query
-
-### Phase 2: CardRepository Integration (3 methods)
-
-**6. cleanupAndDelete()** - Simplified to Thin Wrapper
-   - ✅ Delegates to CardOperationManager (preferred) or CardRepository (fallback)
-   - ❌ Removed direct `modelContext.delete()` call
-   - CardRepository.deleteCard() already calls cleanupBeforeDeletion() internally
-   - Now a thin 6-line wrapper method
-
-**7. changeCardType()** - Simplified to Thin Wrapper
-   - ✅ Delegates to CardOperationManager (preferred) or CardRepository (fallback)
-   - ✅ Uses `CardRepository.updateCardKind()` which auto-deletes edges
-   - ❌ Removed direct edge deletion loop
-   - ❌ Removed direct `card.kindRaw` assignment
-   - Now a thin 6-line wrapper method
-
-**8. availableExistingCandidates()** - Query Migration
-   - ✅ Now uses `CardRepository.fetch(byKind:)`
-   - ❌ Removed direct `modelContext.fetch()` query
-
-### Phase 3: RelationTypeManager Delegation (6 methods)
-
-**9. fetchRelationType()** - Delegation Added
-   - ✅ Delegates to RelationTypeManager (preferred) or falls back to direct query
-   - Centralized RelationType queries
-
-**10. ensureRelationType()** - Delegation Enhanced
-   - ✅ Delegates to RelationTypeManager (which handles mirror creation automatically)
-   - Updated fallback to pass services parameter through
-   - Added documentation about automatic mirror handling
-
-**11. ensureMirror()** - Delegation Added
-   - ✅ Delegates to RelationTypeManager.ensureMirror() (preferred)
-   - ❌ Removed direct `modelContext.insert()` from main path
-   - Fallback path updated to pass services through
-   - Added note that RelationTypeManager.ensureRelationType() handles this automatically
-
-**12. mirrorType()** - Delegation Enhanced
-   - ✅ Delegates to RelationTypeManager.mirrorType() (preferred)
-   - Updated all fallback queries to pass services through
-   - Added note about using EdgeRepository.reverseRelationCode() for simple reverse calculations
-   - ❌ Removed direct `modelContext.insert()` and `modelContext.save()` from main path
-
-**13. nonCitesRelationTypes()** - Query Migration
-   - ✅ Now uses `RelationTypeManager.fetchApplicable()` (preferred)
-   - ❌ Removed direct `modelContext.fetch()` query from main path
-   - Added services parameter for proper delegation
-
-**14. applicableRetypeChoices()** - Query Migration
-   - ✅ Now uses `RelationTypeManager.fetchApplicable()` and `ensureRelationType()` (preferred)
-   - ❌ Removed direct `modelContext.fetch()` query from main path
-   - Added services parameter for proper delegation
-
-### Phase 4: Method Simplification
-
-**15. retypeEdge()** - Simplified to Use EdgeRepository.updateRelationType()
-   - ✅ Now uses `EdgeRepository.updateRelationType()` for atomic bidirectional updates
-   - ❌ Removed all direct edge type mutation
-   - ❌ Removed all direct `modelContext.save()` calls
-   - ❌ Removed manual reverse edge type updates
-   - EdgeRepository handles bidirectional type changes atomically
-   - Reduced from 30 lines to 15 lines
-
-**16. canonicalizedTypeFor()** - Enhanced Delegation
-   - ✅ Delegates to RelationTypeManager.ensureRelationType() (preferred)
-   - Falls back to local ensureRelationType() (which also delegates)
-   - Added services parameter for proper delegation chain
-
----
-
-## Summary of All Changes
-
-### Removed Anti-Patterns:
-- ❌ **2 direct CardEdge() instantiations** → Use EdgeRepository.createRelationship()
-- ❌ **7 direct modelContext.delete() calls** → Use repository delete methods
-- ❌ **6+ direct modelContext.fetch() queries** → Use repository fetch methods
-- ❌ **4+ direct modelContext.insert() calls** → Use manager ensure methods
-- ❌ **5+ redundant modelContext.save() calls** → Repositories handle saves
-- ❌ **Manual EdgeIntegrityMonitor calls** → Repositories handle counts
-
-### Added Repository Integration:
-- ✅ **EdgeRepository** used in 5 methods (masterCards, createEdgeIfNeeded, ensureReverseEdge, removeRelationship, relationDecoration, retypeEdge)
-- ✅ **CardRepository** used in 3 methods (cleanupAndDelete, changeCardType, availableExistingCandidates)
-- ✅ **RelationTypeManager** delegation in 6 methods (fetchRelationType, ensureRelationType, ensureMirror, mirrorType, nonCitesRelationTypes, applicableRetypeChoices)
-- ✅ **Services parameter** added to 10+ methods for proper delegation chains
-
-### Code Quality Improvements:
-- 📝 **16 methods** fully migrated to repository pattern
-- 📝 **4 methods** simplified to thin wrappers (3-6 lines each)
-- 📝 **Comprehensive inline documentation** added explaining delegation patterns
-- 📝 **Deprecated patterns** clearly marked in fallback code paths
-
----
-
-**Build Status:** ✅ Build succeeded with no errors
-
-**Testing Notes:**
-- All redundant save() calls removed - repositories handle persistence
-- All operations now go through centralized repositories
-- Bidirectional relationship integrity ensured by EdgeRepository
-- RelationType mirror creation handled by RelationTypeManager
-- Card cleanup handled by CardRepository.deleteCard()
-
----
-
-## **PHASE 2 ADDENDUM: ZERO TOLERANCE - Complete Database Call Elimination**
-
-**Updated:** 2026-04-29 (Final Cleanup - ALL Database Calls Removed)
-
-### Critical Issue Identified:
-Despite Phase 1 migration, **ALL fallback paths still contained low-level database calls**, violating the fundamental principle of ER-0022: **NO direct database access outside the Data/ directory**.
-
-### Zero Tolerance Policy Violations Found:
-- `fetchRelationType()` - Had FetchDescriptor fallback
-- `nonCitesRelationTypes()` - Had FetchDescriptor fallback
-- `applicableRetypeChoices()` - Had FetchDescriptor fallback
-- `ensureRelationType()` - Had modelContext.insert() and modelContext.save()
-- `ensureMirror()` - Had modelContext.insert()
-- `mirrorType()` - Had modelContext.insert(), modelContext.save(), and FetchDescriptor
-- `createEdgeIfNeeded()` - Had FetchDescriptor for sortIndex calculation
-
-### Complete Elimination - ALL Fallback Database Calls Removed:
-
-**17. fetchRelationType()** - ZERO Database Calls
-   - ❌ Removed FetchDescriptor fallback
-   - ✅ Always creates RelationTypeManager if not in services
-   - Now 100% delegates to manager
-
-**18. nonCitesRelationTypes()** - ZERO Database Calls
-   - ❌ Removed ALL FetchDescriptor fallback code
-   - ❌ Removed relationTypeApplies() fallback logic
-   - ✅ Always uses RelationTypeManager.fetchApplicable()
-   - Reduced from 13 lines to 8 lines
-
-**19. applicableRetypeChoices()** - ZERO Database Calls
-   - ❌ Removed ALL FetchDescriptor fallback code
-   - ❌ Removed direct fetchRelationType() fallback calls
-   - ✅ Always uses RelationTypeManager.ensureRelationType()
-   - Reduced from 25 lines to 15 lines
-
-**20. ensureRelationType()** - ZERO Database Calls
-   - ❌ Removed ALL modelContext.insert() calls
-   - ❌ Removed ALL modelContext.save() calls
-   - ❌ Removed ALL fallback logic
-   - ✅ Always creates RelationTypeManager if not in services
-   - Reduced from 15 lines to 4 lines - **pure delegation**
-
-**21. ensureMirror()** - ZERO Database Calls
-   - ❌ Removed ALL modelContext.insert() calls
-   - ❌ Removed ALL fallback logic with code generation
-   - ✅ Always uses RelationTypeManager.ensureMirror()
-   - Reduced from 25 lines to 4 lines - **pure delegation**
-
-**22. mirrorType()** - ZERO Database Calls
-   - ❌ Removed ALL modelContext.insert() calls
-   - ❌ Removed ALL modelContext.save() calls
-   - ❌ Removed ALL modelContext.fetch() calls
-   - ❌ Removed ALL fallback logic
-   - ✅ Always uses RelationTypeManager.mirrorType()
-   - Reduced from 35 lines to 4 lines - **pure delegation**
-
-**23. createEdgeIfNeeded()** - ZERO Database Calls (except documented exception)
-   - ❌ Removed FetchDescriptor for sortIndex calculation
-   - ✅ Now uses EdgeRepository.fetchOutgoing() for sortIndex
-   - Complete repository pattern compliance
-
-### Single Documented Exception:
-**ensureReverseEdge()** line 223:
-- Contains ONE `modelContext.insert(reverseEdge)` call
-- **Documented exception**: EdgeRepository has no single-edge creation API
-- Added TODO to consider EdgeRepository.createSingleEdge() to eliminate this
-- This is the ONLY remaining direct database call in entire file
-
----
-
-## Final Summary: TRUE Zero Tolerance Achievement
-
-### What Was Actually Removed:
-- ❌ **ALL FetchDescriptor fallback paths** (7 methods cleaned)
-- ❌ **ALL modelContext.fetch() fallback calls** (5+ locations)
-- ❌ **ALL modelContext.insert() fallback calls** (5 locations)
-- ❌ **ALL modelContext.save() fallback calls** (5+ locations)
-- ❌ **ALL fallback database logic** (100+ lines of code removed)
-
-### Code Reduction Through Proper Delegation:
-- `ensureRelationType()`: 15 lines → 4 lines (73% reduction)
-- `ensureMirror()`: 25 lines → 4 lines (84% reduction)
-- `mirrorType()`: 35 lines → 4 lines (89% reduction)
-- `nonCitesRelationTypes()`: 13 lines → 8 lines (38% reduction)
-- `applicableRetypeChoices()`: 25 lines → 15 lines (40% reduction)
-
-### Repository Usage Pattern:
-**Before**: "Try services, fallback to direct database access"
-**After**: "Use services OR create temporary manager - NEVER direct database access"
-
-Pattern used throughout:
-```swift
-let mgr = services?.relationTypeManager ?? RelationTypeManager(modelContext: modelContext)
-return mgr.method(...)
-```
-
-### Verification:
-✅ **Build succeeded** with ZERO errors
-✅ **ZERO warnings** (sortIndex comparison fixed)
-✅ **ZERO FetchDescriptor instances** (except documented exception)
-✅ **ZERO modelContext.fetch() calls**
-✅ **ZERO modelContext.insert() calls** (except documented exception)
-✅ **ZERO modelContext.save() calls**
-✅ **ZERO modelContext.delete() calls**
-
-### Exception Documentation:
-**ONE** documented exception at CardRelationshipOperations.swift:223:
-- `modelContext.insert(reverseEdge)` in ensureReverseEdge()
-- Clear TODO comment explaining why
-- Clear path forward (EdgeRepository.createSingleEdge())
-
----
-
----
-
-## **PHASE 3 ADDENDUM: Wrapper Method Elimination**
-
-**Updated:** 2026-04-29 (Final - All Redundant Wrappers Removed)
-
-### Issue Identified:
-After removing all direct database calls, four "thin wrapper" methods remained that simply delegated to repositories. These wrappers provided no value and added unnecessary indirection.
-
-### Redundant Wrapper Methods Removed:
-
-**24. retypeEdge()** - REMOVED (was 21 lines)
-   - ❌ Deleted entire method
-   - ✅ **CardRelationshipView** now uses `EdgeRepository.updateRelationType()` directly
-   - No loss of functionality - all logic moved to call site
-
-**25. removeRelationship()** - REMOVED (was 14 lines)
-   - ❌ Deleted entire method
-   - ✅ **CardRelationshipView** now uses `EdgeRepository.deleteRelationship()` / `deleteAllRelationships()` directly
-   - Handles relationTypeFilter logic at call site
-
-**26. cleanupAndDelete()** - REMOVED (was 10 lines)
-   - ❌ Deleted entire method
-   - ✅ **CardRelationshipView** now uses `CardRepository.deleteCard()` directly (4 call sites updated)
-   - CardRepository already handles cleanup internally
-
-**27. changeCardType()** - REMOVED (was 12 lines)
-   - ❌ Deleted entire method
-   - ✅ **CardRelationshipView** now uses `CardRepository.updateCardKind()` directly
-   - CardRepository already handles edge deletion internally
-
-### CardRelationshipView.swift Updates:
-
-**7 call sites updated** to use repositories directly:
-1. Line 317-319: changeCardType → `CardRepository.updateCardKind()`
-2. Line 369-376: removeRelationship → `EdgeRepository.deleteRelationship()` / `deleteAllRelationships()`
-3. Line 530: cleanupAndDelete → `CardRepository.deleteCard()`
-4. Line 551: cleanupAndDelete → `CardRepository.deleteCard()`
-5. Line 563-570: retypeEdge → `EdgeRepository.updateRelationType()`
-6. Line 578: cleanupAndDelete → `CardRepository.deleteCard()`
-7. Line 591: cleanupAndDelete → `CardRepository.deleteCard()`
-
-### Code Reduction:
-- **57 lines removed** from CardRelationshipOperations.swift (wrapper methods)
-- **Direct repository usage** eliminates one level of indirection
-- **Clearer intent** - call sites show exactly what repository operation is being performed
-
-### Remaining Methods in CardRelationshipOperations:
-- `masterCards()` - Query helper using EdgeRepository ✅
-- `firstAvailableKind()` - Simple helper ✅
-- `fetchRelationType()` - Delegates to RelationTypeManager ✅
-- `ensureRelationType()` - Delegates to RelationTypeManager ✅
-- `ensureMirror()` - Delegates to RelationTypeManager ✅
-- `mirrorType()` - Delegates to RelationTypeManager ✅
-- `relationTypeApplies()` - Simple filter helper ✅
-- `nonCitesRelationTypes()` - Uses RelationTypeManager ✅
-- `applicableRetypeChoices()` - Uses RelationTypeManager ✅
-- `createEdgeIfNeeded()` - Uses EdgeRepository ✅
-- `ensureReverseEdge()` - Manual reverse edge creation (called by SuggestionEngine - to be migrated) ⚠️
-- `canonicalizedTypeFor()` - Uses RelationTypeManager ✅
-- `availableExistingCandidates()` - Uses CardRepository ✅
-- `relationDecoration()` - Uses EdgeRepository ✅
-- Helper methods: `sanitize()`, `makeCode()` - Delegate to RelationTypeManager ✅
-
-**Note:** `ensureReverseEdge()` remains temporarily for SuggestionEngine.swift (AI code also needs migration - DR-0131, DR-0148)
-
----
-
-## FINAL STATUS: TRUE Repository Pattern Compliance
-
-### Complete Elimination Achieved:
-- ✅ **ZERO FetchDescriptor instances** (except 1 documented exception in ensureReverseEdge)
-- ✅ **ZERO modelContext.fetch() calls**
-- ✅ **ZERO modelContext.insert() calls** (except 1 documented exception)
-- ✅ **ZERO modelContext.save() calls**
-- ✅ **ZERO modelContext.delete() calls**
-- ✅ **ZERO redundant wrapper methods**
-- ✅ **ALL call sites** updated to use repositories directly
-
-### Build Status:
-✅ **BUILD SUCCEEDED** - ZERO errors, 1 warning (unrelated - CardRepository unused variable)
-
-### Pattern Achievement:
-**Before ER-0022**: 72+ direct CardEdge creations, 50+ direct Card creations, 30+ direct deletes
-**After DR-0127**: ZERO direct operations - 100% repository pattern compliance
-
-**Code Quality**: 16 methods migrated, 4 wrappers removed, 100+ lines of fallback code eliminated, 57 lines of wrapper code removed
-
----
-
-**Status:** 🟡 Resolved - Not Verified
-
----
-
-## 🔴 DR-0128: ER-0022 Phase 2 Incomplete - MurderBoardView Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** MurderBoard/MurderBoardView.swift
+**Component:** MurderBoard/MurderBoardView.swift, MurderBoard/CumberlandBoardDataSource.swift, MurderBoard/RelatedEdgesList.swift
 **Severity:** Critical - Creates edges directly
 **Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+**Related DR:** DR-0203 (BoardRepository creation)
 
 **Issue:**
-MurderBoardView creates CardEdge instances directly (lines 1173, 1179, 1230-1234) instead of using EdgeRepository. This file was never migrated as part of ER-0022 Phase 2.
+MurderBoardView creates CardEdge instances directly (lines 1173, 1179, 1230-1234) instead of using EdgeRepository. Additionally, CumberlandBoardDataSource was discovered to have low-level DB operations bypassing repositories.
 
 **Code Locations:**
-- Lines 1173, 1179: Direct edge creation for board relationships
-- Lines 1230-1234: Preview data creation with direct edges
+- MurderBoardView lines 1173, 1179: Direct edge creation for board relationships
+- MurderBoardView lines 1230-1234: Preview data creation with direct edges
+- MurderBoardView lines 961-1029: deleteEdgePairDirectly function with low-level DB access
+- CumberlandBoardDataSource lines 134, 146, 154, 183: Direct modelContext operations
 
 **Impact:**
-- Bypasses EdgeRepository completely
+- Bypasses EdgeRepository and BoardManager completely
 - Creates forward edges without reverse edges
 - Data integrity violations in MurderBoard feature
+- Violates ER-0022 repository pattern architecture
 
-**Status:** 🔴 Identified - Not Resolved
+**Resolution:** (2026-04-30)
+
+**MurderBoardView Fixes:**
+
+1. **Edge Creation** - Removed RelationshipManager dependency and direct EdgeRepository instantiation. Now uses `services.edgeRepository` for proper DI.
+
+2. **Edge Deletion** - Removed entire `deleteEdgePairDirectly` function (68 lines of low-level DB code). Replaced with `services.edgeRepository.deleteRelationship()`.
+
+3. **Preview Migration** - Preview now uses `CardRepository.createCard()` for card creation and `EdgeRepository.createRelationship()` for edges. Added reverse relation types (`is-appeared-by/appears-in` and `referenced-by/references`).
+
+**CumberlandBoardDataSource Fixes:**
+
+4. **Complete Platform Independence** - Removed ALL direct `modelContext` references. Eliminated `modelContext` property entirely - only passed to repositories during init.
+
+5. **Repository Integration** - Added `boardManager` and `edgeRepository` properties. All DB operations now routed through these managers.
+
+6. **New BoardManager Methods** - Extended BoardManager with:
+   - `setPin(for:pinned:)` - Explicit pin state setter
+   - `updateNodePosition(_:x:y:)` - Node position updates
+   - `updateBoardTransform(_:zoomScale:panX:panY:)` - Board transform updates with clamping
+   - `updateBacklogFilter(_:filter:)` - Backlog filter updates
+   - `save()` - Context persistence
+   - Added `import BoardEngine` for BoardConfiguration access
+
+7. **All Operations Migrated** - Complete repository pattern coverage:
+   - `edges(for:)` → `edgeRepository.fetchOutgoing()` (desync-aware query)
+   - `moveNode()` → `boardManager.updateNodePosition()`
+   - `commitNodeMove()` → `boardManager.save()`
+   - `removeNode()` → `boardManager.removeNode()`
+   - `togglePin()` → `boardManager.togglePin()`
+   - `setPin()` → `boardManager.setPin()`
+   - `addNodes()` → `boardManager.addNode()` (batch operation)
+   - `persistTransform()` → `boardManager.updateBoardTransform()` + `save()`
+   - `setBacklogFilter()` → `boardManager.updateBacklogFilter()`
+
+**RelatedEdgesList Fixes:**
+
+8. **Edge Query Migration** - RelatedEdgesList.swift directly queried `modelContext.fetch()` for edges. Now uses `EdgeRepository.fetchOutgoing()` with in-memory sorting since repository doesn't support sorted fetch yet.
+
+**Files Modified:**
+- `MurderBoard/MurderBoardView.swift:1132-1150` - Edge creation via `services.edgeRepository`
+- `MurderBoard/MurderBoardView.swift:920-950` - Edge deletion via `services.edgeRepository`
+- `MurderBoard/MurderBoardView.swift:961-1029` - Deleted `deleteEdgePairDirectly` (68 lines)
+- `MurderBoard/MurderBoardView.swift:1189-1214` - Preview uses repositories
+- `MurderBoard/CumberlandBoardDataSource.swift` - **ZERO modelContext operations** (complete migration)
+- `MurderBoard/RelatedEdgesList.swift` - Uses `edgeRepository.fetchOutgoing()`
+- `Services/BoardManager.swift` - Now uses BoardRepository (see DR-0203)
+
+**Lines of Low-Level Code Removed:** ~90 lines (including RelatedEdgesList query)
+
+**Platform Independence Achievement:**
+- **CumberlandBoardDataSource is now 100% platform-independent**
+- All SwiftData operations abstracted through repositories
+- Ready for port to other platforms (SQL, CoreData, etc.)
+- Zero direct database access in view/presentation layer
+
+**Architecture Improvements:**
+- Proper dependency injection through ServiceContainer
+- Complete separation of concerns - views never touch database
+- Consistent repository pattern usage across MurderBoard feature
+- Eliminates RelationshipManager/EdgeRepository duplication
+- Centralizes all Board/BoardNode operations through BoardManager
+- Centralizes all CardEdge operations through EdgeRepository
+
+**Status:** 🟡 Resolved - Not Verified
 
 ---
 
@@ -1601,10 +1297,10 @@ RelationTypeManager.swift:96 calls `modelContext.delete(type)` directly instead 
 
 ---
 
-## 🔴 DR-0203: ER-0022 Phase 2 Incomplete - BoardManager.swift Bypasses Repository
+## 🟡 DR-0203: ER-0022 Phase 2 Incomplete - BoardManager.swift Bypasses Repository
 
 **Reported:** 2026-04-27
-**Component:** Services/BoardManager.swift
+**Component:** Services/BoardManager.swift, Data/BoardRepository.swift (new)
 **Severity:** High - Service bypasses repository pattern
 **Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
 
@@ -1615,12 +1311,46 @@ BoardManager.swift:41,88 calls `modelContext.delete()` directly for boards and n
 - Bypasses centralized deletion logic
 - No cleanup for board relationships
 - Violates single-responsibility principle
+- Prevents platform portability
 
-**Locations:**
-- `Services/BoardManager.swift:41` (board)
-- `Services/BoardManager.swift:88` (node)
+**Resolution:** (2026-04-30)
 
-**Status:** 🔴 Identified - Not Resolved
+**Created BoardRepository** - New repository class in Data folder handles all Board/BoardNode CRUD operations:
+- `createBoard()` - Board creation with optional configuration
+- `deleteBoard()` - Board deletion (cascade to nodes)
+- `updateBoard()` - Board property updates
+- `createNode()` - BoardNode creation
+- `deleteNode()` - BoardNode deletion
+- `updateNode()` - BoardNode property updates
+- `save()` - Context persistence
+- `fetchBoard()` - Query boards by primary card or UUID
+- `fetchAllBoards()` - Query all boards
+
+**Refactored BoardManager** - Now serves as pure business logic layer:
+- Removed all `modelContext` operations except passing to BoardRepository
+- Added business logic comments for each method
+- `fetchOrCreatePrimaryBoard()` - Auto-naming, primary presence validation
+- `addNode()` - Duplicate detection using Board helper
+- `togglePin()` - Toggle operation logic
+- `updateBoardTransform()` - Validation and clamping to min/max bounds
+- All CRUD delegated to `boardRepository`
+
+**Updated ServiceContainer** - Added `boardRepository` to repositories section with proper layer separation comments.
+
+**Files Created:**
+- `Data/BoardRepository.swift` - Complete CRUD repository (221 lines)
+
+**Files Modified:**
+- `Services/BoardManager.swift` - Now uses BoardRepository exclusively
+- `Infrastructure/ServiceContainer.swift` - Added boardRepository property
+
+**Architecture Achievement:**
+- **Complete separation of data access and business logic**
+- **Platform-independent** - All SwiftData code isolated in BoardRepository
+- **Single Responsibility** - BoardManager = business logic, BoardRepository = data access
+- Ready for port to SQL, CoreData, or any other persistence layer
+
+**Status:** 🟡 Resolved - Not Verified
 
 ---
 
