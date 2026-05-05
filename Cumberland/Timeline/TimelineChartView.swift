@@ -21,6 +21,7 @@ struct TimelineChartView: View {
     let timeline: Card // kind == .timelines
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.services) private var services
     @Environment(\.colorScheme) private var scheme
     @EnvironmentObject private var themeManager: ThemeManager
     #if os(macOS) || os(visionOS)
@@ -275,14 +276,12 @@ struct TimelineChartView: View {
 
     // Find the CardEdge between a scene and this timeline
     private func findEdge(from scene: Card, to timeline: Card) -> CardEdge? {
-        let sceneID: UUID? = scene.id
-        let timelineID: UUID? = timeline.id
-        let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { edge in
-                edge.from?.id == sceneID && edge.to?.id == timelineID
-            }
-        )
-        return try? modelContext.fetch(fetch).first
+        guard let edgeRepo = services?.edgeRepository else {
+            return nil
+        }
+        // Fetch all outgoing edges from the scene and find the one pointing to this timeline
+        let edges = edgeRepo.fetchOutgoing(from: scene)
+        return edges.first { $0.to?.id == timeline.id }
     }
 
     // MARK: - Header
@@ -1308,17 +1307,23 @@ struct TimelineChartView: View {
         timelineMode = (timeline.calendarSystem != nil) ? .temporal : .ordinal
 
         // 2) Fetch Scene → Timeline edges (forward direction) regardless of specific type code.
-        let tlIDOpt: UUID? = timeline.id
-        let sceneEdgesFetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate {
-                $0.to?.id == tlIDOpt
-            },
-            sortBy: [
-                SortDescriptor(\.sortIndex, order: .forward),
-                SortDescriptor(\.createdAt, order: .forward)
-            ]
-        )
-        let edges = (try? modelContext.fetch(sceneEdgesFetch)) ?? []
+        guard let edgeRepo = services?.edgeRepository else {
+            #if DEBUG
+            print("[TimelineChartView] EdgeRepository not available in ServiceContainer")
+            #endif
+            scenes = []
+            return
+        }
+
+        // Fetch incoming edges to timeline, then filter for scenes and sort
+        var edges = edgeRepo.fetchIncoming(to: timeline)
+        edges = edges.filter { $0.from?.kind == .scenes }
+        edges.sort { lhs, rhs in
+            if lhs.sortIndex != rhs.sortIndex {
+                return lhs.sortIndex < rhs.sortIndex
+            }
+            return lhs.createdAt < rhs.createdAt
+        }
 
         // 3) Build scene rows
         var rows: [SceneRow] = []
@@ -1403,19 +1408,16 @@ struct TimelineChartView: View {
         }
 
         // Characters
-        let charCodeOpt: String? = characterSceneCode
-        let charSceneFetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate {
-                $0.type?.code == charCodeOpt
-            }
-        )
-        let allCharEdges = (try? modelContext.fetch(charSceneFetch)) ?? []
-
         let sceneIDs = Set(rows.map(\.id))
         var charToScenes: [UUID: [UUID]] = [:]
         var charCards: [UUID: Card] = [:]
 
-        for e in allCharEdges {
+        // Fetch all character→scene edges by fetching all edges and filtering
+        // (EdgeRepository doesn't have a fetch-by-code method, only fetch-by-RelationType)
+        let allEdges = edgeRepo.fetchAll()
+        let charSceneEdges = allEdges.filter { $0.type?.code == characterSceneCode }
+
+        for e in charSceneEdges {
             guard let ch = e.from, ch.kind == .characters,
                   let sc = e.to, sc.kind == .scenes,
                   sceneIDs.contains(sc.id) else { continue }
@@ -1430,18 +1432,12 @@ struct TimelineChartView: View {
         participationCharacters = charToScenes
 
         // Chapters (Scene -> Chapter using "part-of/has-scene")
-        let chapCodeOpt: String? = chapterSceneCode
-        let chapSceneFetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate {
-                $0.type?.code == chapCodeOpt
-            }
-        )
-        let allChapEdges = (try? modelContext.fetch(chapSceneFetch)) ?? []
+        let chapSceneEdges = allEdges.filter { $0.type?.code == chapterSceneCode }
 
         var chapToScenes: [UUID: [UUID]] = [:] // chapter.id -> [scene.id]
         var chapCards: [UUID: Card] = [:]
 
-        for e in allChapEdges {
+        for e in chapSceneEdges {
             guard let sc = e.from, sc.kind == .scenes,
                   let ch = e.to, ch.kind == .chapters,
                   sceneIDs.contains(sc.id) else { continue }
@@ -1532,13 +1528,16 @@ struct TimelineChartView: View {
     @MainActor
     private func persistSceneOrder(newOrderIDs: [UUID]) async {
         guard !newOrderIDs.isEmpty else { return }
-        let tlIDOpt: UUID? = timeline.id
-        let scenesKindRaw: String = Kinds.scenes.rawValue
+        guard let edgeRepo = services?.edgeRepository else {
+            #if DEBUG
+            print("[TimelineChartView] EdgeRepository not available for persistSceneOrder")
+            #endif
+            return
+        }
+
         // Fetch all Scene→Timeline edges for this timeline (any type), keyed by scene ID
-        let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.to?.id == tlIDOpt && $0.from?.kindRaw == scenesKindRaw }
-        )
-        let edges = (try? modelContext.fetch(fetch)) ?? []
+        var edges = edgeRepo.fetchIncoming(to: timeline)
+        edges = edges.filter { $0.from?.kind == .scenes }
 
         // Map: sceneID -> edge
         var byScene: [UUID: CardEdge] = [:]
@@ -1548,21 +1547,19 @@ struct TimelineChartView: View {
             }
         }
 
-        // Apply new 1-based sortIndex in the order received
+        // Build map of edges to new indices
+        var edgesWithIndices: [CardEdge: Double] = [:]
         var idx = 1.0
-        var touched = false
         for sid in newOrderIDs {
-            if let edge = byScene[sid] {
-                if edge.sortIndex != idx {
-                    edge.sortIndex = idx
-                    touched = true
-                }
-                idx += 1
+            if let edge = byScene[sid], edge.sortIndex != idx {
+                edgesWithIndices[edge] = idx
             }
+            idx += 1
         }
 
-        if touched {
-            try? modelContext.save()
+        // Update all sort indices at once
+        if !edgesWithIndices.isEmpty {
+            try? edgeRepo.updateSortIndices(edgesWithIndices)
         }
     }
 
@@ -1730,47 +1727,50 @@ private struct ReorderScenesSheet: View {
     let container = try! ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
     let ctx = container.mainContext
 
+    // Create repositories and services
+    let cardRepo = CardRepository(modelContext: ctx)
+    let edgeRepo = EdgeRepository(modelContext: ctx)
+
     // Seed types
     let sceneTimeline = RelationType(code: "describes/described-by", forwardLabel: "describes", inverseLabel: "described by", sourceKind: .scenes, targetKind: .timelines)
     let appearsIn = RelationType(code: "appears-in/is-appeared-by", forwardLabel: "appears in", inverseLabel: "is appeared by", sourceKind: .characters, targetKind: .scenes)
     let partOf = RelationType(code: "part-of/has-scene", forwardLabel: "part of", inverseLabel: "has scene", sourceKind: .scenes, targetKind: .chapters)
     ctx.insert(sceneTimeline); ctx.insert(appearsIn); ctx.insert(partOf)
 
-    // Timeline + scenes
-    let tl = Card(kind: .timelines, name: "Arc A", subtitle: "", detailedText: "")
-    let s1 = Card(kind: .scenes, name: "Opening", subtitle: "", detailedText: "")
-    let s2 = Card(kind: .scenes, name: "Market Chase", subtitle: "", detailedText: "")
-    let s3 = Card(kind: .scenes, name: "Cliffhanger", subtitle: "", detailedText: "")
-    ctx.insert(tl); ctx.insert(s1); ctx.insert(s2); ctx.insert(s3)
+    // Timeline + scenes using CardRepository
+    let tl = try! cardRepo.createCard(kind: .timelines, name: "Arc A")
+    let s1 = try! cardRepo.createCard(kind: .scenes, name: "Opening")
+    let s2 = try! cardRepo.createCard(kind: .scenes, name: "Market Chase")
+    let s3 = try! cardRepo.createCard(kind: .scenes, name: "Cliffhanger")
 
-    // Order with sortIndex
-    ctx.insert(CardEdge(from: s1, to: tl, type: sceneTimeline, sortIndex: 1))
-    ctx.insert(CardEdge(from: s2, to: tl, type: sceneTimeline, sortIndex: 2))
-    ctx.insert(CardEdge(from: s3, to: tl, type: sceneTimeline, sortIndex: 3))
+    // Create Scene→Timeline relationships using EdgeRepository
+    try! edgeRepo.createRelationship(from: s1, to: tl, relationType: sceneTimeline, sortIndex: 1)
+    try! edgeRepo.createRelationship(from: s2, to: tl, relationType: sceneTimeline, sortIndex: 2)
+    try! edgeRepo.createRelationship(from: s3, to: tl, relationType: sceneTimeline, sortIndex: 3)
 
     // Characters + participation
-    let c1 = Card(kind: .characters, name: "Mira", subtitle: "", detailedText: "")
-    let c2 = Card(kind: .characters, name: "Aiden", subtitle: "", detailedText: "")
-    ctx.insert(c1); ctx.insert(c2)
+    let c1 = try! cardRepo.createCard(kind: .characters, name: "Mira")
+    let c2 = try! cardRepo.createCard(kind: .characters, name: "Aiden")
 
-    ctx.insert(CardEdge(from: c1, to: s1, type: appearsIn))
-    ctx.insert(CardEdge(from: c1, to: s2, type: appearsIn))
-    ctx.insert(CardEdge(from: c2, to: s2, type: appearsIn))
-    ctx.insert(CardEdge(from: c2, to: s3, type: appearsIn))
+    try! edgeRepo.createRelationship(from: c1, to: s1, relationType: appearsIn)
+    try! edgeRepo.createRelationship(from: c1, to: s2, relationType: appearsIn)
+    try! edgeRepo.createRelationship(from: c2, to: s2, relationType: appearsIn)
+    try! edgeRepo.createRelationship(from: c2, to: s3, relationType: appearsIn)
 
     // Chapters + participation (Scene -> Chapter via "part-of/has-scene")
-    let ch1 = Card(kind: .chapters, name: "Chapter 1", subtitle: "", detailedText: "")
-    let ch2 = Card(kind: .chapters, name: "Chapter 2", subtitle: "", detailedText: "")
-    ctx.insert(ch1); ctx.insert(ch2)
+    let ch1 = try! cardRepo.createCard(kind: .chapters, name: "Chapter 1")
+    let ch2 = try! cardRepo.createCard(kind: .chapters, name: "Chapter 2")
 
     // s1 part of ch1, s2 part of ch1, s3 part of ch2
-    ctx.insert(CardEdge(from: s1, to: ch1, type: partOf))
-    ctx.insert(CardEdge(from: s2, to: ch1, type: partOf))
-    ctx.insert(CardEdge(from: s3, to: ch2, type: partOf))
+    try! edgeRepo.createRelationship(from: s1, to: ch1, relationType: partOf)
+    try! edgeRepo.createRelationship(from: s2, to: ch1, relationType: partOf)
+    try! edgeRepo.createRelationship(from: s3, to: ch2, relationType: partOf)
 
-    try? ctx.save()
+    // Create service container for preview
+    let services = ServiceContainer(modelContext: ctx)
 
     return TimelineChartView(timeline: tl)
         .modelContainer(container)
+        .serviceContainer(services)
         .frame(minWidth: 820, minHeight: 520)
 }

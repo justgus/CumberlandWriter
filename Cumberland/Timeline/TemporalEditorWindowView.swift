@@ -26,6 +26,7 @@ struct TemporalEditorWindowView: View {
     let editorRequest: AppModel.TemporalEditorRequest
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.services) private var services
     @Environment(\.dismiss) private var dismiss
 
     @State private var scene: Card?
@@ -63,32 +64,25 @@ struct TemporalEditorWindowView: View {
         print("🪟 [TemporalEditorWindowView] TimelineID: \(editorRequest.timelineID)")
         print("🪟 [TemporalEditorWindowView] ModelContext: \(modelContext)")
 
-        // Fetch scene
-        let sceneFetch = FetchDescriptor<Card>(
-            predicate: #Predicate { card in
-                card.id == editorRequest.sceneID
-            }
-        )
-        scene = try? modelContext.fetch(sceneFetch).first
+        guard let cardRepo = services?.cardRepository,
+              let edgeRepo = services?.edgeRepository else {
+            print("🪟 [TemporalEditorWindowView] ⚠️ Repositories not available in ServiceContainer")
+            return
+        }
+
+        // Fetch scene using CardRepository
+        scene = cardRepo.fetch(byUUID: editorRequest.sceneID)
         print("🪟 [TemporalEditorWindowView] Scene fetched: \(scene?.name ?? "nil")")
 
-        // Fetch timeline
-        let timelineFetch = FetchDescriptor<Card>(
-            predicate: #Predicate { card in
-                card.id == editorRequest.timelineID
-            }
-        )
-        timeline = try? modelContext.fetch(timelineFetch).first
+        // Fetch timeline using CardRepository
+        timeline = cardRepo.fetch(byUUID: editorRequest.timelineID)
         print("🪟 [TemporalEditorWindowView] Timeline fetched: \(timeline?.name ?? "nil")")
 
-        // Fetch edge using from/to relationship (same as findEdge in TimelineChartView)
-        if let sceneID = scene?.id, let timelineID = timeline?.id {
-            let edgeFetch = FetchDescriptor<CardEdge>(
-                predicate: #Predicate { edge in
-                    edge.from?.id == sceneID && edge.to?.id == timelineID
-                }
-            )
-            edge = try? modelContext.fetch(edgeFetch).first
+        // Fetch edge using EdgeRepository
+        if let sceneCard = scene, let timelineCard = timeline {
+            // Fetch all outgoing edges from scene and find the one pointing to this timeline
+            let edges = edgeRepo.fetchOutgoing(from: sceneCard)
+            edge = edges.first { $0.to?.id == timelineCard.id }
 
             if let edge = edge {
                 print("🪟 [TemporalEditorWindowView] Edge found:")

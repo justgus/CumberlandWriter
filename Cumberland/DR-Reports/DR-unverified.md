@@ -4,28 +4,10 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **84 open DRs**
+**Status:** Currently **81 open DRs**
 
 ---
 
-## 🔴 DR-0129: ER-0022 Phase 2 Incomplete - TimelineChartView Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** Timeline/TimelineChartView.swift
-**Severity:** High - Creates edges directly
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-TimelineChartView creates timeline-to-scene edges directly instead of using EdgeRepository. This file was never migrated as part of ER-0022 Phase 2.
-
-**Impact:**
-- Timeline relationships bypass EdgeRepository
-- No reverse edges created for timeline relationships
-- Violates ER-0022 architecture
-
-**Status:** 🔴 Identified - Not Resolved
-
----
 
 ## 🔴 DR-0130: ER-0022 Phase 2 Incomplete - AggregateTextView.swift Not Migrated
 
@@ -209,18 +191,6 @@ TimelineChartView creates timeline-to-scene edges directly instead of using Edge
 
 ---
 
-## 🔴 DR-0144: ER-0022 Phase 2 Incomplete - SceneTemporalPositionEditor.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** Timeline/SceneTemporalPositionEditor.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly. Timeline feature bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
 
 ## 🔴 DR-0145: ER-0022 Phase 2 Incomplete - ManuscriptWritingSurfaceView.swift Not Migrated
 
@@ -988,26 +958,6 @@ CardRelationshipOperations.swift has 6 locations calling `modelContext.delete()`
 
 ---
 
-## 🔴 DR-0193: ER-0022 Phase 2 Incomplete - CalendarSystemEditor.swift Bypasses Repository
-
-**Reported:** 2026-04-27
-**Component:** Timeline/CalendarSystemEditor.swift
-**Severity:** High - Violates ER-0022 repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-CalendarSystemEditor.swift:409 calls `modelContext.delete(calendar)` directly instead of using appropriate repository method.
-
-**Impact:**
-- Bypasses centralized deletion logic
-- No cleanup for calendar system
-- Violates single-responsibility principle
-
-**Location:** `Timeline/CalendarSystemEditor.swift:409`
-
-**Status:** 🔴 Identified - Not Resolved
-
----
 
 ## 🔴 DR-0194: ER-0022 Phase 2 Incomplete - RelationTypesManagerView.swift Bypasses Repository
 

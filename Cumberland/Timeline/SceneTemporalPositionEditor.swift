@@ -19,6 +19,7 @@ struct SceneTemporalPositionEditor: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.services) private var services
     @Environment(\.colorScheme) private var scheme
 
     // Editable temporal properties
@@ -819,10 +820,14 @@ struct SceneTemporalPositionEditor: View {
         print("💾 [SceneTemporalPositionEditor] Edge.temporalPosition after assignment: \(edge.temporalPosition ?? Date())")
         print("💾 [SceneTemporalPositionEditor] Edge.duration after assignment: \(edge.duration ?? 0)")
 
-        // Save context
+        // Save context using EdgeRepository
         do {
-            try modelContext.save()
-            print("✅ [SceneTemporalPositionEditor] Context saved successfully")
+            guard let edgeRepo = services?.edgeRepository else {
+                print("❌ [SceneTemporalPositionEditor] EdgeRepository not available")
+                return
+            }
+            try edgeRepo.save()
+            print("✅ [SceneTemporalPositionEditor] Context saved successfully via EdgeRepository")
             print("✅ [SceneTemporalPositionEditor] Edge.temporalPosition after save: \(edge.temporalPosition ?? Date())")
             print("✅ [SceneTemporalPositionEditor] Edge.duration after save: \(edge.duration ?? 0)")
         } catch {
@@ -838,47 +843,60 @@ struct SceneTemporalPositionEditor: View {
         edge.temporalPosition = nil
         edge.duration = nil
 
-        // Save context
-        try? modelContext.save()
+        // Save context using EdgeRepository
+        guard let edgeRepo = services?.edgeRepository else { return }
+        try? edgeRepo.save()
 
         dismiss()
     }
 }
 
 #Preview {
-    let schema = Schema([Card.self, CardEdge.self, RelationType.self, CalendarSystem.self])
-    let container = try! ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
-    let ctx = container.mainContext
+    @Previewable @State var previewData = {
+        let schema = Schema([Card.self, CardEdge.self, RelationType.self, CalendarSystem.self])
+        let container = try! ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
+        let ctx = container.mainContext
 
-    // Create test data
-    let calendar = CalendarSystem.gregorian()
-    ctx.insert(calendar)
+        // Create repositories
+        let cardRepo = CardRepository(modelContext: ctx)
+        let edgeRepo = EdgeRepository(modelContext: ctx)
 
-    let timeline = Card(kind: .timelines, name: "Chapter 1", subtitle: "", detailedText: "")
-    timeline.calendarSystem = calendar
-    timeline.epochDate = Date()
-    ctx.insert(timeline)
+        // Create test data using repositories
+        let calendar = CalendarSystem.gregorian()
+        ctx.insert(calendar)
 
-    let scene = Card(kind: .scenes, name: "Opening Scene", subtitle: "", detailedText: "")
-    ctx.insert(scene)
+        let timeline = try! cardRepo.createCard(kind: .timelines, name: "Chapter 1")
+        timeline.calendarSystem = calendar
+        timeline.epochDate = Date()
 
-    let relType = RelationType(
-        code: "describes/described-by",
-        forwardLabel: "describes",
-        inverseLabel: "described by",
-        sourceKind: .scenes,
-        targetKind: .timelines
-    )
-    ctx.insert(relType)
+        let scene = try! cardRepo.createCard(kind: .scenes, name: "Opening Scene")
 
-    let edge = CardEdge(from: scene, to: timeline, type: relType)
-    edge.temporalPosition = Date()
-    edge.duration = 3600
-    ctx.insert(edge)
+        let relType = RelationType(
+            code: "describes/described-by",
+            forwardLabel: "describes",
+            inverseLabel: "described by",
+            sourceKind: .scenes,
+            targetKind: .timelines
+        )
+        ctx.insert(relType)
 
-    try? ctx.save()
+        // Create edge using EdgeRepository
+        try! edgeRepo.createRelationship(from: scene, to: timeline, relationType: relType)
 
-    return SceneTemporalPositionEditor(scene: scene, timeline: timeline, edge: edge)
-        .modelContainer(container)
+        // Fetch the edge back to set temporal properties
+        let edges = edgeRepo.fetchOutgoing(from: scene)
+        let edge = edges.first { $0.to?.id == timeline.id }!
+        edge.temporalPosition = Date()
+        edge.duration = 3600
+
+        // Create service container
+        let services = ServiceContainer(modelContext: ctx)
+
+        return (container, scene, timeline, edge, services)
+    }()
+
+    SceneTemporalPositionEditor(scene: previewData.1, timeline: previewData.2, edge: previewData.3)
+        .modelContainer(previewData.0)
+        .serviceContainer(previewData.4)
 }
 

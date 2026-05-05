@@ -21,6 +21,7 @@ struct CalendarSystemEditor: View {
     // MARK: - Environment
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.services) private var services
     @Environment(\.dismiss) private var dismiss
 
     // MARK: - Properties
@@ -384,30 +385,47 @@ struct CalendarSystemEditor: View {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedDescription = calendarDescription.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if let calendar = calendar {
-            // Update existing calendar
-            calendar.name = trimmedName
-            calendar.calendarDescription = trimmedDescription.isEmpty ? nil : trimmedDescription
-            calendar.divisions = divisions
-            calendar.modifiedAt = Date()
-        } else {
-            // Create new calendar
-            let newCalendar = CalendarSystem(
-                name: trimmedName,
-                divisions: divisions
-            )
-            newCalendar.calendarDescription = trimmedDescription.isEmpty ? nil : trimmedDescription
-            modelContext.insert(newCalendar)
+        guard let calendarRepo = services?.calendarRepository else {
+            print("[CalendarSystemEditor] CalendarRepository not available")
+            return
         }
 
-        dismiss()
+        do {
+            if let calendar = calendar {
+                // Update existing calendar using repository
+                try calendarRepo.updateCalendar(
+                    calendar,
+                    name: trimmedName,
+                    divisions: divisions,
+                    description: trimmedDescription.isEmpty ? nil : trimmedDescription
+                )
+            } else {
+                // Create new calendar using repository
+                try calendarRepo.createCalendar(
+                    name: trimmedName,
+                    divisions: divisions,
+                    description: trimmedDescription.isEmpty ? nil : trimmedDescription
+                )
+            }
+            dismiss()
+        } catch {
+            print("[CalendarSystemEditor] Failed to save calendar: \(error)")
+            validationError = "Failed to save calendar: \(error.localizedDescription)"
+        }
     }
 
     /// Delete calendar
     private func deleteCalendar() {
-        guard let calendar = calendar else { return }
-        modelContext.delete(calendar)
-        dismiss()
+        guard let calendar = calendar,
+              let calendarRepo = services?.calendarRepository else { return }
+
+        do {
+            try calendarRepo.deleteCalendar(calendar)
+            dismiss()
+        } catch {
+            print("[CalendarSystemEditor] Failed to delete calendar: \(error)")
+            validationError = "Failed to delete calendar: \(error.localizedDescription)"
+        }
     }
 }
 

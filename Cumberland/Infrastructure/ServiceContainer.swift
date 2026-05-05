@@ -56,6 +56,9 @@ final class ServiceContainer {
     /// Repository for Board and BoardNode data access (DR-0203)
     let boardRepository: BoardRepository
 
+    /// Repository for CalendarSystem data access (DR-0193)
+    let calendarRepository: CalendarSystemRepository
+
     /// Service for common query patterns
     let queryService: QueryService
 
@@ -98,6 +101,7 @@ final class ServiceContainer {
         self.edgeRepository = EdgeRepository(modelContext: modelContext)
         self.structureRepository = StructureRepository(modelContext: modelContext)
         self.boardRepository = BoardRepository(modelContext: modelContext)
+        self.calendarRepository = CalendarSystemRepository(modelContext: modelContext)
         self.queryService = QueryService(modelContext: modelContext)
 
         // Initialize services (Business Logic Layer - uses repositories internally)

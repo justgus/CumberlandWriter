@@ -349,4 +349,97 @@ MurderBoardView contained 68 lines of low-level database operations in `deleteEd
 
 ---
 
+## DR-0129: ER-0022 Phase 2 Incomplete - Timeline Feature Not Migrated
+
+**Reported:** 2026-04-27
+**Verified:** 2026-04-30
+**Component:** Timeline/TimelineChartView.swift, Timeline/TemporalEditorWindowView.swift, Timeline/MultiTimelineGraphView.swift
+**Severity:** High - Direct database operations bypass repositories
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+**Related DR:** DR-0144, DR-0193
+
+**Issue:**
+Timeline feature files contain direct database operations instead of using repositories. Three files discovered during migration:
+- TimelineChartView: Creates edges directly, uses FetchDescriptor for Card and CardEdge
+- TemporalEditorWindowView: Uses FetchDescriptor for Card (2x) and CardEdge (1x) lookups
+- MultiTimelineGraphView: Uses FetchDescriptor for Card (1x) and CardEdge (4x) queries
+
+**Impact:**
+- Timeline relationships bypass EdgeRepository and CardRepository
+- No reverse edges created for timeline relationships
+- Direct Card fetches bypass CardRepository
+- Violates ER-0022 architecture
+- Platform portability compromised
+
+**Resolution:** (2026-04-30)
+
+**FILE 1: TimelineChartView.swift**
+
+**Edge Query Migrations:**
+
+1. **findEdge() function** (lines 277-285) - Migrated from direct `FetchDescriptor<CardEdge>` to `EdgeRepository.fetchOutgoing()` with filtering.
+
+2. **loadData() Scene→Timeline edges** (lines 1311-1320) - Replaced direct `FetchDescriptor` with `EdgeRepository.fetchIncoming()`, then filtered for scenes and sorted in-memory by `sortIndex` and `createdAt`.
+
+3. **loadData() Character→Scene edges** (lines 1406-1411) - Replaced direct `FetchDescriptor` with `EdgeRepository.fetchAll()` and filtering by type code.
+
+4. **loadData() Scene→Chapter edges** (lines 1433-1438) - Migrated to use `EdgeRepository.fetchAll()` with filtering (reuses allEdges from character fetch for efficiency).
+
+5. **persistSceneOrder()** (lines 1537-1566) - Replaced direct `FetchDescriptor` and `modelContext.save()` with `EdgeRepository.fetchIncoming()` and `EdgeRepository.updateSortIndices()`.
+
+**Preview Migration:**
+
+6. **Preview code** (lines 1727-1773) - Complete migration to repository pattern:
+   - Cards created via `CardRepository.createCard()`
+   - All edge creation via `EdgeRepository.createRelationship()`
+   - Added `ServiceContainer` injection for preview
+   - Removed all direct `CardEdge()` instantiations (12 instances)
+
+**FILE 2: TemporalEditorWindowView.swift (macOS only)**
+
+**Card and Edge Fetches:**
+
+1. **loadEntities() Scene fetch** (line 67-72) - Replaced `FetchDescriptor<Card>` with `CardRepository.fetch(byUUID:)`.
+
+2. **loadEntities() Timeline fetch** (line 76-81) - Replaced `FetchDescriptor<Card>` with `CardRepository.fetch(byUUID:)`.
+
+3. **loadEntities() Edge fetch** (line 86-91) - Replaced `FetchDescriptor<CardEdge>` with `EdgeRepository.fetchOutgoing()` and filtering.
+
+**FILE 3: MultiTimelineGraphView.swift**
+
+**Card and Edge Queries:**
+
+1. **loadData() Timeline fetch** (line 479-486) - Replaced `FetchDescriptor<Card>` with `CardRepository.fetchTimelineCards()` and in-memory filtering by calendar system.
+
+2. **loadData() Chronicle→Timeline edges** (line 497-502) - Replaced `FetchDescriptor<CardEdge>` with `EdgeRepository.fetchIncoming()` and filtering for chronicles.
+
+3. **loadData() Scene→Timeline edges** (line 526-532) - Replaced `FetchDescriptor<CardEdge>` with `EdgeRepository.fetchIncoming()` and filtering for scenes, then sorted by sortIndex.
+
+4. **loadData() Scene→Chronicle edges** (line 545-550) - Replaced `FetchDescriptor<CardEdge>` with `EdgeRepository.fetchOutgoing()` and filtering for chronicles.
+
+**Architecture Improvements:**
+
+- Added `@Environment(\.services)` to all 3 files for repository access
+- All 11 `FetchDescriptor` instances eliminated (5 CardEdge + 6 Card)
+- All direct `modelContext.fetch()` calls eliminated
+- All direct `CardEdge()` instantiations eliminated (12 in preview)
+- Proper error handling with guard statements and debug logging
+
+**Final Achievement:**
+- ✅ ZERO direct Card instantiations
+- ✅ ZERO direct CardEdge instantiations
+- ✅ ZERO FetchDescriptor queries (Card or CardEdge)
+- ✅ ZERO modelContext.fetch/insert/save/delete calls
+- ✅ 100% repository pattern compliance across entire Timeline feature
+- ✅ Platform independence achieved
+
+**Files Modified:**
+- `Timeline/TimelineChartView.swift` - 7 migrations (5 edge queries + preview)
+- `Timeline/TemporalEditorWindowView.swift` - 3 migrations (2 Card + 1 CardEdge)
+- `Timeline/MultiTimelineGraphView.swift` - 4 migrations (1 Card + 3 CardEdge)
+
+**Status:** ✅ Resolved - Verified
+
+---
+
 *Last Updated: 2026-04-30*

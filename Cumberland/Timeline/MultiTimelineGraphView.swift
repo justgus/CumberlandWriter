@@ -16,6 +16,7 @@ struct MultiTimelineGraphView: View {
     let calendarSystem: CalendarSystem
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.services) private var services
     @Environment(\.colorScheme) private var scheme
     @EnvironmentObject private var themeManager: ThemeManager
 
@@ -473,33 +474,30 @@ struct MultiTimelineGraphView: View {
 
     @MainActor
     private func loadData() async {
-        // Query ONLY timelines using this calendar system
-        let calID: UUID? = calendarSystem.id
-        let timelineKindRaw = Kinds.timelines.rawValue
-        let fetch = FetchDescriptor<Card>(
-            predicate: #Predicate<Card> { card in
-                card.kindRaw == timelineKindRaw && card.calendarSystem?.id == calID
-            },
-            sortBy: [SortDescriptor(\.name, order: .forward)]
-        )
+        guard let cardRepo = services?.cardRepository,
+              let edgeRepo = services?.edgeRepository else {
+            #if DEBUG
+            print("[MultiTimelineGraphView] Repositories not available in ServiceContainer")
+            #endif
+            allTimelines = []
+            timelineTracks = []
+            return
+        }
 
-        let timelines = (try? modelContext.fetch(fetch)) ?? []
+        // Query ONLY timelines using this calendar system
+        // CardRepository doesn't have a fetch-by-calendar method, so we fetch all timelines and filter
+        let allTimelineCards = cardRepo.fetchTimelineCards()
+        let timelines = allTimelineCards.filter { $0.calendarSystem?.id == calendarSystem.id }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         allTimelines = timelines
 
         // For each timeline, build a track with chronicles and scenes
         var tracks: [TimelineTrack] = []
         for (index, timeline) in timelines.enumerated() {
-            let tlID: UUID? = timeline.id
-            let sceneKindRaw = Kinds.scenes.rawValue
-            let chronicleKindRaw = Kinds.chronicles.rawValue
-
             // 1. Fetch Chronicles related to this Timeline (Chronicle→Timeline edges)
-            let chronicleEdgeFetch = FetchDescriptor<CardEdge>(
-                predicate: #Predicate<CardEdge> { edge in
-                    edge.to?.id == tlID && edge.from?.kindRaw == chronicleKindRaw
-                }
-            )
-            let chronicleEdges = (try? modelContext.fetch(chronicleEdgeFetch)) ?? []
+            // Use fetchIncoming and filter for chronicles
+            var chronicleEdges = edgeRepo.fetchIncoming(to: timeline)
+            chronicleEdges = chronicleEdges.filter { $0.from?.kind == .chronicles }
 
             // Build ChronicleSpan objects
             var chronicleSpans: [ChronicleSpan] = []
@@ -523,13 +521,10 @@ struct MultiTimelineGraphView: View {
             }
 
             // 2. Fetch Scenes related to this Timeline (Scene→Timeline edges)
-            let sceneEdgeFetch = FetchDescriptor<CardEdge>(
-                predicate: #Predicate<CardEdge> { edge in
-                    edge.to?.id == tlID && edge.from?.kindRaw == sceneKindRaw
-                },
-                sortBy: [SortDescriptor(\.sortIndex, order: .forward)]
-            )
-            let sceneEdges = (try? modelContext.fetch(sceneEdgeFetch)) ?? []
+            // Reuse the incoming edges and filter for scenes, then sort
+            var sceneEdges = edgeRepo.fetchIncoming(to: timeline)
+            sceneEdges = sceneEdges.filter { $0.from?.kind == .scenes }
+            sceneEdges.sort { $0.sortIndex < $1.sortIndex }
 
             // Build SceneMarker objects
             var sceneMarkers: [SceneMarker] = []
@@ -541,13 +536,9 @@ struct MultiTimelineGraphView: View {
                 }
 
                 // 3. Check if this Scene is grouped under a Chronicle (Scene→Chronicle edge)
-                let sceneID: UUID? = scene.id
-                let chronicleForSceneFetch = FetchDescriptor<CardEdge>(
-                    predicate: #Predicate<CardEdge> { chronicleEdge in
-                        chronicleEdge.from?.id == sceneID && chronicleEdge.to?.kindRaw == chronicleKindRaw
-                    }
-                )
-                let chronicleForSceneEdges = (try? modelContext.fetch(chronicleForSceneFetch)) ?? []
+                // Fetch outgoing edges from scene and find chronicle relationships
+                let sceneOutgoingEdges = edgeRepo.fetchOutgoing(from: scene)
+                let chronicleForSceneEdges = sceneOutgoingEdges.filter { $0.to?.kind == .chronicles }
                 let parentChronicle = chronicleForSceneEdges.first?.to
 
                 let marker = SceneMarker(
@@ -587,7 +578,7 @@ struct MultiTimelineGraphView: View {
 
         // Enable all tracks by default
         if enabledTrackIDs.isEmpty {
-            enabledTrackIDs = Set(timelines.map(\.id))
+            enabledTrackIDs = Set(timelines.map { $0.id })
         }
 
         // Use nominal zoom level (month view) instead of trying to fit all scenes
