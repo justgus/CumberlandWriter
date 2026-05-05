@@ -69,23 +69,40 @@ final class EdgeRepository {
     /// - Parameters:
     ///   - cardA: First card
     ///   - cardB: Second card
-    /// - Returns: Array of edges between these two cards
-    func fetchEdges(between cardA: Card, and cardB: Card) -> [CardEdge] {
+    ///   - relationType
+    /// - Returns: Array of edges between these two cards filtered by the given RelationType.  If RelationType is passed as nil, then the function returns all edges between the two cards.
+    func fetchEdges(between cardA: Card, and cardB: Card, ofType relationType: RelationType? = nil) -> [CardEdge] {
         let aID: UUID? = cardA.id
         let bID: UUID? = cardB.id
+        let relationTypeCode: String? = relationType?.code
 
-        let abFetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from?.id == aID && $0.to?.id == bID }
-        )
-        let baFetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from?.id == bID && $0.to?.id == aID }
-        )
+        if let typeCode = relationTypeCode {
+            let abFetch = FetchDescriptor<CardEdge>(
+                predicate: #Predicate { $0.from?.id == aID && $0.to?.id == bID && $0.type?.code == typeCode }
+            )
+            let baFetch = FetchDescriptor<CardEdge>(
+                predicate: #Predicate { $0.from?.id == bID && $0.to?.id == aID && $0.type?.code == typeCode }
+            )
 
-        let ab = (try? modelContext.fetch(abFetch)) ?? []
-        let ba = (try? modelContext.fetch(baFetch)) ?? []
+            let ab = (try? modelContext.fetch(abFetch)) ?? []
+            let ba = (try? modelContext.fetch(baFetch)) ?? []
 
-        return ab + ba
-    }
+            return ab + ba
+        }
+        else { //Get all edges between the two cards
+            let abFetch = FetchDescriptor<CardEdge>(
+                predicate: #Predicate { $0.from?.id == aID && $0.to?.id == bID }
+            )
+            let baFetch = FetchDescriptor<CardEdge>(
+                predicate: #Predicate { $0.from?.id == bID && $0.to?.id == aID }
+            )
+
+            let ab = (try? modelContext.fetch(abFetch)) ?? []
+            let ba = (try? modelContext.fetch(baFetch)) ?? []
+
+            return ab + ba
+        }
+    } //end func fetchEdges
 
     /// Fetch edges of a specific relationship type
     /// - Parameter relationType: The relationship type
@@ -110,6 +127,40 @@ final class EdgeRepository {
             predicate: #Predicate { $0.from?.id == cardID && $0.type?.code == typeCode }
         )
         return (try? modelContext.fetch(fetch)) ?? []
+    }
+    
+    func fetchReverseRelationship(for edge: CardEdge) throws -> CardEdge? {
+        let sourceID: String? = edge.from?.id.uuidString
+        let targetID: String? = edge.to?.id.uuidString
+        let relationTypeName: String? = edge.type?.forwardLabel
+        guard let to = edge.to else {
+            throw EdgeRepositoryError.malformedEdge(source: sourceID ?? "nil", target: targetID ?? "nil", relationType: relationTypeName ?? "nil")
+        }
+        guard let from = edge.from else {
+            throw EdgeRepositoryError.malformedEdge(source: sourceID ?? "nil", target: targetID ?? "nil", relationType: relationTypeName ?? "nil")
+        }
+        guard let relationType = edge.type else {
+            throw EdgeRepositoryError.malformedEdge(source: sourceID ?? "nil", target: targetID ?? "nil", relationType: relationTypeName ?? "nil")
+        }
+        
+        // Parse the bidirectional code to get the reverse relationship type
+        // e.g., "part-of/has-scene" → reverse is "has-scene/part-of"
+        let reverseCode = reverseRelationCode(relationType.code)
+
+        let typeFetch = FetchDescriptor<RelationType>(
+            predicate: #Predicate { $0.code == reverseCode }
+        )
+        guard let reverseRelationType = try modelContext.fetch(typeFetch).first else {
+            throw EdgeRepositoryError.relationTypeNotFound(reverseCode)
+        }
+        
+        let between = fetchEdges(between: to , and: from, ofType: reverseRelationType)
+        
+        if between.count > 0 {
+            return between.first
+        } else {
+            return nil
+        }
     }
 
     /// Check if an edge exists between two cards with a specific type
@@ -257,6 +308,23 @@ final class EdgeRepository {
 
         try modelContext.save()
     }
+    
+    /// Delete an edge from the context
+    /// - Parameter edge: The edge to delete
+    /// - Throws: SwiftData errors
+    func deleteEdge(_ edge: CardEdge) throws {
+        #if DEBUG
+        print("[EdgeAudit] EdgeRepository.delete: Deleting edge '\(edge.from?.name ?? "nil")' → '\(edge.to?.name ?? "nil")' type=\(edge.type?.code ?? "nil")")
+        #endif
+        EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
+        modelContext.delete(edge)
+        if let reverseEdge = try fetchReverseRelationship(for: edge) {
+            EdgeIntegrityMonitor.decrementCounts(source: reverseEdge.from, target: reverseEdge.to)
+            modelContext.delete(reverseEdge)
+        }
+    }
+
+
 
     // MARK: - Update Operations
     
@@ -419,17 +487,6 @@ final class EdgeRepository {
         for (edge, newIndex) in edgesWithIndices {
             try updateSortIndex(edge, to: newIndex)
         }
-    }
-
-    /// Delete an edge from the context
-    /// - Parameter edge: The edge to delete
-    /// - Throws: SwiftData errors
-    private func delete(_ edge: CardEdge) throws {
-        #if DEBUG
-        print("[EdgeAudit] EdgeRepository.delete: Deleting edge '\(edge.from?.name ?? "nil")' → '\(edge.to?.name ?? "nil")' type=\(edge.type?.code ?? "nil")")
-        #endif
-        EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
-        modelContext.delete(edge)
     }
 
     /// Save changes to the context
@@ -644,6 +701,7 @@ enum EdgeRepositoryError: Error {
     case relationTypeNotFound(String)
     case relationshipAlreadyExists(source: String, target: String, type: String)
     case edgeNotFoundInList(edge: String, source: String, relationType: String)
+    case malformedEdge(source: String, target: String, relationType: String)
 
     var localizedDescription: String {
         switch self {
@@ -653,6 +711,8 @@ enum EdgeRepositoryError: Error {
             return "Relationship already exists: '\(source)' → '\(target)' (type: \(type))"
         case .edgeNotFoundInList(let edge, let source, let relationType):
             return "Data integrity error: Edge '\(edge)' not found in list of edges from source '\(source)' with type '\(relationType)'. This indicates database corruption."
+        case .malformedEdge(let source, let target, let relationType):
+            return "Malformed Edge: Edge either has no source, target, or relationType. Source: '\(source)', Target: '\(target)', relationType: '\(relationType)'"
         }
     }
 }

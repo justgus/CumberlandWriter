@@ -70,9 +70,15 @@ struct SceneSelectionGrip: View {
         SceneSelectionGrip(scene: Card.sampleScene, isActive: true)
             .frame(height: 200)
 
+        #if os (macOS)
         Text("Sample scene text goes here...")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(NSColor.textBackgroundColor))
+        #else
+        Text("Sample scene text goes here...")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(UIColor.tertiarySystemBackground))
+        #endif
     }
     .frame(width: 400, height: 200)
 }

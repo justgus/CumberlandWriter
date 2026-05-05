@@ -284,4 +284,69 @@ CardRelationshipOperations.swift completely bypassed the ER-0022 repository patt
 
 ---
 
-*Last Updated: 2026-04-29*
+## DR-0128: MurderBoardView Not Migrated to Repository Pattern
+
+**Reported:** 2026-04-29
+**Verified:** 2026-04-30
+**Component:** MurderBoard/MurderBoardView.swift
+**Severity:** High - Bypasses repository pattern for edge creation/deletion
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+**Related DR:** DR-0203 (BoardManager/BoardRepository separation)
+
+**Issue:**
+MurderBoardView contained 68 lines of low-level database operations in `deleteEdgePairDirectly()` function and direct edge creation bypassing EdgeRepository. This violated the ER-0022 repository pattern for platform independence.
+
+**Original Problems:**
+- Direct CardEdge instantiation bypassing EdgeRepository
+- 68-line deleteEdgePairDirectly() function with manual FetchDescriptor queries
+- Direct modelContext operations for edge deletion
+- Preview code using modelContext.insert() instead of CardRepository
+
+**Resolution:**
+
+**Edge Creation Migration:**
+- Replaced direct CardEdge creation with `services.edgeRepository.createRelationship()`
+- Added proper error handling with debug logging
+- Updated to use RelationType selection
+
+**Edge Deletion Migration:**
+- Removed entire deleteEdgePairDirectly() function (68 lines)
+- Replaced with single call to `services.edgeRepository.deleteRelationship()`
+- Simplified from manual bidirectional edge lookup to repository-managed deletion
+
+**Preview Code Migration:**
+- Migrated to CardRepository.createCard() instead of direct modelContext.insert()
+- Migrated to EdgeRepository for test relationship creation
+- Updated to use correct reverse relation types (forward/backward format)
+
+**CumberlandBoardDataSource Migration:**
+- Removed modelContext property entirely
+- Added BoardManager and EdgeRepository dependencies
+- Migrated all fetch operations to EdgeRepository.fetchOutgoing()
+- Migrated all save operations to BoardManager.save()
+- Migrated node deletion to BoardManager.removeNode()
+- Achieved 100% platform independence (zero direct database calls)
+
+**RelatedEdgesList Migration:**
+- Replaced direct modelContext.fetch() with EdgeRepository.fetchOutgoing()
+- Added EdgeRepository state property
+- Maintained in-memory sorting (repository doesn't provide sorted fetch)
+
+**Final Achievement:**
+- ✅ ZERO direct CardEdge instantiations in view layer
+- ✅ ZERO FetchDescriptor queries in view layer
+- ✅ ZERO modelContext operations in CumberlandBoardDataSource
+- ✅ 68 lines of database code eliminated
+- ✅ 100% repository pattern compliance
+- ✅ Platform independence achieved
+
+**Files Modified:**
+- MurderBoard/MurderBoardView.swift (edge creation/deletion)
+- MurderBoard/CumberlandBoardDataSource.swift (complete repository migration)
+- MurderBoard/RelatedEdgesList.swift (query migration)
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-04-30*

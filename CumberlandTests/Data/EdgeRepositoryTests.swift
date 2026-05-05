@@ -208,7 +208,7 @@ struct EdgeRepositoryTests {
         let edge = TestFixtures.createEdge(from: source, to: target, type: relationType, context: context)
         try context.save()
 
-        try edgeRepo.delete(edge)
+        try edgeRepo.deleteEdge(edge)
 
         let exists = edgeRepo.exists(from: source, to: target, ofType: relationType)
         #expect(exists == false)
@@ -229,7 +229,7 @@ struct EdgeRepositoryTests {
         let _ = TestFixtures.createEdge(from: other2, to: center, type: relationType, context: context)
         try context.save()
 
-        try edgeRepo.deleteAll(for: center)
+        try edgeRepo.deleteAllRelationships(for: center)
 
         let remainingEdges = edgeRepo.fetchAll(for: center)
         #expect(remainingEdges.isEmpty)

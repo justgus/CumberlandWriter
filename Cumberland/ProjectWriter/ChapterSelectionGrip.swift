@@ -80,6 +80,7 @@ struct ChapterSelectionGrip: View {
 
 #Preview("Chapter with Scenes") {
     HStack(spacing: 0) {
+        #if os(macOS)
         VStack(spacing: 0) {
             Text("Scene 1 text...")
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -91,6 +92,19 @@ struct ChapterSelectionGrip: View {
                 .padding()
                 .background(Color(NSColor.textBackgroundColor))
         }
+        #else
+        VStack(spacing: 0) {
+            Text("Scene 1 text...")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color(UIColor.tertiarySystemBackground))
+
+            Text("Scene 2 text...")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color(UIColor.tertiarySystemBackground))
+        }
+        #endif
 
         ChapterSelectionGrip(
             chapter: Card.sampleChapter,

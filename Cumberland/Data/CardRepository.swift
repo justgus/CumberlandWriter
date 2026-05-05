@@ -101,7 +101,7 @@ final class CardRepository {
     /// - Throws: SwiftData errors
     func updateCardKind(_ card: Card, to kind: Kinds) throws {
         // Store old kind for logging
-        let oldKind = card.kind
+        let _ = card.kind
 
         let edgeRepository = EdgeRepository.init(modelContext: modelContext)
         try edgeRepository.deleteAllRelationships(for: card)

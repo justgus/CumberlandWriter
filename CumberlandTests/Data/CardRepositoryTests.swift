@@ -147,9 +147,7 @@ struct CardRepositoryTests {
         let context = try TestFixtures.makeIsolatedContext()
         let repo = CardRepository(modelContext: context)
 
-        let card = Card(kind: .characters, name: "New Character", subtitle: "", detailedText: "")
-
-        try repo.insert(card)
+        let card = try repo.createCard(kind: .characters, name: "New Character", subtitle: "", detailedText: "")
 
         let fetched = repo.fetch(byUUID: card.id)
         #expect(fetched != nil)
@@ -167,7 +165,7 @@ struct CardRepositoryTests {
 
         let cardID = card.id
 
-        try repo.delete(card)
+        try repo.deleteCard(card)
 
         let fetched = repo.fetch(byUUID: cardID)
         #expect(fetched == nil)
