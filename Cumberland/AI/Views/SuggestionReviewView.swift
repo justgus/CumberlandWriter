@@ -9,6 +9,9 @@ struct SuggestionReviewView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(CardRepository.self) private var cardRepo
+    @Environment(EdgeRepository.self) private var edgeRepo
+    @Environment(RelationTypeManager.self) private var relationTypeManager
 
     // MARK: - Properties
 
@@ -428,7 +431,7 @@ struct SuggestionReviewView: View {
 
                 // Create entity cards first
                 if !selectedCards.isEmpty {
-                    try suggestionEngine.createCards(from: selectedCards, context: modelContext, sourceCard: sourceCard)
+                    try suggestionEngine.createCards(from: selectedCards, cardRepository: cardRepo, sourceCard: sourceCard)
                 }
 
                 // Phase 7: Create calendar systems
@@ -553,10 +556,11 @@ struct SuggestionReviewView: View {
 
                 // Create immediate relationships now (all cards exist)
                 if !immediateRelationships.isEmpty {
-                    let allCards = try modelContext.fetch(FetchDescriptor<Card>())
+                    let allCards = cardRepo.fetchAll()
                     try suggestionEngine.createRelationships(
                         from: immediateRelationships,
-                        context: modelContext,
+                        edgeRepository: edgeRepo,
+                        relationTypeManager: relationTypeManager,
                         existingCards: allCards
                     )
                 }

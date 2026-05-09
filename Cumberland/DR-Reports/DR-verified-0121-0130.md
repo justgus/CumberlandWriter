@@ -442,4 +442,51 @@ Timeline feature files contain direct database operations instead of using repos
 
 ---
 
-*Last Updated: 2026-04-30*
+## ✅ DR-0130: ER-0022 Phase 2 Incomplete - AggregateTextView.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Verified:** 2026-05-06
+**Component:** AggregateTextView.swift
+**Severity:** High
+**Related ER:** ER-0022 Phase 2
+
+**Issue:**
+AggregateTextView.swift created CardEdge instances directly (lines 328-334) and performed queries that directly accessed modelContext, bypassing EdgeRepository and RelationTypeManager.
+
+**Original Problems:**
+- Direct CardEdge() instantiation in #Preview code
+- Direct modelContext.fetch() queries for relationship lookups
+- No use of EdgeRepository for edge queries
+- No use of RelationTypeManager for RelationType lookups
+
+**Resolution:** (2026-05-06)
+
+**EdgeRepository Enhancement:**
+- Added `fetchIncoming(to:ofType:)` method to EdgeRepository (EdgeRepository.swift:132-140)
+- Complements existing `fetchOutgoing(from:ofType:)` for comprehensive relationship queries
+
+**AggregateTextView Migration:**
+- Added `@Environment(EdgeRepository.self)` and `@Environment(RelationTypeManager.self)` dependencies
+- Migrated `fetchRelatedScenes()` to use `EdgeRepository.fetchIncoming(to:ofType:)` instead of direct FetchDescriptor queries
+- Migrated `orderScenes()` to use `EdgeRepository.fetch(ofType:)` for fetching edges by type
+- All direct `modelContext.fetch()` calls replaced with EdgeRepository methods
+- Used `RelationTypeManager.fetchRelationType(code:)` for all RelationType lookups
+
+**Preview Code Migration:**
+- Replaced direct `CardEdge()` instantiation with `EdgeRepository.createRelationship()`
+- Added required mirror RelationTypes for bidirectional relationships
+- Properly injected EdgeRepository and RelationTypeManager into environment
+- Preview now demonstrates proper repository pattern usage
+
+**Final Achievement:**
+- ✅ ZERO direct CardEdge instantiations
+- ✅ ZERO FetchDescriptor queries
+- ✅ ZERO modelContext.fetch/insert calls
+- ✅ 100% repository pattern compliance
+- ✅ Platform independence achieved
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-05-06*

@@ -60,4 +60,33 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0141
 
 ---
 
-*Last Updated: 2026-04-30*
+## ✅ DR-0148: ER-0022 Phase 2 Incomplete - SuggestionEngine.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-06
+**Verified:** 2026-05-09
+**Component:** AI/ContentAnalysis/SuggestionEngine.swift
+**Severity:** Critical
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates Card() instances directly. AI suggestion system bypasses CardRepository.
+
+**Resolution:** 2026-05-06
+This issue was resolved as part of DR-0131. See DR-0131 for complete migration details.
+
+**Summary:**
+- Migrated createCards() method to use CardRepository.createCard()
+- Removed direct Card() instantiation and context.insert() calls
+- Updated all call sites (SuggestionReviewView, CardEditorViewModel)
+- Achieved 100% repository pattern compliance
+
+**Files Modified:**
+- AI/ContentAnalysis/SuggestionEngine.swift (core engine)
+- AI/Views/SuggestionReviewView.swift (UI caller)
+- ViewModels/CardEditorViewModel.swift (view model caller)
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-05-09*

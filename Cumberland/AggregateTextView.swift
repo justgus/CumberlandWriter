@@ -15,6 +15,8 @@ struct AggregateTextView: View {
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.modelContext) private var modelContext
+    @Environment(EdgeRepository.self) private var edgeRepo
+    @Environment(RelationTypeManager.self) private var relationTypeManager
 
     // Aggregated, ordered scenes and concatenated text
     @State private var orderedScenes: [Card] = []
@@ -143,52 +145,44 @@ struct AggregateTextView: View {
     // - Chapters:  prefer Chapter -> Scene edges with code "has-scene/part-of" if present,
     //              otherwise fallback to Scene -> Chapter edges with code "part-of/has-scene".
     private func fetchRelatedScenes(for card: Card) async -> [Card] {
-        let myID: UUID = card.id
-        let scenesKindRaw: String = Kinds.scenes.rawValue
-        let _: String = Kinds.chapters.rawValue
-        let _: String = Kinds.timelines.rawValue
-
         switch card.kind {
         case .timelines:
             // Scene -> Timeline for this timeline
-            let fetch = FetchDescriptor<CardEdge>(
-                predicate: #Predicate {
-                    $0.type?.code == sceneTimelineCode &&
-                    $0.to?.id == myID &&
-                    $0.from?.kindRaw == scenesKindRaw
-                },
-                sortBy: [
-                    SortDescriptor(\.sortIndex, order: .forward),
-                    SortDescriptor(\.createdAt, order: .forward)
-                ]
-            )
-            let edges = (try? modelContext.fetch(fetch)) ?? []
+            // Fetch incoming edges of type "describes/described-by"
+            guard let sceneTimelineType = relationTypeManager.fetchRelationType(code: sceneTimelineCode) else {
+                return []
+            }
+
+            let edges = edgeRepo.fetchIncoming(to: card, ofType: sceneTimelineType)
+                .filter { $0.from?.kind == .scenes }
+                .sorted { edge1, edge2 in
+                    if edge1.sortIndex == edge2.sortIndex {
+                        return edge1.createdAt < edge2.createdAt
+                    }
+                    return edge1.sortIndex < edge2.sortIndex
+                }
+
             return edges.compactMap { $0.from }.filter { $0.kind == .scenes }
 
         case .chapters:
             // Try inverse type first: Chapter -> Scene ("has-scene/part-of")
-            let inverseFetch = FetchDescriptor<CardEdge>(
-                predicate: #Predicate {
-                    $0.type?.code == chapterSceneInverseCode &&
-                    $0.from?.id == myID &&
-                    $0.to?.kindRaw == scenesKindRaw
-                }
-            )
-            let inverseEdges = (try? modelContext.fetch(inverseFetch)) ?? []
+            if let inverseType = relationTypeManager.fetchRelationType(code: chapterSceneInverseCode) {
+                let inverseEdges = edgeRepo.fetchOutgoing(from: card, ofType: inverseType)
+                    .filter { $0.to?.kind == .scenes }
 
-            if !inverseEdges.isEmpty {
-                return inverseEdges.compactMap { $0.to }.filter { $0.kind == .scenes }
+                if !inverseEdges.isEmpty {
+                    return inverseEdges.compactMap { $0.to }.filter { $0.kind == .scenes }
+                }
             }
 
             // Fallback to forward type: Scene -> Chapter ("part-of/has-scene")
-            let forwardFetch = FetchDescriptor<CardEdge>(
-                predicate: #Predicate {
-                    $0.type?.code == sceneChapterCode &&
-                    $0.to?.id == myID &&
-                    $0.from?.kindRaw == scenesKindRaw
-                }
-            )
-            let forwardEdges = (try? modelContext.fetch(forwardFetch)) ?? []
+            guard let forwardType = relationTypeManager.fetchRelationType(code: sceneChapterCode) else {
+                return []
+            }
+
+            let forwardEdges = edgeRepo.fetchIncoming(to: card, ofType: forwardType)
+                .filter { $0.from?.kind == .scenes }
+
             return forwardEdges.compactMap { $0.from }.filter { $0.kind == .scenes }
 
         default:
@@ -214,13 +208,13 @@ struct AggregateTextView: View {
             let sceneIDs = scenes.map(\.id)
             let sceneIDSet = Set(sceneIDs)
 
-            // Simplify the predicate to only match the relation type, then filter in memory.
-            let fetch = FetchDescriptor<CardEdge>(
-                predicate: #Predicate {
-                    $0.type?.code == sceneTimelineCode
-                }
-            )
-            let allTypeEdges = (try? modelContext.fetch(fetch)) ?? []
+            // Fetch all edges of type "describes/described-by" using EdgeRepository
+            guard let sceneTimelineType = relationTypeManager.fetchRelationType(code: sceneTimelineCode) else {
+                // No timeline relation type found; fallback to name sorting
+                return scenes.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            }
+
+            let allTypeEdges = edgeRepo.fetch(ofType: sceneTimelineType)
 
             // Keep only edges where from is one of our Scenes and to is a Timeline
             let edges = allTypeEdges.compactMap { edge -> CardEdge? in
@@ -307,13 +301,18 @@ struct AggregateTextView: View {
     let container = try! ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
     let ctx = container.mainContext
 
+    // Create repository instances
+    let edgeRepo = EdgeRepository(modelContext: ctx)
+    let relationTypeManager = RelationTypeManager(modelContext: ctx)
+
     // Relation types
     let describes = RelationType(code: "describes/described-by", forwardLabel: "describes", inverseLabel: "described by", sourceKind: .scenes, targetKind: .timelines)
     let partOf = RelationType(code: "part-of/has-scene", forwardLabel: "part of", inverseLabel: "has scene", sourceKind: .scenes, targetKind: .chapters)
-    // Optional: if you also store inverse edges explicitly, uncomment to test
-    // let hasScene = RelationType(code: "has-scene/part-of", forwardLabel: "has scene", inverseLabel: "part of", sourceKind: .chapters, targetKind: .scenes)
+    // Mirror types for bidirectional relationships
+    let describedBy = RelationType(code: "described-by/describes", forwardLabel: "described by", inverseLabel: "describes", sourceKind: .timelines, targetKind: .scenes)
+    let hasScene = RelationType(code: "has-scene/part-of", forwardLabel: "has scene", inverseLabel: "part of", sourceKind: .chapters, targetKind: .scenes)
 
-    ctx.insert(describes); ctx.insert(partOf) // ; ctx.insert(hasScene)
+    ctx.insert(describes); ctx.insert(partOf); ctx.insert(describedBy); ctx.insert(hasScene)
 
     // Entities
     let timeline = Card(kind: .timelines, name: "Arc A", subtitle: "", detailedText: "")
@@ -324,14 +323,14 @@ struct AggregateTextView: View {
 
     ctx.insert(timeline); ctx.insert(chapter); ctx.insert(s1); ctx.insert(s2); ctx.insert(s3)
 
-    // Scene -> Timeline order
-    ctx.insert(CardEdge(from: s1, to: timeline, type: describes, sortIndex: 1))
-    ctx.insert(CardEdge(from: s2, to: timeline, type: describes, sortIndex: 2))
-    ctx.insert(CardEdge(from: s3, to: timeline, type: describes, sortIndex: 3))
+    // Create relationships using EdgeRepository (automatically creates bidirectional edges)
+    try? edgeRepo.createRelationship(from: s1, to: timeline, relationType: describes, sortIndex: 1)
+    try? edgeRepo.createRelationship(from: s2, to: timeline, relationType: describes, sortIndex: 2)
+    try? edgeRepo.createRelationship(from: s3, to: timeline, relationType: describes, sortIndex: 3)
 
     // Scene -> Chapter membership (forward)
-    ctx.insert(CardEdge(from: s1, to: chapter, type: partOf))
-    ctx.insert(CardEdge(from: s2, to: chapter, type: partOf))
+    try? edgeRepo.createRelationship(from: s1, to: chapter, relationType: partOf)
+    try? edgeRepo.createRelationship(from: s2, to: chapter, relationType: partOf)
     // s3 not in this chapter
 
     try? ctx.save()
@@ -341,4 +340,6 @@ struct AggregateTextView: View {
             .navigationTitle("Aggregate: \(chapter.name)")
     }
     .modelContainer(container)
+    .environment(edgeRepo)
+    .environment(relationTypeManager)
 }

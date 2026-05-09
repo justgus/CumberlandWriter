@@ -128,7 +128,21 @@ final class EdgeRepository {
         )
         return (try? modelContext.fetch(fetch)) ?? []
     }
-    
+
+    /// Fetch incoming edges to a card of a specific type
+    /// - Parameters:
+    ///   - card: The target card
+    ///   - relationType: The relationship type
+    /// - Returns: Array of matching edges
+    func fetchIncoming(to card: Card, ofType relationType: RelationType) -> [CardEdge] {
+        let cardID: UUID? = card.id
+        let typeCode: String? = relationType.code
+        let fetch = FetchDescriptor<CardEdge>(
+            predicate: #Predicate { $0.to?.id == cardID && $0.type?.code == typeCode }
+        )
+        return (try? modelContext.fetch(fetch)) ?? []
+    }
+
     func fetchReverseRelationship(for edge: CardEdge) throws -> CardEdge? {
         let sourceID: String? = edge.from?.id.uuidString
         let targetID: String? = edge.to?.id.uuidString

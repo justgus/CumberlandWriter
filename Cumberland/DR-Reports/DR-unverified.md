@@ -4,34 +4,7 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **81 open DRs**
-
----
-
-
-## 🔴 DR-0130: ER-0022 Phase 2 Incomplete - AggregateTextView.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** AggregateTextView.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly (lines 328-334). Never migrated to EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0131: ER-0022 Phase 2 Incomplete - SuggestionEngine.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** AI/ContentAnalysis/SuggestionEngine.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly (lines 582, 649). Never migrated to EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
+**Status:** Currently **75 open DRs**
 
 ---
 
@@ -226,19 +199,6 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 **Related ER:** ER-0022 Phase 2
 
 **Issue:** Creates CardEdge instances directly. MurderBoard data layer bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0148: ER-0022 Phase 2 Incomplete - SuggestionEngine.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** AI/ContentAnalysis/SuggestionEngine.swift
-**Severity:** Critical
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. AI suggestion system bypasses CardRepository.
 
 **Status:** 🔴 Identified - Not Resolved
 
@@ -621,18 +581,6 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 
 ---
 
-## 🔴 DR-0178: ER-0022 Phase 2 Incomplete - AggregateTextView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** AggregateTextView.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Aggregate text view bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
 
 ## 🔴 DR-0179: ER-0022 Phase 2 Incomplete - MurderBoardView.swift Creates Cards Directly
 
@@ -805,6 +753,10 @@ ER-0022 Phase 2 was marked complete without:
 
 ## Recently Verified
 
+- **DR-0148:** ER-0022 Phase 2 Incomplete - SuggestionEngine.swift Creates Cards Directly — ✅ Verified 2026-05-09 -> [Batch 15](./DR-verified-0141-0150.md)
+- **DR-0131:** ER-0022 Phase 2 Incomplete - SuggestionEngine.swift Not Migrated — ✅ Verified 2026-05-09 -> [Batch 14](./DR-verified-0131-0140.md)
+- **DR-0178:** ER-0022 Phase 2 Incomplete - AggregateTextView.swift Creates Cards Directly — ✅ Verified 2026-05-06 -> [Batch 18](./DR-verified-0171-0180.md)
+- **DR-0130:** ER-0022 Phase 2 Incomplete - AggregateTextView.swift Not Migrated — ✅ Verified 2026-05-06 -> [Batch 13](./DR-verified-0121-0130.md)
 - **DR-0126:** ER-0022 Phase 2 Incomplete - EdgeRepository Missing Reorder Methods — ✅ Verified 2026-04-29 -> [Batch 13](./DR-verified-0121-0130.md)
 - **DR-0125:** ER-0022 Phase 2 Incomplete - EdgeRepository Missing moveRelationship() — ✅ Verified 2026-04-29 -> [Batch 13](./DR-verified-0121-0130.md)
 - **DR-0124:** ER-0022 Phase 2 Incomplete - EdgeRepository Missing updateRelationType() — ✅ Verified 2026-04-29 -> [Batch 13](./DR-verified-0121-0130.md)

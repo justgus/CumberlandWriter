@@ -502,36 +502,39 @@ class SuggestionEngine {
     // MARK: - Batch Operations
 
     /// Create cards from accepted suggestions
-    func createCards(from suggestions: [CardSuggestion], context: ModelContext, sourceCard: Card) throws {
+    /// ER-0022 Phase 2: Migrated to use CardRepository for platform independence
+    func createCards(from suggestions: [CardSuggestion], cardRepository: CardRepository, sourceCard: Card) throws {
         #if DEBUG
         print("✨ [SuggestionEngine] Creating \(suggestions.count) cards")
         #endif
 
         for suggestion in suggestions {
-            let card = Card(
+            _ = try cardRepository.createCard(
                 kind: suggestion.cardKind,
                 name: suggestion.entity.name,
                 subtitle: "",
                 detailedText: suggestion.initialDescription
             )
 
-            context.insert(card)
-
             // TODO: Create "mentioned in" relationship to source card
             // This will be implemented when we add relationship creation
         }
 
-        try context.save()
-
         #if DEBUG
-        print("✅ [SuggestionEngine] Successfully created \(suggestions.count) cards")
+        print("✅ [SuggestionEngine] Successfully created \(suggestions.count) cards via CardRepository")
         #endif
     }
 
     /// Create relationships from accepted suggestions
     /// Phase 6 implementation + ER-0020 (dynamic verb support)
     /// Creates BOTH forward and reverse edges for each relationship (bidirectional)
-    func createRelationships(from suggestions: [RelationshipSuggestion], context: ModelContext, existingCards: [Card]) throws {
+    /// ER-0022 Phase 2: Migrated to use EdgeRepository for platform independence
+    func createRelationships(
+        from suggestions: [RelationshipSuggestion],
+        edgeRepository: EdgeRepository,
+        relationTypeManager: RelationTypeManager,
+        existingCards: [Card]
+    ) throws {
         #if DEBUG
         print("🔗 [SuggestionEngine] Creating \(suggestions.count) relationships (bidirectional)")
         print("   Available cards: \(existingCards.count)")
@@ -567,124 +570,57 @@ class SuggestionEngine {
             let relationType = try findOrCreateRelationType(
                 forwardVerb: suggestion.forwardVerb,
                 inverseVerb: suggestion.inverseVerb,
-                context: context
+                relationTypeManager: relationTypeManager
             )
 
             // Check if forward relationship already exists
-            if relationshipExists(from: sourceCard, to: targetCard, type: relationType, context: context) {
+            if relationshipExists(from: sourceCard, to: targetCard, type: relationType, edgeRepository: edgeRepository) {
                 #if DEBUG
                 print("   ⏭️  Skipping relationship: already exists (\(sourceCard.name) → \(targetCard.name))")
                 #endif
                 continue
             }
 
-            // Create the forward CardEdge (source → target)
-            let forwardEdge = CardEdge(from: sourceCard, to: targetCard, type: relationType)
-            context.insert(forwardEdge)
-            EdgeIntegrityMonitor.incrementCounts(source: sourceCard, target: targetCard)
+            // Use EdgeRepository to create bidirectional relationship (both forward and reverse edges)
+            try edgeRepository.createRelationship(
+                from: sourceCard,
+                to: targetCard,
+                relationType: relationType
+            )
             createdCount += 1
 
             #if DEBUG
-            print("   ✅ Created forward: \(sourceCard.name) → [\(relationType.forwardLabel)] → \(targetCard.name)")
+            print("   ✅ Created bidirectional: \(sourceCard.name) ↔ [\(relationType.forwardLabel)] ↔ \(targetCard.name)")
             #endif
-
-            // Create the reverse CardEdge (target → source) using mirror type
-            ensureReverseEdge(forwardEdge: forwardEdge, context: context)
-        }
-
-        // Save all changes
-        if createdCount > 0 {
-            try context.save()
         }
 
         #if DEBUG
         let totalEdges = createdCount * 2
-        print("✅ [SuggestionEngine] Successfully created \(createdCount) forward + \(createdCount) reverse = \(totalEdges) total edges")
+        print("✅ [SuggestionEngine] Successfully created \(createdCount) bidirectional relationships = \(totalEdges) total edges via EdgeRepository")
         #endif
     }
 
     /// Find or create a RelationType for the given verbs (ER-0020)
     /// DR-0103: Delegates to RelationTypeManager for creation and mirror management
-    private func findOrCreateRelationType(forwardVerb: String, inverseVerb: String, context: ModelContext) throws -> RelationType {
-        let mgr = RelationTypeManager(modelContext: context)
+    /// ER-0022 Phase 2: Updated to accept RelationTypeManager as parameter
+    private func findOrCreateRelationType(
+        forwardVerb: String,
+        inverseVerb: String,
+        relationTypeManager: RelationTypeManager
+    ) throws -> RelationType {
         let code = RelationTypeManager.makeCode(forward: forwardVerb, inverse: inverseVerb)
-        return mgr.ensureRelationType(
+        return relationTypeManager.ensureRelationType(
             code: code,
             forwardLabel: forwardVerb,
             inverseLabel: inverseVerb
         )
     }
 
-    /// Create the reverse edge for bidirectional relationships
-    /// DR-0103: Uses RelationTypeManager for mirror type resolution
-    private func ensureReverseEdge(forwardEdge: CardEdge, context: ModelContext) {
-        guard let src = forwardEdge.from,
-              let dst = forwardEdge.to,
-              let forwardType = forwardEdge.type else {
-            return
-        }
-
-        // DR-0103: Get or create the mirror type via manager
-        let mgr = RelationTypeManager(modelContext: context)
-        let mirror = mgr.mirrorType(for: forwardType, sourceKind: src.kind, targetKind: dst.kind)
-
-        // Check if reverse edge of this type already exists
-        let srcID = src.id
-        let dstID = dst.id
-        let mirrorCode: String? = mirror.code
-        let reversePredicate = #Predicate<CardEdge> {
-            $0.from?.id == dstID && $0.to?.id == srcID && $0.type?.code == mirrorCode
-        }
-        let reverseFetch = FetchDescriptor(predicate: reversePredicate)
-
-        if let existing = try? context.fetch(reverseFetch), !existing.isEmpty {
-            #if DEBUG
-            print("   ⏭️  Reverse edge already exists: \(dst.name) → \(src.name)")
-            #endif
-            return
-        }
-
-        // Create reverse edge with slightly later timestamp for ordering
-        let reverseCreatedAt = forwardEdge.createdAt.addingTimeInterval(0.001)
-        let reverseEdge = CardEdge(
-            from: dst,
-            to: src,
-            type: mirror,
-            note: forwardEdge.note,
-            createdAt: reverseCreatedAt
-        )
-        context.insert(reverseEdge)
-        EdgeIntegrityMonitor.incrementCounts(source: dst, target: src)
-
-        #if DEBUG
-        print("   ✅ Created reverse: \(dst.name) → [\(mirror.forwardLabel)] → \(src.name)")
-        #endif
-    }
-
     /// Check if a relationship already exists
-    private func relationshipExists(from source: Card, to target: Card, type: RelationType, context: ModelContext) -> Bool {
-        // Check if edge exists with same source, target, and type
-        let sourceID = source.id
-        let targetID = target.id
-        let typeCode = type.code
-
-        let predicate = #Predicate<CardEdge> {
-            $0.from?.id == sourceID &&
-            $0.to?.id == targetID &&
-            $0.type?.code == typeCode
-        }
-
-        let fetchDescriptor = FetchDescriptor(predicate: predicate)
-
-        do {
-            let existing = try context.fetch(fetchDescriptor)
-            return !existing.isEmpty
-        } catch {
-            #if DEBUG
-            print("   ⚠️ Error checking for existing relationship: \(error)")
-            #endif
-            return false
-        }
+    /// ER-0022 Phase 2: Migrated to use EdgeRepository for platform independence
+    private func relationshipExists(from source: Card, to target: Card, type: RelationType, edgeRepository: EdgeRepository) -> Bool {
+        // Use EdgeRepository to check if edge exists
+        return edgeRepository.exists(from: source, to: target, ofType: type)
     }
 
     // MARK: - Suggestion Filtering

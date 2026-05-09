@@ -29,6 +29,8 @@ final class CardEditorViewModel {
 
     var modelContext: ModelContext?
     private var cardRepository: CardRepository?
+    private var edgeRepository: EdgeRepository?
+    private var relationTypeManager: RelationTypeManager?
     private var relationshipManager: RelationshipManager?
     private var imageProcessingService: ImageProcessingService
 
@@ -504,15 +506,22 @@ final class CardEditorViewModel {
     }
 
     /// Create relationships from pending suggestions
+    /// ER-0022 Phase 2: Migrated to use EdgeRepository for platform independence
     private func createPendingRelationships(modelContext: ModelContext) throws {
         guard !pendingRelationships.isEmpty else { return }
 
-        let allCards = try modelContext.fetch(FetchDescriptor<Card>())
+        // Create repositories if not already available
+        let edgeRepo = edgeRepository ?? EdgeRepository(modelContext: modelContext)
+        let relationMgr = relationTypeManager ?? RelationTypeManager(modelContext: modelContext)
+        let cardRepo = cardRepository ?? CardRepository(modelContext: modelContext)
+
+        let allCards = cardRepo.fetchAll()
         let suggestionEngine = SuggestionEngine()
 
         try suggestionEngine.createRelationships(
             from: pendingRelationships,
-            context: modelContext,
+            edgeRepository: edgeRepo,
+            relationTypeManager: relationMgr,
             existingCards: allCards
         )
 
