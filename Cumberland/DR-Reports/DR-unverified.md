@@ -4,20 +4,7 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **75 open DRs**
-
----
-
-## 🔴 DR-0132: ER-0022 Phase 2 Incomplete - CumberlandApp.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** CumberlandApp.swift
-**Severity:** Critical
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly (lines 879, 1708). App bootstrap code bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
+**Status:** Currently **71 open DRs**
 
 ---
 
@@ -342,19 +329,6 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 **Related ER:** ER-0022 Phase 2
 
 **Issue:** Creates Card() instances directly. Source editor sheet bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0160: ER-0022 Phase 2 Incomplete - CumberlandApp.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** CumberlandApp.swift
-**Severity:** Critical
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. App bootstrap and seed data bypasses CardRepository.
 
 **Status:** 🔴 Identified - Not Resolved
 
@@ -753,6 +727,8 @@ ER-0022 Phase 2 was marked complete without:
 
 ## Recently Verified
 
+- **DR-0160:** ER-0022 Phase 2 Incomplete - CumberlandApp.swift Creates Cards Directly — ✅ Verified 2026-05-11 -> [Batch 16](./DR-verified-0151-0160.md)
+- **DR-0132:** ER-0022 Phase 2 Incomplete - CumberlandApp.swift Not Migrated — ✅ Verified 2026-05-11 -> [Batch 14](./DR-verified-0131-0140.md)
 - **DR-0148:** ER-0022 Phase 2 Incomplete - SuggestionEngine.swift Creates Cards Directly — ✅ Verified 2026-05-09 -> [Batch 15](./DR-verified-0141-0150.md)
 - **DR-0131:** ER-0022 Phase 2 Incomplete - SuggestionEngine.swift Not Migrated — ✅ Verified 2026-05-09 -> [Batch 14](./DR-verified-0131-0140.md)
 - **DR-0178:** ER-0022 Phase 2 Incomplete - AggregateTextView.swift Creates Cards Directly — ✅ Verified 2026-05-06 -> [Batch 18](./DR-verified-0171-0180.md)

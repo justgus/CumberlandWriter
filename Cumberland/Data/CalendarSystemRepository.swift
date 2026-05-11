@@ -48,6 +48,17 @@ final class CalendarSystemRepository {
         return calendar
     }
 
+    /// Insert an existing CalendarSystem (e.g., from a factory method like CalendarSystem.gregorian())
+    /// - Parameter calendar: The calendar to insert
+    /// - Returns: The inserted calendar
+    /// - Throws: SwiftData errors
+    @discardableResult
+    func insertCalendar(_ calendar: CalendarSystem) throws -> CalendarSystem {
+        modelContext.insert(calendar)
+        try modelContext.save()
+        return calendar
+    }
+
     /// Delete a CalendarSystem
     /// - Parameter calendar: The calendar to delete
     /// - Throws: SwiftData errors

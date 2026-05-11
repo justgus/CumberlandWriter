@@ -275,6 +275,49 @@ final class EdgeRepository {
         try modelContext.save()
     }
 
+    /// **SINGLE EDGE CREATION** - Creates a single edge without automatically creating the reverse
+    /// WARNING: This should only be used in special cases (e.g., legacy data repair tools).
+    /// For normal operation, use createRelationship() which creates bidirectional edges.
+    ///
+    /// - Parameters:
+    ///   - source: The source card
+    ///   - target: The target card
+    ///   - relationType: The relationship type
+    ///   - note: Optional note for the edge
+    ///   - createdAt: Optional creation timestamp (defaults to now)
+    ///   - sortIndex: Optional sort index
+    /// - Throws: SwiftData errors
+    /// - Returns: The created CardEdge
+    @discardableResult
+    func insertSingleEdge(
+        from source: Card,
+        to target: Card,
+        type relationType: RelationType,
+        note: String? = nil,
+        createdAt: Date = Date(),
+        sortIndex: Double? = nil
+    ) throws -> CardEdge {
+        // Check if edge already exists
+        if exists(from: source, to: target, ofType: relationType) {
+            #if DEBUG
+            print("[EdgeAudit] insertSingleEdge: Edge already exists '\(source.name)' → '\(target.name)' type=\(relationType.code) - skipping")
+            #endif
+            // Fetch and return the existing edge
+            return fetchOutgoing(from: source, ofType: relationType).first(where: { $0.to?.id == target.id })!
+        }
+
+        let edge = CardEdge(from: source, to: target, type: relationType, note: note, createdAt: createdAt, sortIndex: sortIndex)
+        modelContext.insert(edge)
+        EdgeIntegrityMonitor.incrementCounts(source: source, target: target)
+
+        #if DEBUG
+        print("[EdgeAudit] insertSingleEdge: Created edge '\(source.name)' → '\(target.name)' type=\(relationType.code)")
+        #endif
+
+        try modelContext.save()
+        return edge
+    }
+
     // MARK: - Delete Operations
 
     /// **CENTRALIZED EDGE DELETION** - Deletes a bidirectional relationship
