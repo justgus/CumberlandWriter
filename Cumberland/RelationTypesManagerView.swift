@@ -14,11 +14,10 @@ import SwiftData
 struct RelationTypesManagerView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.services) private var services
     @EnvironmentObject private var themeManager: ThemeManager
 
-    @Query(sort: \RelationType.code, order: .forward)
-    private var types: [RelationType]
-
+    @State private var types: [RelationType] = []
     @State private var searchText: String = ""
     @State private var isPresentingNew: Bool = false
     @State private var editing: RelationType? = nil
@@ -51,6 +50,9 @@ struct RelationTypesManagerView: View {
         }
         .padding()
         .frame(minWidth: 680, minHeight: 420)
+        .task {
+            await reloadData()
+        }
         .sheet(isPresented: $isPresentingNew) {
             RelationTypeFormView(
                 mode: .create,
@@ -101,6 +103,12 @@ struct RelationTypesManagerView: View {
                 Text("This type is used by \(count) relationship(s). Reassign those edges to another type, or force delete to clear their type reference.")
             }
         }
+    }
+
+    @MainActor
+    private func reloadData() async {
+        guard let services = services else { return }
+        types = services.queryService.getAllRelationTypes()
     }
 
     private var header: some View {
@@ -215,16 +223,14 @@ struct RelationTypesManagerView: View {
     // MARK: - Usage / deletion helpers
 
     private func usageCount(for type: RelationType) -> Int {
-        let codeOpt: String? = type.code
-        let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == codeOpt })
-        let edges = (try? modelContext.fetch(fetch)) ?? []
+        guard let services = services else { return 0 }
+        let edges = services.edgeRepository.fetch(ofType: type)
         return edges.count
     }
 
     private func nullifyEdges(of type: RelationType) {
-        let codeOpt: String? = type.code
-        let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == codeOpt })
-        let edges = (try? modelContext.fetch(fetch)) ?? []
+        guard let services = services else { return }
+        let edges = services.edgeRepository.fetch(ofType: type)
         for e in edges {
             e.type = nil
         }
@@ -232,8 +238,9 @@ struct RelationTypesManagerView: View {
     }
 
     private func delete(_ type: RelationType) {
-        modelContext.delete(type)
-        try? modelContext.save()
+        let relTypeManager = RelationTypeManager(modelContext: modelContext)
+        try? relTypeManager.deleteRelationType(type)
+        Task { await reloadData() }
     }
 
     private func unusedTypes() -> [RelationType] {
@@ -243,27 +250,52 @@ struct RelationTypesManagerView: View {
     private func deleteAllUnused() {
         let unused = unusedTypes()
         guard !unused.isEmpty else { return }
+        let relTypeManager = RelationTypeManager(modelContext: modelContext)
         for t in unused {
-            modelContext.delete(t)
+            try? relTypeManager.deleteRelationType(t)
         }
-        try? modelContext.save()
+        Task { await reloadData() }
     }
 }
 
-#Preview {
-    let schema = Schema([Card.self, RelationType.self, CardEdge.self])
-    let container = try! ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
+#Preview { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
     let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
 
-    let t1 = RelationType(code: "appears-in/is-appeared-by", forwardLabel: "appears in", inverseLabel: "is appeared by", sourceKind: .characters, targetKind: .scenes)
-    let t2 = RelationType(code: "references/referenced-by", forwardLabel: "references", inverseLabel: "referenced by")
-    ctx.insert(t1); ctx.insert(t2)
+    // Create relation types using RelationTypeManager
+    let relTypeManager = RelationTypeManager(modelContext: ctx)
+    let t1 = relTypeManager.ensureRelationType(
+        code: "appears-in/is-appeared-by",
+        forwardLabel: "appears in",
+        inverseLabel: "is appeared by",
+        sourceKind: .characters,
+        targetKind: .scenes
+    )
+    let _ = relTypeManager.ensureRelationType(
+        code: "references/referenced-by",
+        forwardLabel: "references",
+        inverseLabel: "referenced by"
+    )
 
-    let a = Card(kind: .characters, name: "Mira", subtitle: "", detailedText: "")
-    let b = Card(kind: .scenes, name: "Opening", subtitle: "", detailedText: "")
-    ctx.insert(a); ctx.insert(b)
-    ctx.insert(CardEdge(from: a, to: b, type: t1))
+    // Create cards using CardRepository
+    let cardRepo = CardRepository(modelContext: ctx)
+    let a = try! cardRepo.createCard(kind: .characters, name: "Mira")
+    let b = try! cardRepo.createCard(kind: .scenes, name: "Opening")
+
+    // Create edge using EdgeRepository
+    let edgeRepo = EdgeRepository(modelContext: ctx)
+    try! edgeRepo.createRelationship(from: a, to: b, relationType: t1)
 
     try? ctx.save()
-    return RelationTypesManagerView().modelContainer(container)
+
+    return RelationTypesManagerView()
+        .modelContainer(container)
+        .serviceContainer(services)
 }

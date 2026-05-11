@@ -176,57 +176,72 @@ private struct ImageAttributionRow: View {
     }
 }
 
-#Preview("ImageAttributionViewer – Light") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Card.self, Source.self, Citation.self, configurations: config)
-    let ctx = ModelContext(container)
-    ctx.autosaveEnabled = false
+#Preview("ImageAttributionViewer – Light") { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
+    let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
 
     // Seed sample data
-    let card = Card(
+    let cardRepo = CardRepository(modelContext: ctx)
+    let card = try! cardRepo.createCard(
         kind: .characters,
         name: "Ada",
         subtitle: "The Analyst",
-        detailedText: "Curious and meticulous.",
-        author: "M. S.",
-        sizeCategory: .standard
+        detailedText: "Curious and meticulous."
     )
+    card.author = "M. S."
+    card.sizeCategory = .standard
+
     let s1 = Source(title: "Photo Archive", authors: "Archivist")
     let s2 = Source(title: "Stock Photo", authors: "Photog Inc.")
     let t0 = Date()
     let c1 = Citation(card: card, source: s1, kind: .image, locator: "fig. 2", excerpt: "Portrait", contextNote: "Cover image", createdAt: t0.addingTimeInterval(0.1))
     let c2 = Citation(card: card, source: s2, kind: .image, locator: "ID 12345", excerpt: "Landscape", contextNote: nil, createdAt: t0.addingTimeInterval(0.2))
-    ctx.insert(card); ctx.insert(s1); ctx.insert(s2); ctx.insert(c1); ctx.insert(c2)
+    ctx.insert(s1); ctx.insert(s2); ctx.insert(c1); ctx.insert(c2)
     try? ctx.save()
 
     return ImageAttributionViewer(card: card)
         .padding()
         .modelContainer(container)
+        .serviceContainer(services)
         .preferredColorScheme(.light)
 }
 
-#Preview("ImageAttributionViewer – Dark") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Card.self, Source.self, Citation.self, configurations: config)
-    let ctx = ModelContext(container)
-    ctx.autosaveEnabled = false
+#Preview("ImageAttributionViewer – Dark") { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
+    let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
 
     // Seed sample data
-    let card = Card(
+    let cardRepo = CardRepository(modelContext: ctx)
+    let card = try! cardRepo.createCard(
         kind: .projects,
         name: "Exploration Project",
         subtitle: "Initial Planning",
-        detailedText: "Details…",
-        author: nil,
-        sizeCategory: .standard
+        detailedText: "Details…"
     )
+    card.sizeCategory = .standard
+
     let s1 = Source(title: "Museum Collection", authors: "Curator")
     let c1 = Citation(card: card, source: s1, kind: .image, locator: "cat. 77", excerpt: "", contextNote: "Banner image", createdAt: Date())
-    ctx.insert(card); ctx.insert(s1); ctx.insert(c1)
+    ctx.insert(s1); ctx.insert(c1)
     try? ctx.save()
 
     return ImageAttributionViewer(card: card)
         .padding()
         .modelContainer(container)
+        .serviceContainer(services)
         .preferredColorScheme(.dark)
 }

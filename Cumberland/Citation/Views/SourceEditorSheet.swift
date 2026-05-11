@@ -203,14 +203,20 @@ struct SourceEditorSheet: View {
             )
             modelContext.insert(newSource)
 
-            // Auto-create linked Card
-            let newCard = Card(
+            // Auto-create linked Card using CardRepository
+            let cardRepo = CardRepository(modelContext: modelContext)
+            guard let newCard = try? cardRepo.createCard(
                 kind: .sources,
                 name: trimmedTitle,
                 subtitle: authors,
                 detailedText: ""
-            )
-            modelContext.insert(newCard)
+            ) else {
+                // Failed to create card - still save source but without card link
+                try? modelContext.save()
+                onSave?(newSource)
+                dismiss()
+                return
+            }
 
             // Link bidirectionally
             newSource.sourceCard = newCard

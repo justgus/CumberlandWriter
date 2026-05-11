@@ -1549,20 +1549,21 @@ struct MainAppView: View {
                 }
             }
         } else {
-            // Fallback: Manual duplication (legacy path)
+            // Fallback: Manual duplication using CardRepository
+            let cardRepo = CardRepository(modelContext: modelContext)
             for card in cardsToDuplicate {
-                let duplicate = Card(
+                if let duplicate = try? cardRepo.createCard(
                     kind: card.kind,
                     name: "\(card.name) (Copy)",
                     subtitle: card.subtitle,
                     detailedText: card.detailedText
-                )
-                if let originalImageData = card.originalImageData {
-                    try? duplicate.setOriginalImageData(originalImageData)
+                ) {
+                    if let originalImageData = card.originalImageData {
+                        try? duplicate.setOriginalImageData(originalImageData)
+                    }
+                    duplicate.epochDate = card.epochDate
+                    duplicate.epochDescription = card.epochDescription
                 }
-                duplicate.epochDate = card.epochDate
-                duplicate.epochDescription = card.epochDescription
-                modelContext.insert(duplicate)
             }
             try? modelContext.save()
         }
@@ -1590,22 +1591,23 @@ struct MainAppView: View {
                 #endif
             }
         } else {
-            // Fallback: Manual duplication
-            let duplicate = Card(
+            // Fallback: Manual duplication using CardRepository
+            let cardRepo = CardRepository(modelContext: modelContext)
+            if let duplicate = try? cardRepo.createCard(
                 kind: card.kind,
                 name: "\(card.name) (Copy)",
                 subtitle: card.subtitle,
                 detailedText: card.detailedText
-            )
-            if let originalImageData = card.originalImageData {
-                try? duplicate.setOriginalImageData(originalImageData)
+            ) {
+                if let originalImageData = card.originalImageData {
+                    try? duplicate.setOriginalImageData(originalImageData)
+                }
+                duplicate.epochDate = card.epochDate
+                duplicate.epochDescription = card.epochDescription
+                try? modelContext.save()
+                // Select the new card
+                selectedCardID = duplicate.id
             }
-            duplicate.epochDate = card.epochDate
-            duplicate.epochDescription = card.epochDescription
-            modelContext.insert(duplicate)
-            try? modelContext.save()
-            // Select the new card
-            selectedCardID = duplicate.id
         }
     }
 
@@ -1987,11 +1989,19 @@ private struct CardListRow: View {
     }
 }
 
-#Preview {
-// Empty in-memory container; no sample data seeded.
-let config = ModelConfiguration(isStoredInMemoryOnly: true)
-let container = try! ModelContainer(for: Card.self, configurations: config)
+#Preview { @MainActor in
+    // Empty in-memory container; no sample data seeded.
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
+    let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
 
-MainAppView()
-    .modelContainer(container)
+    return MainAppView()
+        .modelContainer(container)
+        .serviceContainer(services)
 }

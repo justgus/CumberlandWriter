@@ -87,6 +87,51 @@ final class QueryService {
         return (try? modelContext.fetch(fetch)) ?? []
     }
 
+    // MARK: - Citations
+
+    /// Get all citations for a card
+    /// - Parameter card: The card
+    /// - Returns: Array of citations linked to this card
+    func getCitations(for card: Card) -> [Citation] {
+        let cardIDOpt: UUID? = card.id
+        let fetch = FetchDescriptor<Citation>(
+            predicate: #Predicate { $0.card?.id == cardIDOpt },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        return (try? modelContext.fetch(fetch)) ?? []
+    }
+
+    /// Get citations for a card filtered by kind
+    /// - Parameters:
+    ///   - card: The card
+    ///   - kind: The citation kind
+    /// - Returns: Array of citations of this kind linked to this card
+    func getCitations(for card: Card, kind: CitationKind) -> [Citation] {
+        let cardIDOpt: UUID? = card.id
+        let kindRaw = kind.rawValue
+        let fetch = FetchDescriptor<Citation>(
+            predicate: #Predicate { $0.card?.id == cardIDOpt && $0.kindRaw == kindRaw },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        return (try? modelContext.fetch(fetch)) ?? []
+    }
+
+    /// Check if a card has any citations of a specific kind
+    /// - Parameters:
+    ///   - card: The card
+    ///   - kind: The citation kind
+    /// - Returns: True if at least one citation exists
+    func hasCitations(for card: Card, kind: CitationKind) -> Bool {
+        let cardIDOpt: UUID? = card.id
+        let kindRaw = kind.rawValue
+        let fetch = FetchDescriptor<Citation>(
+            predicate: #Predicate { $0.card?.id == cardIDOpt && $0.kindRaw == kindRaw },
+            sortBy: []
+        )
+        let found = (try? modelContext.fetch(fetch)) ?? []
+        return !found.isEmpty
+    }
+
     // MARK: - Relation Types
 
     /// Get all relation types (replaces @Query private var allRelationTypes: [RelationType])

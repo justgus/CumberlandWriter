@@ -256,12 +256,23 @@ struct SourceDetailEditor: View {
 
 #Preview("Source Detail Editor") {
     @Previewable @State var previewCard: Card = {
-        let card = Card(kind: .sources, name: "The Hero with a Thousand Faces", subtitle: "Joseph Campbell", detailedText: "")
+        let container = ModelContainerFactory.makeInMemoryContainer([
+            Card.self, RelationType.self, CardEdge.self,
+            StoryStructure.self, StructureElement.self,
+            Board.self, BoardNode.self,
+            Citation.self, Source.self,
+            CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+        ])
+        let ctx = container.mainContext
+        let cardRepo = CardRepository(modelContext: ctx)
+        let card = try! cardRepo.createCard(kind: .sources, name: "The Hero with a Thousand Faces", subtitle: "Joseph Campbell", detailedText: "")
+        try? ctx.save()
         return card
     }()
 
-    NavigationStack {
+    return NavigationStack {
         SourceDetailEditor(card: previewCard)
             .navigationTitle("Edit Source")
     }
+    .modelContainer(for: Card.self, inMemory: true)
 }

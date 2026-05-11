@@ -255,4 +255,110 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0131
 
 ---
 
+## ✅ DR-0137: ER-0022 Phase 2 Incomplete - ReassignRelationTypeSheet.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** ReassignRelationTypeSheet.swift
+**Severity:** High
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates CardEdge instances directly. Critical relationship management UI bypasses EdgeRepository.
+
+**Resolution:** 2026-05-11
+
+**Main View Migration:**
+- Added @Environment(\.services) to access ServiceContainer
+- Migrated loadUsage() to use EdgeRepository.fetch(ofType:) instead of FetchDescriptor
+- Migrated loadCandidates() to use QueryService.getAllRelationTypes() instead of FetchDescriptor
+- Migrated reassign() to use EdgeRepository.fetch(ofType:) for fetching edges
+- Migrated RelationType deletion to use RelationTypeManager.deleteRelationType() instead of modelContext.delete()
+
+**Preview Migration:**
+- Replaced direct Card() instantiation with CardRepository.createCard()
+- Replaced direct RelationType() instantiation with RelationTypeManager.ensureRelationType()
+- Replaced direct CardEdge() instantiation with EdgeRepository.createRelationship()
+- Updated to use ModelContainerFactory.makeInMemoryContainer()
+- Added ServiceContainer injection
+
+**Files Modified:**
+- ReassignRelationTypeSheet.swift:21 - Added @Environment(\.services)
+- ReassignRelationTypeSheet.swift:99-103 - Migrated loadUsage() to EdgeRepository.fetch(ofType:)
+- ReassignRelationTypeSheet.swift:107-111 - Migrated loadCandidates() to QueryService.getAllRelationTypes()
+- ReassignRelationTypeSheet.swift:115-135 - Migrated reassign() to use EdgeRepository and RelationTypeManager
+- ReassignRelationTypeSheet.swift:138-172 - Migrated Preview to use repositories
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0138: ER-0022 Phase 2 Incomplete - RelationTypesManagerView.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** RelationTypesManagerView.swift
+**Severity:** High
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates CardEdge instances directly (line 265). Core relationship type management bypasses EdgeRepository.
+
+**Resolution:** 2026-05-11
+
+**Main View Migration:**
+- Added @Environment(\.services) to access ServiceContainer
+- Replaced @Query with @State + QueryService.getAllRelationTypes()
+- Added reloadData() method with .task modifier
+- Migrated usageCount() to use EdgeRepository.fetch(ofType:) instead of FetchDescriptor
+- Migrated nullifyEdges() to use EdgeRepository.fetch(ofType:) instead of FetchDescriptor
+- Migrated delete() to use RelationTypeManager.deleteRelationType() instead of modelContext.delete()
+- Migrated deleteAllUnused() to use RelationTypeManager.deleteRelationType() instead of modelContext.delete()
+- Added Task { await reloadData() } calls after delete operations
+
+**Preview Migration:**
+- Replaced direct Card() instantiation with CardRepository.createCard()
+- Replaced direct RelationType() instantiation with RelationTypeManager.ensureRelationType()
+- Replaced direct CardEdge() instantiation with EdgeRepository.createRelationship()
+- Updated to use ModelContainerFactory.makeInMemoryContainer()
+- Added ServiceContainer injection
+
+**Files Modified:**
+- RelationTypesManagerView.swift:16 - Added @Environment(\.services)
+- RelationTypesManagerView.swift:19 - Replaced @Query with @State
+- RelationTypesManagerView.swift:53-56 - Added .task { await reloadData() }
+- RelationTypesManagerView.swift:107-113 - Added reloadData() method
+- RelationTypesManagerView.swift:224-229 - Migrated usageCount() to EdgeRepository.fetch(ofType:)
+- RelationTypesManagerView.swift:231-237 - Migrated nullifyEdges() to EdgeRepository.fetch(ofType:)
+- RelationTypesManagerView.swift:239-243 - Migrated delete() to RelationTypeManager.deleteRelationType()
+- RelationTypesManagerView.swift:249-256 - Migrated deleteAllUnused() to RelationTypeManager.deleteRelationType()
+- RelationTypesManagerView.swift:260-298 - Migrated Preview to use repositories
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0139: ER-0022 Phase 2 Incomplete - SceneProjectRelationDiagnosticsView.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** SceneProjectRelationDiagnosticsView.swift
+**Severity:** Medium
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates CardEdge instances directly (lines 343, 345). Diagnostic view bypasses EdgeRepository.
+
+**Resolution:**
+- Added @Environment(\.services)
+- Migrated loadNonCanonicalEdges() to use QueryService.getAllEdges() with manual filtering and sorting
+- Migrated normalizeAll() to use QueryService.getAllEdges()
+- Migrated normalize() to use QueryService.getAllEdges()
+- Migrated Preview to use ModelContainerFactory, RelationTypeManager, CardRepository, EdgeRepository
+- Build verified successful
+
+**Status:** ✅ Resolved - Verified
+
+---
+
 *Last Updated: 2026-05-11*

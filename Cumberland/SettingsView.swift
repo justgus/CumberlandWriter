@@ -747,6 +747,7 @@ private struct AuthorSettingsPane: View {
 
 private struct ImagesSettingsPane: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.services) private var services
     @EnvironmentObject private var themeManager: ThemeManager
 
     // Fetch all cards that have either a thumbnail or an original image
@@ -938,14 +939,8 @@ private struct ImagesSettingsPane: View {
     // MARK: - Attribution helpers
 
     private func hasAnyImageAttribution(for card: Card) -> Bool {
-        let cardIDOpt: UUID? = card.id
-        let kindRaw = CitationKind.image.rawValue
-        let fetch = FetchDescriptor<Citation>(
-            predicate: #Predicate { $0.card?.id == cardIDOpt && $0.kindRaw == kindRaw },
-            sortBy: []
-        )
-        let found = (try? modelContext.fetch(fetch)) ?? []
-        return !found.isEmpty
+        guard let services = services else { return false }
+        return services.queryService.hasCitations(for: card, kind: .image)
     }
 
     @MainActor
@@ -1533,26 +1528,46 @@ private struct ShareSheet: UIViewControllerRepresentable {
         .modelContainer(container)
 }
 
-#Preview("Relations Pane - Live SwiftData") {
-    let container: ModelContainer = {
-        let schema = Schema([AppSettings.self, RelationType.self, Card.self, CardEdge.self])
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let c = try! ModelContainer(for: schema, configurations: config)
-        let ctx = c.mainContext
-        // Seed a couple of types and an edge for design-time
-        let t1 = RelationType(code: "appears-in/is-appeared-by", forwardLabel: "appears in", inverseLabel: "is appeared by", sourceKind: .characters, targetKind: .scenes)
-        let t2 = RelationType(code: "references/referenced-by", forwardLabel: "references", inverseLabel: "referenced by")
-        ctx.insert(t1); ctx.insert(t2)
-        let a = Card(kind: .characters, name: "Mira", subtitle: "", detailedText: "")
-        let b = Card(kind: .scenes, name: "Opening", subtitle: "", detailedText: "")
-        ctx.insert(a); ctx.insert(b)
-        ctx.insert(CardEdge(from: a, to: b, type: t1))
-        _ = AppSettings.fetchOrCreate(in: ctx)
-        try? ctx.save()
-        return c
-    }()
+#Preview("Relations Pane - Live SwiftData") { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
+    let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
+
+    // Create relation types using RelationTypeManager
+    let relTypeManager = RelationTypeManager(modelContext: ctx)
+    let t1 = relTypeManager.ensureRelationType(
+        code: "appears-in/is-appeared-by",
+        forwardLabel: "appears in",
+        inverseLabel: "is appeared by",
+        sourceKind: .characters,
+        targetKind: .scenes
+    )
+    let _ = relTypeManager.ensureRelationType(
+        code: "references/referenced-by",
+        forwardLabel: "references",
+        inverseLabel: "referenced by"
+    )
+
+    // Create cards using CardRepository
+    let cardRepo = CardRepository(modelContext: ctx)
+    let a = try! cardRepo.createCard(kind: .characters, name: "Mira")
+    let b = try! cardRepo.createCard(kind: .scenes, name: "Opening")
+
+    // Create edge using EdgeRepository
+    let edgeRepo = EdgeRepository(modelContext: ctx)
+    try! edgeRepo.createRelationship(from: a, to: b, relationType: t1)
+
+    _ = AppSettings.fetchOrCreate(in: ctx)
+    try? ctx.save()
 
     return SettingsView(initialSelection: .relations)
         .frame(minWidth: 680, minHeight: 480)
         .modelContainer(container)
+        .serviceContainer(services)
 }

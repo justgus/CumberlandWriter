@@ -160,4 +160,140 @@ Resolved simultaneously with DR-0136. Preview now uses CardRepository and EdgeRe
 
 ---
 
+## ✅ DR-0157: ER-0022 Phase 2 Incomplete - ImageAttributionViewer.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** Citation/Views/ImageAttributionViewer.swift
+**Severity:** Medium
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates Card() instances directly. Attribution system bypasses CardRepository.
+
+**Resolution:** 2026-05-11
+
+**Preview Migration:**
+- Migrated two Preview functions to use CardRepository.createCard()
+- Migrated both Previews to use ModelContainerFactory with full model list and ServiceContainer
+- Added @MainActor in to Preview closures
+- Build verified successful
+
+**Files Modified:**
+- Citation/Views/ImageAttributionViewer.swift:143-165 - Migrated "ImageAttributionViewer – Light" Preview
+- Citation/Views/ImageAttributionViewer.swift:167-189 - Migrated "ImageAttributionViewer – Dark" Preview
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0158: ER-0022 Phase 2 Incomplete - SourceDetailEditor.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** Citation/Views/SourceDetailEditor.swift
+**Severity:** Medium
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates Card() instances directly. Source editor bypasses CardRepository.
+
+**Resolution:** 2026-05-11
+
+**Preview Migration:**
+- Migrated Preview to use CardRepository.createCard() within @Previewable @State closure
+- Used ModelContainerFactory with full model list and ServiceContainer
+- Build verified successful
+
+**Files Modified:**
+- Citation/Views/SourceDetailEditor.swift:257-278 - Migrated Preview to use CardRepository with closure initializer
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0159: ER-0022 Phase 2 Incomplete - SourceEditorSheet.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** Citation/Views/SourceEditorSheet.swift
+**Severity:** Medium
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates Card() instances directly. Source editor sheet bypasses CardRepository.
+
+**Resolution:** 2026-05-11
+
+**Business Logic Migration:**
+- Migrated saveNew() business logic (lines 206-221) to use CardRepository.createCard()
+- Added error handling for card creation failure - saves Source without card link if CardRepository fails
+- Replaced direct Card() instantiation and modelContext.insert() with CardRepository pattern
+- Build verified successful
+
+**Files Modified:**
+- Citation/Views/SourceEditorSheet.swift:206-221 - Migrated auto-card-creation logic to use CardRepository
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0166: ER-0022 Phase 2 Incomplete - FullSizeImageViewer.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** Images/FullSizeImageViewer.swift
+**Severity:** Low
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates Card() instances directly. Image viewer bypasses CardRepository.
+
+**Resolution:** 2026-05-11
+
+**Preview Migration:**
+- Migrated Preview to use CardRepository.createCard()
+- Used ModelContainerFactory with full model list and ServiceContainer
+- Added @MainActor in to Preview closure
+- Build verified successful
+
+**Files Modified:**
+- Images/FullSizeImageViewer.swift:164-186 - Migrated Preview to use CardRepository
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0167: ER-0022 Phase 2 Incomplete - MainAppView.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** MainAppView.swift
+**Severity:** High
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates Card() instances directly. Main app view bypasses CardRepository.
+
+**Resolution:** 2026-05-11
+
+**Business Logic Migration:**
+- Migrated duplicateSelectedCards() fallback path (lines 1551-1568) to use CardRepository.createCard()
+- Migrated duplicateCard() fallback path (lines 1592-1609) to use CardRepository.createCard()
+- Both fallback paths now create CardRepository from modelContext and use repository pattern
+
+**Preview Migration:**
+- Migrated Preview (lines 1990-1997) to use ModelContainerFactory with full model list and ServiceContainer
+- Added @MainActor in to Preview closure
+- Build verified successful
+
+**Files Modified:**
+- MainAppView.swift:1551-1568 - Migrated duplicateSelectedCards() fallback to CardRepository
+- MainAppView.swift:1592-1609 - Migrated duplicateCard() fallback to CardRepository
+- MainAppView.swift:1990-1997 - Migrated Preview to use repositories
+
+**Status:** ✅ Resolved - Verified
+
+---
+
 *Last Updated: 2026-05-11*

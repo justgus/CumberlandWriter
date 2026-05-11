@@ -18,6 +18,7 @@ struct ReassignRelationTypeSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.services) private var services
 
     @State private var candidates: [RelationType] = []
     @State private var selectedCode: String? = nil
@@ -97,57 +98,80 @@ struct ReassignRelationTypeSheet: View {
 
     @MainActor
     private func loadUsage() async {
-        let codeOpt: String? = source.code
-        let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == codeOpt })
-        let edges = (try? modelContext.fetch(fetch)) ?? []
+        guard let services = services else { return }
+        let edges = services.edgeRepository.fetch(ofType: source)
         edgeCount = edges.count
     }
 
     @MainActor
     private func loadCandidates() async {
-        let all = (try? modelContext.fetch(FetchDescriptor<RelationType>(sortBy: [SortDescriptor(\.code, order: .forward)]))) ?? []
+        guard let services = services else { return }
+        let all = services.queryService.getAllRelationTypes()
         candidates = all.filter { $0.code != source.code }
         selectedCode = candidates.first?.code
     }
 
     @MainActor
     private func reassign() {
+        guard let services = services else {
+            onDone(false); dismiss(); return
+        }
         guard let code = selectedCode, let target = candidates.first(where: { $0.code == code }) else {
             onDone(false); dismiss(); return
         }
+
         // Update all edges referencing source.type to target
-        let srcCode: String? = source.code
-        let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.type?.code == srcCode })
-        let edges = (try? modelContext.fetch(fetch)) ?? []
+        let edges = services.edgeRepository.fetch(ofType: source)
         for e in edges {
             e.type = target
         }
         try? modelContext.save()
 
-        // Delete the source type
-        modelContext.delete(source)
-        try? modelContext.save()
+        // Delete the source type using RelationTypeManager
+        let relTypeManager = RelationTypeManager(modelContext: modelContext)
+        try? relTypeManager.deleteRelationType(source)
 
         onDone(true)
         dismiss()
     }
 }
 
-#Preview {
-    let schema = Schema([Card.self, RelationType.self, CardEdge.self])
-    let container = try! ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
+#Preview { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
     let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
 
-    let t1 = RelationType(code: "appears-in/is-appeared-by", forwardLabel: "appears in", inverseLabel: "is appeared by")
-    let t2 = RelationType(code: "references/referenced-by", forwardLabel: "references", inverseLabel: "referenced by")
-    ctx.insert(t1); ctx.insert(t2)
+    // Create relation types using RelationTypeManager
+    let relTypeManager = RelationTypeManager(modelContext: ctx)
+    let t1 = relTypeManager.ensureRelationType(
+        code: "appears-in/is-appeared-by",
+        forwardLabel: "appears in",
+        inverseLabel: "is appeared by"
+    )
+    let _ = relTypeManager.ensureRelationType(
+        code: "references/referenced-by",
+        forwardLabel: "references",
+        inverseLabel: "referenced by"
+    )
 
-    let a = Card(kind: .characters, name: "Mira", subtitle: "", detailedText: "")
-    let b = Card(kind: .scenes, name: "Opening", subtitle: "", detailedText: "")
-    ctx.insert(a); ctx.insert(b)
-    ctx.insert(CardEdge(from: a, to: b, type: t1))
+    // Create cards using CardRepository
+    let cardRepo = CardRepository(modelContext: ctx)
+    let a = try! cardRepo.createCard(kind: .characters, name: "Mira")
+    let b = try! cardRepo.createCard(kind: .scenes, name: "Opening")
+
+    // Create edge using EdgeRepository
+    let edgeRepo = EdgeRepository(modelContext: ctx)
+    try! edgeRepo.createRelationship(from: a, to: b, relationType: t1)
 
     try? ctx.save()
 
-    return ReassignRelationTypeSheet(source: t1) { _ in }.modelContainer(container)
+    return ReassignRelationTypeSheet(source: t1) { _ in }
+        .modelContainer(container)
+        .serviceContainer(services)
 }

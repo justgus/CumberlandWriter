@@ -15,6 +15,7 @@ import OSLog
 struct SceneProjectRelationDiagnosticsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.services) private var services
 
     @State private var nonCanonicalEdges: [EdgeInfo] = []
     @State private var isLoading: Bool = false
@@ -213,14 +214,8 @@ struct SceneProjectRelationDiagnosticsView: View {
 
     // MARK: - Data layer
 
-    private func canonicalType() -> RelationType? {
-        let fetch = FetchDescriptor<RelationType>(predicate: #Predicate { $0.code == canonicalCode })
-        return try? modelContext.fetch(fetch).first
-    }
-
     /// DR-0103: Delegate to RelationTypeManager for canonical type creation
     private func ensureCanonicalType() -> RelationType {
-        if let t = canonicalType() { return t }
         let mgr = RelationTypeManager(modelContext: modelContext)
         return mgr.ensureRelationType(
             code: canonicalCode,
@@ -233,13 +228,9 @@ struct SceneProjectRelationDiagnosticsView: View {
 
     @MainActor
     private func loadNonCanonicalEdges() async -> [EdgeInfo] {
+        guard let services = services else { return [] }
         // Fetch all edges, filter in-memory by kinds and non-canonical type
-        let fetch = FetchDescriptor<CardEdge>(
-            sortBy: [
-                SortDescriptor(\.createdAt, order: .reverse)
-            ]
-        )
-        let edges = (try? modelContext.fetch(fetch)) ?? []
+        let edges = services.queryService.getAllEdges()
         let result: [EdgeInfo] = edges.compactMap { e in
             guard let from = e.from, let to = e.to else { return nil }
             guard from.kind == .scenes, to.kind == .projects else { return nil }
@@ -256,15 +247,15 @@ struct SceneProjectRelationDiagnosticsView: View {
                 createdAt: e.createdAt
             )
         }
-        return result
+        return result.sorted { $0.createdAt > $1.createdAt }
     }
 
     @MainActor
     private func normalizeAll() async -> Int {
+        guard let services = services else { return 0 }
         let canonical = ensureCanonicalType()
         // Fetch all edges, mutate those that need it
-        let fetch = FetchDescriptor<CardEdge>()
-        let edges = (try? modelContext.fetch(fetch)) ?? []
+        let edges = services.queryService.getAllEdges()
         var changed = 0
         for e in edges {
             guard let from = e.from, let to = e.to else { continue }
@@ -284,11 +275,11 @@ struct SceneProjectRelationDiagnosticsView: View {
 
     @MainActor
     private func normalize(edgeID: UUID) async -> Int {
+        guard let services = services else { return 0 }
         let canonical = ensureCanonicalType()
-        // There’s no public ID on CardEdge; re-find by from/to/type from our snapshot.
+        // There's no public ID on CardEdge; re-find by from/to/type from our snapshot.
         // Safer approach: refetch all and change the first that matches scene+project and non-canonical type.
-        let fetch = FetchDescriptor<CardEdge>()
-        let edges = (try? modelContext.fetch(fetch)) ?? []
+        let edges = services.queryService.getAllEdges()
         guard let e = edges.first(where: { edge in
             guard let from = edge.from, let to = edge.to else { return false }
             return from.kind == .scenes && to.kind == .projects && edge.type?.code != canonical.code
@@ -321,30 +312,45 @@ private extension Int {
     }
 }
 
-#Preview {
-    // In-memory container preview
-    let schema = Schema([Card.self, RelationType.self, CardEdge.self])
-    let container = try! ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
-
-    // Seed canonical type
+#Preview { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
     let ctx = container.mainContext
-    let canonical = RelationType(code: "stories/is-storied-by", forwardLabel: "stories", inverseLabel: "is storied by", sourceKind: .scenes, targetKind: .projects)
-    ctx.insert(canonical)
+    let services = ServiceContainer(modelContext: ctx)
 
-    // Sample cards
-    let proj = Card(kind: .projects, name: "Project Alpha", subtitle: "", detailedText: "")
-    let scene1 = Card(kind: .scenes, name: "Opening", subtitle: "", detailedText: "")
-    let scene2 = Card(kind: .scenes, name: "Climax", subtitle: "", detailedText: "")
-    ctx.insert(proj); ctx.insert(scene1); ctx.insert(scene2)
+    // Create relation types using RelationTypeManager
+    let relTypeManager = RelationTypeManager(modelContext: ctx)
+    let canonical = relTypeManager.ensureRelationType(
+        code: "stories/is-storied-by",
+        forwardLabel: "stories",
+        inverseLabel: "is storied by",
+        sourceKind: .scenes,
+        targetKind: .projects
+    )
+    let wrongType = relTypeManager.ensureRelationType(
+        code: "references",
+        forwardLabel: "references",
+        inverseLabel: "referenced by"
+    )
 
-    // Wrong type
-    let wrongType = RelationType(code: "references", forwardLabel: "references", inverseLabel: "referenced by")
-    ctx.insert(wrongType)
-    ctx.insert(CardEdge(from: scene1, to: proj, type: wrongType))
-    // Correct type
-    ctx.insert(CardEdge(from: scene2, to: proj, type: canonical))
+    // Create cards using CardRepository
+    let cardRepo = CardRepository(modelContext: ctx)
+    let proj = try! cardRepo.createCard(kind: .projects, name: "Project Alpha")
+    let scene1 = try! cardRepo.createCard(kind: .scenes, name: "Opening")
+    let scene2 = try! cardRepo.createCard(kind: .scenes, name: "Climax")
+
+    // Create edges using EdgeRepository
+    let edgeRepo = EdgeRepository(modelContext: ctx)
+    try! edgeRepo.createRelationship(from: scene1, to: proj, relationType: wrongType)
+    try! edgeRepo.createRelationship(from: scene2, to: proj, relationType: canonical)
 
     return SceneProjectRelationDiagnosticsView()
         .modelContainer(container)
+        .serviceContainer(services)
         .frame(minWidth: 700, minHeight: 420)
 }

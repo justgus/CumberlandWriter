@@ -377,16 +377,29 @@ extension View {
 
 // MARK: - Preview
 
-#Preview("FullSizeImageViewer") {
-    let sample = Card(
+#Preview("FullSizeImageViewer") { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
+    let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
+
+    let cardRepo = CardRepository(modelContext: ctx)
+    let sample = try! cardRepo.createCard(
         kind: .characters,
         name: "Ada",
         subtitle: "The Analyst",
-        detailedText: "Curious and meticulous.",
-        author: "M. S.",
-        sizeCategory: .standard
+        detailedText: "Curious and meticulous."
     )
-    
+    sample.author = "M. S."
+    sample.sizeCategory = .standard
+    try? ctx.save()
+
     return FullSizeImageViewer(card: sample, pendingImageData: nil)
-        .modelContainer(for: Card.self, inMemory: true)
+        .modelContainer(container)
+        .serviceContainer(services)
 }

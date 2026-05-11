@@ -27,6 +27,7 @@ struct SwimlaneViewer: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.services) private var services
 
     // Track resolved frames for drop hit-testing
     @State private var laneFrames: [UUID: CGRect] = [:]
@@ -193,22 +194,22 @@ struct SwimlaneViewer: View {
 
     @MainActor
     private func orderedRelatedCards(for master: Card, typeFilter: RelationType?, direction: SwimlaneDirection) -> [Card] {
-        let predicate: Predicate<CardEdge>
-        let masterIDOpt: UUID? = master.id
+        guard let services = services else { return [] }
+
+        // Fetch incoming edges to master, then filter by type if needed
+        var edges = services.edgeRepository.fetchIncoming(to: master)
         if let t = typeFilter {
-            let typeCodeOpt: String? = t.code
-            predicate = #Predicate { $0.to?.id == masterIDOpt && $0.type?.code == typeCodeOpt }
-        } else {
-            predicate = #Predicate { $0.to?.id == masterIDOpt }
+            edges = edges.filter { $0.type?.code == t.code }
         }
-        let fetch = FetchDescriptor<CardEdge>(
-            predicate: predicate,
-            sortBy: [
-                SortDescriptor(\.sortIndex, order: .forward),
-                SortDescriptor(\.createdAt, order: .forward)
-            ]
-        )
-        let edges = (try? modelContext.fetch(fetch)) ?? []
+
+        // Sort by sortIndex, then createdAt
+        edges.sort { a, b in
+            if a.sortIndex != b.sortIndex {
+                return a.sortIndex < b.sortIndex
+            }
+            return a.createdAt < b.createdAt
+        }
+
         // Map to 'from' and keep the edge order; unique by id preserving first occurrence
         var seen: Set<UUID> = []
         var ordered: [Card] = []
@@ -229,69 +230,70 @@ struct SwimlaneViewer: View {
 
     @MainActor
     private func defaultRelationType() -> RelationType? {
-        let fetch = FetchDescriptor<RelationType>(
-            predicate: #Predicate { $0.code == "references" }
+        let relTypeManager = RelationTypeManager(modelContext: modelContext)
+        return relTypeManager.ensureRelationType(
+            code: "references",
+            forwardLabel: "references",
+            inverseLabel: "referenced by"
         )
-        return try? modelContext.fetch(fetch).first
     }
 
     @MainActor
     private func edgeExists(from: Card, to: Card, type: RelationType) -> Bool {
-        let fromIDOpt: UUID? = from.id
-        let toIDOpt: UUID? = to.id
-        let typeCodeOpt: String? = type.code
-        let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from?.id == fromIDOpt && $0.to?.id == toIDOpt && $0.type?.code == typeCodeOpt }
-        )
-        let found = try? modelContext.fetch(fetch)
-        return (found?.isEmpty == false)
+        guard let services = services else { return false }
+        let outgoing = services.edgeRepository.fetchOutgoing(from: from)
+        return outgoing.contains { edge in
+            edge.to?.id == to.id && edge.type?.code == type.code
+        }
     }
 
     @MainActor
     private func relateCardAppend(with id: UUID, to master: Card) -> Bool {
-        let cardFetch = FetchDescriptor<Card>(predicate: #Predicate { $0.id == id })
-        guard let card = try? modelContext.fetch(cardFetch).first else { return false }
+        guard let services = services else { return false }
+        guard let card = services.cardRepository.fetch(byUUID: id) else { return false }
         let chosenType = relationTypeFilter ?? defaultRelationType()
         guard let type = chosenType else { return false }
         guard !edgeExists(from: card, to: master, type: type) else { return false }
 
         // Append to end: sortIndex = currentMax + 1.0
-        let masterIDOpt: UUID? = master.id
-        let typeCodeOpt: String? = type.code
-        let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.to?.id == masterIDOpt && $0.type?.code == typeCodeOpt },
-            sortBy: [SortDescriptor(\.sortIndex, order: .forward)]
-        )
-        let existing = (try? modelContext.fetch(fetch)) ?? []
+        var existing = services.edgeRepository.fetchIncoming(to: master)
+        existing = existing.filter { $0.type?.code == type.code }
+        existing.sort { $0.sortIndex < $1.sortIndex }
         let maxIndex = existing.last?.sortIndex ?? 0.0
         let newIndex = maxIndex + 1.0
 
-        let edge = CardEdge(from: card, to: master, type: type, note: nil, createdAt: Date(), sortIndex: newIndex)
-
         // Use a fast animation so the lane update feels immediate
         withAnimation(.snappy(duration: 0.22)) {
-            modelContext.insert(edge)
-            try? modelContext.save()
+            try? services.edgeRepository.createRelationship(
+                from: card,
+                to: master,
+                relationType: type,
+                sortIndex: newIndex
+            )
         }
         return true
     }
 }
 
-#Preview("SwimlaneViewer - Mixed Directions (Light)") {
-    // Build an in-memory container and INSERT all sample data into it
-    let schema = Schema([Card.self, RelationType.self, CardEdge.self])
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: [config])
-    let context = container.mainContext
+#Preview("SwimlaneViewer - Mixed Directions (Light)") { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
+    let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
 
-    let relType = RelationType(code: "references", forwardLabel: "references", inverseLabel: "referenced by")
-    context.insert(relType)
+    let relTypeManager = RelationTypeManager(modelContext: ctx)
+    let relType = relTypeManager.ensureRelationType(
+        code: "references",
+        forwardLabel: "references",
+        inverseLabel: "referenced by"
+    )
 
-    // Masters
-    let masterA = Card(kind: .projects, name: "Project Alpha", subtitle: "Root A", detailedText: "Alpha master", sizeCategory: .standard)
-    let masterB = Card(kind: .projects, name: "Project Beta", subtitle: "Root B", detailedText: "Beta master", sizeCategory: .standard)
-    let masterC = Card(kind: .projects, name: "Project Gamma", subtitle: "Root C", detailedText: "Gamma master", sizeCategory: .standard)
-    [masterA, masterB, masterC].forEach { context.insert($0) }
+    let cardRepo = CardRepository(modelContext: ctx)
 
     func loremLines(_ count: Int) -> String {
         let base = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
@@ -299,35 +301,49 @@ struct SwimlaneViewer: View {
     }
     let longText = loremLines(20)
 
+    // Masters
+    let masterA = try! cardRepo.createCard(kind: .projects, name: "Project Alpha", subtitle: "Root A", detailedText: "Alpha master")
+    masterA.sizeCategory = .standard
+    let masterB = try! cardRepo.createCard(kind: .projects, name: "Project Beta", subtitle: "Root B", detailedText: "Beta master")
+    masterB.sizeCategory = .standard
+    let masterC = try! cardRepo.createCard(kind: .projects, name: "Project Gamma", subtitle: "Root C", detailedText: "Gamma master")
+    masterC.sizeCategory = .standard
+
     // Related for A
-    let a1 = Card(kind: .characters, name: "Mira", subtitle: "Scout", detailedText: longText, sizeCategory: .compact)
-    let a2 = Card(kind: .vehicles, name: "Skiff", subtitle: "Courier", detailedText: longText, sizeCategory: .standard)
-    let a3 = Card(kind: .scenes, name: "Market", subtitle: "Evening bustle", detailedText: longText, sizeCategory: .large)
-    [a1, a2, a3].forEach { context.insert($0) }
-    [CardEdge(from: a1, to: masterA, type: relType, createdAt: Date(), sortIndex: 1),
-     CardEdge(from: a2, to: masterA, type: relType, createdAt: Date(), sortIndex: 2),
-     CardEdge(from: a3, to: masterA, type: relType, createdAt: Date(), sortIndex: 3)
-    ].forEach { context.insert($0) }
+    let a1 = try! cardRepo.createCard(kind: .characters, name: "Mira", subtitle: "Scout", detailedText: longText)
+    a1.sizeCategory = .compact
+    let a2 = try! cardRepo.createCard(kind: .vehicles, name: "Skiff", subtitle: "Courier", detailedText: longText)
+    a2.sizeCategory = .standard
+    let a3 = try! cardRepo.createCard(kind: .scenes, name: "Market", subtitle: "Evening bustle", detailedText: longText)
+    a3.sizeCategory = .large
+
+    let edgeRepo = EdgeRepository(modelContext: ctx)
+    try? edgeRepo.createRelationship(from: a1, to: masterA, relationType: relType, sortIndex: 1)
+    try? edgeRepo.createRelationship(from: a2, to: masterA, relationType: relType, sortIndex: 2)
+    try? edgeRepo.createRelationship(from: a3, to: masterA, relationType: relType, sortIndex: 3)
 
     // Related for B
-    let b1 = Card(kind: .characters, name: "Aiden", subtitle: "Pilot", detailedText: longText, sizeCategory: .standard)
-    let b2 = Card(kind: .worlds, name: "Aether", subtitle: "Geography", detailedText: longText, sizeCategory: .compact)
-    [b1, b2].forEach { context.insert($0) }
-    [CardEdge(from: b1, to: masterB, type: relType, createdAt: Date(), sortIndex: 1),
-     CardEdge(from: b2, to: masterB, type: relType, createdAt: Date(), sortIndex: 2)
-    ].forEach { context.insert($0) }
+    let b1 = try! cardRepo.createCard(kind: .characters, name: "Aiden", subtitle: "Pilot", detailedText: longText)
+    b1.sizeCategory = .standard
+    let b2 = try! cardRepo.createCard(kind: .worlds, name: "Aether", subtitle: "Geography", detailedText: longText)
+    b2.sizeCategory = .compact
+    try? edgeRepo.createRelationship(from: b1, to: masterB, relationType: relType, sortIndex: 1)
+    try? edgeRepo.createRelationship(from: b2, to: masterB, relationType: relType, sortIndex: 2)
 
     // Related for C
-    let g1 = Card(kind: .scenes, name: "Docks", subtitle: "Foggy morning", detailedText: longText, sizeCategory: .standard)
-    let g2 = Card(kind: .vehicles, name: "Hauler", subtitle: "Freight", detailedText: longText, sizeCategory: .compact)
-    let g3 = Card(kind: .characters, name: "Rhea", subtitle: "Mechanic", detailedText: longText, sizeCategory: .large)
-    let g4 = Card(kind: .worlds, name: "Nox", subtitle: "Nightside colony", detailedText: longText, sizeCategory: .standard)
-    [g1, g2, g3, g4].forEach { context.insert($0) }
-    [CardEdge(from: g1, to: masterC, type: relType, createdAt: Date(), sortIndex: 1),
-     CardEdge(from: g2, to: masterC, type: relType, createdAt: Date(), sortIndex: 2),
-     CardEdge(from: g3, to: masterC, type: relType, createdAt: Date(), sortIndex: 3),
-     CardEdge(from: g4, to: masterC, type: relType, createdAt: Date(), sortIndex: 4)
-    ].forEach { context.insert($0) }
+    let g1 = try! cardRepo.createCard(kind: .scenes, name: "Docks", subtitle: "Foggy morning", detailedText: longText)
+    g1.sizeCategory = .standard
+    let g2 = try! cardRepo.createCard(kind: .vehicles, name: "Hauler", subtitle: "Freight", detailedText: longText)
+    g2.sizeCategory = .compact
+    let g3 = try! cardRepo.createCard(kind: .characters, name: "Rhea", subtitle: "Mechanic", detailedText: longText)
+    g3.sizeCategory = .large
+    let g4 = try! cardRepo.createCard(kind: .worlds, name: "Nox", subtitle: "Nightside colony", detailedText: longText)
+    g4.sizeCategory = .standard
+    try? edgeRepo.createRelationship(from: g1, to: masterC, relationType: relType, sortIndex: 1)
+    try? edgeRepo.createRelationship(from: g2, to: masterC, relationType: relType, sortIndex: 2)
+    try? edgeRepo.createRelationship(from: g3, to: masterC, relationType: relType, sortIndex: 3)
+    try? edgeRepo.createRelationship(from: g4, to: masterC, relationType: relType, sortIndex: 4)
+    try? ctx.save()
 
     let lanes: [SwimlaneViewer.LaneDescriptor] = [
         .init(master: masterA, direction: .topToBottom, showsHeader: true),
@@ -337,24 +353,30 @@ struct SwimlaneViewer: View {
 
     return SwimlaneViewer(laneDescriptors: lanes, relationTypeFilter: nil, laneWidth: 420, laneSpacing: 16, contentPadding: 16, showsIndicators: true)
         .modelContainer(container)
+        .serviceContainer(services)
         .frame(height: 520)
         .padding()
 }
 
-#Preview("SwimlaneViewer - Mixed Directions (Dark)") {
-    // Build an in-memory container and INSERT all sample data into it
-    let schema = Schema([Card.self, RelationType.self, CardEdge.self])
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: [config])
-    let context = container.mainContext
+#Preview("SwimlaneViewer - Mixed Directions (Dark)") { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
+    let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
 
-    let relType = RelationType(code: "references", forwardLabel: "references", inverseLabel: "referenced by")
-    context.insert(relType)
+    let relTypeManager = RelationTypeManager(modelContext: ctx)
+    let relType = relTypeManager.ensureRelationType(
+        code: "references",
+        forwardLabel: "references",
+        inverseLabel: "referenced by"
+    )
 
-    let masterA = Card(kind: .projects, name: "Project Alpha", subtitle: "Root A", detailedText: "Alpha master", sizeCategory: .standard)
-    let masterB = Card(kind: .projects, name: "Project Beta", subtitle: "Root B", detailedText: "Beta master", sizeCategory: .standard)
-    let masterC = Card(kind: .projects, name: "Project Gamma", subtitle: "Root C", detailedText: "Gamma master", sizeCategory: .standard)
-    [masterA, masterB, masterC].forEach { context.insert($0) }
+    let cardRepo = CardRepository(modelContext: ctx)
 
     func loremLines(_ count: Int) -> String {
         let base = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
@@ -362,32 +384,49 @@ struct SwimlaneViewer: View {
     }
     let longText = loremLines(20)
 
-    let a1 = Card(kind: .characters, name: "Mira", subtitle: "Scout", detailedText: longText, sizeCategory: .compact)
-    let a2 = Card(kind: .vehicles, name: "Skiff", subtitle: "Courier", detailedText: longText, sizeCategory: .standard)
-    let a3 = Card(kind: .scenes, name: "Market", subtitle: "Evening bustle", detailedText: longText, sizeCategory: .large)
-    [a1, a2, a3].forEach { context.insert($0) }
-    [CardEdge(from: a1, to: masterA, type: relType, createdAt: Date(), sortIndex: 1),
-     CardEdge(from: a2, to: masterA, type: relType, createdAt: Date(), sortIndex: 2),
-     CardEdge(from: a3, to: masterA, type: relType, createdAt: Date(), sortIndex: 3)
-    ].forEach { context.insert($0) }
+    // Masters
+    let masterA = try! cardRepo.createCard(kind: .projects, name: "Project Alpha", subtitle: "Root A", detailedText: "Alpha master")
+    masterA.sizeCategory = .standard
+    let masterB = try! cardRepo.createCard(kind: .projects, name: "Project Beta", subtitle: "Root B", detailedText: "Beta master")
+    masterB.sizeCategory = .standard
+    let masterC = try! cardRepo.createCard(kind: .projects, name: "Project Gamma", subtitle: "Root C", detailedText: "Gamma master")
+    masterC.sizeCategory = .standard
 
-    let b1 = Card(kind: .characters, name: "Aiden", subtitle: "Pilot", detailedText: longText, sizeCategory: .standard)
-    let b2 = Card(kind: .worlds, name: "Aether", subtitle: "Geography", detailedText: longText, sizeCategory: .compact)
-    [b1, b2].forEach { context.insert($0) }
-    [CardEdge(from: b1, to: masterB, type: relType, createdAt: Date(), sortIndex: 1),
-     CardEdge(from: b2, to: masterB, type: relType, createdAt: Date(), sortIndex: 2)
-    ].forEach { context.insert($0) }
+    // Related for A
+    let a1 = try! cardRepo.createCard(kind: .characters, name: "Mira", subtitle: "Scout", detailedText: longText)
+    a1.sizeCategory = .compact
+    let a2 = try! cardRepo.createCard(kind: .vehicles, name: "Skiff", subtitle: "Courier", detailedText: longText)
+    a2.sizeCategory = .standard
+    let a3 = try! cardRepo.createCard(kind: .scenes, name: "Market", subtitle: "Evening bustle", detailedText: longText)
+    a3.sizeCategory = .large
 
-    let g1 = Card(kind: .scenes, name: "Docks", subtitle: "Foggy morning", detailedText: longText, sizeCategory: .standard)
-    let g2 = Card(kind: .vehicles, name: "Hauler", subtitle: "Freight", detailedText: longText, sizeCategory: .compact)
-    let g3 = Card(kind: .characters, name: "Rhea", subtitle: "Mechanic", detailedText: longText, sizeCategory: .large)
-    let g4 = Card(kind: .worlds, name: "Nox", subtitle: "Nightside colony", detailedText: longText, sizeCategory: .standard)
-    [g1, g2, g3, g4].forEach { context.insert($0) }
-    [CardEdge(from: g1, to: masterC, type: relType, createdAt: Date(), sortIndex: 1),
-     CardEdge(from: g2, to: masterC, type: relType, createdAt: Date(), sortIndex: 2),
-     CardEdge(from: g3, to: masterC, type: relType, createdAt: Date(), sortIndex: 3),
-     CardEdge(from: g4, to: masterC, type: relType, createdAt: Date(), sortIndex: 4)
-    ].forEach { context.insert($0) }
+    let edgeRepo = EdgeRepository(modelContext: ctx)
+    try? edgeRepo.createRelationship(from: a1, to: masterA, relationType: relType, sortIndex: 1)
+    try? edgeRepo.createRelationship(from: a2, to: masterA, relationType: relType, sortIndex: 2)
+    try? edgeRepo.createRelationship(from: a3, to: masterA, relationType: relType, sortIndex: 3)
+
+    // Related for B
+    let b1 = try! cardRepo.createCard(kind: .characters, name: "Aiden", subtitle: "Pilot", detailedText: longText)
+    b1.sizeCategory = .standard
+    let b2 = try! cardRepo.createCard(kind: .worlds, name: "Aether", subtitle: "Geography", detailedText: longText)
+    b2.sizeCategory = .compact
+    try? edgeRepo.createRelationship(from: b1, to: masterB, relationType: relType, sortIndex: 1)
+    try? edgeRepo.createRelationship(from: b2, to: masterB, relationType: relType, sortIndex: 2)
+
+    // Related for C
+    let g1 = try! cardRepo.createCard(kind: .scenes, name: "Docks", subtitle: "Foggy morning", detailedText: longText)
+    g1.sizeCategory = .standard
+    let g2 = try! cardRepo.createCard(kind: .vehicles, name: "Hauler", subtitle: "Freight", detailedText: longText)
+    g2.sizeCategory = .compact
+    let g3 = try! cardRepo.createCard(kind: .characters, name: "Rhea", subtitle: "Mechanic", detailedText: longText)
+    g3.sizeCategory = .large
+    let g4 = try! cardRepo.createCard(kind: .worlds, name: "Nox", subtitle: "Nightside colony", detailedText: longText)
+    g4.sizeCategory = .standard
+    try? edgeRepo.createRelationship(from: g1, to: masterC, relationType: relType, sortIndex: 1)
+    try? edgeRepo.createRelationship(from: g2, to: masterC, relationType: relType, sortIndex: 2)
+    try? edgeRepo.createRelationship(from: g3, to: masterC, relationType: relType, sortIndex: 3)
+    try? edgeRepo.createRelationship(from: g4, to: masterC, relationType: relType, sortIndex: 4)
+    try? ctx.save()
 
     let lanes: [SwimlaneViewer.LaneDescriptor] = [
         .init(master: masterA, direction: .topToBottom, showsHeader: true),
@@ -397,6 +436,7 @@ struct SwimlaneViewer: View {
 
     return SwimlaneViewer(laneDescriptors: lanes, relationTypeFilter: nil, laneWidth: 420, laneSpacing: 16, contentPadding: 16, showsIndicators: true)
         .modelContainer(container)
+        .serviceContainer(services)
         .frame(height: 520)
         .padding()
         .preferredColorScheme(.dark)

@@ -89,4 +89,97 @@ This issue was resolved as part of DR-0131. See DR-0131 for complete migration d
 
 ---
 
-*Last Updated: 2026-05-09*
+## ✅ DR-0141: ER-0022 Phase 2 Incomplete - SettingsView.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** SettingsView.swift
+**Severity:** Medium
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates CardEdge instances directly (line 1549). Settings view bypasses EdgeRepository.
+
+**Resolution:** 2026-05-11
+
+**Preview Migration:**
+- Migrated Preview (lines 1536-1578) to use ModelContainerFactory, RelationTypeManager, CardRepository, EdgeRepository
+- Preview now uses standard repository pattern with ServiceContainer injection
+- Added @MainActor in to Preview closure
+- Build verified successful
+
+**Citation Query Migration:**
+- Added @Environment(\.services) to ImagesSettingsPane (line 750)
+- Migrated hasAnyImageAttribution() to use QueryService.hasCitations(for:kind:) instead of FetchDescriptor (lines 940-943)
+- Added 3 Citation query methods to QueryService: getCitations(for:), getCitations(for:kind:), hasCitations(for:kind:)
+
+**Files Modified:**
+- SettingsView.swift:750 - Added @Environment(\.services) to ImagesSettingsPane
+- SettingsView.swift:940-943 - Migrated hasAnyImageAttribution() to use QueryService
+- SettingsView.swift:1536-1578 - Migrated Preview to use repositories
+- Data/QueryService.swift:91-134 - Added Citation query methods
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0142: ER-0022 Phase 2 Incomplete - Swimlane.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** Swimlane.swift
+**Severity:** High
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates CardEdge instances directly. Swimlane feature bypasses EdgeRepository.
+
+**Resolution:** 2026-05-11
+
+**Main View Migration:**
+- Added @Environment(\.services)
+- Migrated fetchCard(by:) to use CardRepository.fetch(byUUID:)
+- Migrated defaultRelationType() to use RelationTypeManager.ensureRelationType()
+- Migrated edgeFor(from:to:type:) to use EdgeRepository.fetchOutgoing() with in-memory filtering
+- Migrated neighborIndicesForInsertion(at:) to use EdgeRepository.fetchIncoming() with manual sorting
+- Migrated insertCardIntoLane() to use EdgeRepository.createRelationship() with sortIndex parameter
+- Migrated removeCardFromLane() to use EdgeRepository.fetchOutgoing() and EdgeRepository.deleteEdge()
+
+**Preview Migration:**
+- Migrated both Preview functions to use ModelContainerFactory, RelationTypeManager, CardRepository, EdgeRepository
+- Build verified successful
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0143: ER-0022 Phase 2 Incomplete - SwimlaneViewer.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** SwimlaneViewer.swift
+**Severity:** High
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates CardEdge instances directly (lines 269, 307-309, 316-317, 326+). Swimlane feature bypasses EdgeRepository.
+
+**Resolution:** 2026-05-11
+
+**Main View Migration:**
+- Added @Environment(\.services)
+- Migrated orderedRelatedCards() to use EdgeRepository.fetchIncoming() with manual sorting and filtering
+- Migrated defaultRelationType() to use RelationTypeManager.ensureRelationType()
+- Migrated edgeExists() to use EdgeRepository.fetchOutgoing() with in-memory filtering
+- Migrated relateCardAppend() to use CardRepository.fetch(byUUID:) and EdgeRepository.createRelationship() with sortIndex
+
+**Preview Migration:**
+- Migrated both Preview functions (Light and Dark) to use ModelContainerFactory, RelationTypeManager, CardRepository, EdgeRepository
+- Added @MainActor in to Preview closures
+- Build verified successful
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-05-11*

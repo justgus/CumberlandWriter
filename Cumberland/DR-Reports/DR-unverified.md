@@ -4,7 +4,7 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **63 open DRs**
+**Status:** Currently **52 open DRs**
 
 ## Recently Verified (2026-05-11)
 
@@ -13,50 +13,22 @@ The following DRs have been verified and archived:
 - ✅ **DR-0134** → DR-verified-0131-0140.md (Batch 14) - RecentEdgesDiagnosticsView migration
 - ✅ **DR-0135** → DR-verified-0131-0140.md (Batch 14) - RelationshipAuditView migration
 - ✅ **DR-0136** → DR-verified-0131-0140.md (Batch 14) - RelationTypesDiagnosticsView migration
+- ✅ **DR-0137** → DR-verified-0131-0140.md (Batch 14) - ReassignRelationTypeSheet migration
+- ✅ **DR-0138** → DR-verified-0131-0140.md (Batch 14) - RelationTypesManagerView migration
+- ✅ **DR-0139** → DR-verified-0131-0140.md (Batch 14) - SceneProjectRelationDiagnosticsView migration
+- ✅ **DR-0141** → DR-verified-0141-0150.md (Batch 15) - SettingsView migration
+- ✅ **DR-0142** → DR-verified-0141-0150.md (Batch 15) - Swimlane migration
+- ✅ **DR-0143** → DR-verified-0141-0150.md (Batch 15) - SwimlaneViewer migration
+- ✅ **DR-0157** → DR-verified-0161-0170.md (Batch 17) - ImageAttributionViewer Card creation
+- ✅ **DR-0158** → DR-verified-0161-0170.md (Batch 17) - SourceDetailEditor Card creation
+- ✅ **DR-0159** → DR-verified-0161-0170.md (Batch 17) - SourceEditorSheet Card creation
 - ✅ **DR-0161** → DR-verified-0161-0170.md (Batch 17) - CardDiagnosticsView Card creation
 - ✅ **DR-0162** → DR-verified-0161-0170.md (Batch 17) - DeveloperBoardsView Card creation
 - ✅ **DR-0163** → DR-verified-0161-0170.md (Batch 17) - DeveloperToolsView Card creation & query removal
 - ✅ **DR-0164** → DR-verified-0161-0170.md (Batch 17) - RecentEdgesDiagnosticsView Card creation
 - ✅ **DR-0165** → DR-verified-0161-0170.md (Batch 17) - RelationTypesDiagnosticsView Card creation
-
----
-
-## 🔴 DR-0137: ER-0022 Phase 2 Incomplete - ReassignRelationTypeSheet.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** ReassignRelationTypeSheet.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly. Critical relationship management UI bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0138: ER-0022 Phase 2 Incomplete - RelationTypesManagerView.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** RelationTypesManagerView.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly (line 265). Core relationship type management bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0139: ER-0022 Phase 2 Incomplete - SceneProjectRelationDiagnosticsView.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** SceneProjectRelationDiagnosticsView.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly (lines 343, 345). Diagnostic view bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
+- ✅ **DR-0166** → DR-verified-0161-0170.md (Batch 17) - FullSizeImageViewer Card creation
+- ✅ **DR-0167** → DR-verified-0161-0170.md (Batch 17) - MainAppView Card creation
 
 ---
 
@@ -68,45 +40,6 @@ The following DRs have been verified and archived:
 **Related ER:** ER-0022 Phase 2
 
 **Issue:** Creates CardEdge instances directly. Core service layer bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0141: ER-0022 Phase 2 Incomplete - SettingsView.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** SettingsView.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly (line 1549). Settings view bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0142: ER-0022 Phase 2 Incomplete - Swimlane.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** Swimlane.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly. Swimlane feature bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0143: ER-0022 Phase 2 Incomplete - SwimlaneViewer.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** SwimlaneViewer.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly (lines 269, 307-309, 316-317, 326+). Swimlane feature bypasses EdgeRepository.
 
 **Status:** 🔴 Identified - Not Resolved
 
@@ -251,71 +184,6 @@ The following DRs have been verified and archived:
 **Related ER:** ER-0022 Phase 2
 
 **Issue:** Creates Card() instances directly. Citation system bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0157: ER-0022 Phase 2 Incomplete - ImageAttributionViewer.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Citation/Views/ImageAttributionViewer.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Attribution system bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0158: ER-0022 Phase 2 Incomplete - SourceDetailEditor.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Citation/Views/SourceDetailEditor.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Source editor bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0159: ER-0022 Phase 2 Incomplete - SourceEditorSheet.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Citation/Views/SourceEditorSheet.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Source editor sheet bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0166: ER-0022 Phase 2 Incomplete - FullSizeImageViewer.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Images/FullSizeImageViewer.swift
-**Severity:** Low
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Image viewer bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0167: ER-0022 Phase 2 Incomplete - MainAppView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** MainAppView.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Main app view bypasses CardRepository.
 
 **Status:** 🔴 Identified - Not Resolved
 
