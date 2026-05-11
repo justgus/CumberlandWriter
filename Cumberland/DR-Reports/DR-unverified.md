@@ -4,59 +4,20 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **71 open DRs**
+**Status:** Currently **63 open DRs**
 
----
+## Recently Verified (2026-05-11)
 
-## 🔴 DR-0133: ER-0022 Phase 2 Incomplete - CardDiagnosticsView.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/CardDiagnosticsView.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly. Diagnostic view bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0134: ER-0022 Phase 2 Incomplete - RecentEdgesDiagnosticsView.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/RecentEdgesDiagnosticsView.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly. Diagnostic view bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0135: ER-0022 Phase 2 Incomplete - RelationshipAuditView.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/RelationshipAuditView.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly. Diagnostic view bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0136: ER-0022 Phase 2 Incomplete - RelationTypesDiagnosticsView.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/RelationTypesDiagnosticsView.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly. Diagnostic view bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
+The following DRs have been verified and archived:
+- ✅ **DR-0133** → DR-verified-0131-0140.md (Batch 14) - CardDiagnosticsView migration
+- ✅ **DR-0134** → DR-verified-0131-0140.md (Batch 14) - RecentEdgesDiagnosticsView migration
+- ✅ **DR-0135** → DR-verified-0131-0140.md (Batch 14) - RelationshipAuditView migration
+- ✅ **DR-0136** → DR-verified-0131-0140.md (Batch 14) - RelationTypesDiagnosticsView migration
+- ✅ **DR-0161** → DR-verified-0161-0170.md (Batch 17) - CardDiagnosticsView Card creation
+- ✅ **DR-0162** → DR-verified-0161-0170.md (Batch 17) - DeveloperBoardsView Card creation
+- ✅ **DR-0163** → DR-verified-0161-0170.md (Batch 17) - DeveloperToolsView Card creation & query removal
+- ✅ **DR-0164** → DR-verified-0161-0170.md (Batch 17) - RecentEdgesDiagnosticsView Card creation
+- ✅ **DR-0165** → DR-verified-0161-0170.md (Batch 17) - RelationTypesDiagnosticsView Card creation
 
 ---
 
@@ -329,71 +290,6 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 **Related ER:** ER-0022 Phase 2
 
 **Issue:** Creates Card() instances directly. Source editor sheet bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0161: ER-0022 Phase 2 Incomplete - CardDiagnosticsView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/CardDiagnosticsView.swift
-**Severity:** Low
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Diagnostic view bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0162: ER-0022 Phase 2 Incomplete - DeveloperBoardsView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/DeveloperBoardsView.swift
-**Severity:** Low
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Developer tools bypass CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0163: ER-0022 Phase 2 Incomplete - DeveloperToolsView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/DeveloperToolsView.swift
-**Severity:** Low
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Developer tools bypass CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0164: ER-0022 Phase 2 Incomplete - RecentEdgesDiagnosticsView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/RecentEdgesDiagnosticsView.swift
-**Severity:** Low
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Diagnostic view bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0165: ER-0022 Phase 2 Incomplete - RelationTypesDiagnosticsView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/RelationTypesDiagnosticsView.swift
-**Severity:** Low
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Diagnostic view bypasses CardRepository.
 
 **Status:** 🔴 Identified - Not Resolved
 

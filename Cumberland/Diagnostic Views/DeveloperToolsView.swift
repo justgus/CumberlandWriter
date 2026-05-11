@@ -12,12 +12,13 @@ import SwiftData
 struct DeveloperToolsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    
-    @Query private var cards: [Card]
-    @Query private var boards: [Board]
-    @Query private var boardNodes: [BoardNode]
-    @Query private var sources: [Source]
-    
+    @Environment(\.services) private var services
+
+    @State private var cards: [Card] = []
+    @State private var boards: [Board] = []
+    @State private var boardNodes: [BoardNode] = []
+    @State private var sources: [Source] = []
+
     @State private var selectedTool: ToolCategory = .overview
     @State private var isRunningAction = false
     @State private var confirmAction: ConfirmableAction?
@@ -97,11 +98,26 @@ struct DeveloperToolsView: View {
     }
     
     var body: some View {
-        #if os(visionOS) && DEBUG
-        visionOSBody
-        #else
-        dataManagementBody
-        #endif
+        Group {
+            #if os(visionOS) && DEBUG
+            visionOSBody
+            #else
+            dataManagementBody
+            #endif
+        }
+        .task {
+            await reloadData()
+        }
+    }
+
+    @MainActor
+    private func reloadData() async {
+        guard let services = services else { return }
+        let queryService = services.queryService
+        cards = queryService.getAllCards()
+        boards = queryService.getAllBoards()
+        boardNodes = queryService.getAllBoardNodes()
+        sources = queryService.getAllSources()
     }
     
     // MARK: - Platform-Specific Bodies
@@ -862,33 +878,32 @@ struct DeveloperToolsView: View {
             switch action {
             case .repairForeignNodes:
                 DataRepair.repairForeignBoardNodes(in: modelContext)
+                await reloadData()
                 actionResult = "✓ Foreign board nodes repaired"
-                
+
             case .validateAllRelationships:
                 var fixedCount = 0
                 var discrepancyCount = 0
                 var orphanCount = 0
 
                 // Phase 1: Fetch-based validation — find all edges and check for nil endpoints/type
-                let allEdgeFetch = FetchDescriptor<CardEdge>()
-                let allEdges = (try? modelContext.fetch(allEdgeFetch)) ?? []
+                guard let services = services else { return }
+                let allEdges = services.queryService.getAllEdges()
                 let invalidEdges = allEdges.filter { $0.from == nil || $0.to == nil || $0.type == nil }
                 orphanCount = invalidEdges.count
+                let edgeRepo = services.edgeRepository
                 for e in invalidEdges {
                     #if DEBUG
                     print("[EdgeAudit] validateAll: Removing orphan edge — from=\(e.from?.name ?? "nil") to=\(e.to?.name ?? "nil") type=\(e.type?.code ?? "nil")")
                     #endif
-                    modelContext.delete(e)
+                    try? edgeRepo.deleteEdge(e)
                 }
                 fixedCount += orphanCount
 
                 // Phase 2: Per-card discrepancy detection (fetch count vs array count)
                 for card in cards {
-                    let cardID: UUID? = card.id
-                    let fetchFromDesc = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
-                    let fetchToDesc = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
-                    let fetchOut = (try? modelContext.fetch(fetchFromDesc))?.count ?? 0
-                    let fetchIn = (try? modelContext.fetch(fetchToDesc))?.count ?? 0
+                    let fetchOut = services.edgeRepository.fetchOutgoing(from: card).count
+                    let fetchIn = services.edgeRepository.fetchIncoming(to: card).count
                     let arrayOut = card.outgoingEdges?.count ?? 0
                     let arrayIn = card.incomingEdges?.count ?? 0
 
@@ -901,8 +916,9 @@ struct DeveloperToolsView: View {
                 }
 
                 try? modelContext.save()
+                await reloadData()
                 actionResult = "✓ Validated relationships — \(fixedCount) orphan(s) removed, \(discrepancyCount) discrepancy card(s) detected (see Relationship Audit for details)"
-                
+
             case .clearAllThumbnails:
                 var clearedCount = 0
                 for card in cards {
@@ -912,8 +928,9 @@ struct DeveloperToolsView: View {
                     }
                 }
                 try? modelContext.save()
+                await reloadData()
                 actionResult = "✓ Cleared \(clearedCount) thumbnails"
-                
+
             case .resetAllBoardTransforms:
                 for board in boards {
                     board.zoomScale = 1.0
@@ -922,10 +939,11 @@ struct DeveloperToolsView: View {
                     board.clampState()
                 }
                 try? modelContext.save()
+                await reloadData()
                 actionResult = "✓ Reset transforms for \(boards.count) boards"
 
             case .consolidateDuplicateSources:
-                let result = consolidateDuplicateSources()
+                let result = await consolidateDuplicateSources()
                 actionResult = result
             }
         }
@@ -934,7 +952,7 @@ struct DeveloperToolsView: View {
     /// Consolidates duplicate Sources by merging those with identical titles.
     /// All citations from duplicates are moved to the primary Source, then duplicates are deleted.
     @MainActor
-    private func consolidateDuplicateSources() -> String {
+    private func consolidateDuplicateSources() async -> String {
         // Group sources by normalized title (case-insensitive, trimmed)
         var titleGroups: [String: [Source]] = [:]
         for source in sources {
@@ -1021,12 +1039,14 @@ struct DeveloperToolsView: View {
                 }
 
                 // Delete the duplicate source
+                // Note: Direct deletion for diagnostic/repair of duplicate sources
                 modelContext.delete(duplicate)
                 deletedCount += 1
             }
         }
 
         try? modelContext.save()
+        await reloadData()
 
         if deletedCount == 0 {
             return "✓ No duplicate sources found"
@@ -1038,11 +1058,12 @@ struct DeveloperToolsView: View {
     private func purgeEmptyBoards() {
         isRunningAction = true
         actionResult = ""
-        
+
         Task { @MainActor in
             defer { isRunningAction = false }
-            
+
             DataRepair.purgeEmptyBoards(in: modelContext)
+            await reloadData()
             actionResult = "✓ Purged empty boards"
         }
     }
@@ -1050,27 +1071,30 @@ struct DeveloperToolsView: View {
 
 // MARK: - Preview
 
-#Preview("Developer Tools") {
-    let schema = Schema([Card.self, Board.self, BoardNode.self, Source.self, Citation.self])
-    let cfg = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: [cfg])
+#Preview("Developer Tools") { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
     let ctx = container.mainContext
-    
-    // Add some sample data
-    let p1 = Card(kind: .projects, name: "Project Alpha", subtitle: "A story", detailedText: "")
-    let c1 = Card(kind: .characters, name: "Alice", subtitle: "", detailedText: "")
-    let c2 = Card(kind: .characters, name: "Bob", subtitle: "", detailedText: "")
-    
-    ctx.insert(p1)
-    ctx.insert(c1)
-    ctx.insert(c2)
-    
+    let services = ServiceContainer(modelContext: ctx)
+
+    // Add some sample data using repositories
+    let cardRepo = CardRepository(modelContext: ctx)
+    let p1 = try! cardRepo.createCard(kind: .projects, name: "Project Alpha", subtitle: "A story")
+    let _ = try! cardRepo.createCard(kind: .characters, name: "Alice")
+    let _ = try! cardRepo.createCard(kind: .characters, name: "Bob")
+
     let board = Board(name: "Test Board", primaryCard: p1)
     ctx.insert(board)
-    
+
     try? ctx.save()
-    
+
     return DeveloperToolsView()
         .modelContainer(container)
+        .serviceContainer(services)
         .frame(width: 800, height: 600)
 }

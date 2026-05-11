@@ -6,7 +6,7 @@
 //  Part of ER-0035: Relationship Diagnostic Tools and Safety Guards
 //
 //  Comprehensive diagnostic view for auditing CardEdge integrity.
-//  Uses FetchDescriptor-based queries (not relationship arrays) to detect
+//  Uses EdgeRepository queries (not relationship arrays) to detect
 //  discrepancies, orphan edges, and potential data loss.
 //
 
@@ -18,8 +18,8 @@ import SwiftData
 struct RelationshipAuditView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.services) private var services
-    @Query(sort: \Card.name) private var allCards: [Card]
 
+    @State private var allCards: [Card] = []
     @State private var auditResults: [CardAuditResult] = []
     @State private var orphanEdges: [CardEdge] = []
     @State private var duplicateGroups: [DuplicateGroup] = []
@@ -56,6 +56,15 @@ struct RelationshipAuditView: View {
             .padding()
         }
         .navigationTitle("Relationship Audit")
+        .task {
+            await reloadData()
+        }
+    }
+
+    @MainActor
+    private func reloadData() async {
+        guard let services = services else { return }
+        allCards = services.queryService.getAllCards()
     }
 
     // MARK: - Header
@@ -65,7 +74,7 @@ struct RelationshipAuditView: View {
             Text("Relationship Audit")
                 .font(.title2.bold())
 
-            Text("Fetches all CardEdges via FetchDescriptor and compares with relationship arrays to detect integrity issues.")
+            Text("Fetches all CardEdges via EdgeRepository and compares with relationship arrays to detect integrity issues.")
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
@@ -396,14 +405,13 @@ struct RelationshipAuditView: View {
 
         var results: [CardAuditResult] = []
 
-        for card in allCards {
-            let cardID: UUID? = card.id
+        guard let services = services else { return }
+        let edgeRepo = services.edgeRepository
 
+        for card in allCards {
             // Fetch-based counts
-            let fetchFromDesc = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
-            let fetchToDesc = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
-            let fetchOut = (try? modelContext.fetch(fetchFromDesc))?.count ?? 0
-            let fetchIn = (try? modelContext.fetch(fetchToDesc))?.count ?? 0
+            let fetchOut = edgeRepo.fetchOutgoing(from: card).count
+            let fetchIn = edgeRepo.fetchIncoming(to: card).count
 
             // Relationship array counts
             let arrayOut = card.outgoingEdges?.count ?? 0
@@ -423,8 +431,7 @@ struct RelationshipAuditView: View {
         }
 
         // Orphan edge detection: edges where from or to is nil
-        let allEdgeFetch = FetchDescriptor<CardEdge>()
-        let allEdges = (try? modelContext.fetch(allEdgeFetch)) ?? []
+        let allEdges = services.queryService.getAllEdges()
         let orphans = allEdges.filter { $0.from == nil || $0.to == nil }
 
         // Duplicate card detection: same name + same kind
@@ -439,11 +446,8 @@ struct RelationshipAuditView: View {
             let sorted = cards.sorted { edgeTotal($0) > edgeTotal($1) }
             var infos: [DuplicateCardInfo] = []
             for card in sorted {
-                let cardID: UUID? = card.id
-                let fetchOut = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
-                let fetchIn = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
-                let outCount = (try? modelContext.fetch(fetchOut))?.count ?? 0
-                let inCount = (try? modelContext.fetch(fetchIn))?.count ?? 0
+                let outCount = edgeRepo.fetchOutgoing(from: card).count
+                let inCount = edgeRepo.fetchIncoming(to: card).count
                 let hasText = !card.detailedText.isEmpty
                 let hasImg = card.originalImageData != nil
                 infos.append(DuplicateCardInfo(card: card, fetchEdgeCount: outCount + inCount, hasDetailedText: hasText, hasImage: hasImg))
@@ -482,11 +486,10 @@ struct RelationshipAuditView: View {
         let sameUUID = (card.id == primary.id)
 
         // Fetch ALL edges referencing the duplicate's UUID
-        let dupeID: UUID? = card.id
-        let outFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == dupeID })
-        let inFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == dupeID })
-        let outEdges = (try? modelContext.fetch(outFetch)) ?? []
-        let inEdges = (try? modelContext.fetch(inFetch)) ?? []
+        guard let services = services else { return }
+        let edgeRepo = services.edgeRepository
+        let outEdges = edgeRepo.fetchOutgoing(from: card)
+        let inEdges = edgeRepo.fetchIncoming(to: card)
 
         // When cards share UUID, filter to only edges that belong to the duplicate by object identity
         let dupeOutEdges = sameUUID ? outEdges.filter { $0.from?.persistentModelID == dupePersistentID } : outEdges
@@ -500,20 +503,11 @@ struct RelationshipAuditView: View {
             // Check if primary already has this edge (by object identity for same-UUID case)
             let primaryOutEdges = sameUUID
                 ? outEdges.filter { $0.from?.persistentModelID == primaryPersistentID }
-                : { () -> [CardEdge] in
-                    let primaryID: UUID? = primary.id
-                    let targetID: UUID? = target.id
-                    let typeCode: String? = edgeType.code
-                    let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
-                        $0.from?.id == primaryID && $0.to?.id == targetID && $0.type?.code == typeCode
-                    })
-                    return (try? modelContext.fetch(fetch)) ?? []
-                }()
+                : edgeRepo.fetchOutgoing(from: primary).filter { $0.to?.id == target.id && $0.type?.code == edgeType.code }
             let alreadyExists = primaryOutEdges.contains { $0.to?.persistentModelID == target.persistentModelID && $0.type?.code == edgeType.code }
             if !alreadyExists {
-                let newEdge = CardEdge(from: primary, to: target, type: edgeType, note: edge.note, createdAt: edge.createdAt)
-                modelContext.insert(newEdge)
-                EdgeIntegrityMonitor.incrementCounts(source: primary, target: target)
+                // Migrate edge using EdgeRepository (single edge, no reverse)
+                _ = try? edgeRepo.insertSingleEdge(from: primary, to: target, type: edgeType, note: edge.note, createdAt: edge.createdAt)
                 migrated += 1
             }
         }
@@ -523,20 +517,11 @@ struct RelationshipAuditView: View {
             guard let source = edge.from, let edgeType = edge.type else { continue }
             let primaryInEdges = sameUUID
                 ? inEdges.filter { $0.to?.persistentModelID == primaryPersistentID }
-                : { () -> [CardEdge] in
-                    let primaryID: UUID? = primary.id
-                    let sourceID: UUID? = source.id
-                    let typeCode: String? = edgeType.code
-                    let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate {
-                        $0.from?.id == sourceID && $0.to?.id == primaryID && $0.type?.code == typeCode
-                    })
-                    return (try? modelContext.fetch(fetch)) ?? []
-                }()
+                : edgeRepo.fetchIncoming(to: primary).filter { $0.from?.id == source.id && $0.type?.code == edgeType.code }
             let alreadyExists = primaryInEdges.contains { $0.from?.persistentModelID == source.persistentModelID && $0.type?.code == edgeType.code }
             if !alreadyExists {
-                let newEdge = CardEdge(from: source, to: primary, type: edgeType, note: edge.note, createdAt: edge.createdAt)
-                modelContext.insert(newEdge)
-                EdgeIntegrityMonitor.incrementCounts(source: source, target: primary)
+                // Migrate edge using EdgeRepository (single edge, no reverse)
+                _ = try? edgeRepo.insertSingleEdge(from: source, to: primary, type: edgeType, note: edge.note, createdAt: edge.createdAt)
                 migrated += 1
             }
         }
@@ -555,7 +540,7 @@ struct RelationshipAuditView: View {
         // Delete the duplicate via CardOperationManager
         let cardName = card.name
         do {
-            try services?.cardOperations.deleteCard(card)
+            try services.cardOperations.deleteCard(card)
         } catch {
             actionResult = "Failed to delete '\(cardName)': \(error.localizedDescription)"
             return
@@ -582,10 +567,10 @@ struct RelationshipAuditView: View {
 
     private func repairOrphanEdges() {
         let count = orphanEdges.count
+        let edgeRepo = EdgeRepository(modelContext: modelContext)
         for edge in orphanEdges {
-            modelContext.delete(edge)
+            try? edgeRepo.deleteEdge(edge)
         }
-        try? modelContext.save()
         orphanEdges = []
         actionResult = "Deleted \(count) orphan edge(s)"
 
@@ -595,10 +580,10 @@ struct RelationshipAuditView: View {
     }
 
     private func exportSnapshot() {
+        guard let services = services else { return }
         var snapshot: [[String: Any]] = []
 
-        let allEdgeFetch = FetchDescriptor<CardEdge>()
-        let allEdges = (try? modelContext.fetch(allEdgeFetch)) ?? []
+        let allEdges = services.queryService.getAllEdges()
 
         for edge in allEdges {
             var entry: [String: Any] = [:]

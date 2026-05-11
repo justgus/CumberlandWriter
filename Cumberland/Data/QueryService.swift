@@ -133,6 +133,13 @@ final class QueryService {
         return try? modelContext.fetch(fetch).first
     }
 
+    /// Get all board nodes (replaces @Query private var boardNodes: [BoardNode])
+    /// - Returns: Array of all board nodes
+    func getAllBoardNodes() -> [BoardNode] {
+        let fetch = FetchDescriptor<BoardNode>()
+        return (try? modelContext.fetch(fetch)) ?? []
+    }
+
     // MARK: - Calendar Systems
 
     /// Get all calendar systems (replaces @Query private var calendars: [CalendarSystem])

@@ -102,4 +102,157 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0131
 
 ---
 
+## ✅ DR-0133: ER-0022 Phase 2 Incomplete - CardDiagnosticsView.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** Diagnostic Views/CardDiagnosticsView.swift
+**Severity:** Medium
+**Related ER:** ER-0022 Phase 2
+**Related DR:** DR-0161 (same file, Card creation)
+
+**Issue:** Creates CardEdge instances directly. Diagnostic view bypasses EdgeRepository.
+
+**Resolution:** 2026-05-11
+
+**Main View Migration:**
+- Added @Environment(\.services) to access ServiceContainer
+- Replaced direct FetchDescriptor query with EdgeRepository.fetchOutgoing(from:)
+- Added guard statement to safely unwrap services
+
+**Preview Migration:**
+- Replaced direct Card() instantiation with CardRepository.createCard()
+- Replaced direct CardEdge() instantiation with EdgeRepository.createRelationship()
+- Replaced direct RelationType creation with RelationTypeManager.ensureRelationType()
+- Updated to use ModelContainerFactory.makeInMemoryContainer() for preview container
+- Added ServiceContainer injection for preview
+
+**Files Modified:**
+- Diagnostic Views/CardDiagnosticsView.swift:16 - Added @Environment(\.services)
+- Diagnostic Views/CardDiagnosticsView.swift:85-97 - Migrated reloadForwardEdges() to use EdgeRepository.fetchOutgoing()
+- Diagnostic Views/CardDiagnosticsView.swift:108-142 - Migrated Preview to use repositories
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0134: ER-0022 Phase 2 Incomplete - RecentEdgesDiagnosticsView.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** Diagnostic Views/RecentEdgesDiagnosticsView.swift
+**Severity:** Medium
+**Related ER:** ER-0022 Phase 2
+**Related DR:** DR-0164 (same file, Card creation)
+
+**Issue:** Creates CardEdge instances directly. Diagnostic view bypasses EdgeRepository.
+
+**Resolution:** 2026-05-11
+
+**Main View Migration:**
+- Added @Environment(\.services) to access ServiceContainer
+- Replaced FetchDescriptor query with EdgeRepository.fetchRecentlyCreated(limit:50)
+
+**Preview Migration:**
+- Replaced direct Card() instantiation with CardRepository.createCard()
+- Replaced direct CardEdge() instantiation with EdgeRepository.createRelationship()
+- Updated to use ModelContainerFactory.makeInMemoryContainer()
+- Added ServiceContainer injection
+
+**Files Modified:**
+- Diagnostic Views/RecentEdgesDiagnosticsView.swift:16 - Added services environment
+- Diagnostic Views/RecentEdgesDiagnosticsView.swift:69-72 - Migrated to EdgeRepository.fetchRecentlyCreated()
+- Diagnostic Views/RecentEdgesDiagnosticsView.swift:85-135 - Migrated Preview to repositories
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0135: ER-0022 Phase 2 Incomplete - RelationshipAuditView.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** Diagnostic Views/RelationshipAuditView.swift
+**Severity:** Medium
+**Related ER:** ER-0022 Phase 2
+**Related DR:** DR-0199 (same file, direct edge deletion)
+
+**Issue:** Creates CardEdge instances directly. Diagnostic view bypasses EdgeRepository.
+
+**Resolution:** 2026-05-11
+
+**Duplicate Card Migration:**
+- Replaced direct CardEdge() creation in deleteDuplicateCard() with EdgeRepository.insertSingleEdge()
+- Used insertSingleEdge() for migrating edges from duplicate to primary card (lines 514, 537)
+- Appropriate for one-way edge migration during repair operations
+
+**Orphan Edge Repair:**
+- Replaced direct modelContext.delete(edge) with EdgeRepository.deleteEdge()
+- Used in repairOrphanEdges() function (line 586)
+
+**Additional Query Removal (2026-05-11):**
+- Replaced @Query private var allCards with @State + QueryService
+- Replaced all FetchDescriptor usages with EdgeRepository and QueryService methods
+- Updated comments to reference EdgeRepository instead of FetchDescriptor
+- Added reloadData() method with .task modifier
+
+**Files Modified:**
+- Diagnostic Views/RelationshipAuditView.swift:21 - Replaced @Query with @State
+- Diagnostic Views/RelationshipAuditView.swift:58-67 - Added reloadData() and .task
+- Diagnostic Views/RelationshipAuditView.swift:408-414 - Migrated to EdgeRepository methods
+- Diagnostic Views/RelationshipAuditView.swift:433-435 - Migrated to QueryService.getAllEdges()
+- Diagnostic Views/RelationshipAuditView.swift:489-543 - Migrated all FetchDescriptor queries to repositories
+- Diagnostic Views/RelationshipAuditView.swift:514-517 - Migrated outgoing edge creation to EdgeRepository.insertSingleEdge()
+- Diagnostic Views/RelationshipAuditView.swift:537-540 - Migrated incoming edge creation to EdgeRepository.insertSingleEdge()
+- Diagnostic Views/RelationshipAuditView.swift:586 - Migrated orphan edge deletion to EdgeRepository.deleteEdge()
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0136: ER-0022 Phase 2 Incomplete - RelationTypesDiagnosticsView.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-11
+**Verified:** 2026-05-11
+**Component:** Diagnostic Views/RelationTypesDiagnosticsView.swift
+**Severity:** Medium
+**Related ER:** ER-0022 Phase 2
+**Related DR:** DR-0165 (same file, Card creation), DR-0200 (same file, direct relation type deletion)
+
+**Issue:** Creates CardEdge instances directly. Diagnostic view bypasses EdgeRepository.
+
+**Resolution:** 2026-05-11
+
+**Main View Migration:**
+- Added @Environment(\.services) to access ServiceContainer
+- Replaced direct modelContext.delete(type) with RelationTypeManager.deleteRelationType() (lines 146, 217)
+
+**Preview Migration:**
+- Replaced direct Card() instantiation with CardRepository.createCard()
+- Replaced direct CardEdge() instantiation with EdgeRepository.createRelationship()
+- Updated to use ModelContainerFactory.makeInMemoryContainer()
+- Added ServiceContainer injection
+
+**Additional Query Removal (2026-05-11):**
+- Replaced @Query private var types with @State + QueryService
+- Replaced FetchDescriptor usages with QueryService.getAllRelationTypes()
+- Added reloadData() method with .task modifier and manual sorting
+- Added reloadData() call after duplicate removal
+
+**Files Modified:**
+- Diagnostic Views/RelationTypesDiagnosticsView.swift:17 - Replaced @Query with @State
+- Diagnostic Views/RelationTypesDiagnosticsView.swift:63-76 - Added reloadData() and .task
+- Diagnostic Views/RelationTypesDiagnosticsView.swift:146-149 - Migrated deleteType() to use RelationTypeManager.deleteRelationType()
+- Diagnostic Views/RelationTypesDiagnosticsView.swift:177-179 - Migrated to QueryService.getAllRelationTypes()
+- Diagnostic Views/RelationTypesDiagnosticsView.swift:217-220 - Migrated duplicate deletion to use RelationTypeManager.deleteRelationType()
+- Diagnostic Views/RelationTypesDiagnosticsView.swift:249-298 - Migrated Preview to use repositories
+
+**Status:** ✅ Resolved - Verified
+
+---
+
 *Last Updated: 2026-05-11*

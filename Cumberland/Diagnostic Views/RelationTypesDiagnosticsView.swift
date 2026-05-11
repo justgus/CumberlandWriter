@@ -13,8 +13,9 @@ import SwiftData
 
 struct RelationTypesDiagnosticsView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \RelationType.code, order: .forward) private var types: [RelationType]
+    @Environment(\.services) private var services
 
+    @State private var types: [RelationType] = []
     @State private var isCleaning: Bool = false
     @State private var showConfirm: Bool = false
     @State private var lastReport: String = ""
@@ -58,6 +59,17 @@ struct RelationTypesDiagnosticsView: View {
         } message: {
             Text("This will merge duplicate RelationType rows that share the same code. All CardEdges referencing duplicates will be repointed to the canonical type, and the duplicates will be deleted. This cannot be undone.")
         }
+        .task {
+            await reloadData()
+        }
+    }
+
+    @MainActor
+    private func reloadData() async {
+        guard let services = services else { return }
+        types = services.queryService.getAllRelationTypes()
+        // Sort by code
+        types.sort { $0.code < $1.code }
     }
 
     private var header: some View {
@@ -139,12 +151,13 @@ struct RelationTypesDiagnosticsView: View {
     }
 
     private func deleteType(_ t: RelationType) {
+        guard let _ = services else { return }
         if let um = modelContext.undoManager {
             um.beginUndoGrouping()
             um.setActionName("Delete Relation Type")
         }
-        modelContext.delete(t)
-        try? modelContext.save()
+        let relTypeManager = RelationTypeManager(modelContext: modelContext)
+        try? relTypeManager.deleteRelationType(t)
         modelContext.undoManager?.endUndoGrouping()
     }
 
@@ -162,8 +175,8 @@ struct RelationTypesDiagnosticsView: View {
         lines.append("")
 
         // Fetch all types fresh for a stable snapshot
-        let fetch = FetchDescriptor<RelationType>(sortBy: [SortDescriptor(\.code, order: .forward)])
-        let allTypes = (try? modelContext.fetch(fetch)) ?? []
+        guard let services = services else { return }
+        let allTypes = services.queryService.getAllRelationTypes()
 
         // Group by code
         let grouped = Dictionary(grouping: allTypes, by: { $0.code })
@@ -214,7 +227,8 @@ struct RelationTypesDiagnosticsView: View {
                     }
                 }
 
-                modelContext.delete(dup)
+                let relTypeManager = RelationTypeManager(modelContext: modelContext)
+                try? relTypeManager.deleteRelationType(dup)
                 removed += 1
                 lines.append("  - Removed duplicate: \(canonicalDescription(dup)) (reassigned \(dupEdges.count) edge(s))")
             }
@@ -228,6 +242,8 @@ struct RelationTypesDiagnosticsView: View {
         }
 
         modelContext.undoManager?.endUndoGrouping()
+
+        await reloadData()
 
         removedTypeCount = removed
         reassignedEdgeCount = reassigned
@@ -247,12 +263,17 @@ struct RelationTypesDiagnosticsView: View {
 }
 
 #Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Card.self, RelationType.self, CardEdge.self, configurations: config)
-    let ctx = ModelContext(container)
-    ctx.autosaveEnabled = false
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
+    let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
 
-    // Seed: canonical + duplicates by code
+    // Seed: canonical + duplicates by code (directly insert for testing duplicates)
     let anyAny1 = RelationType(code: "references", forwardLabel: "references", inverseLabel: "referenced by")
     let anyAny2 = RelationType(code: "references", forwardLabel: "references", inverseLabel: "referenced by")
     let anyAny3 = RelationType(code: "references", forwardLabel: "references", inverseLabel: "referenced by", sourceKind: .projects, targetKind: .projects)
@@ -263,18 +284,19 @@ struct RelationTypesDiagnosticsView: View {
     ctx.insert(anyAny1); ctx.insert(anyAny2); ctx.insert(anyAny3)
     ctx.insert(cites1);  ctx.insert(cites2)
 
-    // Create a couple edges pointing at duplicates to exercise reassignment
-    let a = Card(kind: .projects, name: "Project A", subtitle: "", detailedText: "")
-    let b = Card(kind: .characters, name: "Mira", subtitle: "", detailedText: "")
-    let c = Card(kind: .sources, name: "Paper", subtitle: "", detailedText: "")
-    ctx.insert(a); ctx.insert(b); ctx.insert(c)
+    // Create cards using repositories
+    let cardRepo = CardRepository(modelContext: ctx)
+    let a = try! cardRepo.createCard(kind: .projects, name: "Project A")
+    let b = try! cardRepo.createCard(kind: .characters, name: "Mira")
+    let c = try! cardRepo.createCard(kind: .sources, name: "Paper")
 
-    ctx.insert(CardEdge(from: b, to: a, type: anyAny2))
-    ctx.insert(CardEdge(from: c, to: a, type: cites2))
-
-    try? ctx.save()
+    // Create edges using EdgeRepository
+    let edgeRepo = EdgeRepository(modelContext: ctx)
+    try! edgeRepo.createRelationship(from: b, to: a, relationType: anyAny2)
+    try! edgeRepo.createRelationship(from: c, to: a, relationType: cites2)
 
     return RelationTypesDiagnosticsView()
         .modelContainer(container)
+        .serviceContainer(services)
 }
 

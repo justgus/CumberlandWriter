@@ -13,6 +13,7 @@ import SwiftData
 
 struct RecentEdgesDiagnosticsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.services) private var services
     @State private var edges: [CardEdge] = []
 
     // Follow app appearance setting
@@ -67,11 +68,8 @@ struct RecentEdgesDiagnosticsView: View {
 
     @MainActor
     private func reload() async {
-        var fetch = FetchDescriptor<CardEdge>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        fetch.fetchLimit = 50
-        edges = (try? modelContext.fetch(fetch)) ?? []
+        guard let services = services else { return }
+        edges = services.edgeRepository.fetchRecentlyCreated(limit: 50)
     }
 
     private static let formatter: DateFormatter = {
@@ -82,26 +80,39 @@ struct RecentEdgesDiagnosticsView: View {
     }()
 }
 
-#Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Card.self, RelationType.self, CardEdge.self, AppSettings.self, configurations: config)
-    let ctx = ModelContext(container)
-    ctx.autosaveEnabled = false
+#Preview { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
+    let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
 
     // Ensure AppSettings exists
     _ = AppSettings.fetchOrCreate(in: ctx)
 
-    let rt = RelationType(code: "references", forwardLabel: "references", inverseLabel: "referenced by")
-    let a = Card(kind: .worlds, name: "Aether", subtitle: "", detailedText: "", sizeCategory: .standard)
-    let b = Card(kind: .projects, name: "Project X", subtitle: "", detailedText: "", sizeCategory: .standard)
-    ctx.insert(rt); ctx.insert(a); ctx.insert(b)
-    for i in 0..<3 {
-        let edge = CardEdge(from: a, to: b, type: rt, note: nil, createdAt: Date().addingTimeInterval(Double(-i * 60)))
-        ctx.insert(edge)
+    // Create sample data using repositories
+    let relTypeManager = RelationTypeManager(modelContext: ctx)
+    let rt = relTypeManager.ensureRelationType(
+        code: "references",
+        forwardLabel: "references",
+        inverseLabel: "referenced by"
+    )
+
+    let cardRepo = CardRepository(modelContext: ctx)
+    let a = try! cardRepo.createCard(kind: .worlds, name: "Aether")
+    let b = try! cardRepo.createCard(kind: .projects, name: "Project X")
+
+    let edgeRepo = EdgeRepository(modelContext: ctx)
+    for _ in 0..<3 {
+        try! edgeRepo.createRelationship(from: a, to: b, relationType: rt)
     }
-    try? ctx.save()
 
     return RecentEdgesDiagnosticsView()
         .modelContainer(container)
+        .serviceContainer(services)
         .frame(width: 640, height: 480)
 }

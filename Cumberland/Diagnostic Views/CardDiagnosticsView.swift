@@ -14,6 +14,7 @@ import SwiftData
 struct CardDiagnosticsView: View {
     let card: Card
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.services) private var services
 
     @State private var forwardEdges: [CardEdge] = []
 
@@ -81,14 +82,10 @@ struct CardDiagnosticsView: View {
 
     @MainActor
     private func reloadForwardEdges() {
-        // Match optional relationship key path with an optional RHS value in the predicate.
-        let fromIDOpt: UUID? = card.id
-        let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from?.id == fromIDOpt },
-            // Avoid sorting across optional relationships in the fetch; sort in-memory below.
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
-        let fetched = (try? modelContext.fetch(fetch)) ?? []
+        guard let services = services else { return }
+
+        // Use EdgeRepository to fetch edges from this card
+        let fetched = services.edgeRepository.fetchOutgoing(from: card)
 
         // In-memory sort: by type code, then by 'to' name, then by createdAt for stability.
         forwardEdges = fetched.sorted { a, b in
@@ -106,15 +103,37 @@ struct CardDiagnosticsView: View {
 }
 
 #Preview {
-    let relType = RelationType(code: "references", forwardLabel: "references", inverseLabel: "referenced by")
-    let a = Card(kind: .worlds, name: "Aether", subtitle: "Geography", detailedText: "Windy highlands.", sizeCategory: .standard)
-    let p = Card(kind: .projects, name: "Project X", subtitle: "", detailedText: "", sizeCategory: .standard)
-    let c = Card(kind: .characters, name: "Mira", subtitle: "Scout", detailedText: "", sizeCategory: .compact)
-    let _ = CardEdge(from: a, to: p, type: relType)
-    let _ = CardEdge(from: a, to: c, type: relType)
+    // Create in-memory container for preview
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
+    let context = container.mainContext
+    let services = ServiceContainer(modelContext: context)
+
+    // Create sample data using repositories
+    let relTypeManager = RelationTypeManager(modelContext: context)
+    let relType = relTypeManager.ensureRelationType(
+        code: "references",
+        forwardLabel: "references",
+        inverseLabel: "referenced by"
+    )
+
+    let cardRepo = CardRepository(modelContext: context)
+    let a = try! cardRepo.createCard(kind: .worlds, name: "Aether", subtitle: "Geography", detailedText: "Windy highlands.")
+    let p = try! cardRepo.createCard(kind: .projects, name: "Project X")
+    let c = try! cardRepo.createCard(kind: .characters, name: "Mira", subtitle: "Scout")
+
+    let edgeRepo = EdgeRepository(modelContext: context)
+    try! edgeRepo.createRelationship(from: a, to: p, relationType: relType)
+    try! edgeRepo.createRelationship(from: a, to: c, relationType: relType)
 
     return NavigationStack {
         CardDiagnosticsView(card: a)
     }
-    .modelContainer(for: [Card.self, RelationType.self, CardEdge.self], inMemory: true)
+    .modelContainer(container)
+    .serviceContainer(services)
 }

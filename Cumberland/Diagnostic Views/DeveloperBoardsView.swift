@@ -460,6 +460,7 @@ struct DeveloperBoardsView: View {
         isRunningBoardAction = true
         defer { isRunningBoardAction = false }
         // Delete nodes with missing card or foreign board reference
+        // Note: Direct deletion for diagnostic/repair of corrupted orphan nodes
         if let nodes = board.nodes {
             for n in nodes {
                 if n.card == nil || n.board == nil {
@@ -474,6 +475,7 @@ struct DeveloperBoardsView: View {
         isRunningBoardAction = true
         defer { isRunningBoardAction = false }
         // Ensure only one node per (board, card) pair
+        // Note: Direct deletion for diagnostic/repair of duplicate nodes
         guard let nodes = board.nodes else { return }
         var seen: Set<String> = []
         for n in nodes {
@@ -497,15 +499,21 @@ struct DeveloperBoardsView: View {
 }
 
 #Preview("DeveloperBoardsView (in-memory)") {
-    let schema = Schema([Card.self, Board.self, BoardNode.self])
-    let cfg = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: [cfg])
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
     let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
 
-    let p = Card(kind: .projects, name: "Project A", subtitle: "", detailedText: "")
-    let c1 = Card(kind: .characters, name: "Mira", subtitle: "", detailedText: "")
-    let c2 = Card(kind: .characters, name: "Jonas", subtitle: "", detailedText: "")
-    ctx.insert(p); ctx.insert(c1); ctx.insert(c2)
+    // Create cards using repositories
+    let cardRepo = CardRepository(modelContext: ctx)
+    let p = try! cardRepo.createCard(kind: .projects, name: "Project A")
+    let c1 = try! cardRepo.createCard(kind: .characters, name: "Mira")
+    let c2 = try! cardRepo.createCard(kind: .characters, name: "Jonas")
 
     let b = Board(name: "Project A Board", primaryCard: p)
     ctx.insert(b)
@@ -515,5 +523,6 @@ struct DeveloperBoardsView: View {
 
     return DeveloperBoardsView()
         .modelContainer(container)
+        .serviceContainer(services)
         .frame(width: 960, height: 560)
 }
