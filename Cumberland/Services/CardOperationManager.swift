@@ -23,6 +23,8 @@ import SwiftData
 final class CardOperationManager {
 
     private let modelContext: ModelContext
+    private let cardRepository: CardRepository
+    private let edgeRepository: EdgeRepository
 
     /// RelationshipManager reference for centralized edge operations (ER-0036)
     /// Set after ServiceContainer initialization to avoid circular dependency.
@@ -30,6 +32,8 @@ final class CardOperationManager {
 
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
+        self.cardRepository = CardRepository(modelContext: modelContext)
+        self.edgeRepository = EdgeRepository(modelContext: modelContext)
     }
 
     // MARK: - Card Creation
@@ -49,10 +53,8 @@ final class CardOperationManager {
         subtitle: String = "",
         detailedText: String = ""
     ) throws -> Card {
-        let card = Card(kind: kind, name: name, subtitle: subtitle, detailedText: detailedText)
-        modelContext.insert(card)
-        try modelContext.save()
-        return card
+        // DR-0176: Use CardRepository for card creation instead of direct instantiation
+        return try cardRepository.createCard(kind: kind, name: name, subtitle: subtitle, detailedText: detailedText)
     }
 
     // MARK: - Card Deletion
@@ -67,26 +69,16 @@ final class CardOperationManager {
         print("[EdgeAudit] deleteCard: About to delete card '\(card.name)' (\(card.id)) with \(outCount) outgoing + \(inCount) incoming edges")
         #endif
 
-        // Clean up associated image files/caches and context-local related rows first
-        card.cleanupBeforeDeletion(in: modelContext)
-
-        // Delete the card; cascades remove edges/citations as modeled
-        modelContext.delete(card)
-        try modelContext.save()
+        // DR-0204: Use CardRepository for deletion instead of direct modelContext.delete()
+        try cardRepository.deleteCard(card)
     }
 
     /// Delete multiple cards with cleanup
     /// - Parameter cards: Array of cards to delete
     /// - Throws: SwiftData errors
     func deleteCards(_ cards: [Card]) throws {
-        for card in cards {
-            // Clean up associated image files/caches and context-local related rows first
-            card.cleanupBeforeDeletion(in: modelContext)
-
-            // Delete the card; cascades remove edges/citations as modeled
-            modelContext.delete(card)
-        }
-        try modelContext.save()
+        // DR-0204: Use CardRepository for deletion instead of direct modelContext.delete()
+        try cardRepository.deleteCards(cards)
     }
 
     // MARK: - Card Duplication
@@ -97,7 +89,8 @@ final class CardOperationManager {
     /// - Throws: SwiftData errors
     @discardableResult
     func duplicateCard(_ card: Card) throws -> Card {
-        let duplicate = Card(
+        // DR-0176: Use CardRepository for card creation
+        let duplicate = try cardRepository.createCard(
             kind: card.kind,
             name: "\(card.name) (Copy)",
             subtitle: card.subtitle,
@@ -106,15 +99,14 @@ final class CardOperationManager {
 
         // Copy image data if present
         if let originalImageData = card.originalImageData {
-            try? duplicate.setOriginalImageData(originalImageData)
+            try? cardRepository.updateCardImage(duplicate, imageData: originalImageData)
         }
 
         // Copy timeline properties if present
         duplicate.epochDate = card.epochDate
         duplicate.epochDescription = card.epochDescription
 
-        modelContext.insert(duplicate)
-        try modelContext.save()
+        try cardRepository.save()
 
         return duplicate
     }
@@ -137,27 +129,19 @@ final class CardOperationManager {
         if let mgr = relationshipManager {
             totalEdges = try mgr.removeAllEdges(for: card)
         } else {
-            // Fallback: direct deletion (should not happen in normal app flow)
-            let cardID: UUID? = card.id
-            let fetchFrom = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
-            let fetchTo = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
-
-            let edgesFrom = (try? modelContext.fetch(fetchFrom)) ?? []
-            let edgesTo = (try? modelContext.fetch(fetchTo)) ?? []
-
+            // DR-0204: Fallback uses EdgeRepository instead of direct modelContext.delete()
             #if DEBUG
-            print("[EdgeAudit] changeCardType(fallback): Card '\(card.name)' (\(card.id)) — deleting \(edgesFrom.count) outgoing + \(edgesTo.count) incoming edge(s)")
+            print("[EdgeAudit] changeCardType(fallback): Using EdgeRepository for card '\(card.name)' (\(card.id))")
             #endif
 
-            for edge in edgesFrom {
-                EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
-                modelContext.delete(edge)
-            }
-            for edge in edgesTo {
-                EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
-                modelContext.delete(edge)
-            }
-            totalEdges = edgesFrom.count + edgesTo.count
+            let edges = edgeRepository.fetchAll(for: card)
+            totalEdges = edges.count
+
+            try edgeRepository.deleteAllRelationships(for: card)
+
+            // Zero the card's own counts
+            card.cachedOutgoingEdgeCount = 0
+            card.cachedIncomingEdgeCount = 0
         }
 
         // Change the card type by updating the raw value

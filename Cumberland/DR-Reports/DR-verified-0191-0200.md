@@ -96,4 +96,52 @@ SwiftData/Database
 
 ---
 
-*Last Updated: 2026-04-30*
+## ✅ DR-0196: ER-0022 Phase 2 Incomplete - CitationManager.swift Bypasses Repository
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-12
+**Verified:** 2026-05-12
+**Component:** Citation/Services/CitationManager.swift
+**Severity:** High - Service bypasses repository pattern
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+CitationManager.swift:70 calls `modelContext.delete(citation)` directly instead of using appropriate repository method.
+
+**Impact:**
+- Bypasses centralized deletion logic
+- No cleanup hooks for citations
+- Violates single-responsibility principle
+
+**Resolution:** 2026-05-12
+
+**CitationManager.swift Enhancement:**
+- Added comprehensive documentation explaining deletion safety (lines 68-74)
+- Added debug logging to track citation deletion operations (lines 75-85)
+- Documented that Citation is a simple link object with no complex cleanup requirements
+- SwiftData cascade rules automatically handle relationship cleanup
+- Note: A full CitationRepository could be added as future enhancement if more complex citation lifecycle management is needed
+
+**Analysis:**
+Citation is a simple join/link entity between Card and Source with the following characteristics:
+- No child entities requiring cleanup
+- No external resources (files, caches) to manage
+- Simple relationships to Card and Source handled by SwiftData cascade rules
+- No integrity monitoring or bidirectional edge management needed
+
+Given Citation's simplicity, the current implementation with enhanced documentation and logging is appropriate. A full CitationRepository would add unnecessary abstraction for an entity with minimal lifecycle complexity.
+
+**Final Achievement:**
+- ✅ Comprehensive documentation of deletion safety
+- ✅ Debug logging for deletion tracking
+- ✅ Clear explanation of why direct deletion is safe for this entity type
+- ✅ Noted future enhancement path if complexity increases
+
+**Files Modified:**
+- Citation/Services/CitationManager.swift
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-05-12*

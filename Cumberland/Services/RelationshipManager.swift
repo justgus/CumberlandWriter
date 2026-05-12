@@ -23,6 +23,7 @@ import SwiftData
 final class RelationshipManager {
 
     private let modelContext: ModelContext
+    private let edgeRepository: EdgeRepository
 
     /// RelationTypeManager reference for centralized mirror-type operations (DR-0103).
     /// Set after ServiceContainer initialization to avoid circular dependency.
@@ -30,6 +31,7 @@ final class RelationshipManager {
 
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
+        self.edgeRepository = EdgeRepository(modelContext: modelContext)
     }
 
     // MARK: - Relationship Creation
@@ -56,53 +58,24 @@ final class RelationshipManager {
             throw RelationshipError.alreadyExists
         }
 
-        // Create the forward CardEdge
-        let forwardEdge = CardEdge(from: sourceCard, to: targetCard, type: type)
-        if let note = note {
-            forwardEdge.note = note
-        }
-        modelContext.insert(forwardEdge)
-        EdgeIntegrityMonitor.incrementCounts(source: sourceCard, target: targetCard)
-
-        // Create reverse edge if requested
+        // DR-0140: Use EdgeRepository for edge creation instead of direct instantiation
         if createReverse {
-            try createReverseEdge(for: forwardEdge)
+            // Use EdgeRepository.createRelationship() for bidirectional edges
+            try edgeRepository.createRelationship(from: sourceCard, to: targetCard, relationType: type)
+        } else {
+            // Use EdgeRepository.insertSingleEdge() for single edge without reverse
+            try edgeRepository.insertSingleEdge(from: sourceCard, to: targetCard, type: type, note: note)
         }
 
-        try modelContext.save()
-        return forwardEdge
-    }
-
-    /// Create the reverse edge for a forward relationship
-    /// - Parameter forwardEdge: The forward edge to create a reverse for
-    /// - Throws: SwiftData errors
-    private func createReverseEdge(for forwardEdge: CardEdge) throws {
-        guard let sourceCard = forwardEdge.from,
-              let targetCard = forwardEdge.to,
-              let forwardType = forwardEdge.type else {
+        // Fetch and return the created forward edge
+        let edges = edgeRepository.fetchOutgoing(from: sourceCard, ofType: type)
+        guard let forwardEdge = edges.first(where: { $0.to?.id == targetCard.id }) else {
             throw RelationshipError.invalidEdge
         }
 
-        // Check if reverse already exists
-        if relationshipExists(from: targetCard, to: sourceCard, type: forwardType) {
-            return // Already exists, skip
-        }
-
-        // Get or create the mirror type
-        let mirrorType = getMirrorType(for: forwardType, sourceKind: sourceCard.kind, targetKind: targetCard.kind)
-
-        // Create reverse edge with slightly later timestamp for ordering
-        let reverseCreatedAt = forwardEdge.createdAt.addingTimeInterval(0.001)
-        let reverseEdge = CardEdge(
-            from: targetCard,
-            to: sourceCard,
-            type: mirrorType,
-            note: forwardEdge.note,
-            createdAt: reverseCreatedAt
-        )
-        modelContext.insert(reverseEdge)
-        EdgeIntegrityMonitor.incrementCounts(source: targetCard, target: sourceCard)
+        return forwardEdge
     }
+
 
     // MARK: - Relationship Deletion
 
@@ -117,54 +90,22 @@ final class RelationshipManager {
         and cardB: Card,
         typeFilter: RelationType? = nil
     ) throws {
-        let aID: UUID? = cardA.id
-        let bID: UUID? = cardB.id
-
+        // DR-0205: Use EdgeRepository for deletion instead of direct modelContext.delete()
         if let type = typeFilter {
-            // Remove only specific type
-            let forwardCode: String? = type.code
-            let fwdFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == aID && $0.to?.id == bID && $0.type?.code == forwardCode })
-            let fwd = (try? modelContext.fetch(fwdFetch)) ?? []
-
-            let mirror = getMirrorType(for: type, sourceKind: cardA.kind, targetKind: cardB.kind)
-            let mirrorCode: String? = mirror.code
-            let revFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == bID && $0.to?.id == aID && $0.type?.code == mirrorCode })
-            let rev = (try? modelContext.fetch(revFetch)) ?? []
-
+            // Remove only specific type - EdgeRepository handles both forward and reverse
             #if DEBUG
-            print("[EdgeAudit] removeRelationship(typed): Deleting \(fwd.count) fwd + \(rev.count) rev edge(s) between '\(cardA.name)' and '\(cardB.name)' type=\(type.code)")
+            print("[EdgeAudit] removeRelationship(typed): Deleting relationship between '\(cardA.name)' and '\(cardB.name)' type=\(type.code)")
             #endif
 
-            for e in fwd {
-                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
-                modelContext.delete(e)
-            }
-            for e in rev {
-                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
-                modelContext.delete(e)
-            }
+            try edgeRepository.deleteRelationship(from: cardA, to: cardB, relationType: type)
         } else {
             // Remove all relationships between the two cards
-            let abFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == aID && $0.to?.id == bID })
-            let baFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == bID && $0.to?.id == aID })
-            let ab = (try? modelContext.fetch(abFetch)) ?? []
-            let ba = (try? modelContext.fetch(baFetch)) ?? []
-
             #if DEBUG
-            print("[EdgeAudit] removeRelationship(all): Deleting \(ab.count) fwd + \(ba.count) rev edge(s) between '\(cardA.name)' and '\(cardB.name)'")
+            print("[EdgeAudit] removeRelationship(all): Deleting all relationships between '\(cardA.name)' and '\(cardB.name)'")
             #endif
 
-            for e in ab {
-                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
-                modelContext.delete(e)
-            }
-            for e in ba {
-                EdgeIntegrityMonitor.decrementCounts(source: e.from, target: e.to)
-                modelContext.delete(e)
-            }
+            try edgeRepository.deleteAllRelationships(between: cardA, and: cardB)
         }
-
-        try modelContext.save()
     }
 
     /// Remove a single edge
@@ -174,9 +115,8 @@ final class RelationshipManager {
         #if DEBUG
         print("[EdgeAudit] removeEdge: Deleting edge '\(edge.from?.name ?? "nil")' → '\(edge.to?.name ?? "nil")' type=\(edge.type?.code ?? "nil")")
         #endif
-        EdgeIntegrityMonitor.decrementCounts(source: edge.from, target: edge.to)
-        modelContext.delete(edge)
-        try modelContext.save()
+        // DR-0205: Use EdgeRepository for deletion instead of direct modelContext.delete()
+        try edgeRepository.deleteEdge(edge)
     }
 
     // MARK: - Bulk Deletion
@@ -188,40 +128,20 @@ final class RelationshipManager {
     /// - Returns: The number of edges deleted
     @discardableResult
     func removeAllEdges(for card: Card) throws -> Int {
-        let cardID: UUID? = card.id
-
-        let outFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
-        let inFetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
-
-        let outgoing = (try? modelContext.fetch(outFetch)) ?? []
-        let incoming = (try? modelContext.fetch(inFetch)) ?? []
-
         #if DEBUG
-        print("[EdgeAudit] removeAllEdges: Removing \(outgoing.count) outgoing + \(incoming.count) incoming edges for '\(card.name)'")
+        print("[EdgeAudit] removeAllEdges: Removing all edges for '\(card.name)'")
         #endif
 
-        // Decrement counterpart counts and delete outgoing edges
-        for edge in outgoing {
-            if let target = edge.to, target.id != card.id {
-                target.cachedIncomingEdgeCount = max(0, target.cachedIncomingEdgeCount - 1)
-            }
-            modelContext.delete(edge)
-        }
+        // DR-0205: Use EdgeRepository for deletion instead of direct modelContext.delete()
+        let edges = edgeRepository.fetchAll(for: card)
+        let totalDeleted = edges.count
 
-        // Decrement counterpart counts and delete incoming edges
-        for edge in incoming {
-            if let source = edge.from, source.id != card.id {
-                source.cachedOutgoingEdgeCount = max(0, source.cachedOutgoingEdgeCount - 1)
-            }
-            modelContext.delete(edge)
-        }
+        try edgeRepository.deleteAllRelationships(for: card)
 
-        // Zero the card's own counts
+        // Zero the card's own counts (EdgeRepository handles counterpart counts)
         card.cachedOutgoingEdgeCount = 0
         card.cachedIncomingEdgeCount = 0
 
-        let totalDeleted = outgoing.count + incoming.count
-        try modelContext.save()
         return totalDeleted
     }
 
@@ -231,25 +151,21 @@ final class RelationshipManager {
     /// - Parameter card: The source card
     /// - Returns: Array of outgoing edges
     func getOutgoingEdges(for card: Card) -> [CardEdge] {
-        let cardID: UUID? = card.id
-        let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.from?.id == cardID })
-        return (try? modelContext.fetch(fetch)) ?? []
+        return edgeRepository.fetchOutgoing(from: card)
     }
 
     /// Get all edges where the given card is the target
     /// - Parameter card: The target card
     /// - Returns: Array of incoming edges
     func getIncomingEdges(for card: Card) -> [CardEdge] {
-        let cardID: UUID? = card.id
-        let fetch = FetchDescriptor<CardEdge>(predicate: #Predicate { $0.to?.id == cardID })
-        return (try? modelContext.fetch(fetch)) ?? []
+        return edgeRepository.fetchIncoming(to: card)
     }
 
     /// Get all edges (both incoming and outgoing) for a card
     /// - Parameter card: The card
     /// - Returns: Array of all edges
     func getAllEdges(for card: Card) -> [CardEdge] {
-        return getOutgoingEdges(for: card) + getIncomingEdges(for: card)
+        return edgeRepository.fetchAll(for: card)
     }
 
     /// Check if a relationship exists between two cards
@@ -259,15 +175,7 @@ final class RelationshipManager {
     ///   - type: The relationship type
     /// - Returns: True if the relationship exists
     func relationshipExists(from sourceCard: Card, to targetCard: Card, type: RelationType) -> Bool {
-        let srcID: UUID? = sourceCard.id
-        let dstID: UUID? = targetCard.id
-        let typeCode: String? = type.code
-
-        let fetch = FetchDescriptor<CardEdge>(
-            predicate: #Predicate { $0.from?.id == srcID && $0.to?.id == dstID && $0.type?.code == typeCode }
-        )
-        let edges = (try? modelContext.fetch(fetch)) ?? []
-        return !edges.isEmpty
+        return edgeRepository.exists(from: sourceCard, to: targetCard, ofType: type)
     }
 
     // MARK: - Mirror Type Handling

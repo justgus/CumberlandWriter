@@ -102,4 +102,151 @@ SwiftData/Database
 
 ---
 
-*Last Updated: 2026-04-30*
+## ✅ DR-0202: ER-0022 Phase 2 Incomplete - RelationTypeManager.swift Bypasses Repository
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-12
+**Verified:** 2026-05-12
+**Component:** Services/RelationTypeManager.swift
+**Severity:** High - Service bypasses repository pattern
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+RelationTypeManager.swift:96 calls `modelContext.delete(type)` directly instead of using appropriate repository method.
+
+**Impact:**
+- Bypasses centralized deletion logic
+- No cleanup for edges using this type
+- Violates single-responsibility principle
+
+**Resolution:** 2026-05-12
+
+**RelationTypeManager.swift Enhancement:**
+- Added EdgeRepository property to RelationTypeManager (line 26)
+- Enhanced deleteRelationType() to fetch all edges using the type and delete them via EdgeRepository (lines 97-129)
+- Added comprehensive debug logging for edge cleanup tracking
+- Properly handles bidirectional edge deletion and integrity monitoring
+- Direct modelContext.delete() now only occurs after all edge cleanup is complete
+
+**Edge Cleanup Process:**
+1. Fetch all edges using the RelationType via EdgeRepository.fetch(ofType:)
+2. For each edge, delete the relationship via EdgeRepository.deleteRelationship()
+   - This ensures both forward and reverse edges are deleted
+   - EdgeIntegrityMonitor counts are properly decremented
+3. Only after all edges are cleaned up, delete the RelationType itself
+
+**Final Achievement:**
+- ✅ Proper edge cleanup before RelationType deletion
+- ✅ Bidirectional relationship integrity maintained
+- ✅ Debug logging for tracking cleanup operations
+- ✅ No orphaned edges after RelationType deletion
+
+**Files Modified:**
+- Services/RelationTypeManager.swift
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0204: ER-0022 Phase 2 Incomplete - CardOperationManager.swift Bypasses Repositories
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-12
+**Verified:** 2026-05-12
+**Component:** Services/CardOperationManager.swift
+**Severity:** Critical - Service layer bypasses repositories
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+**Related DR:** DR-0176 (same file, Card creation)
+
+**Issue:**
+CardOperationManager.swift has 4 locations calling `modelContext.delete()` directly for cards and edges instead of using CardRepository.delete() and EdgeRepository.deleteRelationship().
+
+**Impact:**
+- Service layer duplicates repository logic
+- Reverse relationships not deleted
+- EdgeIntegrityMonitor counts not updated
+- Violates single-responsibility principle
+
+**Resolution:** 2026-05-12
+
+**CardOperationManager.swift Migrations:**
+- Updated deleteCard() to use CardRepository.deleteCard() (line 72)
+- Updated deleteCards() to use CardRepository.deleteCards() (line 80)
+- Updated changeCardType() fallback to use EdgeRepository.deleteAllRelationships() and fetchAll() (line 148)
+- All 4 direct modelContext.delete() calls have been replaced with repository methods
+
+**Deletion Methods:**
+1. **deleteCard()**: Uses CardRepository.deleteCard() which handles:
+   - cleanupBeforeDeletion() (image files, caches, local data)
+   - Proper cascade deletion of edges and citations
+
+2. **deleteCards()**: Uses CardRepository.deleteCards() for bulk deletion
+
+3. **changeCardType() fallback**: Uses EdgeRepository for edge cleanup:
+   - Fetches all edges via fetchAll(for:)
+   - Deletes via deleteAllRelationships(for:)
+   - Zeroes integrity counts
+
+**Final Achievement:**
+- ✅ All card deletion uses CardRepository
+- ✅ All edge deletion uses EdgeRepository
+- ✅ Proper cleanup hooks executed
+- ✅ Integrity monitoring maintained
+
+**Files Modified:**
+- Services/CardOperationManager.swift
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0205: ER-0022 Phase 2 Incomplete - RelationshipManager.swift Bypasses EdgeRepository
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-12
+**Verified:** 2026-05-12
+**Component:** Services/RelationshipManager.swift
+**Severity:** Critical - Service layer bypasses EdgeRepository
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+**Related DR:** DR-0140 (same file, CardEdge creation)
+
+**Issue:**
+RelationshipManager.swift has 7 locations calling `modelContext.delete()` directly for edges instead of using EdgeRepository.deleteRelationship().
+
+**Impact:**
+- Service layer duplicates EdgeRepository logic
+- Reverse relationships not deleted (data integrity failure)
+- EdgeIntegrityMonitor counts not updated
+- Violates single-responsibility principle
+
+**Resolution:** 2026-05-12
+
+**RelationshipManager.swift Migrations:**
+- Updated removeRelationship() to use EdgeRepository.deleteRelationship() and deleteAllRelationships() (lines 90-105)
+- Updated removeEdge() to use EdgeRepository.deleteEdge() (line 114)
+- Updated removeAllEdges() to use EdgeRepository.deleteAllRelationships() and fetchAll() (lines 129-135)
+- All 7 direct modelContext.delete() calls have been replaced with repository methods
+
+**Locations Fixed:**
+- Line 140 (edge) → EdgeRepository.deleteRelationship()
+- Line 144 (edge) → EdgeRepository.deleteRelationship()
+- Line 159 (edge) → EdgeRepository.deleteAllRelationships()
+- Line 163 (edge) → EdgeRepository.deleteAllRelationships()
+- Line 178 (edge) → EdgeRepository.deleteEdge()
+- Line 208 (edge) → EdgeRepository.deleteAllRelationships()
+- Line 216 (edge) → EdgeRepository.deleteAllRelationships()
+
+**Final Achievement:**
+- ✅ All edge deletion uses EdgeRepository
+- ✅ Bidirectional relationships properly maintained
+- ✅ EdgeIntegrityMonitor counts properly updated
+- ✅ Complete data integrity preserved
+
+**Files Modified:**
+- Services/RelationshipManager.swift
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-05-12*

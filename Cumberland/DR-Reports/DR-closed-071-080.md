@@ -8,7 +8,7 @@ This file contains closed DRs that will not be verified. These issues were eithe
 - DR-0073: ✅ Verified - Closed
 
 ---
-
+x
 ## DR-0073: VisualElementReviewView Sheet Does Not Resize When Advanced Options Expanded
 
 **Status:** ✅ Verified - Closed

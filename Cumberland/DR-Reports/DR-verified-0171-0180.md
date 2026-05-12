@@ -4,6 +4,42 @@ This file contains verified discrepancy reports that have been confirmed resolve
 
 **Batch Range:** DR-0171 through DR-0180
 **Verification Date:** 2026-05-06
+**Last Updated:** 2026-05-12
+
+---
+
+## ✅ DR-0176: ER-0022 Phase 2 Incomplete - CardOperationManager.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-12
+**Verified:** 2026-05-12
+**Component:** Services/CardOperationManager.swift
+**Severity:** Critical
+**Related ER:** ER-0022 Phase 2
+**Related DR:** DR-0204 (same file, direct deletions)
+
+**Issue:** Creates Card() instances directly. Core service layer bypasses CardRepository.
+
+**Resolution:** 2026-05-12
+
+**CardOperationManager.swift Migrations:**
+- Added CardRepository and EdgeRepository properties to CardOperationManager (lines 26-27)
+- Updated createCard() to use CardRepository.createCard() (line 52)
+- Updated duplicateCard() to use CardRepository.createCard() and updateCardImage() (lines 103-121)
+- Updated deleteCard() to use CardRepository.deleteCard() (line 72)
+- Updated deleteCards() to use CardRepository.deleteCards() (line 80)
+- Updated changeCardType() fallback to use EdgeRepository.deleteAllRelationships() (line 148)
+
+**Final Achievement:**
+- ✅ ZERO direct Card() instantiations
+- ✅ ZERO direct modelContext.insert() calls for cards
+- ✅ 100% repository pattern compliance
+- ✅ All 4 direct modelContext.delete() calls removed (see DR-0204)
+
+**Files Modified:**
+- Services/CardOperationManager.swift
+
+**Status:** ✅ Resolved - Verified
 
 ---
 

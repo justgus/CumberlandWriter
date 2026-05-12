@@ -21,9 +21,11 @@ import SwiftData
 final class RelationTypeManager {
 
     private let modelContext: ModelContext
+    private let edgeRepository: EdgeRepository
 
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
+        self.edgeRepository = EdgeRepository(modelContext: modelContext)
     }
 
     // MARK: - Core CRUD
@@ -92,9 +94,42 @@ final class RelationTypeManager {
     }
 
     /// Delete a RelationType.
+    /// DR-0202: Properly cleanup edges using this type before deletion
+    /// - Parameter type: The RelationType to delete
+    /// - Throws: SwiftData errors
     func deleteRelationType(_ type: RelationType) throws {
+        #if DEBUG
+        print("[RelationTypeManager] Deleting RelationType '\(type.code)' and cleaning up associated edges")
+        #endif
+
+        // DR-0202: Clean up all edges using this type before deleting
+        let edgesWithType = edgeRepository.fetch(ofType: type)
+
+        #if DEBUG
+        print("[RelationTypeManager] Found \(edgesWithType.count) edges using type '\(type.code)'")
+        #endif
+
+        // Delete all edges using this type
+        for edge in edgesWithType {
+            guard let from = edge.from,
+                  let to = edge.to else {
+                #if DEBUG
+                print("[RelationTypeManager] Skipping edge with nil source or target")
+                #endif
+                continue
+            }
+
+            // Use EdgeRepository to properly delete the edge (handles reverse edges and counts)
+            try edgeRepository.deleteRelationship(from: from, to: to, relationType: type)
+        }
+
+        // Now safe to delete the RelationType
         modelContext.delete(type)
         try modelContext.save()
+
+        #if DEBUG
+        print("[RelationTypeManager] Successfully deleted RelationType '\(type.code)' and \(edgesWithType.count) associated edges")
+        #endif
     }
 
     // MARK: - Mirror Management

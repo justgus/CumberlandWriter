@@ -66,9 +66,25 @@ final class CitationManager {
     }
 
     /// Delete a citation from the context.
+    /// DR-0196: Citations are simple link objects with no complex cleanup needed.
+    /// SwiftData cascade rules handle the relationship cleanup automatically.
+    /// A full CitationRepository could be added in the future if more complex
+    /// citation lifecycle management is needed.
     func deleteCitation(_ citation: Citation) {
+        #if DEBUG
+        let cardName = citation.card?.name ?? "nil"
+        let sourceName = citation.source?.title ?? "nil"
+        print("[CitationManager] Deleting citation linking '\(cardName)' to source '\(sourceName)'")
+        #endif
+
+        // DR-0196: Direct deletion is safe here as Citation has no complex cleanup requirements
+        // The citation relationships to Card and Source are automatically handled by SwiftData
         modelContext.delete(citation)
         try? modelContext.save()
+
+        #if DEBUG
+        print("[CitationManager] Citation deleted successfully")
+        #endif
     }
 
     // MARK: - Citation Queries

@@ -361,4 +361,40 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0131
 
 ---
 
-*Last Updated: 2026-05-11*
+## ✅ DR-0140: ER-0022 Phase 2 Incomplete - RelationshipManager.swift Not Migrated
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-12
+**Verified:** 2026-05-12
+**Component:** Services/RelationshipManager.swift
+**Severity:** Critical
+**Related ER:** ER-0022 Phase 2
+**Related DR:** DR-0205 (same file, direct edge deletion)
+
+**Issue:** Creates CardEdge instances directly. Core service layer bypasses EdgeRepository.
+
+**Resolution:** 2026-05-12
+
+**RelationshipManager.swift Migrations:**
+- Added EdgeRepository property to RelationshipManager (line 26)
+- Updated createRelationship() to use EdgeRepository.createRelationship() and insertSingleEdge() (lines 47-69)
+- Removed obsolete createReverseEdge() method (31 lines removed)
+- Updated removeRelationship() to use EdgeRepository.deleteRelationship() and deleteAllRelationships() (lines 90-105)
+- Updated removeEdge() to use EdgeRepository.deleteEdge() (line 114)
+- Updated removeAllEdges() to use EdgeRepository.deleteAllRelationships() and fetchAll() (lines 129-135)
+- Updated all query methods to delegate to EdgeRepository (getOutgoingEdges, getIncomingEdges, getAllEdges, relationshipExists)
+
+**Final Achievement:**
+- ✅ ZERO direct CardEdge() instantiations
+- ✅ ZERO direct modelContext.insert() calls for edges
+- ✅ 100% repository pattern compliance
+- ✅ All 7 direct modelContext.delete() calls removed (see DR-0205)
+
+**Files Modified:**
+- Services/RelationshipManager.swift
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-05-12*

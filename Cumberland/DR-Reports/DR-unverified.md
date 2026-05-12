@@ -4,11 +4,20 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **52 open DRs**
+**Status:** Currently **46 open DRs**
 
-## Recently Verified (2026-05-11)
+## Recently Verified (2026-05-12)
 
 The following DRs have been verified and archived:
+- ✅ **DR-0140** → DR-verified-0131-0140.md (Batch 14) - RelationshipManager.swift EdgeRepository migration
+- ✅ **DR-0176** → DR-verified-0171-0180.md (Batch 18) - CardOperationManager.swift Card creation migration
+- ✅ **DR-0196** → DR-verified-0191-0200.md (Batch 19) - CitationManager.swift documentation enhancement
+- ✅ **DR-0202** → DR-verified-0201-0210.md (Batch 20) - RelationTypeManager.swift edge cleanup
+- ✅ **DR-0204** → DR-verified-0201-0210.md (Batch 20) - CardOperationManager.swift deletion migration
+- ✅ **DR-0205** → DR-verified-0201-0210.md (Batch 20) - RelationshipManager.swift deletion migration
+
+## Previously Verified (2026-05-11)
+
 - ✅ **DR-0133** → DR-verified-0131-0140.md (Batch 14) - CardDiagnosticsView migration
 - ✅ **DR-0134** → DR-verified-0131-0140.md (Batch 14) - RecentEdgesDiagnosticsView migration
 - ✅ **DR-0135** → DR-verified-0131-0140.md (Batch 14) - RelationshipAuditView migration
@@ -31,20 +40,6 @@ The following DRs have been verified and archived:
 - ✅ **DR-0167** → DR-verified-0161-0170.md (Batch 17) - MainAppView Card creation
 
 ---
-
-## 🔴 DR-0140: ER-0022 Phase 2 Incomplete - RelationshipManager.swift Not Migrated
-
-**Reported:** 2026-04-27
-**Component:** Services/RelationshipManager.swift
-**Severity:** Critical
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly. Core service layer bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
 
 ## 🔴 DR-0145: ER-0022 Phase 2 Incomplete - ManuscriptWritingSurfaceView.swift Not Migrated
 
@@ -288,19 +283,6 @@ The following DRs have been verified and archived:
 **Related ER:** ER-0022 Phase 2
 
 **Issue:** Creates Card() instances directly. Structure selection bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0176: ER-0022 Phase 2 Incomplete - CardOperationManager.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Services/CardOperationManager.swift
-**Severity:** Critical
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Core service layer bypasses CardRepository.
 
 **Status:** 🔴 Identified - Not Resolved
 
@@ -697,27 +679,6 @@ DeveloperBoardsView.swift:466,483 calls `modelContext.delete(n)` directly for bo
 
 ---
 
-## 🔴 DR-0196: ER-0022 Phase 2 Incomplete - CitationManager.swift Bypasses Repository
-
-**Reported:** 2026-04-27
-**Component:** Citation/Services/CitationManager.swift
-**Severity:** High - Service bypasses repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-CitationManager.swift:70 calls `modelContext.delete(citation)` directly instead of using appropriate repository method.
-
-**Impact:**
-- Bypasses centralized deletion logic
-- No cleanup hooks for citations
-- Violates single-responsibility principle
-
-**Location:** `Citation/Services/CitationManager.swift:70`
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
 ## 🔴 DR-0197: ER-0022 Phase 2 Incomplete - DeveloperToolsView.swift Bypasses EdgeRepository
 
 **Reported:** 2026-04-27
@@ -822,82 +783,6 @@ SuggestionFeedback.swift:194 calls `modelContext.delete(feedback)` directly in c
 - Violates single-responsibility principle
 
 **Location:** `Model/SuggestionFeedback.swift:194`
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0202: ER-0022 Phase 2 Incomplete - RelationTypeManager.swift Bypasses Repository
-
-**Reported:** 2026-04-27
-**Component:** Services/RelationTypeManager.swift
-**Severity:** High - Service bypasses repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-RelationTypeManager.swift:96 calls `modelContext.delete(type)` directly instead of using appropriate repository method.
-
-**Impact:**
-- Bypasses centralized deletion logic
-- No cleanup for edges using this type
-- Violates single-responsibility principle
-
-**Location:** `Services/RelationTypeManager.swift:96`
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0204: ER-0022 Phase 2 Incomplete - CardOperationManager.swift Bypasses Repositories
-
-**Reported:** 2026-04-27
-**Component:** Services/CardOperationManager.swift
-**Severity:** Critical - Service layer bypasses repositories
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-CardOperationManager.swift has 4 locations calling `modelContext.delete()` directly for cards and edges instead of using CardRepository.delete() and EdgeRepository.deleteRelationship().
-
-**Impact:**
-- Service layer duplicates repository logic
-- Reverse relationships not deleted
-- EdgeIntegrityMonitor counts not updated
-- Violates single-responsibility principle
-
-**Locations:**
-- `Services/CardOperationManager.swift:74` (card)
-- `Services/CardOperationManager.swift:87` (card)
-- `Services/CardOperationManager.swift:154` (edge)
-- `Services/CardOperationManager.swift:158` (edge)
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0205: ER-0022 Phase 2 Incomplete - RelationshipManager.swift Bypasses EdgeRepository
-
-**Reported:** 2026-04-27
-**Component:** Services/RelationshipManager.swift
-**Severity:** Critical - Service layer bypasses EdgeRepository
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-RelationshipManager.swift has 7 locations calling `modelContext.delete()` directly for edges instead of using EdgeRepository.deleteRelationship().
-
-**Impact:**
-- Service layer duplicates EdgeRepository logic
-- Reverse relationships not deleted (data integrity failure)
-- EdgeIntegrityMonitor counts not updated
-- Violates single-responsibility principle
-
-**Locations:**
-- `Services/RelationshipManager.swift:140` (edge)
-- `Services/RelationshipManager.swift:144` (edge)
-- `Services/RelationshipManager.swift:159` (edge)
-- `Services/RelationshipManager.swift:163` (edge)
-- `Services/RelationshipManager.swift:178` (edge)
-- `Services/RelationshipManager.swift:208` (edge)
-- `Services/RelationshipManager.swift:216` (edge)
 
 **Status:** 🔴 Identified - Not Resolved
 
