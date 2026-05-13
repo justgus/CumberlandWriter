@@ -559,15 +559,21 @@ private struct ExportVersionView: View {
 struct ImageHistoryView_Previews: PreviewProvider {
     @MainActor
     static var previews: some View {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: Card.self, ImageVersion.self, configurations: config)
+        // DR-0150: Use CardRepository for preview card creation
+        let container = ModelContainerFactory.makeInMemoryContainer(AppSchemaV5.models)
         let context = container.mainContext
+        let services = ServiceContainer(modelContext: context)
 
-        let card = Card(kind: .characters, name: "Captain Drake", subtitle: "Space Explorer", detailedText: "A brave captain")
-        context.insert(card)
+        let card = try! services.cardRepository.createCard(
+            kind: .characters,
+            name: "Captain Drake",
+            subtitle: "Space Explorer",
+            detailedText: "A brave captain"
+        )
 
         return ImageHistoryView(card: card)
             .modelContainer(container)
+            .environment(\.services, services)
     }
 }
 #endif

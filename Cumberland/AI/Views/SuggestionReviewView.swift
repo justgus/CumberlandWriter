@@ -492,8 +492,8 @@ struct SuggestionReviewView: View {
                             divisions: divisions
                         )
 
-                        // Phase 7.5: Create Calendar CARD
-                        let calendarCard = Card(
+                        // DR-0151: Use CardRepository for calendar card creation
+                        let calendarCard = try cardRepo.createCard(
                             kind: .calendars,
                             name: detected.name,
                             subtitle: "\(detected.monthsPerYear) months, \(detected.daysPerMonth ?? 0) days/month",
@@ -503,9 +503,8 @@ struct SuggestionReviewView: View {
                         // Link card to system (sets up bidirectional relationship)
                         calendarCard.calendarSystemRef = calendarSystem
 
-                        // Insert ONLY the card - SwiftData will automatically insert the related CalendarSystem
+                        // SwiftData will automatically insert the related CalendarSystem
                         // This is correct because Card has the @Relationship decorator with cascade delete
-                        modelContext.insert(calendarCard)
 
                         #if DEBUG
                         print("✅ [SuggestionReviewView] Created Calendar Card: \(detected.name)")
@@ -896,6 +895,18 @@ private struct ConfidenceBadge: View {
 #Preview {
     @Previewable @State var pendingRelationships: [SuggestionEngine.RelationshipSuggestion] = []
 
+    // DR-0151: Use CardRepository for preview card creation
+    let container = ModelContainerFactory.makeInMemoryContainer(AppSchemaV5.models)
+    let context = container.mainContext
+    let services = ServiceContainer(modelContext: context)
+
+    let card = try! services.cardRepository.createCard(
+        kind: .scenes,
+        name: "Test Scene",
+        subtitle: "",
+        detailedText: "Test"
+    )
+
     let sampleEntities = [
         Entity(name: "Shadowblade", type: .artifact, confidence: 0.92, context: "Aria drew the Shadowblade from its sheath"),
         Entity(name: "Temple of Shadows", type: .building, confidence: 0.88, context: "entered the Temple of Shadows"),
@@ -903,10 +914,9 @@ private struct ConfidenceBadge: View {
     ]
 
     let suggestionEngine = SuggestionEngine()
-    let card = Card(kind: .scenes, name: "Test Scene", subtitle: "", detailedText: "Test")
     let suggestions = suggestionEngine.generateCardSuggestions(from: sampleEntities, sourceCard: card)
 
-    SuggestionReviewView(
+    return SuggestionReviewView(
         suggestions: SuggestionEngine.Suggestions(
             cards: suggestions,
             relationships: [],
@@ -922,4 +932,9 @@ private struct ConfidenceBadge: View {
         existingCards: [],
         pendingRelationships: $pendingRelationships
     )
+    .modelContainer(container)
+    .environment(\.services, services)
+    .environment(services.cardRepository)
+    .environment(services.edgeRepository)
+    .environment(services.relationTypeManager)
 }

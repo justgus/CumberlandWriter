@@ -7,6 +7,8 @@
 //
 
 import SwiftUI
+import SwiftData
+
 #if os(macOS)
 import AppKit
 #endif
@@ -127,15 +129,26 @@ struct CardRelationshipHeader: View {
 
 #if DEBUG
 #Preview("CardRelationshipHeader") {
-    CardRelationshipHeader(
-        primary: {
-            let card = Card(kind: .characters, name: "Test Character", subtitle: "Hero of the Story", detailedText: "A brave warrior who embarks on an epic journey to save the kingdom from darkness. Known for wielding the legendary sword Excalibur.")
-            return card
-        }(),
+    // DR-0153: Use CardRepository for preview card creation
+    let container = ModelContainerFactory.makeInMemoryContainer(AppSchemaV5.models)
+    let context = container.mainContext
+    let services = ServiceContainer(modelContext: context)
+
+    let card = try! services.cardRepository.createCard(
+        kind: .characters,
+        name: "Test Character",
+        subtitle: "Hero of the Story",
+        detailedText: "A brave warrior who embarks on an epic journey to save the kingdom from darkness. Known for wielding the legendary sword Excalibur."
+    )
+
+    return CardRelationshipHeader(
+        primary: card,
         headerImage: Image(systemName: "person.fill"),
         hasFullSizeImage: true,
         onShowFullSizeImage: {}
     )
     .padding()
+    .modelContainer(container)
+    .environment(\.services, services)
 }
 #endif

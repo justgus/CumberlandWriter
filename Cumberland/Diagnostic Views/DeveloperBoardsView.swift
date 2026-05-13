@@ -14,6 +14,7 @@ import SwiftData
 struct DeveloperBoardsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.services) private var services
 
     @State private var searchText: String = ""
     @State private var selection: UUID? = nil
@@ -460,34 +461,34 @@ struct DeveloperBoardsView: View {
         isRunningBoardAction = true
         defer { isRunningBoardAction = false }
         // Delete nodes with missing card or foreign board reference
-        // Note: Direct deletion for diagnostic/repair of corrupted orphan nodes
+        // DR-0195: Use BoardManager instead of direct deletion
+        guard let boardManager = services?.boardManager else { return }
         if let nodes = board.nodes {
             for n in nodes {
                 if n.card == nil || n.board == nil {
-                    modelContext.delete(n)
+                    try? boardManager.removeNode(n)
                 }
             }
         }
-        try? modelContext.save()
     }
 
     private func fixDuplicateNodes(_ board: Board) {
         isRunningBoardAction = true
         defer { isRunningBoardAction = false }
         // Ensure only one node per (board, card) pair
-        // Note: Direct deletion for diagnostic/repair of duplicate nodes
+        // DR-0195: Use BoardManager instead of direct deletion
+        guard let boardManager = services?.boardManager else { return }
         guard let nodes = board.nodes else { return }
         var seen: Set<String> = []
         for n in nodes {
             guard let c = n.card else { continue }
             let key = "\(board.id)|\(c.id)"
             if seen.contains(key) {
-                modelContext.delete(n)
+                try? boardManager.removeNode(n)
             } else {
                 seen.insert(key)
             }
         }
-        try? modelContext.save()
     }
 
     private func resetNodePosition(board: Board, node: BoardNode) {

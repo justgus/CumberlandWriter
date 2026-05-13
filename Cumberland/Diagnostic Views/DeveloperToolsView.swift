@@ -1039,7 +1039,8 @@ struct DeveloperToolsView: View {
                 }
 
                 // Delete the duplicate source
-                // Note: Direct deletion for diagnostic/repair of duplicate sources
+                // DR-0197: Direct deletion acceptable here - diagnostic tool consolidating duplicates
+                // No SourceRepository exists yet; this is a one-time repair operation
                 modelContext.delete(duplicate)
                 deletedCount += 1
             }

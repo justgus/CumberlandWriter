@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 /// Sheet view for displaying detailed AI image generation information
 /// Part of ER-0009: AI Image Generation MVP
@@ -262,7 +263,12 @@ private struct InfoSection: View {
 
 #if DEBUG
 #Preview {
-    let card = Card(
+    // DR-0149: Use CardRepository for preview card creation
+    let container = ModelContainerFactory.makeInMemoryContainer(AppSchemaV5.models)
+    let context = container.mainContext
+    let services = ServiceContainer(modelContext: context)
+
+    let card = try! services.cardRepository.createCard(
         kind: .characters,
         name: "Test Character",
         subtitle: "Test",
@@ -272,7 +278,10 @@ private struct InfoSection: View {
     card.imageAIProvider = "OpenAI DALL-E 3"
     card.imageAIPrompt = "A detailed fantasy portrait of a warrior in ornate armor, standing in a mystical forest with glowing magical runes"
     card.imageAIGeneratedAt = Date()
+    try! services.cardRepository.save()
 
     return AIImageInfoView(card: card)
+        .modelContainer(container)
+        .environment(\.services, services)
 }
 #endif

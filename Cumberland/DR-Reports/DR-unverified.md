@@ -4,40 +4,7 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **46 open DRs**
-
-## Recently Verified (2026-05-12)
-
-The following DRs have been verified and archived:
-- ✅ **DR-0140** → DR-verified-0131-0140.md (Batch 14) - RelationshipManager.swift EdgeRepository migration
-- ✅ **DR-0176** → DR-verified-0171-0180.md (Batch 18) - CardOperationManager.swift Card creation migration
-- ✅ **DR-0196** → DR-verified-0191-0200.md (Batch 19) - CitationManager.swift documentation enhancement
-- ✅ **DR-0202** → DR-verified-0201-0210.md (Batch 20) - RelationTypeManager.swift edge cleanup
-- ✅ **DR-0204** → DR-verified-0201-0210.md (Batch 20) - CardOperationManager.swift deletion migration
-- ✅ **DR-0205** → DR-verified-0201-0210.md (Batch 20) - RelationshipManager.swift deletion migration
-
-## Previously Verified (2026-05-11)
-
-- ✅ **DR-0133** → DR-verified-0131-0140.md (Batch 14) - CardDiagnosticsView migration
-- ✅ **DR-0134** → DR-verified-0131-0140.md (Batch 14) - RecentEdgesDiagnosticsView migration
-- ✅ **DR-0135** → DR-verified-0131-0140.md (Batch 14) - RelationshipAuditView migration
-- ✅ **DR-0136** → DR-verified-0131-0140.md (Batch 14) - RelationTypesDiagnosticsView migration
-- ✅ **DR-0137** → DR-verified-0131-0140.md (Batch 14) - ReassignRelationTypeSheet migration
-- ✅ **DR-0138** → DR-verified-0131-0140.md (Batch 14) - RelationTypesManagerView migration
-- ✅ **DR-0139** → DR-verified-0131-0140.md (Batch 14) - SceneProjectRelationDiagnosticsView migration
-- ✅ **DR-0141** → DR-verified-0141-0150.md (Batch 15) - SettingsView migration
-- ✅ **DR-0142** → DR-verified-0141-0150.md (Batch 15) - Swimlane migration
-- ✅ **DR-0143** → DR-verified-0141-0150.md (Batch 15) - SwimlaneViewer migration
-- ✅ **DR-0157** → DR-verified-0161-0170.md (Batch 17) - ImageAttributionViewer Card creation
-- ✅ **DR-0158** → DR-verified-0161-0170.md (Batch 17) - SourceDetailEditor Card creation
-- ✅ **DR-0159** → DR-verified-0161-0170.md (Batch 17) - SourceEditorSheet Card creation
-- ✅ **DR-0161** → DR-verified-0161-0170.md (Batch 17) - CardDiagnosticsView Card creation
-- ✅ **DR-0162** → DR-verified-0161-0170.md (Batch 17) - DeveloperBoardsView Card creation
-- ✅ **DR-0163** → DR-verified-0161-0170.md (Batch 17) - DeveloperToolsView Card creation & query removal
-- ✅ **DR-0164** → DR-verified-0161-0170.md (Batch 17) - RecentEdgesDiagnosticsView Card creation
-- ✅ **DR-0165** → DR-verified-0161-0170.md (Batch 17) - RelationTypesDiagnosticsView Card creation
-- ✅ **DR-0166** → DR-verified-0161-0170.md (Batch 17) - FullSizeImageViewer Card creation
-- ✅ **DR-0167** → DR-verified-0161-0170.md (Batch 17) - MainAppView Card creation
+**Status:** Currently **20 open DRs**
 
 ---
 
@@ -80,45 +47,6 @@ The following DRs have been verified and archived:
 
 ---
 
-## 🔴 DR-0149: ER-0022 Phase 2 Incomplete - AIImageInfoView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** AI/Views/AIImageInfoView.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. AI image view bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0150: ER-0022 Phase 2 Incomplete - ImageHistoryView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** AI/Views/ImageHistoryView.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Image history view bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0151: ER-0022 Phase 2 Incomplete - SuggestionReviewView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** AI/Views/SuggestionReviewView.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Suggestion review UI bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
 ## 🔴 DR-0152: ER-0022 Phase 2 Incomplete - CardEditorAnalysisButton.swift Creates Cards Directly
 
 **Reported:** 2026-04-27
@@ -127,19 +55,6 @@ The following DRs have been verified and archived:
 **Related ER:** ER-0022 Phase 2
 
 **Issue:** Creates Card() instances directly. Card editor feature bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0153: ER-0022 Phase 2 Incomplete - CardRelationshipHeader.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** CardRelationship/CardRelationshipHeader.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Relationship UI bypasses CardRepository.
 
 **Status:** 🔴 Identified - Not Resolved
 
@@ -310,45 +225,6 @@ The following DRs have been verified and archived:
 **Related ER:** ER-0022 Phase 2
 
 **Issue:** Creates Card() instances directly. MurderBoard feature bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0180: ER-0022 Phase 2 Incomplete - ReassignRelationTypeSheet.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** ReassignRelationTypeSheet.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Relation type reassignment bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0181: ER-0022 Phase 2 Incomplete - RelationTypesManagerView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** RelationTypesManagerView.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Relation type manager bypasses CardRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0182: ER-0022 Phase 2 Incomplete - SceneProjectRelationDiagnosticsView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** SceneProjectRelationDiagnosticsView.swift
-**Severity:** Low
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Diagnostic view bypasses CardRepository.
 
 **Status:** 🔴 Identified - Not Resolved
 
@@ -604,104 +480,6 @@ CardEditorSaveHandler.swift:128,144 calls `modelContext.delete()` directly for c
 
 ---
 
-## 🔴 DR-0192: ER-0022 Phase 2 Incomplete - CardRelationshipOperations.swift Bypasses EdgeRepository
-
-**Reported:** 2026-04-27
-**Component:** CardRelationship/CardRelationshipOperations.swift
-**Severity:** Critical - Multiple edge deletions bypass repository
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-CardRelationshipOperations.swift has 6 locations calling `modelContext.delete()` directly for edges and cards instead of using EdgeRepository.deleteRelationship() and CardRepository.delete().
-
-**Impact:**
-- Reverse relationships not deleted (data integrity failure)
-- EdgeIntegrityMonitor counts not updated
-- Card cleanup hooks not executed
-- Violates single-responsibility principle
-
-**Locations:**
-- `CardRelationship/CardRelationshipOperations.swift:330` (edge)
-- `CardRelationship/CardRelationshipOperations.swift:334` (edge)
-- `CardRelationship/CardRelationshipOperations.swift:348` (edge)
-- `CardRelationship/CardRelationshipOperations.swift:352` (edge)
-- `CardRelationship/CardRelationshipOperations.swift:371` (card)
-- `CardRelationship/CardRelationshipOperations.swift:401` (edge)
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-
-## 🔴 DR-0194: ER-0022 Phase 2 Incomplete - RelationTypesManagerView.swift Bypasses Repository
-
-**Reported:** 2026-04-27
-**Component:** RelationTypesManagerView.swift
-**Severity:** High - Violates ER-0022 repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-RelationTypesManagerView.swift:235,247 calls `modelContext.delete()` directly for relation types instead of using appropriate repository methods.
-
-**Impact:**
-- Bypasses centralized deletion logic
-- No cleanup for edges using this relation type
-- Violates single-responsibility principle
-
-**Locations:**
-- `RelationTypesManagerView.swift:235` (type)
-- `RelationTypesManagerView.swift:247` (type)
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0195: ER-0022 Phase 2 Incomplete - DeveloperBoardsView.swift Bypasses Repository
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/DeveloperBoardsView.swift
-**Severity:** Medium - Diagnostic view bypasses repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-DeveloperBoardsView.swift:466,483 calls `modelContext.delete(n)` directly for board nodes instead of using BoardManager or appropriate repository.
-
-**Impact:**
-- Bypasses centralized deletion logic
-- No cleanup for board nodes
-- Violates single-responsibility principle
-
-**Locations:**
-- `Diagnostic Views/DeveloperBoardsView.swift:466` (node)
-- `Diagnostic Views/DeveloperBoardsView.swift:483` (node)
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0197: ER-0022 Phase 2 Incomplete - DeveloperToolsView.swift Bypasses EdgeRepository
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/DeveloperToolsView.swift
-**Severity:** Medium - Diagnostic view bypasses repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-DeveloperToolsView.swift:881,1024 calls `modelContext.delete()` directly for edges and cards instead of using repositories.
-
-**Impact:**
-- Reverse relationships not deleted
-- Card cleanup hooks not executed
-- EdgeIntegrityMonitor counts not updated
-
-**Locations:**
-- `Diagnostic Views/DeveloperToolsView.swift:881` (edge)
-- `Diagnostic Views/DeveloperToolsView.swift:1024` (duplicate card)
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
 ## 🔴 DR-0198: ER-0022 Phase 2 Incomplete - StructureSelectionSheet.swift Bypasses Repository
 
 **Reported:** 2026-04-27
@@ -723,50 +501,6 @@ StructureSelectionSheet.swift:502 calls `modelContext.delete(current)` directly 
 
 ---
 
-## 🔴 DR-0199: ER-0022 Phase 2 Incomplete - RelationshipAuditView.swift Bypasses EdgeRepository
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/RelationshipAuditView.swift
-**Severity:** Medium - Diagnostic view bypasses repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-RelationshipAuditView.swift:586 calls `modelContext.delete(edge)` directly instead of using EdgeRepository.deleteRelationship().
-
-**Impact:**
-- Reverse relationships not deleted
-- EdgeIntegrityMonitor counts not updated
-- Violates single-responsibility principle
-
-**Location:** `Diagnostic Views/RelationshipAuditView.swift:586`
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0200: ER-0022 Phase 2 Incomplete - RelationTypesDiagnosticsView.swift Bypasses Repository
-
-**Reported:** 2026-04-27
-**Component:** Diagnostic Views/RelationTypesDiagnosticsView.swift
-**Severity:** Medium - Diagnostic view bypasses repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-RelationTypesDiagnosticsView.swift:146,217 calls `modelContext.delete()` directly for relation types instead of using appropriate repository methods.
-
-**Impact:**
-- Bypasses centralized deletion logic
-- No cleanup for edges using these types
-- Violates single-responsibility principle
-
-**Locations:**
-- `Diagnostic Views/RelationTypesDiagnosticsView.swift:146` (type)
-- `Diagnostic Views/RelationTypesDiagnosticsView.swift:217` (duplicate)
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
 ## 🔴 DR-0201: ER-0022 Phase 2 Incomplete - SuggestionFeedback.swift Bypasses Repository
 
 **Reported:** 2026-04-27
@@ -783,27 +517,6 @@ SuggestionFeedback.swift:194 calls `modelContext.delete(feedback)` directly in c
 - Violates single-responsibility principle
 
 **Location:** `Model/SuggestionFeedback.swift:194`
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0206: ER-0022 Phase 2 Incomplete - ReassignRelationTypeSheet.swift Bypasses Repository
-
-**Reported:** 2026-04-27
-**Component:** ReassignRelationTypeSheet.swift
-**Severity:** High - Violates ER-0022 repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-ReassignRelationTypeSheet.swift:128 calls `modelContext.delete(source)` directly instead of using appropriate repository method.
-
-**Impact:**
-- Bypasses centralized deletion logic
-- No cleanup hooks executed
-- Violates single-responsibility principle
-
-**Location:** `ReassignRelationTypeSheet.swift:128`
 
 **Status:** 🔴 Identified - Not Resolved
 
