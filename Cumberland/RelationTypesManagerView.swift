@@ -230,11 +230,7 @@ struct RelationTypesManagerView: View {
 
     private func nullifyEdges(of type: RelationType) {
         guard let services = services else { return }
-        let edges = services.edgeRepository.fetch(ofType: type)
-        for e in edges {
-            e.type = nil
-        }
-        try? modelContext.save()
+        try? services.edgeRepository.nullifyAllEdges(ofType: type)
     }
 
     private func delete(_ type: RelationType) {

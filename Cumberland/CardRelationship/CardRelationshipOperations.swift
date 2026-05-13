@@ -210,24 +210,8 @@ extension CardRelationshipView {
         // Get the mirror type for the reverse relationship
         let mirror = mirrorType(for: t, sourceKind: src.kind, targetKind: dst.kind, modelContext: modelContext)
 
-        // Check if reverse edge already exists
-        if edgeRepo.exists(from: dst, to: src, ofType: mirror) {
-            return
-        }
-
-        // EdgeRepository.createRelationship() will create both forward and reverse edges,
-        // but since the forward edge already exists, we just need to create the reverse edge.
-        // EdgeRepository doesn't have a method to create only a reverse edge (by design),
-        // so this is the one acceptable exception for direct edge creation.
-        // TODO: Consider adding EdgeRepository.createSingleEdge() to eliminate this exception.
-        let reverseEdge = CardEdge(from: dst, to: src, type: mirror, note: forwardEdge.note)
-        modelContext.insert(reverseEdge)  // Exception: EdgeRepository has no single-edge creation API
-        EdgeIntegrityMonitor.incrementCounts(source: dst, target: src)
-
-        #if DEBUG
-        print("[EdgeAudit] ensureReverseEdge: Created reverse edge '\(dst.name)' → '\(src.name)' type=\(mirror.code)")
-        #endif
-        // Note: Caller is responsible for save() if needed
+        // Use EdgeRepository's ensureReverseEdgeOf method
+        try? edgeRepo.ensureReverseEdgeOf(forwardEdge: forwardEdge, mirrorType: mirror)
     }
 
     // MARK: - Canonicalization

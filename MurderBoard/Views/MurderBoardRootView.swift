@@ -19,6 +19,7 @@ struct MurderBoardRootView: View {
 
     @State private var selectedBoardID: UUID?
     @State private var hasRestoredSelection = false
+    @State private var dataSource: InvestigationDataSource?
 
     @Query(sort: \InvestigationBoard.name, order: .forward)
     private var boards: [InvestigationBoard]
@@ -41,8 +42,10 @@ struct MurderBoardRootView: View {
 
     private var splitNavigation: some View {
         NavigationSplitView {
-            BoardsListView(selectedBoardID: $selectedBoardID)
-                .navigationTitle("Boards")
+            if let dataSource = dataSource {
+                BoardsListView(selectedBoardID: $selectedBoardID, dataSource: dataSource)
+                    .navigationTitle("Boards")
+            }
         } detail: {
             detailView
         }
@@ -50,27 +53,35 @@ struct MurderBoardRootView: View {
         .onChange(of: selectedBoardID) { _, newValue in
             persistSelection(newValue)
         }
-        .task { ensureAtLeastOneBoard() }
+        .task {
+            initializeDataSource()
+            ensureAtLeastOneBoard()
+        }
     }
 
     // MARK: - NavigationStack (iPhone)
 
     private var stackNavigation: some View {
         NavigationStack {
-            BoardsListView(selectedBoardID: $selectedBoardID)
-                .navigationTitle("Boards")
-                .navigationDestination(item: $selectedBoardID) { boardID in
-                    if let board = boards.first(where: { $0.id == boardID }) {
-                        InvestigationBoardView(board: board)
-                            .navigationTitle(board.name)
+            if let dataSource = dataSource {
+                BoardsListView(selectedBoardID: $selectedBoardID, dataSource: dataSource)
+                    .navigationTitle("Boards")
+                    .navigationDestination(item: $selectedBoardID) { boardID in
+                        if let board = boards.first(where: { $0.id == boardID }) {
+                            InvestigationBoardView(board: board)
+                                .navigationTitle(board.name)
+                        }
                     }
-                }
+            }
         }
         .onAppear { restoreSelection() }
         .onChange(of: selectedBoardID) { _, newValue in
             persistSelection(newValue)
         }
-        .task { ensureAtLeastOneBoard() }
+        .task {
+            initializeDataSource()
+            ensureAtLeastOneBoard()
+        }
     }
 
     // MARK: - Detail Pane
@@ -117,11 +128,18 @@ struct MurderBoardRootView: View {
         lastSelectedBoardIDString = id?.uuidString ?? ""
     }
 
+    // MARK: - Data Source Initialization
+
+    private func initializeDataSource() {
+        guard dataSource == nil else { return }
+        dataSource = InvestigationDataSource(modelContext: modelContext)
+    }
+
     // MARK: - First-Launch Seeding
 
     private func ensureAtLeastOneBoard() {
         guard boards.isEmpty else { return }
-        let ds = InvestigationDataSource(modelContext: modelContext)
+        guard let ds = dataSource else { return }
         ds.loadOrCreateBoard(name: "My Investigation")
         if let board = ds.board {
             selectedBoardID = board.id

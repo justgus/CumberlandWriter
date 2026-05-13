@@ -11,12 +11,11 @@ import SwiftUI
 import SwiftData
 
 struct BoardsListView: View {
-    @Environment(\.modelContext) private var modelContext
-
     @Query(sort: \InvestigationBoard.name, order: .forward)
     private var boards: [InvestigationBoard]
 
     @Binding var selectedBoardID: UUID?
+    let dataSource: InvestigationDataSource
 
     // MARK: - Rename State
 
@@ -110,10 +109,9 @@ struct BoardsListView: View {
     // MARK: - CRUD
 
     private func createBoard() {
-        let board = InvestigationBoard(name: "Untitled Board")
-        modelContext.insert(board)
-        try? modelContext.save()
-        selectedBoardID = board.id
+        if let board = dataSource.createBoard(name: "Untitled Board") {
+            selectedBoardID = board.id
+        }
     }
 
     private func beginRename(_ board: InvestigationBoard) {
@@ -124,8 +122,8 @@ struct BoardsListView: View {
 
     private func commitRename() {
         guard let board = boardToRename, !renameText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        board.name = renameText.trimmingCharacters(in: .whitespaces)
-        try? modelContext.save()
+        let trimmedName = renameText.trimmingCharacters(in: .whitespaces)
+        dataSource.renameBoard(board.id, to: trimmedName)
         boardToRename = nil
     }
 
@@ -138,8 +136,7 @@ struct BoardsListView: View {
             selectedBoardID = remaining.first?.id
         }
 
-        modelContext.delete(board)
-        try? modelContext.save()
+        dataSource.deleteBoard(board.id)
         boardToDelete = nil
     }
 }

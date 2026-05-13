@@ -434,6 +434,62 @@ final class EdgeRepository {
         try createRelationship(from: source, to: newTarget, relationType: relationType)
     }
 
+    /// Bulk reassign all edges from one RelationType to another
+    /// Used when merging or replacing relation types (e.g., before deleting a RelationType)
+    /// - Parameters:
+    ///   - fromType: The source RelationType to replace
+    ///   - toType: The target RelationType to assign
+    /// - Throws: SwiftData errors
+    func reassignAllEdges(fromType: RelationType, toType: RelationType) throws {
+        let edges = fetch(ofType: fromType)
+        for edge in edges {
+            edge.type = toType
+        }
+        try modelContext.save()
+    }
+
+    /// Nullify (set to nil) the RelationType for all edges using a specific type
+    /// Used when deleting a RelationType without reassignment
+    /// - Parameter type: The RelationType to nullify
+    /// - Throws: SwiftData errors
+    func nullifyAllEdges(ofType type: RelationType) throws {
+        let edges = fetch(ofType: type)
+        for edge in edges {
+            edge.type = nil
+        }
+        try modelContext.save()
+    }
+
+    /// Ensure the reverse edge exists for a forward edge
+    /// Creates the matching reverse edge if it doesn't already exist
+    /// - Parameters:
+    ///   - forwardEdge: The existing forward edge
+    ///   - mirrorType: The RelationType for the reverse direction
+    /// - Throws: SwiftData errors
+    func ensureReverseEdgeOf(
+        forwardEdge: CardEdge,
+        mirrorType: RelationType
+    ) throws {
+        guard let source = forwardEdge.from,
+              let target = forwardEdge.to else {
+            return
+        }
+
+        // Check if reverse edge already exists
+        if exists(from: target, to: source, ofType: mirrorType) {
+            return
+        }
+
+        // Create reverse edge using insertSingleEdge
+        try insertSingleEdge(
+            from: target,
+            to: source,
+            type: mirrorType,
+            note: forwardEdge.note,
+            createdAt: forwardEdge.createdAt
+        )
+    }
+
     /// Reorder an edge by updating its sortIndex and adjusting all other edges in the same list
     /// This method finds all edges from the same source card with the same relationship type,
     /// then reorders them to maintain a consistent sortIndex sequence when one edge moves position.

@@ -17,6 +17,8 @@ import SwiftData
 /// Analysis button and logic for AI content analysis
 struct CardEditorAnalysisButton: View {
 
+    @Environment(\.services) private var services
+
     @Bindable var viewModel: CardEditorViewModel
     let mode: CardEditorView.Mode
     let modelContext: ModelContext
@@ -82,6 +84,11 @@ struct CardEditorAnalysisButton: View {
 
         Task {
             do {
+                // Get services for repository access
+                guard let services = services else {
+                    throw AIProviderError.providerUnavailable(reason: "Services unavailable")
+                }
+
                 // Get AI provider for analysis
                 guard let provider = AISettings.shared.currentAnalysisProvider else {
                     throw AIProviderError.providerUnavailable(reason: "No AI provider available for analysis")
@@ -93,7 +100,7 @@ struct CardEditorAnalysisButton: View {
                 case .edit(let card, _):
                     currentCard = card
                 case .create(let kind, _):
-                    // Create temporary card for analysis
+                    // Create temporary card for analysis (not inserted into database)
                     currentCard = Card(
                         kind: kind,
                         name: viewModel.name.isEmpty ? "Untitled" : viewModel.name,
@@ -102,8 +109,8 @@ struct CardEditorAnalysisButton: View {
                     )
                 }
 
-                // Get all existing cards for deduplication
-                let existingCards = try modelContext.fetch(FetchDescriptor<Card>())
+                // Get all existing cards for deduplication using CardRepository
+                let existingCards = services.cardRepository.fetchAll()
 
                 // ER-0020: Extract entities AND relationships from AI
                 let extractor = EntityExtractor(provider: provider)

@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Overarching Principles
+1.  Don't assume.  Don't hide confusion. Surface tradeoffs.  
+2.  Minimum code that solves the problem.  Do nothing speculative.  
+3.  Touch only what you must.  Clean up only your own mess.  
+4.  Define success criteria.  Loop until approved.  
+
 ## Project Overview
 
 **Cumberland** is a multi-platform worldbuilding and narrative design application built with SwiftUI and SwiftData. It helps writers organize characters, scenes, locations, relationships, timelines, and maps for complex storytelling projects.

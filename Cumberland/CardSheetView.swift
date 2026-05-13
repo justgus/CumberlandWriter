@@ -39,6 +39,7 @@ struct CardSheetView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.undoManager) private var undoManager
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.services) private var services
     @EnvironmentObject private var themeManager: ThemeManager
 
     // MARK: - Image State
@@ -459,7 +460,7 @@ struct CardSheetView: View {
             let old = card.name
             registerUndo(actionName: "Edit Name") { self.card.name = old }
             card.name = trimmed
-            try? modelContext.save()
+            try? services?.cardRepository.save()
         }
         isEditingName = false
         focusedField = nil
@@ -471,7 +472,7 @@ struct CardSheetView: View {
             let old = card.subtitle
             registerUndo(actionName: "Edit Subtitle") { self.card.subtitle = old }
             card.subtitle = subtitleDraft
-            try? modelContext.save()
+            try? services?.cardRepository.save()
         }
         isEditingSubtitle = false
         focusedField = nil
@@ -485,10 +486,10 @@ struct CardSheetView: View {
         let old = card.detailedText
         registerUndo(actionName: actionName) {
             self.card.detailedText = old
-            try? self.modelContext.save()
+            try? self.services?.cardRepository.save()
         }
         card.detailedText = detailsDraft
-        try? modelContext.save()
+        try? services?.cardRepository.save()
     }
 
     private func scheduleAutosave() {
@@ -793,11 +794,18 @@ extension UIImage: @retroactive Transferable {
 
 // MARK: - Preview
 
-#Preview("CardSheetView") {
-    let cfg = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Card.self, configurations: cfg)
-    let ctx = ModelContext(container)
-    let sample = Card(
+#Preview("CardSheetView") { @MainActor in
+    let container = ModelContainerFactory.makeInMemoryContainer([
+        Card.self, RelationType.self, CardEdge.self,
+        StoryStructure.self, StructureElement.self,
+        Board.self, BoardNode.self,
+        Citation.self, Source.self,
+        CalendarSystem.self, AppSettings.self, SuggestionFeedback.self
+    ])
+    let ctx = container.mainContext
+    let services = ServiceContainer(modelContext: ctx)
+
+    let sample = try! services.cardRepository.createCard(
         kind: .projects,
         name: "Exploration Project",
         subtitle: "Initial Planning",
@@ -812,15 +820,12 @@ extension UIImage: @retroactive Transferable {
         - [x] Done item
 
         > Blockquotes also render in Text with AttributedString.
-        """,
-        author: nil,
-        sizeCategory: .standard
+        """
     )
-    ctx.insert(sample)
-    try? ctx.save()
 
     return NavigationStack {
         CardSheetView(card: sample)
     }
     .modelContainer(container)
+    .serviceContainer(services)
 }

@@ -60,6 +60,45 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0141
 
 ---
 
+## ✅ DR-0147: MurderBoardApp Repository Pattern - Consolidate Board CRUD into InvestigationDataSource
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-13
+**Verified:** 2026-05-13
+**Component:** MurderBoard/DataSource/InvestigationDataSource.swift, MurderBoard/Views/BoardsListView.swift
+**Severity:** Medium - Architectural consolidation
+**Related ER:** ER-0022 Phase 2
+
+**Context:**
+MurderBoardApp is a **separate standalone application** from Cumberland with its own data models (InvestigationBoard, InvestigationNode, InvestigationEdge). It does NOT use Cumberland's Card/CardEdge models or repositories.
+
+**Issue:**
+InvestigationDataSource.swift is the CRUD persistence repository manager for MurderBoardApp and correctly contains modelContext operations for nodes and edges. However, BoardsListView.swift bypassed this repository with direct modelContext operations for InvestigationBoard CRUD (create/rename/delete).
+
+**Resolution:**
+- Added board CRUD methods to InvestigationDataSource: createBoard(), renameBoard(), deleteBoard()
+- Updated MurderBoardRootView to initialize and pass InvestigationDataSource to BoardsListView
+- Migrated BoardsListView.createBoard() to use dataSource.createBoard()
+- Migrated BoardsListView.commitRename() to use dataSource.renameBoard()
+- Migrated BoardsListView.deleteBoard() to use dataSource.deleteBoard()
+- Removed @Environment(\.modelContext) from BoardsListView (no longer needed)
+- All MurderBoardApp data operations now centralized in InvestigationDataSource repository
+
+**Architectural Note:**
+InvestigationDataSource correctly uses modelContext operations - it IS the data layer for MurderBoardApp (unlike Cumberland where modelContext must be isolated to Data folder).
+
+**Files Modified:**
+- `MurderBoard/DataSource/InvestigationDataSource.swift:343-377` - Added board CRUD methods
+- `MurderBoard/Views/MurderBoardRootView.swift` - Initialize and pass dataSource
+- `MurderBoard/Views/BoardsListView.swift` - Migrated to use InvestigationDataSource for all board operations
+
+**Verification:**
+Zero direct modelContext operations remain in BoardsListView.swift. All data operations properly centralized in InvestigationDataSource.
+
+**Status:** ✅ Resolved - Verified
+
+---
+
 ## ✅ DR-0148: ER-0022 Phase 2 Incomplete - SuggestionEngine.swift Creates Cards Directly
 
 **Reported:** 2026-04-27
@@ -182,4 +221,4 @@ This issue was resolved as part of DR-0131. See DR-0131 for complete migration d
 
 ---
 
-*Last Updated: 2026-05-11*
+*Last Updated: 2026-05-13*

@@ -120,12 +120,8 @@ struct ReassignRelationTypeSheet: View {
             onDone(false); dismiss(); return
         }
 
-        // Update all edges referencing source.type to target
-        let edges = services.edgeRepository.fetch(ofType: source)
-        for e in edges {
-            e.type = target
-        }
-        try? modelContext.save()
+        // Reassign all edges from source type to target type using EdgeRepository
+        try? services.edgeRepository.reassignAllEdges(fromType: source, toType: target)
 
         // Delete the source type using RelationTypeManager
         let relTypeManager = RelationTypeManager(modelContext: modelContext)

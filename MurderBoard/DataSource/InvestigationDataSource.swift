@@ -339,6 +339,43 @@ final class InvestigationDataSource: @MainActor BoardDataSource {
         try? modelContext.save()
     }
 
+    // MARK: - Board CRUD
+
+    /// Create a new investigation board.
+    @discardableResult
+    func createBoard(name: String) -> InvestigationBoard? {
+        let board = InvestigationBoard(name: name)
+        modelContext.insert(board)
+        do {
+            try modelContext.save()
+            return board
+        } catch {
+            return nil
+        }
+    }
+
+    /// Rename an existing board.
+    func renameBoard(_ boardID: UUID, to name: String) {
+        let fetch = FetchDescriptor<InvestigationBoard>(
+            predicate: #Predicate<InvestigationBoard> { $0.id == boardID }
+        )
+        guard let board = try? modelContext.fetch(fetch).first else { return }
+        board.name = name
+        try? modelContext.save()
+    }
+
+    /// Delete a board permanently.
+    func deleteBoard(_ boardID: UUID) {
+        let fetch = FetchDescriptor<InvestigationBoard>(
+            predicate: #Predicate<InvestigationBoard> { $0.id == boardID }
+        )
+        guard let board = try? modelContext.fetch(fetch).first else { return }
+        modelContext.delete(board)
+        try? modelContext.save()
+    }
+
+    // MARK: - Node Operations
+
     /// Permanently delete a node and its associated edges from the store.
     func deleteNodePermanently(_ nodeID: UUID) {
         let edgeFetch = FetchDescriptor<InvestigationEdge>(

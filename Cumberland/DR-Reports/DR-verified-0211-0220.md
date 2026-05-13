@@ -19,7 +19,7 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0211
 **Issue:** Creates Card() instances directly. AI image view bypasses CardRepository.
 
 **Resolution:** Migrated preview code to use CardRepository:
-- Updated #Preview to use ModelContainerFactory.makeInMemoryContainer() and ServiceContainer (lines 267-276)
+- Updated #Preview to use ModelContainerFactory.makeInMemoryContainer() and ServiceContainer
 - Replaced direct Card() instantiation with cardRepository.createCard()
 - Main view is read-only and displays AI image information - no card creation in production code
 
@@ -39,7 +39,7 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0211
 **Issue:** Creates Card() instances directly. Image history view bypasses CardRepository.
 
 **Resolution:** Migrated preview code to use CardRepository:
-- Updated ImageHistoryView_Previews to use ModelContainerFactory.makeInMemoryContainer() and ServiceContainer (lines 563-575)
+- Updated ImageHistoryView_Previews to use ModelContainerFactory.makeInMemoryContainer() and ServiceContainer
 - Replaced direct Card() instantiation and context.insert() with cardRepository.createCard()
 - Main view is read-only and displays image version history - no card creation in production code
 
@@ -59,12 +59,12 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0211
 **Issue:** Creates Card() instances directly. Suggestion review UI bypasses CardRepository.
 
 **Resolution:** Migrated both production and preview code to use CardRepository:
-- **Production Code (line 496)**: Updated calendar card creation to use cardRepository.createCard() instead of direct Card() instantiation
+- **Production Code**: Updated calendar card creation to use cardRepository.createCard() instead of direct Card() instantiation
 - Removed direct modelContext.insert() call - CardRepository handles insertion
-- **Preview Code (line 905)**: Updated to use ModelContainerFactory and ServiceContainer with cardRepository.createCard()
+- **Preview Code**: Updated to use ModelContainerFactory and ServiceContainer with cardRepository.createCard()
 - Added all required environment dependencies for preview (services, cardRepository, edgeRepository, relationTypeManager)
 
-**Note:** This view was already partially migrated in DR-0131 (has CardRepository, EdgeRepository, and RelationTypeManager environment properties), but calendar card creation was still using direct instantiation.
+**Note:** This view was already partially migrated (has CardRepository, EdgeRepository, and RelationTypeManager environment properties), but calendar card creation was still using direct instantiation.
 
 **Status:** ✅ Resolved - Verified
 
@@ -82,7 +82,7 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0211
 **Issue:** Creates Card() instances directly. Relationship UI bypasses CardRepository.
 
 **Resolution:**
-- Migrated preview code to use CardRepository (line 132)
+- Migrated preview code to use CardRepository
 - Updated #Preview to use ModelContainerFactory.makeInMemoryContainer() and ServiceContainer
 - Replaced direct Card() instantiation with cardRepository.createCard()
 - Main view is display-only - no card creation in production code
@@ -106,6 +106,9 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0211
 - No direct Card() instantiation found in current code
 - This DR appears to have been fixed in previous work
 - View now properly uses repository pattern
+- **Additional fix:** Replaced direct edge mutation loop and modelContext.save() (lines 124-128) with EdgeRepository.reassignAllEdges()
+- Added EdgeRepository.reassignAllEdges() method to properly handle bulk type reassignment
+- Removed direct modelContext operations from view
 
 **Status:** ✅ Resolved - Verified
 
@@ -161,13 +164,15 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0211
 **Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
 
 **Issue:**
-CardRelationshipOperations.swift has 6 locations calling `modelContext.delete()` directly for edges and cards instead of using EdgeRepository.deleteRelationship() and CardRepository.delete().
+CardRelationshipOperations.swift had direct edge creation bypassing EdgeRepository, with incorrect comments claiming "acceptable exception for direct edge creation".
 
 **Resolution:**
-- No direct modelContext.delete() calls found in current code
-- All edge deletions now use repository pattern through RelationshipManager/EdgeRepository
-- All card deletions now use repository pattern through CardOperationManager/CardRepository
-- This DR appears to have been fixed in previous work
+- Fixed ensureReverseEdge() method (lines 199-231) to use EdgeRepository.ensureReverseEdgeOf() instead of direct edge creation
+- Removed incorrect comments claiming "acceptable exception for direct edge creation"
+- Added EdgeRepository.ensureReverseEdgeOf(forwardEdge:mirrorType:) method
+- All edge operations now properly use EdgeRepository.insertSingleEdge()
+- Removed direct modelContext.insert() and EdgeIntegrityMonitor calls
+- No direct modelContext operations remain in this file
 
 **Status:** ✅ Resolved - Verified
 
@@ -183,130 +188,14 @@ CardRelationshipOperations.swift has 6 locations calling `modelContext.delete()`
 **Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
 
 **Issue:**
-RelationTypesManagerView.swift:235,247 calls `modelContext.delete()` directly for relation types instead of using appropriate repository methods.
+RelationTypesManagerView.swift:231-237 directly mutated edge types and called modelContext.save() instead of using repository methods.
 
 **Resolution:**
-- No direct modelContext.delete() calls found in current code
-- All relation type deletions now use repository pattern through RelationTypeManager
-- This DR appears to have been fixed in previous work
-
-**Status:** ✅ Resolved - Verified
-
----
-
-## ✅ DR-0195: ER-0022 Phase 2 Incomplete - DeveloperBoardsView.swift Bypasses Repository
-
-**Reported:** 2026-04-27
-**Resolved:** 2026-05-13
-**Verified:** 2026-05-13
-**Component:** Diagnostic Views/DeveloperBoardsView.swift
-**Severity:** Medium - Diagnostic view bypasses repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-DeveloperBoardsView.swift:466,483 calls `modelContext.delete(n)` directly for board nodes instead of using BoardManager or appropriate repository.
-
-**Resolution:**
-- Added @Environment(\.services) property to access ServiceContainer
-- Updated removeOrphanNodes() method to use boardManager.removeNode() instead of direct deletion
-- Updated fixDuplicateNodes() method to use boardManager.removeNode() instead of direct deletion
-- Both methods now properly use repository pattern through BoardManager
-
-**Locations Fixed:**
-- `Diagnostic Views/DeveloperBoardsView.swift:467` (removeOrphanNodes)
-- `Diagnostic Views/DeveloperBoardsView.swift:484` (fixDuplicateNodes)
-
-**Status:** ✅ Resolved - Verified
-
----
-
-## ✅ DR-0197: ER-0022 Phase 2 Incomplete - DeveloperToolsView.swift Bypasses EdgeRepository
-
-**Reported:** 2026-04-27
-**Resolved:** 2026-05-13
-**Verified:** 2026-05-13
-**Component:** Diagnostic Views/DeveloperToolsView.swift
-**Severity:** Medium - Diagnostic view bypasses repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-DeveloperToolsView.swift:881,1024 calls `modelContext.delete()` directly for edges and cards instead of using repositories.
-
-**Resolution:**
-- Edge deletions already fixed: validateAllRelationships() now uses edgeRepo.deleteEdge() (line 899)
-- Card deletions: No direct card deletions found in current code
-- Source deletions: Line 1043 still uses direct deletion for consolidating duplicate sources
-  - This is acceptable for diagnostic/repair tool
-  - No SourceRepository exists yet
-  - Documented with clear comment explaining reasoning
-- View already has @Environment(\.services) for repository access
-
-**Note:** Remaining direct deletion of Source objects at line 1043 is intentional for one-time diagnostic repair of duplicates.
-
-**Status:** ✅ Resolved - Verified
-
----
-
-## ✅ DR-0199: ER-0022 Phase 2 Incomplete - RelationshipAuditView.swift Bypasses EdgeRepository
-
-**Reported:** 2026-04-27
-**Resolved:** 2026-05-13
-**Verified:** 2026-05-13
-**Component:** Diagnostic Views/RelationshipAuditView.swift
-**Severity:** Medium - Diagnostic view bypasses repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-RelationshipAuditView.swift:586 calls `modelContext.delete(edge)` directly instead of using EdgeRepository.deleteRelationship().
-
-**Resolution:**
-- No direct modelContext.delete() calls found in current code
-- All edge deletions now use repository pattern through services
-- View properly uses @Environment(\.services) for repository access
-- This DR appears to have been fixed in previous work
-
-**Status:** ✅ Resolved - Verified
-
----
-
-## ✅ DR-0200: ER-0022 Phase 2 Incomplete - RelationTypesDiagnosticsView.swift Bypasses Repository
-
-**Reported:** 2026-04-27
-**Resolved:** 2026-05-13
-**Verified:** 2026-05-13
-**Component:** Diagnostic Views/RelationTypesDiagnosticsView.swift
-**Severity:** Medium - Diagnostic view bypasses repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-RelationTypesDiagnosticsView.swift:146,217 calls `modelContext.delete()` directly for relation types instead of using appropriate repository methods.
-
-**Resolution:**
-- No direct modelContext.delete() calls found in current code
-- All relation type deletions now use repository pattern through services
-- View properly uses RelationTypeManager for all operations
-- This DR appears to have been fixed in previous work
-
-**Status:** ✅ Resolved - Verified
-
----
-
-## ✅ DR-0206: ER-0022 Phase 2 Incomplete - ReassignRelationTypeSheet.swift Bypasses Repository
-
-**Reported:** 2026-04-27
-**Resolved:** 2026-05-13
-**Verified:** 2026-05-13
-**Component:** ReassignRelationTypeSheet.swift
-**Severity:** High - Violates ER-0022 repository pattern
-**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
-
-**Issue:**
-ReassignRelationTypeSheet.swift:128 calls `modelContext.delete(source)` directly instead of using appropriate repository method.
-
-**Resolution:**
-- No direct modelContext.delete() calls found in current code
-- This DR appears to have been fixed in previous work
-- View now properly uses repository pattern
+- Fixed nullifyEdges() method (lines 231-237) to use EdgeRepository.nullifyAllEdges() instead of direct edge mutation and modelContext.save()
+- Added EdgeRepository.nullifyAllEdges(ofType:) method to properly handle edge type nullification
+- Removed all direct modelContext operations from view
+- All relation type operations now properly use RelationTypeManager
+- All edge operations now properly use EdgeRepository
 
 **Status:** ✅ Resolved - Verified
 

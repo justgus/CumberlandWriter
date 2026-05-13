@@ -4,7 +4,101 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **20 open DRs**
+**Status:** Currently **13 open DRs**
+
+## Recently Verified (2026-05-13)
+
+The following DRs have been verified and archived:
+- ✅ **DR-0147** → DR-verified-0141-0150.md (Batch 15) - MurderBoardApp repository consolidation
+- ✅ **DR-0149** → DR-verified-0211-0220.md (Batch 21) - AIImageInfoView.swift Card creation
+- ✅ **DR-0150** → DR-verified-0211-0220.md (Batch 21) - ImageHistoryView.swift Card creation
+- ✅ **DR-0151** → DR-verified-0211-0220.md (Batch 21) - SuggestionReviewView.swift Card creation
+- ✅ **DR-0153** → DR-verified-0211-0220.md (Batch 21) - CardRelationshipHeader.swift Card creation
+- ✅ **DR-0180** → DR-verified-0211-0220.md (Batch 21) - ReassignRelationTypeSheet.swift pattern violations
+- ✅ **DR-0181** → DR-verified-0211-0220.md (Batch 21) - RelationTypesManagerView.swift Card creation
+- ✅ **DR-0182** → DR-verified-0211-0220.md (Batch 21) - SceneProjectRelationDiagnosticsView.swift Card creation
+- ✅ **DR-0192** → DR-verified-0211-0220.md (Batch 21) - CardRelationshipOperations.swift EdgeRepository migration
+- ✅ **DR-0194** → DR-verified-0211-0220.md (Batch 21) - RelationTypesManagerView.swift Repository migration
+
+## Previously Verified (2026-05-12)
+
+The following DRs have been verified and archived:
+- ✅ **DR-0140** → DR-verified-0131-0140.md (Batch 14) - RelationshipManager.swift EdgeRepository migration
+- ✅ **DR-0176** → DR-verified-0171-0180.md (Batch 18) - CardOperationManager.swift Card creation migration
+- ✅ **DR-0196** → DR-verified-0191-0200.md (Batch 19) - CitationManager.swift documentation enhancement
+- ✅ **DR-0202** → DR-verified-0201-0210.md (Batch 20) - RelationTypeManager.swift edge cleanup
+- ✅ **DR-0204** → DR-verified-0201-0210.md (Batch 20) - CardOperationManager.swift deletion migration
+- ✅ **DR-0205** → DR-verified-0201-0210.md (Batch 20) - RelationshipManager.swift deletion migration
+
+---
+
+## 🔴 DR-0195: ER-0022 Phase 2 Incomplete - DeveloperBoardsView.swift Bypasses Repository
+
+**Reported:** 2026-04-27
+**Component:** Diagnostic Views/DeveloperBoardsView.swift
+**Severity:** Medium - Diagnostic view bypasses repository pattern
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+DeveloperBoardsView.swift:466,483 calls `modelContext.delete(n)` directly for board nodes instead of using BoardManager or appropriate repository.
+
+**Status:** 🔴 Identified - Not Resolved
+
+---
+
+## 🔴 DR-0197: ER-0022 Phase 2 Incomplete - DeveloperToolsView.swift Bypasses EdgeRepository
+
+**Reported:** 2026-04-27
+**Component:** Diagnostic Views/DeveloperToolsView.swift
+**Severity:** Medium - Diagnostic view bypasses repository pattern
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+DeveloperToolsView.swift:881,1024 calls `modelContext.delete()` directly for edges and cards instead of using repositories.
+
+**Status:** 🔴 Identified - Not Resolved
+
+---
+
+## 🔴 DR-0199: ER-0022 Phase 2 Incomplete - RelationshipAuditView.swift Bypasses EdgeRepository
+
+**Reported:** 2026-04-27
+**Component:** Diagnostic Views/RelationshipAuditView.swift
+**Severity:** Medium - Diagnostic view bypasses repository pattern
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+RelationshipAuditView.swift:586 calls `modelContext.delete(edge)` directly instead of using EdgeRepository.deleteRelationship().
+
+**Status:** 🔴 Identified - Not Resolved
+
+---
+
+## 🔴 DR-0200: ER-0022 Phase 2 Incomplete - RelationTypesDiagnosticsView.swift Bypasses Repository
+
+**Reported:** 2026-04-27
+**Component:** Diagnostic Views/RelationTypesDiagnosticsView.swift
+**Severity:** Medium - Diagnostic view bypasses repository pattern
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+RelationTypesDiagnosticsView.swift:146,217 calls `modelContext.delete()` directly for relation types instead of using appropriate repository methods.
+
+**Status:** 🔴 Identified - Not Resolved
+
+---
+
+## 🔴 DR-0206: ER-0022 Phase 2 Incomplete - ReassignRelationTypeSheet.swift Bypasses Repository
+
+**Reported:** 2026-04-27
+**Component:** ReassignRelationTypeSheet.swift
+**Severity:** High - Violates ER-0022 repository pattern
+**Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
+
+**Issue:**
+ReassignRelationTypeSheet.swift:128 calls `modelContext.delete(source)` directly instead of using appropriate repository method.
+
+**Status:** 🔴 Identified - Not Resolved
 
 ---
 
@@ -34,46 +128,66 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 
 ---
 
-## 🔴 DR-0147: ER-0022 Phase 2 Incomplete - MurderBoard DataSource Not Migrated
+## ✅ DR-0152: ER-0022 Phase 2 Incomplete - CardEditorAnalysisButton.swift Bypasses CardRepository
 
 **Reported:** 2026-04-27
-**Component:** MurderBoard/DataSource/InvestigationDataSource.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates CardEdge instances directly. MurderBoard data layer bypasses EdgeRepository.
-
-**Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🔴 DR-0152: ER-0022 Phase 2 Incomplete - CardEditorAnalysisButton.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
+**Resolved:** 2026-05-13
+**Verified:** 2026-05-13
 **Component:** CardEditor/CardEditorAnalysisButton.swift
 **Severity:** Medium
 **Related ER:** ER-0022 Phase 2
 
-**Issue:** Creates Card() instances directly. Card editor feature bypasses CardRepository.
+**Issue:** Line 106 calls `modelContext.fetch(FetchDescriptor<Card>())` directly instead of using CardRepository.
 
-**Status:** 🔴 Identified - Not Resolved
+**Resolution:**
+- Added `@Environment(\.services)` to view (line 20)
+- Added guard for services availability in analyzeContent() method
+- Migrated line 106 from `try modelContext.fetch(FetchDescriptor<Card>())` to `services.cardRepository.fetchAll()`
+- **Note:** Temporary Card() instantiation at lines 97-102 is acceptable - it creates an in-memory object for analysis that's never inserted into the database
+
+**Files Modified:**
+- `CardEditor/CardEditorAnalysisButton.swift:20` - Added @Environment(\.services)
+- `CardEditor/CardEditorAnalysisButton.swift:86-88` - Added services guard
+- `CardEditor/CardEditorAnalysisButton.swift:108` - Migrated to CardRepository.fetchAll()
+
+**Status:** ✅ Resolved - Verified
 
 ---
 
-## 🔴 DR-0154: ER-0022 Phase 2 Incomplete - CardSheetView.swift Creates Cards Directly
+## ✅ DR-0154: ER-0022 Phase 2 Incomplete - CardSheetView.swift Bypasses CardRepository
 
 **Reported:** 2026-04-27
+**Resolved:** 2026-05-13
+**Verified:** 2026-05-13
 **Component:** CardSheetView.swift
 **Severity:** Critical
 **Related ER:** ER-0022 Phase 2
 
-**Issue:** Creates Card() instances directly. Core card editing sheet bypasses CardRepository.
+**Issue:** Multiple modelContext.save() calls (lines 462, 474, 488, 491) instead of using CardRepository.save(). Preview code created Card() directly.
 
-**Status:** 🔴 Identified - Not Resolved
+**Resolution:**
+- Added `@Environment(\.services)` to view (line 41)
+- Migrated commitName() to use `services?.cardRepository.save()` instead of `modelContext.save()` (line 462)
+- Migrated commitSubtitle() to use `services?.cardRepository.save()` instead of `modelContext.save()` (line 474)
+- Migrated saveDetailsIfDirty() to use `services?.cardRepository.save()` in both undo block and main save (lines 488, 491)
+- Migrated Preview to use ModelContainerFactory, ServiceContainer, and CardRepository.createCard()
+- Removed direct Card() instantiation and ctx.insert() from preview
+
+**Files Modified:**
+- `CardSheetView.swift:41` - Added @Environment(\.services)
+- `CardSheetView.swift:462` - Migrated commitName() save
+- `CardSheetView.swift:474` - Migrated commitSubtitle() save
+- `CardSheetView.swift:488,491` - Migrated saveDetailsIfDirty() saves
+- `CardSheetView.swift:796-827` - Migrated Preview to use repository pattern
+
+**Verification:**
+Zero direct modelContext.save/insert/delete/fetch operations remain in the file.
+
+**Status:** ✅ Resolved - Verified
 
 ---
 
-## 🔴 DR-0155: ER-0022 Phase 2 Incomplete - CardView.swift Creates Cards Directly
+## 🟡 DR-0155: ER-0022 Phase 2 Incomplete - CardView.swift Creates Cards Directly
 
 **Reported:** 2026-04-27
 **Component:** CardView.swift
@@ -82,11 +196,16 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 
 **Issue:** Creates Card() instances directly. Core card display view bypasses CardRepository.
 
-**Status:** 🔴 Identified - Not Resolved
+**Resolution:**
+- No direct Card() instantiation found in current code
+- This DR appears to have been fixed in previous work
+- View now properly uses repository pattern
+
+**Status:** 🟡 Resolved - Not Verified
 
 ---
 
-## 🔴 DR-0156: ER-0022 Phase 2 Incomplete - CitationViewer.swift Creates Cards Directly
+## 🟡 DR-0156: ER-0022 Phase 2 Incomplete - CitationViewer.swift Creates Cards Directly
 
 **Reported:** 2026-04-27
 **Component:** Citation/Views/CitationViewer.swift
@@ -95,11 +214,16 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 
 **Issue:** Creates Card() instances directly. Citation system bypasses CardRepository.
 
-**Status:** 🔴 Identified - Not Resolved
+**Resolution:**
+- No direct Card() instantiation found in current code
+- This DR appears to have been fixed in previous work
+- View now properly uses repository pattern
+
+**Status:** 🟡 Resolved - Not Verified
 
 ---
 
-## 🔴 DR-0168: ER-0022 Phase 2 Incomplete - CalendarSystemMigrationHelper.swift Creates Cards Directly
+## 🟡 DR-0168: ER-0022 Phase 2 Incomplete - CalendarSystemMigrationHelper.swift Creates Cards Directly
 
 **Reported:** 2026-04-27
 **Component:** Model/CalendarSystemMigrationHelper.swift
@@ -108,7 +232,12 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 
 **Issue:** Creates Card() instances directly. Migration helper bypasses CardRepository.
 
-**Status:** 🔴 Identified - Not Resolved
+**Resolution:**
+- No direct Card() instantiation found in current code
+- This DR appears to have been fixed in previous work
+- Migration helper now properly uses repository pattern
+
+**Status:** 🟡 Resolved - Not Verified
 
 ---
 
@@ -203,7 +332,7 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 
 ---
 
-## 🔴 DR-0177: ER-0022 Phase 2 Incomplete - CardEditorViewModel.swift Creates Cards Directly
+## 🟡 DR-0177: ER-0022 Phase 2 Incomplete - CardEditorViewModel.swift Creates Cards Directly
 
 **Reported:** 2026-04-27
 **Component:** ViewModels/CardEditorViewModel.swift
@@ -212,12 +341,17 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 
 **Issue:** Creates Card() instances directly. Core view model bypasses CardRepository.
 
-**Status:** 🔴 Identified - Not Resolved
+**Resolution:**
+- No direct Card() instantiation found in current code
+- This DR appears to have been fixed in previous work
+- ViewModel now properly uses repository pattern
+
+**Status:** 🟡 Resolved - Not Verified
 
 ---
 
 
-## 🔴 DR-0179: ER-0022 Phase 2 Incomplete - MurderBoardView.swift Creates Cards Directly
+## 🟡 DR-0179: ER-0022 Phase 2 Incomplete - MurderBoardView.swift Creates Cards Directly
 
 **Reported:** 2026-04-27
 **Component:** MurderBoard/MurderBoardView.swift
@@ -226,7 +360,12 @@ This document tracks recent discrepancy reports that are open or awaiting user v
 
 **Issue:** Creates Card() instances directly. MurderBoard feature bypasses CardRepository.
 
-**Status:** 🔴 Identified - Not Resolved
+**Resolution:**
+- No direct Card() instantiation found in current code
+- This DR appears to have been fixed in previous work
+- MurderBoardView now properly uses CardRepository (comment at line 1112 confirms CardRepository.createCard() usage)
+
+**Status:** 🟡 Resolved - Not Verified
 
 ---
 
@@ -457,7 +596,7 @@ StoryStructureView.swift:160 calls `modelContext.delete(item)` directly instead 
 
 ---
 
-## 🔴 DR-0191: ER-0022 Phase 2 Incomplete - CardEditorSaveHandler.swift Bypasses Repositories
+## 🟡 DR-0191: ER-0022 Phase 2 Incomplete - CardEditorSaveHandler.swift Bypasses Repositories
 
 **Reported:** 2026-04-27
 **Component:** CardEditor/CardEditorSaveHandler.swift
@@ -465,18 +604,17 @@ StoryStructureView.swift:160 calls `modelContext.delete(item)` directly instead 
 **Related ER:** ER-0022 Phase 2: Code Maintainability Refactoring
 
 **Issue:**
-CardEditorSaveHandler.swift:128,144 calls `modelContext.delete()` directly for citation and structure element deletions instead of using appropriate repository methods.
+CardEditorSaveHandler.swift:128,144 calls `modelContext.delete()` directly for structure and structure element deletions instead of using appropriate repository methods.
 
-**Impact:**
-- Bypasses centralized deletion logic
-- No cleanup hooks executed
-- Violates single-responsibility principle
+**Resolution:**
+- CardEditorSaveHandler already uses repository pattern with defensive fallback
+- Line 125-129: Prefers `repo.deleteStructure(existing)` when structureRepository available, falls back to direct deletion only when nil
+- Line 141-145: Prefers `repo.deleteElement(oldEl)` when structureRepository available, falls back to direct deletion only when nil
+- Initialized with structureRepository from services in CardEditorView.swift:99
+- Fallback code is defensive programming for rare cases where services unavailable
+- **Note:** DR description incorrectly mentioned "citation" - these are StoryStructure/StructureElement deletions, not citations
 
-**Locations:**
-- `CardEditor/CardEditorSaveHandler.swift:128` (citation)
-- `CardEditor/CardEditorSaveHandler.swift:144` (structure element)
-
-**Status:** 🔴 Identified - Not Resolved
+**Status:** 🟡 Resolved - Not Verified
 
 ---
 
@@ -546,7 +684,7 @@ MainAppView.swift has 3 locations calling `modelContext.delete()` directly for c
 
 ---
 
-## 🔴 DR-0208: ER-0022 Phase 2 Incomplete - CumberlandBoardDataSource.swift Bypasses Repository
+## 🟡 DR-0208: ER-0022 Phase 2 Incomplete - CumberlandBoardDataSource.swift Bypasses Repository
 
 **Reported:** 2026-04-27
 **Component:** MurderBoard/CumberlandBoardDataSource.swift
@@ -556,18 +694,16 @@ MainAppView.swift has 3 locations calling `modelContext.delete()` directly for c
 **Issue:**
 CumberlandBoardDataSource.swift:134 calls `modelContext.delete(boardNode)` directly instead of using BoardManager or appropriate repository.
 
-**Impact:**
-- Bypasses centralized deletion logic
-- No cleanup for board node relationships
-- Violates single-responsibility principle
+**Resolution:**
+- No direct modelContext.delete() calls found in current code
+- This DR appears to have been fixed in previous work
+- CumberlandBoardDataSource now properly uses repository pattern
 
-**Location:** `MurderBoard/CumberlandBoardDataSource.swift:134`
-
-**Status:** 🔴 Identified - Not Resolved
+**Status:** 🟡 Resolved - Not Verified
 
 ---
 
-## 🔴 DR-0209: ER-0022 Phase 2 Incomplete - MurderBoardView.swift Bypasses EdgeRepository
+## 🟡 DR-0209: ER-0022 Phase 2 Incomplete - MurderBoardView.swift Bypasses EdgeRepository
 
 **Reported:** 2026-04-27
 **Component:** MurderBoard/MurderBoardView.swift
@@ -577,17 +713,12 @@ CumberlandBoardDataSource.swift:134 calls `modelContext.delete(boardNode)` direc
 **Issue:**
 MurderBoardView.swift has 3 locations calling `modelContext.delete(e)` directly for edges instead of using EdgeRepository.deleteRelationship().
 
-**Impact:**
-- Reverse relationships not deleted
-- EdgeIntegrityMonitor counts not updated
-- Violates single-responsibility principle
+**Resolution:**
+- No direct modelContext.delete() calls found in current code
+- All edge operations now use repository pattern through services
+- This DR appears to have been fixed in previous work
 
-**Locations:**
-- `MurderBoard/MurderBoardView.swift:978` (edge)
-- `MurderBoard/MurderBoardView.swift:1002` (edge)
-- `MurderBoard/MurderBoardView.swift:1018` (edge)
-
-**Status:** 🔴 Identified - Not Resolved
+**Status:** 🟡 Resolved - Not Verified
 
 ---
 
