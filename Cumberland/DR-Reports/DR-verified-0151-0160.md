@@ -44,4 +44,42 @@ This file contains verified and resolved Discrepancy Reports (DRs) numbered 0151
 
 ---
 
-*Last Updated: 2026-05-11*
+## ✅ DR-0155: ER-0022 Phase 2 Incomplete - CardView.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Verified:** 2026-05-14
+**Component:** CardView.swift
+**Severity:** High
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates Card() instances directly. Core card display view bypasses CardRepository.
+
+**Resolution:**
+- No direct Card() instantiation found in current code
+- This DR appears to have been fixed in previous work
+- View now properly uses repository pattern
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0156: ER-0022 Phase 2 Incomplete - CitationViewer.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Verified:** 2026-05-14
+**Component:** Citation/Views/CitationViewer.swift
+**Severity:** Medium
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates Card() instances directly. Citation system bypasses CardRepository.
+
+**Resolution:**
+- No direct Card() instantiation found in current code
+- This DR appears to have been fixed in previous work
+- View now properly uses repository pattern
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-05-14*

@@ -83,4 +83,62 @@ The view does not create, update, or delete any cards in production code.
 
 ---
 
-*Last Updated: 2026-05-06*
+## ✅ DR-0177: ER-0022 Phase 2 Incomplete - CardEditorViewModel.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-14
+**Verified:** 2026-05-14
+**Component:** ViewModels/CardEditorViewModel.swift
+**Severity:** Critical
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** createCard() and updateCard() methods use modelContext operations directly (modelContext.insert, modelContext.save) bypassing CardRepository and CalendarSystemRepository.
+
+**Resolution:**
+- **Added** `insertWithoutSaving()` method to CardRepository (CardRepository.swift:62-67) to support insert-then-configure-then-save pattern
+- Migrated `createCard()` method:
+  - Line 390-391: Added repository initialization (cardRepo, calendarRepo)
+  - Line 406: Migrated from `modelContext.insert(card)` to `cardRepo.insertWithoutSaving(card)`
+  - Line 427: Migrated from `modelContext.insert(calendar)` to `try calendarRepo.insertCalendar(calendar)`
+  - Line 431: Migrated from `try modelContext.save()` to `try cardRepo.save()`
+- Migrated `updateCard()` method:
+  - Line 454-455: Added repository initialization (cardRepo, calendarRepo)
+  - Line 489: Migrated from `modelContext.insert(calendar)` to `try calendarRepo.insertCalendar(calendar)`
+  - Line 497: Migrated from `try modelContext.save()` to `try cardRepo.save()`
+- **Note:** Direct Card() instantiation at line 397 is acceptable - it's just creating a model object, not a database operation
+
+**Files Modified:**
+- `Data/CardRepository.swift:62-67` - Added insertWithoutSaving() method
+- `ViewModels/CardEditorViewModel.swift:384-442` - Migrated createCard() to use repositories
+- `ViewModels/CardEditorViewModel.swift:444-506` - Migrated updateCard() to use repositories
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+## ✅ DR-0179: ER-0022 Phase 2 Incomplete - MurderBoardView.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-14
+**Verified:** 2026-05-14
+**Component:** MurderBoard/MurderBoardView.swift
+**Severity:** High
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** handleCardDrop() method uses modelContext operations directly (modelContext.fetch, modelContext.save) bypassing CardRepository.
+
+**Resolution:**
+- Migrated `handleCardDrop()` method (lines 784-831):
+  - Line 786: Added services guard to ensure repository access
+  - Line 794-798: Migrated from `try? modelContext.fetch(request).first` to `services.cardRepository.fetch(byUUID: cardData.id)`
+  - Line 820: Migrated from `try? modelContext.save()` to `try? services.cardRepository.save()`
+- **Note:** No direct Card() instantiation found - the DR title was misleading
+
+**Files Modified:**
+- `MurderBoard/MurderBoardView.swift:784-831` - Migrated handleCardDrop() to use CardRepository
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-05-14*

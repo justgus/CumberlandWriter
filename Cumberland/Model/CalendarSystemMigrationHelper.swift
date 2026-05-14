@@ -19,29 +19,19 @@ import SwiftData
 struct CalendarSystemMigrationHelper {
 
     /// Migrate orphaned CalendarSystem objects to Calendar cards
-    /// - Parameter context: ModelContext to perform migration
+    /// - Parameter services: ServiceContainer providing repository access
     /// - Returns: Number of calendars migrated
     @discardableResult
-    static func migrateOrphanCalendarSystems(context: ModelContext) -> Int {
+    static func migrateOrphanCalendarSystems(services: ServiceContainer) -> Int {
         #if DEBUG
         print("📅 [Migration] Starting CalendarSystem → Calendar Card migration")
         #endif
 
-        // Fetch all CalendarSystem objects
-        let descriptor = FetchDescriptor<CalendarSystem>()
-        guard let allCalendars = try? context.fetch(descriptor) else {
-            #if DEBUG
-            print("⚠️ [Migration] Failed to fetch CalendarSystem objects")
-            #endif
-            return 0
-        }
+        let cardRepo = services.cardRepository
+        let calendarRepo = services.calendarRepository
 
-        #if DEBUG
-        print("   Found \(allCalendars.count) total CalendarSystem objects")
-        #endif
-
-        // Filter to orphaned calendars (no calendarCard relationship)
-        let orphanedCalendars = allCalendars.filter { $0.calendarCard == nil }
+        // Fetch orphaned calendars (no calendarCard relationship)
+        let orphanedCalendars = calendarRepo.fetchOrphanedCalendars()
 
         #if DEBUG
         print("   Found \(orphanedCalendars.count) orphaned calendars to migrate")
@@ -50,10 +40,7 @@ struct CalendarSystemMigrationHelper {
         var migratedCount = 0
 
         // Fetch existing calendar cards to avoid duplicates
-        let existingCardsFetch = FetchDescriptor<Card>(
-            predicate: #Predicate<Card> { $0.kindRaw == "Calendars" }
-        )
-        let existingCards = (try? context.fetch(existingCardsFetch)) ?? []
+        let existingCards = cardRepo.fetchCalendarCards()
         let existingNames = Set(existingCards.map { $0.name })
 
         for calendar in orphanedCalendars {
@@ -65,37 +52,32 @@ struct CalendarSystemMigrationHelper {
                 continue
             }
 
-            // Create Calendar card
-            let calendarCard = Card(
-                kind: .calendars,
-                name: calendar.name,
-                subtitle: "\(calendar.divisions.count) divisions",
-                detailedText: generateCalendarDescription(calendar)
-            )
+            // Create Calendar card using repository (auto-saves)
+            do {
+                let calendarCard = try cardRepo.createCard(
+                    kind: .calendars,
+                    name: calendar.name,
+                    subtitle: "\(calendar.divisions.count) divisions",
+                    detailedText: generateCalendarDescription(calendar)
+                )
 
-            // Link card to calendar system
-            calendarCard.calendarSystemRef = calendar
+                // Link card to calendar system
+                calendarCard.calendarSystemRef = calendar
+                migratedCount += 1
 
-            // Insert into context
-            context.insert(calendarCard)
-            migratedCount += 1
-
-            #if DEBUG
-            print("   ✅ Migrated: \(calendar.name)")
-            #endif
+                #if DEBUG
+                print("   ✅ Migrated: \(calendar.name)")
+                #endif
+            } catch {
+                #if DEBUG
+                print("   ⚠️ Failed to migrate \(calendar.name): \(error)")
+                #endif
+            }
         }
 
-        // Save context
-        do {
-            try context.save()
-            #if DEBUG
-            print("✅ [Migration] Successfully migrated \(migratedCount) calendars")
-            #endif
-        } catch {
-            #if DEBUG
-            print("⚠️ [Migration] Failed to save context: \(error)")
-            #endif
-        }
+        #if DEBUG
+        print("✅ [Migration] Successfully migrated \(migratedCount) calendars")
+        #endif
 
         return migratedCount
     }

@@ -140,6 +140,16 @@ final class CalendarSystemRepository {
         return try? modelContext.fetch(fetch).first
     }
 
+    /// Fetch orphaned calendars (those without a linked Calendar card)
+    /// - Returns: Array of calendars without a calendarCard relationship
+    func fetchOrphanedCalendars() -> [CalendarSystem] {
+        let fetch = FetchDescriptor<CalendarSystem>(
+            predicate: #Predicate { $0.calendarCard == nil },
+            sortBy: [SortDescriptor(\.name, order: .forward)]
+        )
+        return (try? modelContext.fetch(fetch)) ?? []
+    }
+
     // MARK: - Utility Operations
 
     /// Count total calendars

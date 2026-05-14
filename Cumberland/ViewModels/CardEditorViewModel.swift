@@ -386,6 +386,10 @@ final class CardEditorViewModel {
             throw CardOperationError.invalidName // Use existing error for now
         }
 
+        // Get or create repositories
+        let cardRepo = cardRepository ?? CardRepository(modelContext: modelContext)
+        let calendarRepo = CalendarSystemRepository(modelContext: modelContext)
+
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else {
             throw CardOperationError.invalidName
@@ -403,7 +407,7 @@ final class CardEditorViewModel {
             sizeCategory: sizeCategory
         )
 
-        modelContext.insert(card)
+        cardRepo.insertWithoutSaving(card)
 
         // Set image if present
         if let data = imageData {
@@ -424,11 +428,11 @@ final class CardEditorViewModel {
 
         // Handle calendar cards
         if kind == .calendars, let calendar = selectedCalendar {
-            modelContext.insert(calendar)
+            try calendarRepo.insertCalendar(calendar)
             card.calendarSystemRef = calendar
         }
 
-        try modelContext.save()
+        try cardRepo.save()
 
         // Create pending relationships
         try createPendingRelationships(modelContext: modelContext)
@@ -450,6 +454,10 @@ final class CardEditorViewModel {
         guard let modelContext = modelContext else {
             throw CardOperationError.invalidName // Use existing error for now
         }
+
+        // Get or create repositories
+        let cardRepo = cardRepository ?? CardRepository(modelContext: modelContext)
+        let calendarRepo = CalendarSystemRepository(modelContext: modelContext)
 
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else {
@@ -486,7 +494,7 @@ final class CardEditorViewModel {
         if card.kind == .calendars {
             if let calendar = selectedCalendar {
                 if card.calendarSystemRef == nil {
-                    modelContext.insert(calendar)
+                    try calendarRepo.insertCalendar(calendar)
                 }
                 card.calendarSystemRef = calendar
             } else {
@@ -494,7 +502,7 @@ final class CardEditorViewModel {
             }
         }
 
-        try modelContext.save()
+        try cardRepo.save()
 
         // Create pending relationships
         try createPendingRelationships(modelContext: modelContext)

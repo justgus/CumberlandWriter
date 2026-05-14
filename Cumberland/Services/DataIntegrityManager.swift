@@ -249,8 +249,7 @@ final class DataIntegrityManager {
         let key = "didMigrateCalendarSystemsToCards_v1"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
 
-        let context = container.mainContext
-        let migrated = CalendarSystemMigrationHelper.migrateOrphanCalendarSystems(context: context)
+        let migrated = CalendarSystemMigrationHelper.migrateOrphanCalendarSystems(services: services)
 
         logger.info("Calendar migration complete: \(migrated) calendars converted to cards")
 

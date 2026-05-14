@@ -783,6 +783,7 @@ extension MurderBoardView {
 extension MurderBoardView {
     func handleCardDrop(cards: [CardTransferData], at location: CGPoint) -> Bool {
         guard let ds = dataSource, let board = ds.board else { return false }
+        guard let services = services else { return false }
 
         let worldLocation = BoardCanvasTransform.viewToWorld(
             location, scale: zoomScale, panX: panX, panY: panY
@@ -791,11 +792,7 @@ extension MurderBoardView {
         var addedAny = false
 
         for cardData in cards {
-            let request = FetchDescriptor<Card>(
-                predicate: #Predicate { $0.id == cardData.id }
-            )
-
-            guard let card = try? modelContext.fetch(request).first else { continue }
+            guard let card = services.cardRepository.fetch(byUUID: cardData.id) else { continue }
 
             let existingNode = (board.nodes ?? []).first { $0.card?.id == card.id }
             if existingNode != nil { continue }
@@ -817,7 +814,7 @@ extension MurderBoardView {
         }
 
         if addedAny {
-            try? modelContext.save()
+            try? services.cardRepository.save()
             // ER-0031: Apply pending pins to newly added cards
             for cardData in cards {
                 if pendingPinCardIDs.remove(cardData.id) != nil {

@@ -59,7 +59,15 @@ final class CardRepository {
         try modelContext.save()
         return card
     }
-    
+
+    /// INSERT a card INTO the context without saving
+    /// Use this when you need to set additional properties before saving
+    /// - Parameter card: The card to insert
+    /// - Note: Caller is responsible for calling save() when ready
+    func insertWithoutSaving(_ card: Card) {
+        insert(card)
+    }
+
     /// INSERT a card INTO the context.  Note this function is Private.  it is used internally only
     /// - Parameter card: The card to delete
     private func insert(_ card: Card) {

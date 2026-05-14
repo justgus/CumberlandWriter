@@ -296,4 +296,37 @@ Resolved simultaneously with DR-0136. Preview now uses CardRepository and EdgeRe
 
 ---
 
-*Last Updated: 2026-05-11*
+## ✅ DR-0168: ER-0022 Phase 2 Incomplete - CalendarSystemMigrationHelper.swift Creates Cards Directly
+
+**Reported:** 2026-04-27
+**Resolved:** 2026-05-14
+**Verified:** 2026-05-14
+**Component:** Model/CalendarSystemMigrationHelper.swift
+**Severity:** Medium
+**Related ER:** ER-0022 Phase 2
+
+**Issue:** Creates Card() instances directly and uses modelContext operations directly. Migration helper bypasses CardRepository and CalendarSystemRepository.
+
+**Resolution:**
+- Changed function signature from `migrateOrphanCalendarSystems(modelContext: ModelContext)` to `migrateOrphanCalendarSystems(services: ServiceContainer)`
+- **Added** `fetchOrphanedCalendars()` method to CalendarSystemRepository (CalendarSystemRepository.swift:145-151)
+- Migrated orphan calendar fetching from `modelContext.fetch(FetchDescriptor<CalendarSystem>())` to `calendarRepo.fetchOrphanedCalendars()`
+- Migrated existing card fetching from `try? modelContext.fetch(existingCardsFetch)` to `cardRepo.fetchCalendarCards()`
+- Migrated Card creation from direct `Card()` instantiation + `modelContext.insert()` to `cardRepo.createCard()`
+- Removed redundant `modelContext.save()` call (createCard() already saves)
+- Updated DataIntegrityManager.swift:253 to pass `services` instead of `context`
+- **Zero direct modelContext operations remain in CalendarSystemMigrationHelper**
+
+**Files Modified:**
+- `Data/CalendarSystemRepository.swift:145-151` - Added fetchOrphanedCalendars() method
+- `Model/CalendarSystemMigrationHelper.swift:25` - Updated function signature
+- `Model/CalendarSystemMigrationHelper.swift:29-36` - Migrated to CalendarSystemRepository.fetchOrphanedCalendars()
+- `Model/CalendarSystemMigrationHelper.swift:41-42` - Migrated to CardRepository.fetchCalendarCards()
+- `Model/CalendarSystemMigrationHelper.swift:50-61` - Migrated to CardRepository.createCard()
+- `Services/DataIntegrityManager.swift:253` - Updated function call
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-05-14*

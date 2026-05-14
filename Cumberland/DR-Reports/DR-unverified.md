@@ -4,7 +4,16 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **13 open DRs**
+**Status:** Currently **29 open DRs** (26 identified, 3 resolved awaiting verification)
+
+## Recently Verified (2026-05-14)
+
+The following DRs have been verified and archived:
+- ✅ **DR-0155** → DR-verified-0151-0160.md - CardView.swift Creates Cards Directly
+- ✅ **DR-0156** → DR-verified-0151-0160.md - CitationViewer.swift Creates Cards Directly
+- ✅ **DR-0168** → DR-verified-0161-0170.md - CalendarSystemMigrationHelper.swift Creates Cards Directly
+- ✅ **DR-0177** → DR-verified-0171-0180.md - CardEditorViewModel.swift Creates Cards Directly
+- ✅ **DR-0179** → DR-verified-0171-0180.md - MurderBoardView.swift Creates Cards Directly
 
 ## Recently Verified (2026-05-13)
 
@@ -187,60 +196,6 @@ Zero direct modelContext.save/insert/delete/fetch operations remain in the file.
 
 ---
 
-## 🟡 DR-0155: ER-0022 Phase 2 Incomplete - CardView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** CardView.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Core card display view bypasses CardRepository.
-
-**Resolution:**
-- No direct Card() instantiation found in current code
-- This DR appears to have been fixed in previous work
-- View now properly uses repository pattern
-
-**Status:** 🟡 Resolved - Not Verified
-
----
-
-## 🟡 DR-0156: ER-0022 Phase 2 Incomplete - CitationViewer.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Citation/Views/CitationViewer.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Citation system bypasses CardRepository.
-
-**Resolution:**
-- No direct Card() instantiation found in current code
-- This DR appears to have been fixed in previous work
-- View now properly uses repository pattern
-
-**Status:** 🟡 Resolved - Not Verified
-
----
-
-## 🟡 DR-0168: ER-0022 Phase 2 Incomplete - CalendarSystemMigrationHelper.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** Model/CalendarSystemMigrationHelper.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Migration helper bypasses CardRepository.
-
-**Resolution:**
-- No direct Card() instantiation found in current code
-- This DR appears to have been fixed in previous work
-- Migration helper now properly uses repository pattern
-
-**Status:** 🟡 Resolved - Not Verified
-
----
-
 ## 🔴 DR-0169: ER-0022 Phase 2 Incomplete - ChapterWidget.swift Creates Cards Directly
 
 **Reported:** 2026-04-27
@@ -329,43 +284,6 @@ Zero direct modelContext.save/insert/delete/fetch operations remain in the file.
 **Issue:** Creates Card() instances directly. Structure selection bypasses CardRepository.
 
 **Status:** 🔴 Identified - Not Resolved
-
----
-
-## 🟡 DR-0177: ER-0022 Phase 2 Incomplete - CardEditorViewModel.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** ViewModels/CardEditorViewModel.swift
-**Severity:** Critical
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. Core view model bypasses CardRepository.
-
-**Resolution:**
-- No direct Card() instantiation found in current code
-- This DR appears to have been fixed in previous work
-- ViewModel now properly uses repository pattern
-
-**Status:** 🟡 Resolved - Not Verified
-
----
-
-
-## 🟡 DR-0179: ER-0022 Phase 2 Incomplete - MurderBoardView.swift Creates Cards Directly
-
-**Reported:** 2026-04-27
-**Component:** MurderBoard/MurderBoardView.swift
-**Severity:** High
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Creates Card() instances directly. MurderBoard feature bypasses CardRepository.
-
-**Resolution:**
-- No direct Card() instantiation found in current code
-- This DR appears to have been fixed in previous work
-- MurderBoardView now properly uses CardRepository (comment at line 1112 confirms CardRepository.createCard() usage)
-
-**Status:** 🟡 Resolved - Not Verified
 
 ---
 
