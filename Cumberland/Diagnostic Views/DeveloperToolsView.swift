@@ -456,7 +456,8 @@ struct DeveloperToolsView: View {
             GroupBox("Data Storage") {
                 VStack(alignment: .leading, spacing: 12) {
                     statRow("Total Cards", value: "\(cards.count)")
-                    statRow("Configuration", value: isCloudKitEnabled ? "CloudKit" : "Local Only")
+                    let storageMode = ModelContainerFactory.detectCurrentMode(from: modelContext.container)
+                    statRow("Configuration", value: storageMode.displayName)
                     
                     Divider()
                     
@@ -495,10 +496,12 @@ struct DeveloperToolsView: View {
             
             GroupBox("Sync Status") {
                 VStack(alignment: .leading, spacing: 12) {
+                    let storageMode = ModelContainerFactory.detectCurrentMode(from: modelContext.container)
+                    let isCloudKit = if case .cloudKit = storageMode { true } else { false }
                     healthRow(
                         "CloudKit",
-                        status: isCloudKitEnabled ? .healthy : .warning,
-                        detail: isCloudKitEnabled ? "Enabled" : "Disabled (Debug Build)"
+                        status: isCloudKit ? .healthy : .warning,
+                        detail: storageMode.displayName
                     )
                     
                     statRow("Bundle ID", value: bundleID)
@@ -526,64 +529,23 @@ struct DeveloperToolsView: View {
         }
     }
     
-    private var isCloudKitEnabled: Bool {
-        #if DEBUG
-        return false // CloudKit disabled in debug builds
-        #else
-        return true
-        #endif
-    }
-    
     private var bundleID: String {
         Bundle.main.bundleIdentifier ?? "Unknown"
     }
     
     private func scanStorageLocations() {
-        storeLocations = []
-        
-        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            storageInfo = "❌ Could not find Application Support directory"
-            return
-        }
-        
-        let fm = FileManager.default
-        
-        // Look for .store files
-        if let enumerator = fm.enumerator(at: appSupport, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
-            for case let fileURL as URL in enumerator {
-                let filename = fileURL.lastPathComponent
-                
-                if filename.hasSuffix(".store") || 
-                   filename.hasSuffix(".store-wal") || 
-                   filename.hasSuffix(".store-shm") {
-                    
-                    // Get file size
-                    if let attrs = try? fm.attributesOfItem(atPath: fileURL.path),
-                       let size = attrs[.size] as? Int64 {
-                        let formatter = ByteCountFormatter()
-                        formatter.countStyle = .file
-                        let sizeStr = formatter.string(fromByteCount: size)
-                        storeLocations.append("\(filename) (\(sizeStr))")
-                    } else {
-                        storeLocations.append(filename)
-                    }
-                }
-            }
-        }
-        
+        let fileInfos = StorageManager.scanStorageLocations()
+        storeLocations = fileInfos.map { "\($0.filename) (\($0.formattedSize))" }
+
         if storeLocations.isEmpty {
             storageInfo = "⚠️ No .store files found in Application Support"
         } else {
             storageInfo = "✓ Found \(storeLocations.count) store file(s)"
         }
     }
-    
+
     private func openInFinder() {
-        #if os(macOS)
-        if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: appSupport.path)
-        }
-        #endif
+        StorageManager.openStorageLocationInFinder()
     }
     
     // MARK: - Data Integrity
@@ -943,116 +905,11 @@ struct DeveloperToolsView: View {
                 actionResult = "✓ Reset transforms for \(boards.count) boards"
 
             case .consolidateDuplicateSources:
-                let result = await consolidateDuplicateSources()
-                actionResult = result
+                let citationMgr = CitationManager(modelContext: modelContext)
+                let result = try await citationMgr.consolidateDuplicateSources()
+                await reloadData()
+                actionResult = result.message
             }
-        }
-    }
-
-    /// Consolidates duplicate Sources by merging those with identical titles.
-    /// All citations from duplicates are moved to the primary Source, then duplicates are deleted.
-    @MainActor
-    private func consolidateDuplicateSources() async -> String {
-        // Group sources by normalized title (case-insensitive, trimmed)
-        var titleGroups: [String: [Source]] = [:]
-        for source in sources {
-            let normalizedTitle = source.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            titleGroups[normalizedTitle, default: []].append(source)
-        }
-
-        var mergedCount = 0
-        var deletedCount = 0
-
-        for (_, group) in titleGroups where group.count > 1 {
-            // Sort by: has sourceCard first, then by citation count (descending), then by id for stability
-            let sorted = group.sorted { a, b in
-                // Prefer one with a sourceCard link
-                if (a.sourceCard != nil) != (b.sourceCard != nil) {
-                    return a.sourceCard != nil
-                }
-                // Then prefer one with more citations
-                let aCount = a.citations?.count ?? 0
-                let bCount = b.citations?.count ?? 0
-                if aCount != bCount {
-                    return aCount > bCount
-                }
-                // Then prefer one with more metadata
-                let aMetadata = [a.authors, a.publisher ?? "", a.doi ?? "", a.url ?? ""].filter { !$0.isEmpty }.count
-                let bMetadata = [b.authors, b.publisher ?? "", b.doi ?? "", b.url ?? ""].filter { !$0.isEmpty }.count
-                if aMetadata != bMetadata {
-                    return aMetadata > bMetadata
-                }
-                return a.id.uuidString < b.id.uuidString
-            }
-
-            let primary = sorted[0]
-            let duplicates = Array(sorted.dropFirst())
-
-            for duplicate in duplicates {
-                // Move all citations from duplicate to primary
-                if let citations = duplicate.citations {
-                    for citation in citations {
-                        citation.source = primary
-                        mergedCount += 1
-                    }
-                }
-
-                // Merge metadata from duplicate to primary if primary is missing it
-                if primary.authors.isEmpty && !duplicate.authors.isEmpty {
-                    primary.authors = duplicate.authors
-                }
-                if primary.publisher == nil && duplicate.publisher != nil {
-                    primary.publisher = duplicate.publisher
-                }
-                if primary.year == nil && duplicate.year != nil {
-                    primary.year = duplicate.year
-                }
-                if primary.doi == nil && duplicate.doi != nil {
-                    primary.doi = duplicate.doi
-                }
-                if primary.url == nil && duplicate.url != nil {
-                    primary.url = duplicate.url
-                }
-                if primary.containerTitle == nil && duplicate.containerTitle != nil {
-                    primary.containerTitle = duplicate.containerTitle
-                }
-                if primary.volume == nil && duplicate.volume != nil {
-                    primary.volume = duplicate.volume
-                }
-                if primary.issue == nil && duplicate.issue != nil {
-                    primary.issue = duplicate.issue
-                }
-                if primary.pages == nil && duplicate.pages != nil {
-                    primary.pages = duplicate.pages
-                }
-                if primary.license == nil && duplicate.license != nil {
-                    primary.license = duplicate.license
-                }
-                if primary.accessedDate == nil && duplicate.accessedDate != nil {
-                    primary.accessedDate = duplicate.accessedDate
-                }
-                if primary.notes == nil && duplicate.notes != nil {
-                    primary.notes = duplicate.notes
-                } else if let primaryNotes = primary.notes, let dupNotes = duplicate.notes, !dupNotes.isEmpty {
-                    // Append notes if both have them
-                    primary.notes = primaryNotes + "\n\n[Merged from duplicate]: " + dupNotes
-                }
-
-                // Delete the duplicate source
-                // DR-0197: Direct deletion acceptable here - diagnostic tool consolidating duplicates
-                // No SourceRepository exists yet; this is a one-time repair operation
-                modelContext.delete(duplicate)
-                deletedCount += 1
-            }
-        }
-
-        try? modelContext.save()
-        await reloadData()
-
-        if deletedCount == 0 {
-            return "✓ No duplicate sources found"
-        } else {
-            return "✓ Consolidated \(deletedCount) duplicate source(s), moved \(mergedCount) citation(s)"
         }
     }
 

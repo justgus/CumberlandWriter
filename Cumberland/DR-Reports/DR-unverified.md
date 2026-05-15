@@ -4,40 +4,18 @@
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
-**Status:** Currently **29 open DRs** (26 identified, 3 resolved awaiting verification)
+**Status:** Currently **29 open DRs** (26 identified - not resolved, 3 resolved - awaiting verification)
 
 ## Recently Verified (2026-05-14)
 
 The following DRs have been verified and archived:
+- ✅ **DR-0152** → DR-verified-0151-0160.md - CardEditorAnalysisButton.swift Bypasses CardRepository
+- ✅ **DR-0154** → DR-verified-0151-0160.md - CardSheetView.swift Bypasses CardRepository
 - ✅ **DR-0155** → DR-verified-0151-0160.md - CardView.swift Creates Cards Directly
 - ✅ **DR-0156** → DR-verified-0151-0160.md - CitationViewer.swift Creates Cards Directly
 - ✅ **DR-0168** → DR-verified-0161-0170.md - CalendarSystemMigrationHelper.swift Creates Cards Directly
 - ✅ **DR-0177** → DR-verified-0171-0180.md - CardEditorViewModel.swift Creates Cards Directly
 - ✅ **DR-0179** → DR-verified-0171-0180.md - MurderBoardView.swift Creates Cards Directly
-
-## Recently Verified (2026-05-13)
-
-The following DRs have been verified and archived:
-- ✅ **DR-0147** → DR-verified-0141-0150.md (Batch 15) - MurderBoardApp repository consolidation
-- ✅ **DR-0149** → DR-verified-0211-0220.md (Batch 21) - AIImageInfoView.swift Card creation
-- ✅ **DR-0150** → DR-verified-0211-0220.md (Batch 21) - ImageHistoryView.swift Card creation
-- ✅ **DR-0151** → DR-verified-0211-0220.md (Batch 21) - SuggestionReviewView.swift Card creation
-- ✅ **DR-0153** → DR-verified-0211-0220.md (Batch 21) - CardRelationshipHeader.swift Card creation
-- ✅ **DR-0180** → DR-verified-0211-0220.md (Batch 21) - ReassignRelationTypeSheet.swift pattern violations
-- ✅ **DR-0181** → DR-verified-0211-0220.md (Batch 21) - RelationTypesManagerView.swift Card creation
-- ✅ **DR-0182** → DR-verified-0211-0220.md (Batch 21) - SceneProjectRelationDiagnosticsView.swift Card creation
-- ✅ **DR-0192** → DR-verified-0211-0220.md (Batch 21) - CardRelationshipOperations.swift EdgeRepository migration
-- ✅ **DR-0194** → DR-verified-0211-0220.md (Batch 21) - RelationTypesManagerView.swift Repository migration
-
-## Previously Verified (2026-05-12)
-
-The following DRs have been verified and archived:
-- ✅ **DR-0140** → DR-verified-0131-0140.md (Batch 14) - RelationshipManager.swift EdgeRepository migration
-- ✅ **DR-0176** → DR-verified-0171-0180.md (Batch 18) - CardOperationManager.swift Card creation migration
-- ✅ **DR-0196** → DR-verified-0191-0200.md (Batch 19) - CitationManager.swift documentation enhancement
-- ✅ **DR-0202** → DR-verified-0201-0210.md (Batch 20) - RelationTypeManager.swift edge cleanup
-- ✅ **DR-0204** → DR-verified-0201-0210.md (Batch 20) - CardOperationManager.swift deletion migration
-- ✅ **DR-0205** → DR-verified-0201-0210.md (Batch 20) - RelationshipManager.swift deletion migration
 
 ---
 
@@ -134,65 +112,6 @@ ReassignRelationTypeSheet.swift:128 calls `modelContext.delete(source)` directly
 **Issue:** EdgeRepository's own helper methods (linkSceneToChapter, linkSceneToProject, linkChapterToProject) created edges directly until today. Should have used createRelationship() from the start.
 
 **Status:** 🔴 Identified - Not Resolved
-
----
-
-## ✅ DR-0152: ER-0022 Phase 2 Incomplete - CardEditorAnalysisButton.swift Bypasses CardRepository
-
-**Reported:** 2026-04-27
-**Resolved:** 2026-05-13
-**Verified:** 2026-05-13
-**Component:** CardEditor/CardEditorAnalysisButton.swift
-**Severity:** Medium
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Line 106 calls `modelContext.fetch(FetchDescriptor<Card>())` directly instead of using CardRepository.
-
-**Resolution:**
-- Added `@Environment(\.services)` to view (line 20)
-- Added guard for services availability in analyzeContent() method
-- Migrated line 106 from `try modelContext.fetch(FetchDescriptor<Card>())` to `services.cardRepository.fetchAll()`
-- **Note:** Temporary Card() instantiation at lines 97-102 is acceptable - it creates an in-memory object for analysis that's never inserted into the database
-
-**Files Modified:**
-- `CardEditor/CardEditorAnalysisButton.swift:20` - Added @Environment(\.services)
-- `CardEditor/CardEditorAnalysisButton.swift:86-88` - Added services guard
-- `CardEditor/CardEditorAnalysisButton.swift:108` - Migrated to CardRepository.fetchAll()
-
-**Status:** ✅ Resolved - Verified
-
----
-
-## ✅ DR-0154: ER-0022 Phase 2 Incomplete - CardSheetView.swift Bypasses CardRepository
-
-**Reported:** 2026-04-27
-**Resolved:** 2026-05-13
-**Verified:** 2026-05-13
-**Component:** CardSheetView.swift
-**Severity:** Critical
-**Related ER:** ER-0022 Phase 2
-
-**Issue:** Multiple modelContext.save() calls (lines 462, 474, 488, 491) instead of using CardRepository.save(). Preview code created Card() directly.
-
-**Resolution:**
-- Added `@Environment(\.services)` to view (line 41)
-- Migrated commitName() to use `services?.cardRepository.save()` instead of `modelContext.save()` (line 462)
-- Migrated commitSubtitle() to use `services?.cardRepository.save()` instead of `modelContext.save()` (line 474)
-- Migrated saveDetailsIfDirty() to use `services?.cardRepository.save()` in both undo block and main save (lines 488, 491)
-- Migrated Preview to use ModelContainerFactory, ServiceContainer, and CardRepository.createCard()
-- Removed direct Card() instantiation and ctx.insert() from preview
-
-**Files Modified:**
-- `CardSheetView.swift:41` - Added @Environment(\.services)
-- `CardSheetView.swift:462` - Migrated commitName() save
-- `CardSheetView.swift:474` - Migrated commitSubtitle() save
-- `CardSheetView.swift:488,491` - Migrated saveDetailsIfDirty() saves
-- `CardSheetView.swift:796-827` - Migrated Preview to use repository pattern
-
-**Verification:**
-Zero direct modelContext.save/insert/delete/fetch operations remain in the file.
-
-**Status:** ✅ Resolved - Verified
 
 ---
 

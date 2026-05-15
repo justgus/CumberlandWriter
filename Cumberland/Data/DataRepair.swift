@@ -1,16 +1,22 @@
 //
-//  RepairUtilities.swift
+//  DataRepair.swift
 //  Cumberland
 //
-//  Data-repair utilities run from DeveloperToolsView. Includes
-//  DataRepair.repairForeignBoardNodes which removes orphaned BoardNode
-//  records that reference missing boards or cards from the SwiftData store.
+//  Data-repair utilities for diagnost and maintenance operations.
+//  Includes methods for repairing orphaned BoardNode records, purging empty boards,
+//  and fixing duplicate nodes.
+//
+//  Moved from RepairUtilities.swift as part of code organization cleanup.
 //
 
-import SwiftUI
+import Foundation
 import SwiftData
 
+/// Diagnostic and repair utilities for data integrity
 enum DataRepair {
+
+    /// Repair foreign board nodes that reference missing boards or cards
+    /// - Parameter ctx: ModelContext to perform repairs in
     static func repairForeignBoardNodes(in ctx: ModelContext) {
         var fetch = FetchDescriptor<BoardNode>()
         fetch.fetchLimit = 0
@@ -33,7 +39,8 @@ enum DataRepair {
         try? ctx.save()
     }
 
-    // Delete all Boards that have zero nodes.
+    /// Delete all Boards that have zero nodes
+    /// - Parameter ctx: ModelContext to perform deletion in
     static func purgeEmptyBoards(in ctx: ModelContext) {
         var fetch = FetchDescriptor<Board>()
         fetch.fetchLimit = 0
@@ -50,7 +57,8 @@ enum DataRepair {
         }
     }
 
-    // Remove BoardNodes whose board or card is missing.
+    /// Remove BoardNodes whose board or card is missing
+    /// - Parameter ctx: ModelContext to perform deletion in
     static func removeOrphanBoardNodes(in ctx: ModelContext) {
         var fetch = FetchDescriptor<BoardNode>()
         fetch.fetchLimit = 0
@@ -73,7 +81,8 @@ enum DataRepair {
         }
     }
 
-    // Clear primaryCard on Boards when the referenced card no longer exists.
+    /// Clear primaryCard on Boards when the referenced card no longer exists
+    /// - Parameter ctx: ModelContext to perform updates in
     static func clearInvalidBoardPrimaries(in ctx: ModelContext) {
         var fetch = FetchDescriptor<Board>()
         fetch.fetchLimit = 0
@@ -96,7 +105,8 @@ enum DataRepair {
         }
     }
 
-    // Remove duplicate BoardNodes for the same (Board, Card) pair, keeping one.
+    /// Remove duplicate BoardNodes for the same (Board, Card) pair, keeping one
+    /// - Parameter ctx: ModelContext to perform deduplication in
     static func fixDuplicateBoardNodes(in ctx: ModelContext) {
         var fetch = FetchDescriptor<BoardNode>()
         fetch.fetchLimit = 0

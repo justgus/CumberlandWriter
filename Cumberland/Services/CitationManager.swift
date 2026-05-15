@@ -180,4 +180,135 @@ final class CitationManager {
         fetchDescriptor.fetchLimit = 1
         return try? modelContext.fetch(fetchDescriptor).first
     }
+
+    // MARK: - Source Maintenance
+
+    /// Result of a source consolidation operation
+    struct ConsolidationResult {
+        let mergedCount: Int
+        let deletedCount: Int
+
+        var message: String {
+            if deletedCount == 0 {
+                return "✓ No duplicate sources found"
+            } else {
+                return "✓ Consolidated \(deletedCount) duplicate source(s), moved \(mergedCount) citation(s)"
+            }
+        }
+    }
+
+    /// Consolidate duplicate sources by title
+    ///
+    /// Finds sources with matching titles (case-insensitive, trimmed) and consolidates them by:
+    /// 1. Selecting the "best" source (has sourceCard, most citations, most metadata)
+    /// 2. Moving all citations from duplicates to the primary source
+    /// 3. Merging metadata from duplicates into primary if missing
+    /// 4. Deleting the duplicate sources
+    ///
+    /// - Returns: Result containing counts of merged citations and deleted sources
+    func consolidateDuplicateSources() async throws -> ConsolidationResult {
+        // Fetch all sources
+        let descriptor = FetchDescriptor<Source>()
+        let sources = try modelContext.fetch(descriptor)
+
+        // Group sources by normalized title (case-insensitive, trimmed)
+        var titleGroups: [String: [Source]] = [:]
+        for source in sources {
+            let normalizedTitle = source.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            titleGroups[normalizedTitle, default: []].append(source)
+        }
+
+        var mergedCount = 0
+        var deletedCount = 0
+
+        for (_, group) in titleGroups where group.count > 1 {
+            // Sort by: has sourceCard first, then by citation count (descending), then by metadata completeness
+            let sorted = group.sorted { a, b in
+                // Prefer one with a sourceCard link
+                if (a.sourceCard != nil) != (b.sourceCard != nil) {
+                    return a.sourceCard != nil
+                }
+                // Then prefer one with more citations
+                let aCount = a.citations?.count ?? 0
+                let bCount = b.citations?.count ?? 0
+                if aCount != bCount {
+                    return aCount > bCount
+                }
+                // Then prefer one with more metadata
+                let aMetadata = [a.authors, a.publisher ?? "", a.doi ?? "", a.url ?? ""].filter { !$0.isEmpty }.count
+                let bMetadata = [b.authors, b.publisher ?? "", b.doi ?? "", b.url ?? ""].filter { !$0.isEmpty }.count
+                if aMetadata != bMetadata {
+                    return aMetadata > bMetadata
+                }
+                return a.id.uuidString < b.id.uuidString
+            }
+
+            let primary = sorted[0]
+            let duplicates = Array(sorted.dropFirst())
+
+            for duplicate in duplicates {
+                // Move all citations from duplicate to primary
+                if let citations = duplicate.citations {
+                    for citation in citations {
+                        citation.source = primary
+                        mergedCount += 1
+                    }
+                }
+
+                // Merge metadata from duplicate to primary if primary is missing it
+                mergeMetadata(from: duplicate, into: primary)
+
+                // Delete the duplicate source
+                modelContext.delete(duplicate)
+                deletedCount += 1
+            }
+        }
+
+        try modelContext.save()
+
+        return ConsolidationResult(mergedCount: mergedCount, deletedCount: deletedCount)
+    }
+
+    /// Merge metadata from one source into another (only fills missing fields)
+    private func mergeMetadata(from source: Source, into target: Source) {
+        if target.authors.isEmpty && !source.authors.isEmpty {
+            target.authors = source.authors
+        }
+        if target.publisher == nil && source.publisher != nil {
+            target.publisher = source.publisher
+        }
+        if target.year == nil && source.year != nil {
+            target.year = source.year
+        }
+        if target.doi == nil && source.doi != nil {
+            target.doi = source.doi
+        }
+        if target.url == nil && source.url != nil {
+            target.url = source.url
+        }
+        if target.containerTitle == nil && source.containerTitle != nil {
+            target.containerTitle = source.containerTitle
+        }
+        if target.volume == nil && source.volume != nil {
+            target.volume = source.volume
+        }
+        if target.issue == nil && source.issue != nil {
+            target.issue = source.issue
+        }
+        if target.pages == nil && source.pages != nil {
+            target.pages = source.pages
+        }
+        if target.license == nil && source.license != nil {
+            target.license = source.license
+        }
+        if target.accessedDate == nil && source.accessedDate != nil {
+            target.accessedDate = source.accessedDate
+        }
+        if target.notes == nil && source.notes != nil {
+            target.notes = source.notes
+        } else if let targetNotes = target.notes, let sourceNotes = source.notes, !sourceNotes.isEmpty {
+            // Append notes if both have them
+            target.notes = targetNotes + "\n\n[Merged from duplicate]: " + sourceNotes
+        }
+    }
 }

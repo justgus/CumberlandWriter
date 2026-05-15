@@ -104,7 +104,7 @@ struct ModelContainerFactory {
     /// Detect which storage mode a container is using
     /// - Parameter container: The ModelContainer to inspect
     /// - Returns: The detected StorageMode
-    static func detectCurrentMode(from container: ModelContainer) -> StorageMode {
+    public static func detectCurrentMode(from container: ModelContainer) -> StorageMode {
         // Check container configurations to determine which mode is active
         guard let config = container.configurations.first else {
             // Should never happen, but default to local as safest option
