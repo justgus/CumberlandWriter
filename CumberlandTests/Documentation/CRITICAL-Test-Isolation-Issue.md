@@ -129,7 +129,7 @@ Test B:                                                    [Lock] → Create con
 
 ### ER-0058 (Already Identified This Problem!)
 
-**File**: `/Users/justgus/Xcode-Projects/Cumberland/Cumberland/DR-Reports/ER-verified-0058.md:132-138`
+**File**: `/Users/justgus/Xcode-Projects/Cumberland/Cumberland/Documentation/ER-Reports/ER-verified/ER-verified-0058.md:132-138`
 
 > **Before ER-0058:**
 > - All tests used `CumberlandApp.sharedContainer` (production container)

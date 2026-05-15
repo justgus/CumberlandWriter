@@ -1,6 +1,6 @@
 # Enhancement Requests (ER) — Unverified
 
-- Guidelines: [Cumberland/DR-Reports/ER-Guidelines.md]
+- Guidelines: [Cumberland/Documentation/ER-Reports/ER-Guidelines.md]
 
 **Purpose:** This file contains enhancement requests that have been completed and are awaiting verification. These are features we have most recently implemented and require testing/verification.
 

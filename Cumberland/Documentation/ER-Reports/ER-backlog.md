@@ -1,6 +1,6 @@
 # Enhancement Requests (ER) — Backlog
 
-- Guidelines: [Cumberland/DR-Reports/ER-Guidelines.md]
+- Guidelines: [Cumberland/Documentation/ER-Reports/ER-Guidelines.md]
 
 **Purpose:** This file contains lower-priority enhancement requests that are documented for future consideration but not currently scheduled for active development. Think of this as the Agile product backlog—features we want to build someday, but not right now.
 

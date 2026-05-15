@@ -249,4 +249,77 @@ RelationshipManager.swift has 7 locations calling `modelContext.delete()` direct
 
 ---
 
-*Last Updated: 2026-05-12*
+## ✅ DR-0210: RelationshipManager Loses Note Parameter When Creating Bidirectional Relationships
+
+**Reported:** 2026-05-15
+**Resolved:** 2026-05-15
+**Verified:** 2026-05-15
+**Component:** Services/RelationshipManager.swift, Data/EdgeRepository.swift
+**Severity:** Medium - Data loss in relationship notes
+**Test Failure:** ServiceIntegrationTests.swift:218
+
+**Issue:**
+When creating a bidirectional relationship with a note using `RelationshipManager.createRelationship()`, the note parameter was being lost. The test `ServiceIntegrationTests::testCreateRelationship` failed at line 218 when verifying that the edge note was saved correctly.
+
+**Root Cause:**
+RelationshipManager.createRelationship() has two code paths:
+1. When `createReverse: true` (default): Calls `edgeRepository.createRelationship()` which did NOT accept a `note` parameter
+2. When `createReverse: false`: Calls `edgeRepository.insertSingleEdge()` which DID accept a `note` parameter
+
+Since the default behavior is to create bidirectional relationships (`createReverse: true`), the note was always being lost in normal usage.
+
+**Expected Behavior:**
+Relationship notes should be saved on the forward edge regardless of whether the relationship is bidirectional or unidirectional.
+
+**Actual Behavior:**
+Notes were only saved when explicitly creating unidirectional relationships with `createReverse: false`.
+
+**Resolution:**
+
+**Implementation:**
+
+1. **EdgeRepository.swift:213** - Added `note` parameter to `createRelationship()` method
+   ```swift
+   func createRelationship(
+       from source: Card,
+       to target: Card,
+       relationType: RelationType,
+       note: String? = nil,  // ← Added parameter
+       sortIndex: Double? = nil
+   ) throws
+   ```
+
+2. **EdgeRepository.swift:223-226** - Set note on forward edge when provided
+   ```swift
+   let forwardEdge = CardEdge(from: source, to: target, type: relationType)
+   if let note = note {
+       forwardEdge.note = note  // ← Added
+   }
+   ```
+
+3. **RelationshipManager.swift:64** - Pass note parameter through to EdgeRepository
+   ```swift
+   try edgeRepository.createRelationship(
+       from: sourceCard,
+       to: targetCard,
+       relationType: type,
+       note: note  // ← Added
+   )
+   ```
+
+**Result:**
+✅ Test now passes - relationship notes are properly saved for both bidirectional and unidirectional edges
+✅ Note parameter is consistently handled across all relationship creation paths
+
+**Files Modified:**
+- `Cumberland/Data/EdgeRepository.swift` - Added note parameter and logic
+- `Cumberland/Services/RelationshipManager.swift` - Pass note through to EdgeRepository
+
+**Verification:**
+Test `ServiceIntegrationTests::testCreateRelationship` passes with exit code 0. User confirmed fix works correctly.
+
+**Status:** ✅ Resolved - Verified
+
+---
+
+*Last Updated: 2026-05-15*

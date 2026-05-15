@@ -61,7 +61,7 @@ final class RelationshipManager {
         // DR-0140: Use EdgeRepository for edge creation instead of direct instantiation
         if createReverse {
             // Use EdgeRepository.createRelationship() for bidirectional edges
-            try edgeRepository.createRelationship(from: sourceCard, to: targetCard, relationType: type)
+            try edgeRepository.createRelationship(from: sourceCard, to: targetCard, relationType: type, note: note)
         } else {
             // Use EdgeRepository.insertSingleEdge() for single edge without reverse
             try edgeRepository.insertSingleEdge(from: sourceCard, to: targetCard, type: type, note: note)

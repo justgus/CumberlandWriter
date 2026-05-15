@@ -204,13 +204,16 @@ Multiple tabs for comprehensive card editing:
 
 ## Issue Tracking Systems
 
-This project uses two complementary tracking systems in `Cumberland/DR-Reports/`:
+This project uses two complementary tracking systems:
 
 ### Discrepancy Reports (DR)
 **For bugs, defects, and unintended behavior**
 
+Location: `Documentation/DR-Reports/`
+
 - Active DRs in `DR-unverified.md`
-- Verified DRs archived in `DR-verified-XXXX-YYYY.md` batches
+- Verified DRs archived in `DR-verified/DR-verified-XXXX-YYYY.md` batches
+- Closed DRs (without verification) in `DR-closed/DR-closed-XXX-XXX.md`
 - Guidelines in `DR-GUIDELINES.md`
 - **Only Claude can mark as "Resolved - Not Verified"**
 - **Only user can mark as "Verified" after testing**
@@ -218,8 +221,13 @@ This project uses two complementary tracking systems in `Cumberland/DR-Reports/`
 ### Enhancement Requests (ER)
 **For new features, improvements, and planned changes**
 
-- Active ERs in `ER-unverified.md`
-- Verified ERs archived in `ER-verified-XXXX.md` batches
+Location: `Documentation/ER-Reports/`
+
+- Proposed ERs in `ER-proposed.md`
+- In-progress ERs in `ER-inprogress.md`
+- Unverified ERs in `ER-unverified.md`
+- Backlog ERs in `ER-backlog.md`
+- Verified ERs archived in `ER-verified/ER-verified-XXXX.md` batches
 - Guidelines in `ER-Guidelines.md`
 - Same verification workflow as DRs
 

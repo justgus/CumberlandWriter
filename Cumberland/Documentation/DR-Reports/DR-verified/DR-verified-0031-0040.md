@@ -498,11 +498,11 @@ This is a numbering conflict that should be resolved during index update.
    - Each checklist ensures DR-Documentation.md stays synchronized
 
 **Files Modified:**
-- Created: `Cumberland/DR-Reports/DR-verified-0011-0020.md`
-- Created: `Cumberland/DR-Reports/DR-verified-0021-0030.md`
-- Deleted: `Cumberland/DR-Reports/DR-verified-0011-0021.md`
-- Modified: `Cumberland/DR-Reports/DR-Documentation.md` (comprehensive updates)
-- Modified: `Cumberland/DR-Reports/DR-GUIDELINES.md` (added checklists)
+- Created: `Cumberland/Documentation/DR-Reports/DR-verified-0011-0020.md`
+- Created: `Cumberland/Documentation/DR-Reports/DR-verified-0021-0030.md`
+- Deleted: `Cumberland/Documentation/DR-Reports/DR-verified-0011-0021.md`
+- Modified: `Cumberland/Documentation/DR-Reports/DR-Documentation.md` (comprehensive updates)
+- Modified: `Cumberland/Documentation/DR-Reports/DR-GUIDELINES.md` (added checklists)
 
 **Verification:**
 - ✅ Verify batch files contain correct DR ranges

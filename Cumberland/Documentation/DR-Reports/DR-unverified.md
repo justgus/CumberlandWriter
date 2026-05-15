@@ -1,14 +1,18 @@
 # Discrepancy Reports (DR) - Unverified Issues
 
-- Guidelines: [Cumberland/DR-Reports/DR-Guidelines.md]
+- Guidelines: [Cumberland/Documentation/DR-Reports/DR-Guidelines.md]
 
 This document tracks recent discrepancy reports that are open or awaiting user verification.
 
 **Status:** Currently **29 open DRs** (26 identified - not resolved, 3 resolved - awaiting verification)
 
-## Recently Verified (2026-05-14)
+## Recently Verified (2026-05-15)
 
 The following DRs have been verified and archived:
+- ✅ **DR-0210** → DR-verified-0201-0210.md - RelationshipManager Loses Note Parameter When Creating Bidirectional Relationships
+
+## Previously Verified (2026-05-14)
+
 - ✅ **DR-0152** → DR-verified-0151-0160.md - CardEditorAnalysisButton.swift Bypasses CardRepository
 - ✅ **DR-0154** → DR-verified-0151-0160.md - CardSheetView.swift Bypasses CardRepository
 - ✅ **DR-0155** → DR-verified-0151-0160.md - CardView.swift Creates Cards Directly
@@ -568,4 +572,4 @@ Per DR-GUIDELINES.md:
 
 ---
 
-*Last Updated: 2026-04-27*
+*Last Updated: 2026-05-15*

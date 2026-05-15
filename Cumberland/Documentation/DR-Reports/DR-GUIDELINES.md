@@ -27,7 +27,7 @@ When a new DR report is issued:
    - **Verification:** Testing steps and results
 
 3. **Location**
-   - File: `/Cumberland/DR-Reports/DR-Documentation.md`
+   - File: `/Cumberland/Documentation/DR-Reports/DR-Documentation.md`
    - Append new DR entries at the end
    - Maintain separator line (`---`) between entries
 
@@ -128,24 +128,24 @@ When a new DR report is issued:
 
 ### Batch File Policy
 
-**Verified DRs are organized into batch files of 10 DRs each:**
+**Verified DRs are organized into batch files of 10 DRs each in the `DR-verified/` subfolder:**
 
-- **DR-verified-0001-0010.md** - DRs 1-10
-- **DR-verified-0011-0020.md** - DRs 11-20
-- **DR-verified-0021-0030.md** - DRs 21-30
-- **DR-verified-0031-0040.md** - DRs 31-40
+- **DR-verified/DR-verified-0001-0010.md** - DRs 1-10
+- **DR-verified/DR-verified-0011-0020.md** - DRs 11-20
+- **DR-verified/DR-verified-0021-0030.md** - DRs 21-30
+- **DR-verified/DR-verified-0031-0040.md** - DRs 31-40
 - *...and so on*
 
-**Rationale:** Keeps individual files manageable (~800-1000 lines each) for easier navigation, editing, and version control.
+**Rationale:** Keeps individual files manageable (~800-1000 lines each) for easier navigation, editing, and version control. Subfolder organization keeps the main DR-Reports directory clean.
 
 ### When to Create a New Batch File
 
 When DR-00X0 (the 10th DR in a batch) is verified:
-1. Create new batch file for next 10 DRs
+1. Create new batch file in `DR-verified/` subfolder for next 10 DRs
 2. Update DR-Documentation.md index to reference new batch
 3. Move "Unverified DRs" section to the new batch file
 
-**Example:** When DR-0030 is verified, create `DR-verified-0031-0040.md` for the next batch.
+**Example:** When DR-0030 is verified, create `DR-verified/DR-verified-0031-0040.md` for the next batch.
 
 ### Quick Reference Index
 
@@ -166,13 +166,19 @@ When DR-00X0 (the 10th DR in a batch) is verified:
 
 ## File Naming Convention
 
+**Main DR-Reports directory (`Documentation/DR-Reports/`):**
 - **DR-Documentation.md** - Quick reference index (all DRs, always up-to-date)
 - **DR-unverified.md** - Active issues awaiting resolution or verification
-- **DR-verified-XXXX-YYYY.md** - Verified issues in batches of 10
-- **DR-closed-XXXX-YYYY.md** - Closed issues (not verified, will not be verified)
-- **DR-archive-XXXX-YYYY.md** - Archived open/deferred issues
 - **DR-GUIDELINES.md** - This file (documentation standards)
-- **ER-Documentation.md** - Enhancement Requests index (see ER-Guidelines.md)
+- **DR-backlog-XXXX-YYYY.md** - Archived open/deferred issues
+
+**DR-verified subfolder (`Documentation/DR-Reports/DR-verified/`):**
+- **DR-verified-XXXX-YYYY.md** - Verified issues in batches of 10
+
+**DR-closed subfolder (`Documentation/DR-Reports/DR-closed/`):**
+- **DR-closed-XXX-XXX.md** - Closed issues (not verified, will not be verified)
+
+**Note:** Enhancement Requests (ER) are now in a separate folder structure at `Documentation/ER-Reports/` (see ER-Guidelines.md)
 
 ### File Purpose Details
 
@@ -180,14 +186,17 @@ When DR-00X0 (the 10th DR in a batch) is verified:
 - Contains only active DRs (Open, In Progress, or Resolved-Not-Verified)
 - Updated frequently as work progresses
 - Should never contain "Closed" or "Verified" DRs
+- Located in main DR-Reports directory
 
-**DR-verified-XXXX-YYYY.md:**
+**DR-verified/DR-verified-XXXX-YYYY.md:**
 - Contains DRs that have been resolved and verified
 - Organized in batches of 10
+- Located in `DR-verified/` subfolder
 - Once a DR is here, it's considered complete and successful
 
-**DR-closed-XXXX-YYYY.md:** (Added 2026-02-05)
+**DR-closed/DR-closed-XXX-XXX.md:** (Added 2026-02-05)
 - Contains DRs that were closed WITHOUT verification
+- Located in `DR-closed/` subfolder
 - Used for:
   - External limitations (e.g., AI provider safety filters)
   - Issues superseded by other work (e.g., "Will be addressed by ER-XXXX")
@@ -196,8 +205,9 @@ When DR-00X0 (the 10th DR in a batch) is verified:
 - These DRs will NEVER be verified but should be preserved for historical reference
 - Organized by batch ranges (matching verified batches)
 
-**DR-archive-XXXX-YYYY.md:**
+**DR-backlog-XXXX-YYYY.md:**
 - Contains older open or deferred DRs
+- Located in main DR-Reports directory
 - Issues that remain open but are not actively being worked on
 - Preserved for historical tracking
 
@@ -222,14 +232,14 @@ When DR-00X0 (the 10th DR in a batch) is verified:
 - [ ] "Last Updated" date updated
 
 ### When Verifying a DR:
-- [ ] DR moved from DR-unverified.md to appropriate batch file
+- [ ] DR moved from DR-unverified.md to appropriate batch file in `DR-verified/` subfolder
 - [ ] DR removed from Unverified table in DR-Documentation.md
 - [ ] Batch row status updated in Verified table (if batch completion changed)
 - [ ] Statistics updated
 - [ ] "Last Updated" date updated
 
 ### When Closing a DR Without Verification: (Added 2026-02-05)
-- [ ] DR moved from DR-unverified.md to appropriate DR-closed-XXXX-YYYY.md file
+- [ ] DR moved from DR-unverified.md to appropriate file in `DR-closed/` subfolder
 - [ ] DR removed from "Unverified DRs (Active Issues)" table (if it was there)
 - [ ] DR added to "Closed DRs (Not Verified)" section in DR-Documentation.md
 - [ ] "Reason for Closure" documented in the closed DR file

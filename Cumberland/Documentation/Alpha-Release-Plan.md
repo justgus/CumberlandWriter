@@ -375,10 +375,10 @@ Thank you for testing Cumberland Writer!
 
 - **ER-0037:** Theming System — Multi-Color Themes, Background Images & User-Defined Themes
 - **ER-0042 through ER-0051:** visionOS Spatial Features (deferred to v2.0)
-- **DR-Reports/DR-Documentation.md:** Bug tracking index
-- **DR-Reports/ER-Documentation.md:** Enhancement tracking index
-- **DR-Reports/ER-Guidelines.md:** ER documentation standards
-- **DR-Reports/DR-GUIDELINES.md:** DR documentation standards
+- **Documentation/DR-Reports/DR-Documentation.md:** Bug tracking index
+- **Documentation/ER-Reports/ER-Documentation.md:** Enhancement tracking index
+- **Documentation/ER-Reports/ER-Guidelines.md:** ER documentation standards
+- **Documentation/DR-Reports/DR-GUIDELINES.md:** DR documentation standards
 
 ---
 

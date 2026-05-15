@@ -1,6 +1,6 @@
-# Enhancement Requests (ER) — Unverified
+# Enhancement Requests (ER) — In Progress
 
-- Guidelines: [Cumberland/DR-Reports/ER-Guidelines.md]
+- Guidelines: [Cumberland/Documentation/ER-Reports/ER-Guidelines.md]
 
 **Purpose:** This file contains enhancement requests that are in progress and whose implementation is not yet complete. These are features we are actively implementing.
 

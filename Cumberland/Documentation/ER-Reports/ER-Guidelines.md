@@ -123,13 +123,16 @@ Proposed → In Progress → Implemented → Verified
 
 ## File Organization and Workflow Management
 
-### Active Work Files (New Structure - 2026-04-13)
+**Location:** All ER files are now located in `Documentation/ER-Reports/` (separate from DR-Reports)
 
-**ERs are organized into THREE active work files based on status:**
+### Active Work Files (New Structure - 2026-04-13, Updated 2026-05-15)
+
+**ERs are organized into active work files based on status in the main ER-Reports directory:**
 
 - **ER-proposed.md** - 🔵 Proposed enhancements awaiting approval/scheduling
 - **ER-inprogress.md** - 🟡 ERs actively being implemented (In Progress + Implemented - Not Verified)
-- **ER-complete-unverified.md** - 🟡 Implemented but awaiting user verification
+- **ER-unverified.md** - 🟡 Implemented but awaiting user verification
+- **ER-backlog.md** - Low-priority enhancements not actively scheduled
 
 **Rationale:** This structure mirrors Agile workflow boards (Backlog → In Progress → Done) and makes it easy to see what's being worked on vs. what's planned. It also reduces file size for easier processing by Claude Code.
 
@@ -143,23 +146,23 @@ For long-term or lower-priority ERs (e.g., visionOS expansion features):
 
 ### Verified Enhancements (Archive)
 
-**Verified ERs are organized into batch files with flexible sizing:**
+**Verified ERs are organized into batch files with flexible sizing in the `ER-verified/` subfolder:**
 
-- **ER-verified-0001.md** - First batch (ERs 1-2)
-- **ER-verified-0002.md** - Second batch (ERs 3, 5-6)
-- **ER-verified-0003.md** - Third batch (future ERs)
+- **ER-verified/ER-verified-0001.md** - First batch (ERs 1-2)
+- **ER-verified/ER-verified-0002.md** - Second batch (ERs 3, 5-6)
+- **ER-verified/ER-verified-0003.md** - Third batch (future ERs)
 - *...and so on*
 
-**Rationale:** Unlike DRs which use fixed batches of 10, ERs use flexible batching since enhancements are typically more detailed and occur less frequently. Batch files are created as needed when previous batches reach a reasonable size (~1000-1500 lines).
+**Rationale:** Unlike DRs which use fixed batches of 10, ERs use flexible batching since enhancements are typically more detailed and occur less frequently. Batch files are created as needed when previous batches reach a reasonable size (~1000-1500 lines). Subfolder organization keeps the main ER-Reports directory clean.
 
 ### When to Create a New Batch File
 
 When a batch file becomes large (~1000-1500 lines or ~5-10 ERs):
-1. Create new batch file with next sequential number
+1. Create new batch file in `ER-verified/` subfolder with next sequential number
 2. Update ER-Documentation.md index to reference new batch
 3. Continue adding verified ERs to the new batch
 
-**Example:** When ER-verified-0002.md has sufficient content, create `ER-verified-0003.md` for the next batch.
+**Example:** When ER-verified-0002.md has sufficient content, create `ER-verified/ER-verified-0003.md` for the next batch.
 
 ### Quick Reference Index
 
@@ -181,14 +184,21 @@ When a batch file becomes large (~1000-1500 lines or ~5-10 ERs):
 
 ## File Naming Convention
 
+**Main ER-Reports directory (`Documentation/ER-Reports/`):**
 - **ER-Documentation.md** - Quick reference index (all ERs, always up-to-date)
 - **ER-proposed.md** - 🔵 Proposed enhancements (awaiting scheduling)
-- **ER-inprogress.md** - 🟡 Active development (In Progress + Implemented - Not Verified)
-- **ER-complete-unverified.md** - 🟡 Implemented but not yet verified by user
+- **ER-inprogress.md** - 🟡 Active development (In Progress)
+- **ER-unverified.md** - 🟡 Implemented but not yet verified by user
 - **ER-backlog.md** - Low-priority enhancements (optional, for long-term planning)
-- **ER-verified-XXXX.md** - Verified enhancements in sequential batches
 - **ER-Guidelines.md** - This file (documentation standards)
-- **DR-Documentation.md** - Discrepancy Reports index (see DR-GUIDELINES.md)
+
+**ER-verified subfolder (`Documentation/ER-Reports/ER-verified/`):**
+- **ER-verified-XXXX.md** - Verified enhancements in sequential batches
+
+**PLAN-Archive subfolder (`Documentation/ER-Reports/PLAN-Archive/`):**
+- Contains detailed implementation plans and build plans for major ERs
+
+**Note:** Discrepancy Reports (DR) are in a separate folder structure at `Documentation/DR-Reports/` (see DR-GUIDELINES.md)
 
 ## Best Practices
 
@@ -237,17 +247,18 @@ When a batch file becomes large (~1000-1500 lines or ~5-10 ERs):
 - [ ] "Last Updated" date updated
 
 ### When Marking ER as Implemented - Not Verified:
-- [ ] Status changed to 🟡 Implemented - Not Verified in ER-inprogress.md (stays in same file)
-- [ ] Status emoji updated in In Progress table
+- [ ] ER moved from ER-inprogress.md to ER-unverified.md
+- [ ] Status changed to 🟡 Implemented - Not Verified
+- [ ] ER moved from In Progress table to Unverified table in ER-Documentation.md
 - [ ] Statistics updated
 - [ ] "Last Updated" date updated
 
 ### When User Verifies an ER:
-- [ ] ER moved from ER-inprogress.md to appropriate ER-verified-XXXX.md batch file
+- [ ] ER moved from ER-unverified.md to appropriate batch file in `ER-verified/` subfolder
 - [ ] Status changed to ✅ Implemented - Verified
-- [ ] ER removed from In Progress table in ER-Documentation.md
+- [ ] ER removed from Unverified table in ER-Documentation.md
 - [ ] Batch row added to Verified table (if new batch file)
-- [ ] In Progress count decremented, Verified count incremented
+- [ ] Unverified count decremented, Verified count incremented
 - [ ] Statistics updated
 - [ ] "Last Updated" date updated
 

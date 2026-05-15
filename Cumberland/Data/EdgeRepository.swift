@@ -208,19 +208,24 @@ final class EdgeRepository {
     ///   - source: The source card
     ///   - target: The target card
     ///   - relationType: The relationship type (e.g., "part-of/has-scene")
+    ///   - note: Optional note for the forward edge
     ///   - sortIndex: Optional sort index for the forward edge
     /// - Throws: SwiftData errors or EdgeRepositoryError if reverse RelationType not found or if relationship already exists
     func createRelationship(
         from source: Card,
         to target: Card,
         relationType: RelationType,
+        note: String? = nil,
         sortIndex: Double? = nil
     ) throws {
         // Detect if this edge already exists between these two Cards
-        
+
         if !exists(from: source, to: target, ofType: relationType) {
             // Create forward edge
             let forwardEdge = CardEdge(from: source, to: target, type: relationType)
+            if let note = note {
+                forwardEdge.note = note
+            }
             if let sortIndex = sortIndex {
                 forwardEdge.sortIndex = sortIndex
             }

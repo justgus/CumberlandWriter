@@ -196,8 +196,8 @@ Critical user-facing features and infrastructure components had zero test covera
 - `CumberlandTests/Helpers/` - New helper directory with test utilities
 
 ### Documentation
-- `Cumberland/DR-Reports/ER-verified-0052.md` - This file
-- `Cumberland/DR-Reports/DR-unverified.md` - Updated DR-0115 status
+- `Cumberland/Documentation/ER-Reports/ER-verified/ER-verified-0052.md` - This file
+- `Cumberland/Documentation/DR-Reports/DR-unverified.md` - Updated DR-0115 status
 
 ## Related Enhancement Requests
 

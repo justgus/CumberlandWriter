@@ -1,6 +1,6 @@
 # Enhancement Requests (ER) — Proposed
 
-- Guidelines: [Cumberland/DR-Reports/ER-Guidelines.md]
+- Guidelines: [Cumberland/Documentation/ER-Reports/ER-Guidelines.md]
 
 **Purpose:** This file contains enhancement requests that have been proposed and are awaiting scheduling or approval for active development. These are features we intend to implement in the near future.
 
